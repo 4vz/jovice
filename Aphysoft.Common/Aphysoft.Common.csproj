@@ -1,0 +1,123 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{E6FD9031-9AF5-4EBD-A0EB-73BE2C80C0C6}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Aphysoft.Common</RootNamespace>
+    <AssemblyName>Aphysoft.Common</AssemblyName>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <SccProjectName>SAK</SccProjectName>
+    <SccLocalPath>SAK</SccLocalPath>
+    <SccAuxPath>SAK</SccAuxPath>
+    <SccProvider>SAK</SccProvider>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <PlatformTarget>x64</PlatformTarget>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="mysql.data, Version=6.9.5.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\_External\MySql.Data.dll</HintPath>
+    </Reference>
+    <Reference Include="Oracle.DataAccess">
+      <HintPath>..\_External\Oracle.DataAccess.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.configuration" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.ServiceModel" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Class\Color.cs" />
+    <Compile Include="Core\BaseDisposable.cs" />
+    <Compile Include="Core\BaseFinalizable.cs" />
+    <Compile Include="Core\Html\crc32.cs" />
+    <Compile Include="Core\Html\EncodingFoundException.cs" />
+    <Compile Include="Core\Html\HtmlAttribute.cs" />
+    <Compile Include="Core\Html\HtmlAttributeCollection.cs" />
+    <Compile Include="Core\Html\HtmlCmdLine.cs" />
+    <Compile Include="Core\Html\HtmlCommentNode.cs" />
+    <Compile Include="Core\Html\HtmlConsoleListener.cs" />
+    <Compile Include="Core\Html\HtmlDocument.cs" />
+    <Compile Include="Core\Html\HtmlElementFlag.cs" />
+    <Compile Include="Core\Html\HtmlEntity.cs" />
+    <Compile Include="Core\Html\HtmlNameTable.cs" />
+    <Compile Include="Core\Html\HtmlNode.cs" />
+    <Compile Include="Core\Html\HtmlNodeCollection.cs" />
+    <Compile Include="Core\Html\HtmlNodeNavigator.cs" />
+    <Compile Include="Core\Html\HtmlNodeType.cs" />
+    <Compile Include="Core\Html\HtmlParseError.cs" />
+    <Compile Include="Core\Html\HtmlParseErrorCode.cs" />
+    <Compile Include="Core\Html\HtmlTextNode.cs" />
+    <Compile Include="Core\Html\IOLibrary.cs" />
+    <Compile Include="Core\Html\MixedCodeDocument.cs" />
+    <Compile Include="Core\Html\MixedCodeDocumentCodeFragment.cs" />
+    <Compile Include="Core\Html\MixedCodeDocumentFragment.cs" />
+    <Compile Include="Core\Html\MixedCodeDocumentFragmentList.cs" />
+    <Compile Include="Core\Html\MixedCodeDocumentFragmentType.cs" />
+    <Compile Include="Core\Html\MixedCodeDocumentTextFragment.cs" />
+    <Compile Include="Core\Html\NameValuePair.cs" />
+    <Compile Include="Core\Html\NameValuePairList.cs" />
+    <Compile Include="Core\Marshaling.cs" />
+    <Compile Include="Core\Culture.cs" />
+    <Compile Include="Database\Database.cs" />
+    <Compile Include="Helpers\Configuration.cs" />
+    <Compile Include="Helpers\Cryptography\Ascii85.cs" />
+    <Compile Include="Helpers\Cryptography\Base64.cs" />
+    <Compile Include="Helpers\Cryptography\Hasher.cs" />
+    <Compile Include="Extensions\DateTime.cs" />
+    <Compile Include="Helpers\Dictionary.cs" />
+    <Compile Include="Helpers\List.cs" />
+    <Compile Include="Extensions\Enum.cs" />
+    <Compile Include="Helpers\IPNetwork.cs" />
+    <Compile Include="Helpers\Localization.cs" />
+    <Compile Include="Helpers\IntHelper.cs" />
+    <Compile Include="Helpers\ObjectHelper.cs" />
+    <Compile Include="Helpers\RandomHelper.cs" />
+    <Compile Include="Helpers\StringHelper.cs" />
+    <Compile Include="Helpers\XmlHelper.cs" />
+    <Compile Include="Core\Threading\ThreadingHelper.cs" />
+    <Compile Include="Network\BaseService.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

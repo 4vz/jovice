@@ -1,0 +1,25 @@
+﻿
+/****** HACKS ******/
+#embed_npwlo                { display: none; }
+
+/****** INTERFACE ******/
+div._MA           { width: 100%; height: 100%; position: relative; min-width: 0px; min-height: 0px; }
+div._TO           { position: absolute; z-index: 100; width: 100% }
+div._BM           { position: absolute; z-index: 100; width: 100%; bottom: 0 }
+div._PS           { position: absolute; z-index: 1; overflow-y: hidden; overflow-x: hidden }
+div._PG           { position: absolute; width:100%; height:100%; overflow-y: hidden; overflow-x: hidden }
+div._CO           { position: absolute; top: 0px; left: 0px; right: 0px; bottom: 0px; }
+div._NJ           { }
+div._BO           { position: absolute; overflow: hidden; }
+div._OB           { position: absolute; overflow: hidden; top: 0px; left: 0px; }
+div._IB           { position: absolute; overflow: scroll; top: 0px; left: 0px; }
+div._VB           { position: absolute; top: 0px; right: 0px }
+div._HB           { position: absolute; left: 0px; bottom: 0px }
+
+div._WB           { /* wrapable */ }
+div._US           { -moz-user-select: none; -webkit-user-select: none; -ms-user-select: none; user-select: none; }
+input._IT         { border: 0px; background: none; margin: -5px; padding: 5px; width: 100%; }
+div._IC           { position: absolute; overflow: hidden; width: 100%; }
+input::-ms-clear  { display: none; }
+
+

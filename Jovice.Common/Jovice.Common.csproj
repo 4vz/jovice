@@ -1,0 +1,239 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{123E8A09-3F7A-4A85-8E3A-DA92B55CE6CC}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Jovice.Common</RootNamespace>
+    <AssemblyName>Jovice.Common</AssemblyName>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <SccProjectName>SAK</SccProjectName>
+    <SccLocalPath>SAK</SccLocalPath>
+    <SccAuxPath>SAK</SccAuxPath>
+    <SccProvider>SAK</SccProvider>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="DiffieHellman">
+      <HintPath>..\_External\DiffieHellman.dll</HintPath>
+    </Reference>
+    <Reference Include="Org.Mentalis.Security">
+      <HintPath>..\_External\Org.Mentalis.Security.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Helpers\NodeQOS.cs" />
+    <Compile Include="Helpers\NodeInterface.cs" />
+    <Compile Include="Jovice.cs" />
+    <Compile Include="Necrow\Necrow.cs" />
+    <Compile Include="Necrow\NodeSummary.cs" />
+    <Compile Include="Necrow\PeekProbe.cs" />
+    <Compile Include="Necrow\Probe.cs" />
+    <Compile Include="Necrow\MEProbe.cs" />
+    <Compile Include="Necrow\PEProbe.cs" />
+    <Compile Include="Library\SshConnection\SshConnection.cs" />
+    <Compile Include="Necrow\ServiceFinder.cs" />
+    <Compile Include="Necrow\TopologyFinder.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Library\SharpSSH\ITransferProtocol.cs" />
+    <Compile Include="Library\SharpSSH\java\Exception.cs" />
+    <Compile Include="Library\SharpSSH\java\io\File.cs" />
+    <Compile Include="Library\SharpSSH\java\io\FileInputStream.cs" />
+    <Compile Include="Library\SharpSSH\java\io\FileOutputStream.cs" />
+    <Compile Include="Library\SharpSSH\java\io\InputStream.cs" />
+    <Compile Include="Library\SharpSSH\java\io\InputStreamWrapper.cs" />
+    <Compile Include="Library\SharpSSH\java\io\JStream.cs" />
+    <Compile Include="Library\SharpSSH\java\io\OutputStream.cs" />
+    <Compile Include="Library\SharpSSH\java\lang\Class.cs" />
+    <Compile Include="Library\SharpSSH\java\lang\Integer.cs" />
+    <Compile Include="Library\SharpSSH\java\lang\Runnable.cs" />
+    <Compile Include="Library\SharpSSH\java\lang\StringBuffer.cs" />
+    <Compile Include="Library\SharpSSH\java\lang\Thread.cs" />
+    <Compile Include="Library\SharpSSH\java\net\InetAddress.cs" />
+    <Compile Include="Library\SharpSSH\java\net\ServerSocket.cs" />
+    <Compile Include="Library\SharpSSH\java\net\Socket.cs" />
+    <Compile Include="Library\SharpSSH\java\Platform.cs" />
+    <Compile Include="Library\SharpSSH\java\RuntimeException.cs" />
+    <Compile Include="Library\SharpSSH\java\String.cs" />
+    <Compile Include="Library\SharpSSH\java\System.cs" />
+    <Compile Include="Library\SharpSSH\java\util\Arrays.cs" />
+    <Compile Include="Library\SharpSSH\java\util\Enumeration.cs" />
+    <Compile Include="Library\SharpSSH\java\util\Hashtable.cs" />
+    <Compile Include="Library\SharpSSH\java\util\JavaString.cs" />
+    <Compile Include="Library\SharpSSH\java\util\Vector.cs" />
+    <Compile Include="Library\SharpSSH\jsch\Buffer.cs" />
+    <Compile Include="Library\SharpSSH\jsch\Channel.cs" />
+    <Compile Include="Library\SharpSSH\jsch\Channel.old.cs" />
+    <Compile Include="Library\SharpSSH\jsch\ChannelDirectTCPIP.cs" />
+    <Compile Include="Library\SharpSSH\jsch\ChannelExec.cs" />
+    <Compile Include="Library\SharpSSH\jsch\ChannelForwardedTCPIP.cs" />
+    <Compile Include="Library\SharpSSH\jsch\ChannelSession.cs" />
+    <Compile Include="Library\SharpSSH\jsch\ChannelSftp.cs" />
+    <Compile Include="Library\SharpSSH\jsch\ChannelSftpStreamGet.cs" />
+    <Compile Include="Library\SharpSSH\jsch\ChannelSftpStreamPut.cs" />
+    <Compile Include="Library\SharpSSH\jsch\ChannelShell.cs" />
+    <Compile Include="Library\SharpSSH\jsch\ChannelSubsystem.cs" />
+    <Compile Include="Library\SharpSSH\jsch\ChannelX11.cs" />
+    <Compile Include="Library\SharpSSH\jsch\Cipher.cs" />
+    <Compile Include="Library\SharpSSH\jsch\Compression.cs" />
+    <Compile Include="Library\SharpSSH\jsch\DH.cs" />
+    <Compile Include="Library\SharpSSH\jsch\DHG1.cs" />
+    <Compile Include="Library\SharpSSH\jsch\DHGEX.cs" />
+    <Compile Include="Library\SharpSSH\jsch\examples\AES.cs" />
+    <Compile Include="Library\SharpSSH\jsch\examples\ChangePassphrase.cs" />
+    <Compile Include="Library\SharpSSH\jsch\examples\KeyGen.cs" />
+    <Compile Include="Library\SharpSSH\jsch\examples\KnownHosts.cs" />
+    <Compile Include="Library\SharpSSH\jsch\examples\PortForwardingL.cs" />
+    <Compile Include="Library\SharpSSH\jsch\examples\PortForwardingR.cs" />
+    <Compile Include="Library\SharpSSH\jsch\examples\ScpFrom.cs" />
+    <Compile Include="Library\SharpSSH\jsch\examples\ScpTo.cs" />
+    <Compile Include="Library\SharpSSH\jsch\examples\Sftp.cs" />
+    <Compile Include="Library\SharpSSH\jsch\examples\Shell.cs" />
+    <Compile Include="Library\SharpSSH\jsch\examples\StreamForwarding.cs" />
+    <Compile Include="Library\SharpSSH\jsch\examples\UserAuthPubKey.cs" />
+    <Compile Include="Library\SharpSSH\jsch\examples\util\ConsoleProgressBar.cs" />
+    <Compile Include="Library\SharpSSH\jsch\examples\util\InputForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Library\SharpSSH\jsch\ForwardedTCPIPDaemon.cs" />
+    <Compile Include="Library\SharpSSH\jsch\HASH.cs" />
+    <Compile Include="Library\SharpSSH\jsch\HostKey.cs" />
+    <Compile Include="Library\SharpSSH\jsch\HostKeyRepository.cs" />
+    <Compile Include="Library\SharpSSH\jsch\Identity.cs" />
+    <Compile Include="Library\SharpSSH\jsch\IdentityFile.cs" />
+    <Compile Include="Library\SharpSSH\jsch\IO.cs" />
+    <Compile Include="Library\SharpSSH\jsch\jce\AES128CBC.cs" />
+    <Compile Include="Library\SharpSSH\jsch\jce\BlowfishCBC.cs" />
+    <Compile Include="Library\SharpSSH\jsch\jce\DH.cs" />
+    <Compile Include="Library\SharpSSH\jsch\jce\HMACMD5.cs" />
+    <Compile Include="Library\SharpSSH\jsch\jce\HMACMD596.cs" />
+    <Compile Include="Library\SharpSSH\jsch\jce\HMACSHA1.cs" />
+    <Compile Include="Library\SharpSSH\jsch\jce\HMACSHA196.cs" />
+    <Compile Include="Library\SharpSSH\jsch\jce\KeyPairGenDSA.cs" />
+    <Compile Include="Library\SharpSSH\jsch\jce\KeyPairGenRSA.cs" />
+    <Compile Include="Library\SharpSSH\jsch\jce\MD5.cs" />
+    <Compile Include="Library\SharpSSH\jsch\jce\Random.cs" />
+    <Compile Include="Library\SharpSSH\jsch\jce\SHA1.cs" />
+    <Compile Include="Library\SharpSSH\jsch\jce\SignatureDSA.cs" />
+    <Compile Include="Library\SharpSSH\jsch\jce\SignatureRSA.cs" />
+    <Compile Include="Library\SharpSSH\jsch\jce\TripleDESCBC.cs" />
+    <Compile Include="Library\SharpSSH\jsch\JSch.cs" />
+    <Compile Include="Library\SharpSSH\jsch\JSchAuthCancelException.cs" />
+    <Compile Include="Library\SharpSSH\jsch\JSchException.cs" />
+    <Compile Include="Library\SharpSSH\jsch\JSchPartialAuthException.cs" />
+    <Compile Include="Library\SharpSSH\jsch\KeyExchange.cs" />
+    <Compile Include="Library\SharpSSH\jsch\KeyPair.cs" />
+    <Compile Include="Library\SharpSSH\jsch\KeyPairDSA.cs" />
+    <Compile Include="Library\SharpSSH\jsch\KeyPairGenDSA.cs" />
+    <Compile Include="Library\SharpSSH\jsch\KeyPairGenRSA.cs" />
+    <Compile Include="Library\SharpSSH\jsch\KeyPairRSA.cs" />
+    <Compile Include="Library\SharpSSH\jsch\KnownHosts.cs" />
+    <Compile Include="Library\SharpSSH\jsch\MAC.cs" />
+    <Compile Include="Library\SharpSSH\jsch\Packet.cs" />
+    <Compile Include="Library\SharpSSH\jsch\PortWatcher.cs" />
+    <Compile Include="Library\SharpSSH\jsch\Proxy.cs" />
+    <Compile Include="Library\SharpSSH\jsch\ProxyHTTP.cs" />
+    <Compile Include="Library\SharpSSH\jsch\Random.cs" />
+    <Compile Include="Library\SharpSSH\jsch\Request.cs" />
+    <Compile Include="Library\SharpSSH\jsch\RequestExec.cs" />
+    <Compile Include="Library\SharpSSH\jsch\RequestPtyReq.cs" />
+    <Compile Include="Library\SharpSSH\jsch\RequestSftp.cs" />
+    <Compile Include="Library\SharpSSH\jsch\RequestShell.cs" />
+    <Compile Include="Library\SharpSSH\jsch\RequestSignal.cs" />
+    <Compile Include="Library\SharpSSH\jsch\RequestSubsystem.cs" />
+    <Compile Include="Library\SharpSSH\jsch\RequestWindowChange.cs" />
+    <Compile Include="Library\SharpSSH\jsch\RequestX11.cs" />
+    <Compile Include="Library\SharpSSH\jsch\ServerSocketFactory.cs" />
+    <Compile Include="Library\SharpSSH\jsch\Session.cs" />
+    <Compile Include="Library\SharpSSH\jsch\SftpATTRS.cs" />
+    <Compile Include="Library\SharpSSH\jsch\SftpException.cs" />
+    <Compile Include="Library\SharpSSH\jsch\SftpProgressMonitor.cs" />
+    <Compile Include="Library\SharpSSH\jsch\SignatureDSA.cs" />
+    <Compile Include="Library\SharpSSH\jsch\SignatureRSA.cs" />
+    <Compile Include="Library\SharpSSH\jsch\SocketFactory.cs" />
+    <Compile Include="Library\SharpSSH\jsch\UIKeyboardInteractive.cs" />
+    <Compile Include="Library\SharpSSH\jsch\UserAuth.cs" />
+    <Compile Include="Library\SharpSSH\jsch\UserAuthKeyboardInteractive.cs" />
+    <Compile Include="Library\SharpSSH\jsch\UserAuthNone.cs" />
+    <Compile Include="Library\SharpSSH\jsch\UserAuthPassword.cs" />
+    <Compile Include="Library\SharpSSH\jsch\UserAuthPublicKey.cs" />
+    <Compile Include="Library\SharpSSH\jsch\UserInfo.cs" />
+    <Compile Include="Library\SharpSSH\jsch\Util.cs" />
+    <Compile Include="Library\SharpSSH\Scp.cs" />
+    <Compile Include="Library\SharpSSH\Sftp.cs" />
+    <Compile Include="Library\SharpSSH\SshBase.cs" />
+    <Compile Include="Library\SharpSSH\SshExe.cs" />
+    <Compile Include="Library\SharpSSH\SshShell.cs" />
+    <Compile Include="Library\SharpSSH\SshStream.cs" />
+    <Compile Include="Library\SharpSSH\SshTransferException.cs" />
+    <Compile Include="Library\SharpSSH\SshTransferProtocolBase.cs" />
+    <Compile Include="Library\SharpSSH\Streams\CombinedStream.cs" />
+    <Compile Include="Library\SharpSSH\Streams\InputStream.cs" />
+    <Compile Include="Library\SharpSSH\Streams\OutputStream.cs" />
+    <Compile Include="Library\SharpSSH\Streams\PipedInputStream.cs" />
+    <Compile Include="Library\SharpSSH\Streams\PipedOutputStream.cs" />
+    <Compile Include="Library\SharpSSH\Streams\ProtectedConsoleStream.cs" />
+    <Compile Include="Service\Client.cs" />
+    <Compile Include="Service\Server.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Aphysoft.Common\Aphysoft.Common.csproj">
+      <Project>{e6fd9031-9af5-4ebd-a0eb-73be2c80c0c6}</Project>
+      <Name>Aphysoft.Common</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Aphysoft.Share\Aphysoft.Share.csproj">
+      <Project>{be59c0c5-8b77-445f-88ed-d88a4eb7709e}</Project>
+      <Name>Aphysoft.Share</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Library\SharpSSH\jsch\examples\README.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Library\SharpSSH\jsch\examples\util\InputForm.resx">
+      <DependentUpon>InputForm.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

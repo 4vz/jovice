@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+This file is used by the publish/package process of your Web project. You can customize the behavior of this process
+by editing this MSBuild file. In order to learn more about this please visit http://go.microsoft.com/fwlink/?LinkID=208121. 
+-->
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <_PublishTargetUrl>Z:\TELKOM.CENTER</_PublishTargetUrl>
+  </PropertyGroup>
+  <ItemGroup>
+    <File Include="bin/AjaxMin.dll">
+      <publishTime>09/07/2012 15:59:10</publishTime>
+    </File>
+    <File Include="bin/Aphysoft.Common.dll">
+      <publishTime>10/15/2015 16:03:44</publishTime>
+    </File>
+    <File Include="bin/Aphysoft.Share.dll">
+      <publishTime>10/15/2015 16:03:44</publishTime>
+    </File>
+    <File Include="bin/DiffieHellman.dll">
+      <publishTime>06/24/2007 16:03:00</publishTime>
+    </File>
+    <File Include="bin/Jovice.Common.dll">
+      <publishTime>10/15/2015 16:03:45</publishTime>
+    </File>
+    <File Include="bin/Jovice.dll">
+      <publishTime>10/15/2015 16:03:45</publishTime>
+    </File>
+    <File Include="bin/MySql.Data.dll">
+      <publishTime>07/13/2009 10:48:34</publishTime>
+    </File>
+    <File Include="bin/Oracle.DataAccess.dll">
+      <publishTime>12/06/2011 09:22:42</publishTime>
+    </File>
+    <File Include="bin/Org.Mentalis.Security.dll">
+      <publishTime>06/24/2007 16:03:02</publishTime>
+    </File>
+    <File Include="Development/javascript.js">
+      <publishTime>10/13/2015 15:12:04</publishTime>
+    </File>
+    <File Include="Development/test.js">
+      <publishTime>10/13/2015 15:08:29</publishTime>
+    </File>
+    <File Include="View/Fulfillment/provisioning.js">
+      <publishTime>06/23/2015 11:32:26</publishTime>
+    </File>
+    <File Include="View/jovice.js">
+      <publishTime>10/05/2015 23:34:31</publishTime>
+    </File>
+    <File Include="View/main.js">
+      <publishTime>06/23/2015 11:32:26</publishTime>
+    </File>
+    <File Include="View/search.js">
+      <publishTime>10/15/2015 16:00:46</publishTime>
+    </File>
+    <File Include="Web.config">
+      <publishTime>10/13/2015 18:11:17</publishTime>
+    </File>
+  </ItemGroup>
+</Project>

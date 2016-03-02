@@ -34,6 +34,7 @@ namespace NecrowConsole
                         else if (key == "SSHTerminal") properties.SSHTerminal = value;
                         else if (key == "TacacUser") properties.TacacUser = value;
                         else if (key == "TacacPassword") properties.TacacPassword = value;
+                        //else if (key == "TestNode") properties.TestProbeNode = value;
                     }
                 }
 
@@ -42,10 +43,10 @@ namespace NecrowConsole
                 if (properties.SSHServerAddress != null && properties.SSHUser != null && properties.SSHPassword != null && properties.SSHTerminal != null &&
                     properties.TacacPassword != null && properties.TacacPassword != null)
                 {
-                    
+                    properties.TestProbeNode = "PE-D7-BIA";
+
                     Necrow.Set(properties);
                     Necrow.Start(NecrowServices.Probe | NecrowServices.ServiceFinder | NecrowServices.TopologyFinder | NecrowServices.Summary);
-                    //Necrow.Start(NecrowServices.None);
                     Necrow.Console();
                 }
                 else

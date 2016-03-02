@@ -177,6 +177,14 @@ namespace Jovice
 
         private Queue<string> prioritize = new Queue<string>();
 
+        public bool IsConnected
+        {
+            get
+            {
+                return mainLoop != null;
+            }
+        }
+
         #endregion
 
         #region Constructors
@@ -206,6 +214,11 @@ namespace Jovice
             probeInstance = new Probe(properties.SSHServerAddress, properties.SSHUser, properties.SSHPassword, properties.SSHTerminal, properties.TacacUser, properties.TacacPassword);
 
             probeInstance.defaultOutputIdentifier = "PROB";
+
+            if (properties.TestProbeNode != null)
+            {
+                probeInstance.PrioritizeQueue(properties.TestProbeNode);
+            }
 
             probeInstance.Start(ProbeMode.Default);
         }
@@ -314,8 +327,13 @@ namespace Jovice
         {
             Event("Connected");
 
-            if (mainLoop == null)
-                mainLoop = new Thread(new ThreadStart(MainLoop));
+            if (mainLoop != null)
+            {
+                mainLoop.Abort();
+                mainLoop = null;
+            }
+
+            mainLoop = new Thread(new ThreadStart(MainLoop));
 
             stop = false;
 
@@ -325,7 +343,10 @@ namespace Jovice
         protected override void Disconnected()
         {
             if (mainLoop != null)
+            {
                 mainLoop.Abort();
+                mainLoop = null;
+            }
 
             outputIdentifier = null;
 
@@ -569,31 +590,47 @@ where NO_Active = 1
 
         private void SendControlRightBracket()
         {
-            Request((char)29);
-            Thread.Sleep(250);
+            if (IsConnected)
+            {
+                Request((char)29);
+                Thread.Sleep(250);
+            }
         }
 
         private void SendControlC()
         {
-            Request((char)3);
-            Thread.Sleep(250);
+            if (IsConnected)
+            {
+                Request((char)3);
+                Thread.Sleep(250);
+            }
         }
 
         private void SendControlZ()
         {
-            Request((char)26);
-            Thread.Sleep(250);
+            if (IsConnected)
+            {
+                Request((char)26);
+                Thread.Sleep(250);
+            }
         }
 
         private void SendSpace()
         {
-            Request((char)32);
+            if (IsConnected)
+            {
+                Request((char)32);
+            }
         }
 
         private bool Send(string command)
         {
-            Request(command);
-            return false;
+            if (IsConnected)
+            {
+                Request(command);
+                return false;
+            }
+            else return true;
         }
 
         #endregion
@@ -824,7 +861,7 @@ where NO_Active = 1
             }
         }
 
-        protected bool NodeEnter(Row row, out bool goFurther)
+        private bool NodeEnter(Row row, out bool goFurther)
         {
             goFurther = false;
 
@@ -1655,6 +1692,11 @@ where NO_Active = 1
                 else
                 {
                     #region !xr
+
+                    // because so many differences between IOS version, we might try every possible command
+                    bool passed = false;
+
+                    // most of ios version will work this way
                     if (Send("show configuration id detail")) { NodeStop(); return true; }
                     List<string> lines = NodeRead(out timeout);
                     if (timeout) { NodeStop(NodeExitReasons.Timeout); return true; }
@@ -1662,7 +1704,7 @@ where NO_Active = 1
                     foreach (string line in lines)
                     {
                         if (line.StartsWith("Last change time"))
-                        {
+                        {                           
                             //Last change time             : 2015-01-17T02:33:01.553Z
                             //01234567890123456789012345678901234567890123456789
                             //          1         2         3
@@ -1671,6 +1713,8 @@ where NO_Active = 1
                             {
                                 if (DateTime.TryParse(dateparts, out lastconflive))
                                 {
+                                    Event("Using configuration id");
+                                    passed = true;
                                     lastconflive = new DateTime(
                                         lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
                                         lastconflive.Kind
@@ -1678,8 +1722,128 @@ where NO_Active = 1
                                     lastconfliveisnull = false;
                                 }
                             }
+                            break;
                         }
                     }
+
+                    if (passed == false)
+                    {
+                        // using xr-like command history
+                        //show configuration history
+                        if (Send("show configuration history")) { NodeStop(); return true; }
+                        lines = NodeRead(out timeout);
+                        if (timeout) { NodeStop(NodeExitReasons.Timeout); return true; }
+
+                        string lastline = null;
+                        foreach (string line in lines)
+                        {
+                            if (line.IndexOf("Invalid input detected") > -1) break;
+                            else if (line == "") break;
+                            else if (char.IsDigit(line[0])) lastline = line;
+                        }
+
+                        if (lastline != null)
+                        {
+                            string[] linex = lastline.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                            //5    23:33:21 WIB Tue Mar 1 2016User : ffm-myarham
+                            string datetime = linex[1];
+                            string datemonth = linex[4].ToUpper();
+                            string datedate = linex[5];
+                            string dateyear = linex[6];
+                            if (dateyear.Length > 4) dateyear = dateyear.Substring(0, 4);
+
+                            string datestr = datemonth + " " + datedate + " " + dateyear + " " + datetime;
+
+                            DateTime parsedDT = DateTime.MinValue;
+                            if (DateTime.TryParse(datestr, out parsedDT))
+                            {
+                                Event("Using configuration history");
+                                passed = true;
+                                lastconflive = parsedDT;
+                                lastconfliveisnull = false;
+                            }
+                        }
+                    }
+
+                    if (passed == false)
+                    {
+                        // and here we are, using forbidden command ever
+                        if (Send("show log | in CONFIG_I")) { NodeStop(); return true; }
+                        lines = NodeRead(out timeout);
+                        if (timeout) { NodeStop(NodeExitReasons.Timeout); return true; }
+
+                        string lastline = null;
+                        foreach (string line in lines)
+                        {
+                            if (line.StartsWith("*")) lastline = line;
+                        }
+
+                        if (lastline != null)
+                        {                            
+                            string[] lastlines = lastline.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                            string datemonth = lastlines[0].TrimStart(new char[] { '*' }).ToUpper();
+                            string datedate = lastlines[1];
+                            string datetime = lastlines[2];
+
+                            string datestr = datemonth + " " + datedate + " " + DateTime.Now.Year + " " + datetime;
+
+                            DateTime parsedDT = DateTime.MinValue;
+                            if (DateTime.TryParse(datestr, out parsedDT))
+                            {
+                                Event("Using log config");
+                                passed = true;
+
+                                if (parsedDT > DateTime.Now)
+                                {
+                                    // probably year is wrong, so use last year
+                                    string datestrrev = datemonth + " " + datedate + " " + (DateTime.Now.Year - 1) + " " + datetime;
+                                    parsedDT = DateTime.Parse(datestrrev);
+                                }
+
+                                lastconflive = parsedDT;
+                                lastconfliveisnull = false;
+                            }
+                        }
+                    }
+
+                    if (passed == false)
+                    {
+                        // and... if everything fail, we will use this slowlest command ever
+                        if (Send("show run | in Last config")) { NodeStop(); return true; }
+                        lines = NodeRead(out timeout);
+                        if (timeout) { NodeStop(NodeExitReasons.Timeout); return true; }
+
+                        foreach (string line in lines)
+                        {
+                            //! Last configuration change at 1
+                            //01234567890123456789012345678901
+                            if (line.StartsWith("! Last config"))
+                            {
+                                string eline = line.Substring(31);
+                                string[] linex = eline.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                                //17:27:19 WIB Tue Mar 1 2016 
+                                //0        1   2   3   4 5
+                                string datetime = linex[0];
+                                string datemonth = linex[3].ToUpper();
+                                string datedate = linex[4];
+                                string dateyear = linex[5];
+
+                                string datestr = datemonth + " " + datedate + " " + dateyear + " " + datetime;
+
+                                DateTime parsedDT = DateTime.MinValue;
+                                if (DateTime.TryParse(datestr, out parsedDT))
+                                {
+                                    Event("Using running configuration");
+                                    passed = true;
+                                    lastconflive = parsedDT;
+                                    lastconfliveisnull = false;
+                                }
+                                break;
+                            }
+                        }
+                    }
+
                     #endregion
                 }
                 #endregion
@@ -1715,6 +1879,11 @@ where NO_Active = 1
             }
 
             DateTime lastconfdb = row["NO_LastConfiguration"].ToDateTime();
+
+            if (lastconfliveisnull == false)
+            {
+                Event("Last configuration on " + lastconflive.ToString("yy/MM/dd HH:mm:ss.fff"));
+            }
 
             if (lastconfliveisnull == false && lastconflive != lastconfdb)
             {
@@ -1903,7 +2072,7 @@ where NO_Active = 1
             return connectSuccess;
         }
 
-        protected List<string> NodeRead(out bool timeout)
+        private List<string> NodeRead(out bool timeout)
         {
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();

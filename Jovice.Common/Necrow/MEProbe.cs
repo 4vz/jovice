@@ -2471,6 +2471,7 @@ MC_NO = {0} and MC_VCID = {1}
                                     //012345678901234567890123456789012345678901234567
                                     //          1         2         3         4
 
+
                                     string descarea;
                                     if (nodeVersion == "5.90")
                                         descarea = line.Substring(30).TrimStart();

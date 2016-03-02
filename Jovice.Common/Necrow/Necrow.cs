@@ -23,7 +23,7 @@ namespace Jovice
         AllExceptProbe  = 0x01110
     }
 
-    public enum ProbeServices
+    public enum TestProbeServices
     {
         MECustomer = 1,
         MEQOS = 2,
@@ -99,20 +99,20 @@ namespace Jovice
     {
         #region Fields
 
-        private string nodeName;
+        private string testProbeNode;
 
-        public string NodeName
+        public string TestProbeNode
         {
-            get { return nodeName; }
-            set { nodeName = value; }
+            get { return testProbeNode; }
+            set { testProbeNode = value; }
         }
 
-        private ProbeServices services;
+        private TestProbeServices testServices;
 
-        public ProbeServices Services
+        public TestProbeServices TestProbeServices
         {
-            get { return services; }
-            set { services = value; }
+            get { return testServices; }
+            set { testServices = value; }
         }
 
         #endregion

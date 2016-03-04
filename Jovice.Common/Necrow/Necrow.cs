@@ -182,6 +182,11 @@ namespace Jovice
             standbyProbeProperties = properties;
         }
 
+        public static bool IsServiceSet(NecrowServices service)
+        {
+            return services.IsFlagSet<NecrowServices>(service);
+        }
+
         public static void Start(NecrowServices services)
         {
             Culture.Default();

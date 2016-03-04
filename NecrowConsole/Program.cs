@@ -11,7 +11,7 @@ namespace NecrowConsole
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("NecrowConsole v2.0.1");
+            Console.WriteLine("NecrowConsole");
             FileInfo fi = new FileInfo("Necrow.ini");
             if (fi.Exists)
             {
@@ -43,8 +43,6 @@ namespace NecrowConsole
                 if (properties.SSHServerAddress != null && properties.SSHUser != null && properties.SSHPassword != null && properties.SSHTerminal != null &&
                     properties.TacacPassword != null && properties.TacacPassword != null)
                 {
-                    properties.TestProbeNode = "PE-D7-BIA";
-
                     Necrow.Set(properties);
                     Necrow.Start(NecrowServices.Probe | NecrowServices.ServiceFinder | NecrowServices.TopologyFinder | NecrowServices.Summary);
                     Necrow.Console();

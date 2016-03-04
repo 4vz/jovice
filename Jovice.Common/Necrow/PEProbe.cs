@@ -35,6 +35,22 @@ namespace Jovice
             set { updateRd = value; }
         }
 
+        private string rdIpv6;
+
+        public string RDIPv6
+        {
+            get { return rdIpv6; }
+            set { rdIpv6 = value; }
+        }
+
+        private bool updateRdIpv6 = false;
+
+        public bool UpdateRDIPv6
+        {
+            get { return updateRdIpv6; }
+            set { updateRdIpv6 = value; }
+        }
+
         private string[] routeTargets;
 
         public string[] RouteTargets
@@ -49,7 +65,7 @@ namespace Jovice
         {
             get { return updateRouteTargets; }
             set { updateRouteTargets = value; }
-        }
+        }        
 
         private string routeID;
 
@@ -57,7 +73,7 @@ namespace Jovice
         {
             get { return routeID; }
             set { routeID = value; }
-        }
+        }        
     }
 
     class PEQOSToDatabase : ToDatabase
@@ -281,8 +297,8 @@ namespace Jovice
             Event("Checking Route");           
 
             string routeinsertsql = "insert into PERoute(PR_ID) values";
-            string routetargetinsertsql = "insert into PERouteTarget(PT_ID, PT_PR, PT_Type, PT_Community) values";
-            string routenameinsertsql = "insert into PERouteName(PN_ID, PN_PR, PN_NO, PN_Name, PN_RD) values";            
+            string routetargetinsertsql = "insert into PERouteTarget(PT_ID, PT_PR, PT_Type, PT_Community, PT_IPv6) values";
+            string routenameinsertsql = "insert into PERouteName(PN_ID, PN_PR, PN_NO, PN_Name, PN_RD, PN_RDv6) values";            
             Result routenamedbresult = j.Query("select * from PERouteName where PN_NO = {0} order by PN_Name asc", nodeID);
             Dictionary<string, Row> routenamedb = new Dictionary<string, Row>();
             foreach (Row row in routenamedbresult) { routenamedb.Add(row["PN_Name"].ToString(), row); }
@@ -300,10 +316,11 @@ namespace Jovice
                 }
                 else routeTargets = routetargetlocaldb[name];
 
-                string type = row["PT_Type"].ToBoolean() == false ? "0" : "1";
+                string ipv6 = row["PT_IPv6"].ToBoolean() == false ? "0" : "1";
+                string type = row["PT_Type"].ToBoolean() == false ? "0" : "1";                
                 string routeTarget = row["PT_Community"].ToString();
 
-                routeTargets.Add(type + routeTarget);
+                routeTargets.Add(ipv6 + type + routeTarget);
             }
             Dictionary<string, PERouteNameToDatabase> routelive = new Dictionary<string, PERouteNameToDatabase>();
             List<PERouteNameToDatabase> routenameinsert = new List<PERouteNameToDatabase>();
@@ -321,7 +338,7 @@ namespace Jovice
 
                 if (nodeVersion == xr)
                 {
-                    #region asr
+                    #region xr
 
                     if (Send("show vrf all")) { NodeStop(); return; }
                     bool timeout;
@@ -341,13 +358,13 @@ namespace Jovice
                         {
                             string[] s = lineTrim.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                             string rt = s[1].Trim();
-                            routeTargets.Add("1" + rt);
+                            routeTargets.Add("01" + rt);
                         }
                         else if (name != null && lineTrim.StartsWith("export"))
                         {
                             string[] s = lineTrim.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                             string rt = s[1].Trim();
-                            routeTargets.Add("0" + rt);
+                            routeTargets.Add("00" + rt);
                         }
                         else
                         {
@@ -385,7 +402,7 @@ namespace Jovice
                 }
                 else
                 {
-                    #region !asr
+                    #region !xr
 
                     if (Send("show ip vrf detail | in RD|Export VPN|Import VPN|RT")) { NodeStop(); return; }
                     bool timeout;
@@ -424,8 +441,8 @@ namespace Jovice
                             string[] rts = lineTrim.Split(new string[] { "RT:" }, StringSplitOptions.RemoveEmptyEntries);
                             foreach (string rt in rts)
                             {
-                                if (stage == 2) routeTargets.Add("0" + rt.Trim());
-                                else if (stage == 3) routeTargets.Add("1" + rt.Trim());
+                                if (stage == 2) routeTargets.Add("00" + rt.Trim());
+                                else if (stage == 3) routeTargets.Add("01" + rt.Trim());
                             }
                         }
                     }
@@ -460,6 +477,83 @@ namespace Jovice
             {
                 #region hwe
 
+                string name = null;
+                string ipv = null;
+                string RD = null;
+                string RDIPv6 = null;                
+                List<string> routeTargets = new List<string>();
+
+                if (Send("display ip vpn-instance verbose | include VPN-Instance Name and ID|Address family|Export VPN Targets|Import VPN Targets|Route Distinguisher")) { NodeStop(); return; }
+                bool timeout;
+                List<string> lines = NodeRead(out timeout);
+                if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+
+                foreach (string line in lines)
+                {
+                    string linetrim = line.Trim();
+
+                    if (linetrim.StartsWith("VPN-Instance Name and ID"))
+                    {
+                        if (name != null)
+                        {
+                            PERouteNameToDatabase i = new PERouteNameToDatabase();
+                            i.Name = name;
+                            i.RD = RD;
+                            i.RDIPv6 = RDIPv6;
+                            i.RouteTargets = routeTargets.ToArray();
+
+                            routelive.Add(name, i);
+
+                            name = null;
+                            ipv = null;
+                            RD = null;
+                            RDIPv6 = null;
+                            routeTargets.Clear();
+                        }
+
+                        string[] linenameid = linetrim.Substring(27).Split(StringSplitTypes.Comma, StringSplitOptions.RemoveEmptyEntries);
+                        name = linenameid[0].Trim();
+                    }
+                    else if (linetrim == "Address family ipv4") ipv = "IPv4";
+                    else if (linetrim == "Address family ipv6") ipv = "IPv6";
+                    else if (linetrim.StartsWith("Route Distinguisher") && linetrim.Length > 21)
+                    {
+                        if (ipv == "IPv4")
+                            RD = linetrim.Substring(22);
+                        else
+                            RDIPv6 = linetrim.Substring(22);
+                    }
+                    else if (linetrim.StartsWith("Export VPN Targets") && linetrim.Length > 20)
+                    {
+                        string comt = linetrim.Substring(21).Trim();
+                        string[] comts = comt.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                        foreach (string comtx in comts)
+                        {
+                            routeTargets.Add((ipv == "IPv4" ? "0" : "1") + "0" + comtx.Trim());
+                        }
+                    }
+                    else if (linetrim.StartsWith("Import VPN Targets") && linetrim.Length > 20)
+                    {
+                        string comt = linetrim.Substring(21).Trim();
+                        string[] comts = comt.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                        foreach (string comtx in comts)
+                        {
+                            routeTargets.Add((ipv == "IPv4" ? "0" : "1") + "1" + comtx.Trim());
+                        }
+                    }
+                }
+
+                if (name != null)
+                {
+                    PERouteNameToDatabase i = new PERouteNameToDatabase();
+                    i.Name = name;
+                    i.RD = RD;
+                    i.RDIPv6 = RDIPv6;
+                    i.RouteTargets = routeTargets.ToArray();
+
+                    routelive.Add(name, i);
+                }
+                
                 #endregion
             }
 
@@ -496,15 +590,32 @@ namespace Jovice
                         u.RD = li.RD;
                         updateinfo.Append("RD ");
                     }
+                    if (db["PN_RDv6"].ToString() != li.RD)
+                    {
+                        update = true;
+                        u.UpdateRDIPv6 = true;
+                        u.RDIPv6 = li.RDIPv6;
+                        updateinfo.Append("RDv6 ");
+                    }
                     if (routeTargets != null)
                     {
                         List<string> temp = new List<string>(routeTargets);
+
                         foreach (string routeTarget in li.RouteTargets)
                         {
                             if (temp.Contains(routeTarget))
                                 temp.Remove(routeTarget);
                         }
-                        if (temp.Count != 0)
+
+                        List<string> temp2 = new List<string>(li.RouteTargets);
+
+                        foreach (string routeTarget in routeTargets)
+                        {
+                            if (temp2.Contains(routeTarget))
+                                temp2.Remove(routeTarget);
+                        }
+
+                        if (temp.Count != 0 || temp2.Count != 0)
                         {
                             update = true;
                             u.UpdateRouteTargets = true;
@@ -529,7 +640,7 @@ namespace Jovice
 
             // search/set route targets
             List<PERouteNameToDatabase> routetargetsearch = new List<PERouteNameToDatabase>(routenameinsert);
-            foreach (PERouteNameToDatabase u in routenameupdate) { if (u.UpdateRouteTargets) routetargetsearch.Add(u); }
+            foreach (PERouteNameToDatabase u in routenameupdate) {  if (u.UpdateRouteTargets) routetargetsearch.Add(u); }
 
             Dictionary<string, string[]> routetargetinsert = new Dictionary<string, string[]>();
             Dictionary<int, Result> routesearch = new Dictionary<int, Result>();
@@ -546,7 +657,7 @@ namespace Jovice
                 {
                     // search route target for 
                     r = j.Query("select a.PT_PR, a.PT_TC from " +
-                        "(select PT_PR, LTRIM(STR(PT_Type)) + PT_Community as 'PT_TC' from PERouteTarget) a, " +
+                        "(select PT_PR, STR(CASE WHEN (PT_IPv6 IS NULL) THEN '0' ELSE '1' END) + LTRIM(STR(PT_Type)) + PT_Community as 'PT_TC' from PERouteTarget) a, " +
                         "(select PT_PR, COUNT(PT_PR) as 'COUNT' from PERouteTarget group by PT_PR) b " +
                         "where a.PT_PR = b.PT_PR and COUNT = {0} order by a.PT_PR ", length);
                     routesearch.Add(length, r);
@@ -592,9 +703,10 @@ namespace Jovice
                 batchlist1.Add(j.Format("({0})", pair.Key));
                 foreach (string routeTarget in pair.Value)
                 {
-                    int type = routeTarget[0] == '1' ? 1 : 0;
-                    string community = routeTarget.Substring(1);
-                    batchlist2.Add(j.Format("({0}, {1}, {2}, {3})", Database.ID(), pair.Key, type, community));
+                    int ipv6 = routeTarget[0] == '1' ? 1 : 0;
+                    int type = routeTarget[1] == '1' ? 1 : 0;
+                    string community = routeTarget.Substring(2);
+                    batchlist2.Add(j.Format("({0}, {1}, {2}, {3}, {4})", Database.ID(), pair.Key, type, community, ipv6));
                 }
                 if (batchlist1.Count == 50 || batchlist2.Count >= 50)
                 {
@@ -625,8 +737,8 @@ namespace Jovice
             int newroutename = 0;
             foreach (PERouteNameToDatabase s in routenameinsert)
             {
-                batchlist1.Add(j.Format("({0}, {1}, {2}, {3}, {4})",
-                    Database.ID(), s.RouteID, nodeID, s.Name, s.RD
+                batchlist1.Add(j.Format("({0}, {1}, {2}, {3}, {4}, {5})",
+                    Database.ID(), s.RouteID, nodeID, s.Name, s.RD, s.RDIPv6
                     ));
                 if (batchlist1.Count == 50)
                 {
@@ -650,8 +762,9 @@ namespace Jovice
             {
                 List<string> v = new List<string>();
                 if (s.UpdateRD) v.Add(j.Format("PN_RD = {0}", s.RD));
+                if (s.UpdateRDIPv6) v.Add(j.Format("PN_RDv6 = {0}", s.RDIPv6));
                 if (s.UpdateRouteTargets) v.Add(j.Format("PN_PR = {0}", s.RouteID));
-
+                
                 if (v.Count > 0)
                 {
                     string q = j.Format("update PERouteName set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where PN_ID = {0};", s.ID);

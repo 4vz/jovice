@@ -485,27 +485,39 @@ where NO_Active = 1
                     if (prioritize.Count > 0)
                     {
                         string nodeName = prioritize.Dequeue();
+
+                        Event("Prioritizing Probe: " + nodeName);
+
                         Result rnode = j.Query("select * from Node where lower(NO_Name) = {0}", nodeName.ToLower());
-
-                        Row node = rnode[0];
-                        bool goFurther = false;
-
-                        if (NodeEnter(node, out goFurther))
+                        
+                        if (rnode.Count == 1)
                         {
+                            Row node = rnode[0];
+                            bool goFurther = false;
+
+                            if (NodeEnter(node, out goFurther))
+                            {
+                                Thread.Sleep(10000);
+                                continue;
+                            }
+
+                            goFurther = true; // prioritize is always goFurther
+
+                            PeekProcess();
+
+                            if (goFurther)
+                            {
+                                if (nodeType == "P") PEProcess();
+                                else if (nodeType == "M") MEProcess();
+                            }
+                            else NodeEnd();
+
                             Thread.Sleep(10000);
-                            continue;
                         }
-
-                        PeekProcess();
-
-                        if (goFurther)
+                        else
                         {
-                            if (nodeType == "P") PEProcess();
-                            else if (nodeType == "M") MEProcess();
+                            Event("Failed, not exists in the database.");
                         }
-                        else NodeEnd();
-
-                        Thread.Sleep(10000);
                         continue;
                     }
 
@@ -963,13 +975,29 @@ where NO_Active = 1
                     if (hostName != null)
                     {
                         #region RESOLVED!, null, RESOLVED!
-                        Event("Hostname has changed to: " + hostName);
+                        Event("Hostname has probably changed to: " + hostName);
 
                         Result result = j.Query("select * from Node where NO_Name = {0}", hostName);
 
                         if (result.Count == 1)
                         {
                             #region CHANGED to existing???
+
+                            // Stop currently running process
+                            // that might interference this process                            
+                            if (Necrow.IsServiceSet(NecrowServices.TopologyFinder))
+                                TopologyFinder.Stop();
+                            if (Necrow.IsServiceSet(NecrowServices.Summary))
+                                Summary.Stop();
+
+                            while (true)
+                            {
+                                // wait until topologyfinder and summary stopped
+                                if (TopologyFinder.IsStop() && Summary.IsStop())
+                                    break;
+                                else
+                                    Thread.Sleep(1000);
+                            }
 
                             string existingtype = result[0]["NO_Type"].ToString();
                             string existingnodeid = result[0]["NO_ID"].ToString();
@@ -982,7 +1010,7 @@ where NO_Active = 1
                                 string deletethisnode;
                                 string keepthisnode;
 
-                                int ci = checkInterface.ToInt();
+                                int ci = checkInterface.ToInt();                               
 
                                 if (ci > 0)
                                 {
@@ -1079,6 +1107,12 @@ where NO_Active = 1
                                 n = j.Execute("delete from Node where NO_ID = {0}", deletethisnode).AffectedRows;
                                 if (n > 0) Event("Node deleted");
                             }
+
+                            // Start again
+                            if (Necrow.IsServiceSet(NecrowServices.TopologyFinder))
+                                TopologyFinder.Start();
+                            if (Necrow.IsServiceSet(NecrowServices.Summary))
+                                Summary.Start();
 
                             #endregion
                         }
@@ -1894,6 +1928,7 @@ where NO_Active = 1
             }
             else
             {
+                Event("Configuration is up to date");
             }
 
             #endregion

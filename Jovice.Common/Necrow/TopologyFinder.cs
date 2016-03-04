@@ -88,6 +88,12 @@ namespace Jovice
             Necrow.Event(message, "TOPO");
         }
 
+        public static bool IsStop()
+        {
+            if (mainLoop == null) return true;
+            else return !mainLoop.IsAlive;
+        }
+
         public static void Start()
         {
             if (mainLoop == null)

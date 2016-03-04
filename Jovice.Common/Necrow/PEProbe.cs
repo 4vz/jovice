@@ -863,6 +863,12 @@ namespace Jovice
 
                 #endregion
             }
+            else if (nodeManufacture == hwe)
+            {
+                #region hwe
+
+                #endregion
+            }
 
             #endregion
 

@@ -210,20 +210,36 @@ namespace Jovice
                 List<string> lines = NodeRead(out timeout);
                 if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
 
+
                 foreach (string line in lines)
                 {
                     string lint = line.Trim();
 
-                    if (lint.StartsWith("CPU utilization for"))
+                    if (nodeVersion.StartsWith("8"))
                     {
-                        int oid = lint.LastIndexOf(' ');
-                        if (oid > -1)
+                        //System cpu use rate is : 10%
+                        //012345678901234567890123456789
+                        if (lint.StartsWith("System cpu use rate is"))
                         {
-                            string okx = line.Substring(oid + 1).Trim();
+                            string okx = line.Substring(25).Trim();
                             string perc = okx.Substring(0, okx.IndexOf('%'));
                             if (!int.TryParse(perc, out cpu)) cpu = -1;
+                            break;
                         }
-                        break;
+                    }
+                    else
+                    {
+                        if (lint.StartsWith("CPU utilization for"))
+                        {
+                            int oid = lint.LastIndexOf(' ');
+                            if (oid > -1)
+                            {
+                                string okx = line.Substring(oid + 1).Trim();
+                                string perc = okx.Substring(0, okx.IndexOf('%'));
+                                if (!int.TryParse(perc, out cpu)) cpu = -1;
+                            }
+                            break;
+                        }
                     }
                 }
 

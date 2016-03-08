@@ -174,7 +174,7 @@ top 500 MI_ID, MI_Name, MI_Description, NO_Name
 from 
 MEInterface with (NOLOCK), Node
 where 
-MI_Name not like '%.%' and MI_TO_Check is null and MI_NO = NO_ID
+MI_Description is not null and MI_Name not like '%.%' and MI_TO_Check is null and MI_NO = NO_ID
 ");
 
                 foreach (Row row in result)

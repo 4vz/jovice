@@ -1241,7 +1241,7 @@ where NO_Active = 1
 
                     string testOtherNode;
 
-                    if (nodeName == "PE-D2-JT2-MGT") testOtherNode = "PE-D2-CKA";
+                    if (nodeName == "PE-D2-JT2-MGT") testOtherNode = "PE2-D2-JT2-MGT";
                     else testOtherNode = "PE-D2-JT2-MGT";
 
                     Event("Trying to connect to other node...(" + testOtherNode + ")");

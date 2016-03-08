@@ -590,7 +590,7 @@ namespace Jovice
                         u.RD = li.RD;
                         updateinfo.Append("RD ");
                     }
-                    if (db["PN_RDv6"].ToString() != li.RD)
+                    if (db["PN_RDv6"].ToString() != li.RDIPv6)
                     {
                         update = true;
                         u.UpdateRDIPv6 = true;

@@ -176,158 +176,162 @@ MEInterface with (NOLOCK), Node
 where 
 MI_Description is not null and MI_Name not like '%.%' and MI_TO_Check is null and MI_NO = NO_ID
 ");
+                int resultMI = 0;
 
-                foreach (Row row in result)
+                if (result.Count > 0)
                 {
-                    string miID = row["MI_ID"].ToString();
-                    string nodeName = row["NO_Name"].ToString();
-                    string name = row["MI_Name"].ToString();
-                    string desc = row["MI_Description"].ToString();
+                    Event(string.Format("Checking {0} ME interfaces for MI_TO_PI / PI_TO_MI", result.Count));
 
-                    if (desc != null)
+                    foreach (Row row in result)
                     {
-                        InterfaceDescription[] ds = ParseDescription(desc, nodeName, nodes, nodeCandidates);
+                        string miID = row["MI_ID"].ToString();
+                        string nodeName = row["NO_Name"].ToString();
+                        string name = row["MI_Name"].ToString();
+                        string desc = row["MI_Description"].ToString();
 
-                        if (ds.Length > 0)
+                        if (desc != null)
                         {
-                            bool readyExists = false;
-                            List<Tuple<string, bool>> mutualPeers = new List<Tuple<string, bool>>();
+                            InterfaceDescription[] ds = ParseDescription(desc, nodeName, nodes, nodeCandidates);
 
-                            foreach (InterfaceDescription d in ds)
+                            if (ds.Length > 0)
                             {
-                                if (d.Ready)
+                                bool readyExists = false;
+                                List<Tuple<string, bool>> mutualPeers = new List<Tuple<string, bool>>();
+
+                                foreach (InterfaceDescription d in ds)
                                 {
-                                    readyExists = true;
-
-                                    // cek dari arah PE
-                                    Result result2 = j.Query("select PI_ID, PI_Description, PI_Status from PEInterface where PI_ID = {0}", d.InterfaceID);
-
-                                    Row row2 = result2[0];
-                                    string pidesc = row2["PI_Description"].ToString();
-                                    bool pistatus = row2["PI_Status"].ToBoolean();
-
-                                    if (pidesc != null)
+                                    if (d.Ready)
                                     {
-                                        InterfaceDescription[] ds2 = ParseDescription(pidesc, d.NodeName, nodes, nodeCandidates);
+                                        readyExists = true;
 
-                                        if (ds2.Length > 0)
+                                        // cek dari arah PE
+                                        Result result2 = j.Query("select PI_ID, PI_Description, PI_Status from PEInterface where PI_ID = {0}", d.InterfaceID);
+
+                                        Row row2 = result2[0];
+                                        string pidesc = row2["PI_Description"].ToString();
+                                        bool pistatus = row2["PI_Status"].ToBoolean();
+
+                                        if (pidesc != null)
                                         {
-                                            foreach (InterfaceDescription d2 in ds2)
-                                            {
-                                                if (d2.Ready)
-                                                {
-                                                    if (d2.InterfaceID == miID)
-                                                    {
-                                                        //TFEvent("    Mutually Connected!");
-                                                        Event("Updated: " + nodeName + " " + name.ToUpper() + " <--> " + d.NodeName + " " + d.InterfaceName);
+                                            InterfaceDescription[] ds2 = ParseDescription(pidesc, d.NodeName, nodes, nodeCandidates);
 
-                                                        mutualPeers.Add(new Tuple<string, bool>(d.InterfaceID, pistatus));
-                                                        break;
+                                            if (ds2.Length > 0)
+                                            {
+                                                foreach (InterfaceDescription d2 in ds2)
+                                                {
+                                                    if (d2.Ready)
+                                                    {
+                                                        if (d2.InterfaceID == miID)
+                                                        {
+                                                            //TFEvent("    Mutually Connected!");
+                                                            Event("Updated: " + nodeName + " " + name.ToUpper() + " <--> " + d.NodeName + " " + d.InterfaceName);
+
+                                                            mutualPeers.Add(new Tuple<string, bool>(d.InterfaceID, pistatus));
+                                                            break;
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
                                     }
                                 }
-                            }
 
-                            if (readyExists == false)
-                            {
-                                // ada referensi ke PE, tapi PE itu belum siap
-                                batch.Execute("update MEInterface set MI_TO_PI = null, MI_TO_Check = 0 where MI_ID = {0}", miID);
-
-                                // 
-                                batch.Execute("update MEInterface set MI_TO_PI = null, MI_TO_Check = null where MI_MI = {0}", miID);
-                            }
-                            else
-                            {
-                                // ada referensi ke PE, dan PE telah siap
-                                if (mutualPeers.Count > 0)
+                                if (readyExists == false)
                                 {
-                                    // ada yg mutual
-                                    bool upExists = false;
-                                    foreach (Tuple<string, bool> item in mutualPeers)
-                                    {
-                                        if (item.Item2) // cari yg status up
-                                        {
-                                            upExists = true;
-                                            batch.Execute("update MEInterface set MI_TO_PI = {1}, MI_TO_Check = 1 where MI_ID = {0}", miID, item.Item1);
-                                            batch.Execute("update PEInterface set PI_TO_MI = {1} where PI_ID = {0}", item.Item1, miID);
-                                            break;
-                                        }
-                                    }
+                                    // ada referensi ke PE, tapi PE itu belum siap
+                                    batch.Execute("update MEInterface set MI_TO_PI = null, MI_TO_Check = 0 where MI_ID = {0}", miID);
 
-                                    if (upExists == false)
-                                    {
-                                        // gada yg up, pake yg pertama saja
-                                        Tuple<string, bool> item = mutualPeers[0];
-                                        batch.Execute("update MEInterface set MI_TO_PI = {1}, MI_TO_Check = 1 where MI_ID = {0}", miID, item.Item1);
-                                        batch.Execute("update PEInterface set PI_TO_MI = {1} where PI_ID = {0}", item.Item1, miID);
-                                    }
+                                    // 
+                                    batch.Execute("update MEInterface set MI_TO_PI = null, MI_TO_Check = null where MI_MI = {0}", miID);
                                 }
                                 else
                                 {
-                                    // gak ada yg mutual
-                                    batch.Execute("update MEInterface set MI_TO_PI = null, MI_TO_Check = 1 where MI_ID = {0}", miID);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            // lets find some new node here
-                            string[] descs = desc.Split(new char[] { ' ', '(', ')', '_', '[', ']', ';', '.', '=', ':', '@', '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
-
-                            bool found = false;
-                            foreach (string des in descs)
-                            {
-                                if (des.Length >= 8 && des.IndexOf('-') > -1 && (des.StartsWith("PE") || des.StartsWith("ME") || des.StartsWith("CES")) && !des.EndsWith("-"))
-                                {
-                                    string[] dess = des.Split(new char[] { '-' });
-                                    if (dess.Length >= 3)
+                                    // ada referensi ke PE, dan PE telah siap
+                                    if (mutualPeers.Count > 0)
                                     {
-                                        if (dess[0].StartsWith("ME") && dess[0].Length > 2 && !char.IsDigit(dess[0][2])) continue;
-                                        else if (dess[0].StartsWith("PE") && dess[0].Length > 2 && !char.IsDigit(dess[0][2])) continue;
-                                        else if (dess[0].StartsWith("CES") && dess[0].Length > 3 && !char.IsDigit(dess[0][3])) continue;
-
-                                        bool illegal = false;
-                                        foreach (char c in des)
+                                        // ada yg mutual
+                                        bool upExists = false;
+                                        foreach (Tuple<string, bool> item in mutualPeers)
                                         {
-                                            if (c == '-' || char.IsDigit(c) || (char.IsLetter(c) && char.IsUpper(c))) { }
-                                            else { illegal = true; break; }
+                                            if (item.Item2) // cari yg status up
+                                            {
+                                                upExists = true;
+                                                batch.Execute("update MEInterface set MI_TO_PI = {1}, MI_TO_Check = 1 where MI_ID = {0}", miID, item.Item1);
+                                                batch.Execute("update PEInterface set PI_TO_MI = {1} where PI_ID = {0}", item.Item1, miID);
+                                                break;
+                                            }
                                         }
 
-                                        if (illegal == false)
+                                        if (upExists == false)
                                         {
-                                            string thisdes = des.ToUpper();
+                                            // gada yg up, pake yg pertama saja
+                                            Tuple<string, bool> item = mutualPeers[0];
+                                            batch.Execute("update MEInterface set MI_TO_PI = {1}, MI_TO_Check = 1 where MI_ID = {0}", miID, item.Item1);
+                                            batch.Execute("update PEInterface set PI_TO_MI = {1} where PI_ID = {0}", item.Item1, miID);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // gak ada yg mutual
+                                        batch.Execute("update MEInterface set MI_TO_PI = null, MI_TO_Check = 1 where MI_ID = {0}", miID);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                // lets find some new node here
+                                string[] descs = desc.Split(new char[] { ' ', '(', ')', '_', '[', ']', ';', '.', '=', ':', '@', '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
 
-                                            if (!nodes.ContainsKey(thisdes))
+                                bool found = false;
+                                foreach (string des in descs)
+                                {
+                                    if (des.Length >= 8 && des.IndexOf('-') > -1 && (des.StartsWith("PE") || des.StartsWith("ME") || des.StartsWith("CES")) && !des.EndsWith("-"))
+                                    {
+                                        string[] dess = des.Split(new char[] { '-' });
+                                        if (dess.Length >= 3)
+                                        {
+                                            if (dess[0].StartsWith("ME") && dess[0].Length > 2 && !char.IsDigit(dess[0][2])) continue;
+                                            else if (dess[0].StartsWith("PE") && dess[0].Length > 2 && !char.IsDigit(dess[0][2])) continue;
+                                            else if (dess[0].StartsWith("CES") && dess[0].Length > 3 && !char.IsDigit(dess[0][3])) continue;
+
+                                            bool illegal = false;
+                                            foreach (char c in des)
                                             {
-                                                if (!nodeCandidates.Contains(thisdes))
-                                                {
-                                                    Event("Node Candidate: " + thisdes);
-                                                    nodeCandidates.Add(thisdes);
-                                                    batch.Execute("insert into NodeCandidate values({0}, {1})", Database.ID(), thisdes);
-                                                }
+                                                if (c == '-' || char.IsDigit(c) || (char.IsLetter(c) && char.IsUpper(c))) { }
+                                                else { illegal = true; break; }
+                                            }
 
-                                                found = true;
-                                                break;
+                                            if (illegal == false)
+                                            {
+                                                string thisdes = des.ToUpper();
+
+                                                if (!nodes.ContainsKey(thisdes))
+                                                {
+                                                    if (!nodeCandidates.Contains(thisdes))
+                                                    {
+                                                        Event("Node Candidate: " + thisdes);
+                                                        nodeCandidates.Add(thisdes);
+                                                        batch.Execute("insert into NodeCandidate values({0}, {1})", Database.ID(), thisdes);
+                                                    }
+
+                                                    found = true;
+                                                    break;
+                                                }
                                             }
                                         }
                                     }
                                 }
+
+                                batch.Execute("update MEInterface set MI_TO_PI = null, MI_TO_Check = {1} where MI_ID = {0}", miID, found ? 0 : 1);
                             }
-                            
-                            batch.Execute("update MEInterface set MI_TO_PI = null, MI_TO_Check = {1} where MI_ID = {0}", miID, found ? 0 : 1);                            
+
+                            batch.Execute("update PEInterface set PI_TO_MI = null where PI_TO_MI in (select MI_ID from MEInterface where MI_MI = {0})", miID);
+                            batch.Execute("update MEInterface set MI_TO_PI = null, MI_TO_Check = null where MI_MI = {0}", miID);
                         }
-
-                        batch.Execute("update PEInterface set PI_TO_MI = null where PI_TO_MI in (select MI_ID from MEInterface where MI_MI = {0})", miID);
-                        batch.Execute("update MEInterface set MI_TO_PI = null, MI_TO_Check = null where MI_MI = {0}", miID);
                     }
+                    result = batch.Commit();
+                    resultMI = result.AffectedRows;
                 }
-
-                result = batch.Commit();
-
-                int resultMI = result.AffectedRows;
 
                 #endregion
 
@@ -338,22 +342,27 @@ MI_Description is not null and MI_Name not like '%.%' and MI_TO_Check is null an
                 result = j.Query(@"
 select top 500 a.MI_ID, b.MI_ID as MI_MI
 from 
-MEInterface a, MEInterface b
+MEInterface a with (NOLOCK), MEInterface b with (NOLOCK)
 where a.MI_Name like '%.%' and a.MI_MI is null and a.MI_NO = b.MI_NO and 
 b.MI_Name not like '%.%' and a.MI_Name like b.MI_Name + '.%'
 ");
+                int resultMIMI = 0;
 
-                foreach (Row row in result)
+                if (result.Count > 0)
                 {
-                    string miID = row["MI_ID"].ToString();
-                    string miMI = row["MI_MI"].ToString();
+                    Event(string.Format("Checking {0} ME interfaces for MI_MI", result.Count));
 
-                    batch.Execute("update MEInterface set MI_MI = {0} where MI_ID = {1}", miMI, miID);
+                    foreach (Row row in result)
+                    {
+                        string miID = row["MI_ID"].ToString();
+                        string miMI = row["MI_MI"].ToString();
+
+                        batch.Execute("update MEInterface set MI_MI = {0} where MI_ID = {1}", miMI, miID);
+                    }
+
+                    result = batch.Commit();
+                    resultMIMI = result.AffectedRows;
                 }
-
-                result = batch.Commit();
-
-                int resultMIMI = result.AffectedRows;
 
                 #endregion
 
@@ -364,22 +373,28 @@ b.MI_Name not like '%.%' and a.MI_Name like b.MI_Name + '.%'
                 result = j.Query(@"
 select top 500 a.MI_ID, b.MI_ID as MI_MI
 from 
-MEInterface a, MEInterface b
+MEInterface a with (NOLOCK), MEInterface b with (NOLOCK)
 where 
 a.MI_Aggregator is not null and a.MI_MI is null and a.MI_NO = b.MI_NO and
 b.MI_Name = 'Ag' + CONVERT(varchar(2), a.MI_Aggregator)
 ");
-                foreach (Row row in result)
+                int resultMIMIAgg = 0;
+
+                if (result.Count > 0)
                 {
-                    string miID = row["MI_ID"].ToString();
-                    string miMI = row["MI_MI"].ToString();
+                    Event(string.Format("Checking {0} ME interfaces for MI_MI Aggregator", result.Count));
 
-                    batch.Execute("update MEInterface set MI_MI = {0} where MI_ID = {1}", miMI, miID);
+                    foreach (Row row in result)
+                    {
+                        string miID = row["MI_ID"].ToString();
+                        string miMI = row["MI_MI"].ToString();
+
+                        batch.Execute("update MEInterface set MI_MI = {0} where MI_ID = {1}", miMI, miID);
+                    }
+
+                    result = batch.Commit();
+                    resultMIMIAgg = result.AffectedRows;
                 }
-
-                result = batch.Commit();
-
-                int resultMIMIAgg = result.AffectedRows;
 
                 #endregion
 
@@ -390,22 +405,27 @@ b.MI_Name = 'Ag' + CONVERT(varchar(2), a.MI_Aggregator)
                 result = j.Query(@"
 select top 500 a.PI_ID, b.PI_ID as PI_PI
 from 
-PEInterface a, PEInterface b
+PEInterface a with (NOLOCK), PEInterface b with (NOLOCK)
 where a.PI_Name like '%.%' and a.PI_PI is null and a.PI_NO = b.PI_NO and 
 b.PI_Name not like '%.%' and a.PI_Name like b.PI_Name + '.%'
 ");
+                int resultPI = 0;
 
-                foreach (Row row in result)
+                if (result.Count > 0)
                 {
-                    string piID = row["PI_ID"].ToString();
-                    string piPI = row["PI_PI"].ToString();
+                    Event(string.Format("Checking {0} PE interfaces for PI_PI", result.Count));
 
-                    batch.Execute("update PEInterface set PI_PI = {0} where PI_ID = {1}", piPI, piID);
+                    foreach (Row row in result)
+                    {
+                        string piID = row["PI_ID"].ToString();
+                        string piPI = row["PI_PI"].ToString();
+
+                        batch.Execute("update PEInterface set PI_PI = {0} where PI_ID = {1}", piPI, piID);
+                    }
+
+                    result = batch.Commit();
+                    resultPI = result.AffectedRows;
                 }
-
-                result = batch.Commit();
-
-                int resultPI = result.AffectedRows;
 
                 #endregion
 
@@ -416,41 +436,46 @@ b.PI_Name not like '%.%' and a.PI_Name like b.PI_Name + '.%'
                 result = j.Query(@"
 select top 500 a.MI_ID, a.MI_Name, c.PI_ID, c.PI_Name, c.PI_NO
 from
-MEInterface a, MEInterface b, PEInterface c
+MEInterface a with (NOLOCK), MEInterface b with (NOLOCK), PEInterface c with (NOLOCK)
 where a.MI_MI = b.MI_ID and b.MI_TO_PI = c.PI_ID
 and a.MI_TO_Check is null
 ");
+                int resultMITOPI = 0;
 
-                foreach (Row row in result)
+                if (result.Count > 0)
                 {
-                    string miID = row["MI_ID"].ToString();
-                    string miName = row["MI_Name"].ToString();
-                    string piID = row["PI_ID"].ToString();
-                    string piName = row["PI_Name"].ToString();
-                    string piNO = row["PI_NO"].ToString();
-                    
-                    string vlan = null;
-                    string piSubID = null;
+                    Event(string.Format("Checking {0} PE interfaces for MI_TO_PI / PI_TO_MI", result.Count));
 
-                    int dotin = miName.IndexOf('.');
-                    if (dotin > -1) vlan = miName.Substring(dotin + 1);
-
-                    int dotinvlan = vlan.IndexOf('.');
-
-                    if (dotin > -1 && dotinvlan == -1)
+                    foreach (Row row in result)
                     {
-                        string piSub = piName + "." + vlan;
-                        Result result2 = j.Query("select PI_ID from PEInterface where PI_NO = {0} and PI_Name = {1}", piNO, piSub);
-                        if (result2.Count == 1) piSubID = result2[0]["PI_ID"].ToString();
+                        string miID = row["MI_ID"].ToString();
+                        string miName = row["MI_Name"].ToString();
+                        string piID = row["PI_ID"].ToString();
+                        string piName = row["PI_Name"].ToString();
+                        string piNO = row["PI_NO"].ToString();
+
+                        string vlan = null;
+                        string piSubID = null;
+
+                        int dotin = miName.IndexOf('.');
+                        if (dotin > -1) vlan = miName.Substring(dotin + 1);
+
+                        int dotinvlan = vlan.IndexOf('.');
+
+                        if (dotin > -1 && dotinvlan == -1)
+                        {
+                            string piSub = piName + "." + vlan;
+                            Result result2 = j.Query("select PI_ID from PEInterface where PI_NO = {0} and PI_Name = {1}", piNO, piSub);
+                            if (result2.Count == 1) piSubID = result2[0]["PI_ID"].ToString();
+                        }
+
+                        batch.Execute("update MEInterface set MI_TO_PI = {0}, MI_TO_Check = 1 where MI_ID = {1}", piSubID, miID);
+                        batch.Execute("update PEInterface set PI_TO_MI = {0} where PI_ID = {1}", miID, piSubID);
                     }
 
-                    batch.Execute("update MEInterface set MI_TO_PI = {0}, MI_TO_Check = 1 where MI_ID = {1}", piSubID, miID);
-                    batch.Execute("update PEInterface set PI_TO_MI = {0} where PI_ID = {1}", miID, piSubID);
+                    result = batch.Commit();
+                    resultMITOPI = result.AffectedRows;
                 }
-
-                result = batch.Commit();
-
-                int resultMITOPI = result.AffectedRows;
 
                 #endregion
 
@@ -459,29 +484,35 @@ and a.MI_TO_Check is null
                 batch.Clear();
 
                 result = j.Query(@"
-select top 500 MP_ID, MP_VCID, NO_ID from MEPeer, MESDP, Node
+select top 500 MP_ID, MP_VCID, NO_ID 
+from MEPeer with (NOLOCK), MESDP with (NOLOCK), Node
 where MP_MS = MS_ID and MS_IP = NO_IP and MP_TO_Check is null
 ");
+                int resultMP = 0;
 
-                foreach (Row row in result)
+                if (result.Count > 0)
                 {
-                    string mpID = row["MP_ID"].ToString();
-                    string mpVcid = row["MP_VCID"].ToString();
-                    string noID = row["NO_ID"].ToString();
+                    Event(string.Format("Checking {0} ME Peer for SDP", result.Count));
 
-                    Result result2 = j.Query("select MC_ID from MECircuit where MC_NO = {0} and MC_VCID = {1}", noID, mpVcid);
-                    if (result2.Count == 1)
+                    foreach (Row row in result)
                     {
-                        string mcid = result2[0]["MC_ID"].ToString();
-                        batch.Execute("update MEPeer set MP_TO_MC = {0}, MP_TO_Check = 1 where MP_ID = {1}", mcid, mpID);
+                        string mpID = row["MP_ID"].ToString();
+                        string mpVcid = row["MP_VCID"].ToString();
+                        string noID = row["NO_ID"].ToString();
+
+                        Result result2 = j.Query("select MC_ID from MECircuit where MC_NO = {0} and MC_VCID = {1}", noID, mpVcid);
+                        if (result2.Count == 1)
+                        {
+                            string mcid = result2[0]["MC_ID"].ToString();
+                            batch.Execute("update MEPeer set MP_TO_MC = {0}, MP_TO_Check = 1 where MP_ID = {1}", mcid, mpID);
+                        }
+                        else
+                            batch.Execute("update MEPeer set MP_TO_Check = 1 where MP_ID = {0}", mpID);
                     }
-                    else
-                        batch.Execute("update MEPeer set MP_TO_Check = 1 where MP_ID = {0}", mpID);
+
+                    result = batch.Commit();
+                    resultMP = result.AffectedRows;
                 }
-
-                result = batch.Commit();
-
-                int resultMP = result.AffectedRows;
 
                 #endregion
 

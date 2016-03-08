@@ -172,7 +172,7 @@ order by Len desc
 select 
 top 500 MI_ID, MI_Name, MI_Description, NO_Name
 from 
-MEInterface, Node
+MEInterface with (NOLOCK), Node
 where 
 MI_Name not like '%.%' and MI_TO_Check is null and MI_NO = NO_ID
 ");

@@ -1651,24 +1651,27 @@ MC_NO = {0} and MC_VCID = {1}
                                 {
                                     string[] linex = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
-                                    MECircuitSDPToDatabase c = new MECircuitSDPToDatabase();
+                                    if (linex.Length > 1)
+                                    {
+                                        MECircuitSDPToDatabase c = new MECircuitSDPToDatabase();
 
-                                    if (circuitdb.ContainsKey(linex[0])) c.CircuitID = circuitdb[linex[0]]["MC_ID"].ToString();
-                                    else c.CircuitID = null;
+                                        if (circuitdb.ContainsKey(linex[0])) c.CircuitID = circuitdb[linex[0]]["MC_ID"].ToString();
+                                        else c.CircuitID = null;
 
-                                    string[] sdpvcid = linex[1].Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
+                                        string[] sdpvcid = linex[1].Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
 
-                                    c.SDP = sdpvcid[0];
-                                    c.VCID = sdpvcid[1];
+                                        c.SDP = sdpvcid[0];
+                                        c.VCID = sdpvcid[1];
 
-                                    if (peerdb.ContainsKey(sdpvcid[0])) c.SDPID = peerdb[c.SDP]["MS_ID"].ToString();
-                                    else c.SDPID = null;
+                                        if (peerdb.ContainsKey(sdpvcid[0])) c.SDPID = peerdb[c.SDP]["MS_ID"].ToString();
+                                        else c.SDPID = null;
 
-                                    c.Type = linex[2][0] + "";
-                                    c.Protocol = linex[4] == "Up" ? 1 : 0;
+                                        c.Type = linex[2][0] + "";
+                                        c.Protocol = linex[4] == "Up" ? 1 : 0;
 
-                                    if (c.CircuitID != null && c.SDPID != null)
-                                        servpeerlive.Add(c.SDP + ":" + c.VCID, c);
+                                        if (c.CircuitID != null && c.SDPID != null)
+                                            servpeerlive.Add(c.SDP + ":" + c.VCID, c);
+                                    }
                                 }
                             }
                         }

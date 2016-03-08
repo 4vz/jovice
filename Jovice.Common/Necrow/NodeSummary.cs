@@ -93,12 +93,15 @@ select NS_ID, NS_Key, NS_TimeStamp, NS_Value from NodeSummary where NS_NO = {0}
 
                     foreach (Row row2 in result2)
                     {
-                        string key = row2["NS_Key"].ToString();
-                        if (!current.ContainsKey(key))
-                            current.Add(key, new Tuple<DateTime, string, string>(
-                                row2["NS_TimeStamp"].ToDateTime(),
-                                row2["NS_Value"].ToString(),
-                                row2["NS_ID"].ToString()));
+                        if (row2 != null)
+                        {
+                            string key = row2["NS_Key"].ToString();
+                            if (!current.ContainsKey(key))
+                                current.Add(key, new Tuple<DateTime, string, string>(
+                                    row2["NS_TimeStamp"].ToDateTime(),
+                                    row2["NS_Value"].ToString(),
+                                    row2["NS_ID"].ToString()));
+                        }
                     }
 
                     if (noType == "P")
@@ -267,7 +270,7 @@ select NS_ID, NS_Key, NS_TimeStamp, NS_Value from NodeSummary where NS_NO = {0}
                 else
                 {
                     Event("Updated " + commitAffected + " entries");
-                    Thread.Sleep(5000);
+                    Thread.Sleep(20000);
                 }
             }
 

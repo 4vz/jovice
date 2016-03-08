@@ -932,7 +932,7 @@ where NO_Active = 1
                 return true;
             }
             #endregion
-
+            
             #region CHECK IP
 
             Event("Checking host IP");
@@ -982,22 +982,6 @@ where NO_Active = 1
                         if (result.Count == 1)
                         {
                             #region CHANGED to existing???
-
-                            // Stop currently running process
-                            // that might interference this process                            
-                            if (Necrow.IsServiceSet(NecrowServices.TopologyFinder))
-                                TopologyFinder.Stop();
-                            if (Necrow.IsServiceSet(NecrowServices.Summary))
-                                Summary.Stop();
-
-                            while (true)
-                            {
-                                // wait until topologyfinder and summary stopped
-                                if (TopologyFinder.IsStop() && Summary.IsStop())
-                                    break;
-                                else
-                                    Thread.Sleep(1000);
-                            }
 
                             string existingtype = result[0]["NO_Type"].ToString();
                             string existingnodeid = result[0]["NO_ID"].ToString();
@@ -1107,12 +1091,6 @@ where NO_Active = 1
                                 n = j.Execute("delete from Node where NO_ID = {0}", deletethisnode).AffectedRows;
                                 if (n > 0) Event("Node deleted");
                             }
-
-                            // Start again
-                            if (Necrow.IsServiceSet(NecrowServices.TopologyFinder))
-                                TopologyFinder.Start();
-                            if (Necrow.IsServiceSet(NecrowServices.Summary))
-                                Summary.Start();
 
                             #endregion
                         }

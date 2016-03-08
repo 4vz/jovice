@@ -232,6 +232,8 @@ namespace Jovice
 
                 joviceDatabase = jovice;
 
+                jovice.Exception += Jovice_Exception;
+
                 if (joviceDatabaseConnected)
                 {
                     Event("Necrow Started");
@@ -260,6 +262,11 @@ namespace Jovice
             }));
 
             start.Start();
+        }
+
+        private static void Jovice_Exception(object sender, DatabaseExceptionEventArgs eventArgs)
+        {
+            Event("Database expcetion: " + eventArgs.Message + ", SQL: " + eventArgs, "JOVICE");
         }
 
         public static void Stop()

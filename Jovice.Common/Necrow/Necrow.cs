@@ -266,7 +266,7 @@ namespace Jovice
 
         private static void Jovice_Exception(object sender, DatabaseExceptionEventArgs eventArgs)
         {
-            Event("Database expcetion: " + eventArgs.Message + ", SQL: " + eventArgs, "JOVICE");
+            Event("Database exception: " + eventArgs.Message + ", SQL: " + eventArgs.Sql, "JOVICE");
         }
 
         public static void Stop()

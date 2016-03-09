@@ -410,6 +410,8 @@ namespace Aphysoft.Common
 
         public virtual Result Query(string sql) { return new Result(sql); }
 
+        public virtual Result Query(string sql, int timeout) { return new Result(sql); }
+
         public virtual Column Scalar(string sql) { return null; }
 
         public virtual Result Execute(string sql) { return new Result(sql); }
@@ -473,14 +475,13 @@ namespace Aphysoft.Common
             {
                 try
                 {
-                    connection.Open();
-                    
+                    connection.Open();                   
 
                     stopwatch.Restart();
 
                     SqlCommand command = new SqlCommand(sql, connection);
 
-                    command.CommandTimeout = 120;
+                    command.CommandTimeout = 0;
 
                     SqlDataReader reader = command.ExecuteReader();
 

@@ -460,7 +460,8 @@ and a.MI_TO_Check is null
                         int dotin = miName.IndexOf('.');
                         if (dotin > -1) vlan = miName.Substring(dotin + 1);
 
-                        int dotinvlan = vlan.IndexOf('.');
+                        int dotinvlan = -1;
+                        if (vlan != null) dotinvlan = vlan.IndexOf('.');
 
                         if (dotin > -1 && dotinvlan == -1)
                         {

@@ -2477,12 +2477,22 @@ MC_NO = {0} and MC_VCID = {1}
                                     //012345678901234567890123456789012345678901234567
                                     //          1         2         3         4
 
+                                    // 5.160
+                                    //Aux0/0/1                      down    down     HUAWEI, Aux0/0/1 Interface
 
-                                    string descarea;
+                                    // 8.x
+                                    //Eth-Trunk1                    up      up       AGGR_PE2-D1-PBR-TRANSIT/ETH-TRUNK1_TO_T-D1-PBR/BE5_5x10G
+                                    //012345678901234567890123456789012345678901234567
+                                    //          1         2         3         4
+
+
+                                    string descarea = null;
                                     if (nodeVersion == "5.90")
                                         descarea = line.Substring(30).TrimStart();
                                     else
                                         descarea = line.Substring(47).TrimStart();
+
+                                    //descarea = descarea.TrimEnd(newline);
 
                                     string inf = line.Substring(0, 30).Trim();
 

@@ -1663,6 +1663,17 @@ namespace Jovice
 
                 #endregion
             }
+            else if (nodeManufacture == hwe)
+            {
+                #region hwe
+
+                if (Send("display interface description")) { NodeStop(); return; }
+                bool timeout;
+                List<string> lines = NodeRead(out timeout);
+                if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+
+                #endregion
+            }
 
             #endregion
 

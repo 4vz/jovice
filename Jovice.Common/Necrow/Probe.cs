@@ -173,7 +173,9 @@ namespace Jovice
 
         private string xr = "XR";
 
-        private string feature = null;
+        private string feature = null;//"interface";
+
+        private char[] newline = new char[] { (char)13, (char)10 };
 
         private Queue<string> prioritize = new Queue<string>();
 
@@ -507,6 +509,8 @@ where NO_Active = 1
 
                             if (goFurther)
                             {
+                                Event("Continue to process");
+
                                 if (nodeType == "P") PEProcess();
                                 else if (nodeType == "M") MEProcess();
                             }
@@ -541,6 +545,8 @@ where NO_Active = 1
 
                         if (goFurther)
                         {
+                            Event("Continue to process");
+
                             if (nodeType == "P") PEProcess();
                             else if (nodeType == "M") MEProcess();
                         }
@@ -1364,6 +1370,8 @@ where NO_Active = 1
 
             #region TERMINAL SETUP
 
+            Event("Setup terminal");
+
             bool timeout;
             noMore = true; // by default, we can no more
 
@@ -1458,6 +1466,14 @@ where NO_Active = 1
                             break;
                         }
                     }
+                    // additional setup for huawei >5.90 for screen-width tweak (help problem with 5.160 auto text-wrap)
+                    //if (version == "5.160")
+                    //{
+                    //    if (Send("screen-width 80" + (char)13 + "Y")) { NodeStop(); return true; }
+                    //    NodeRead(out timeout);
+                    //    if (timeout) { NodeStop(); return true; }
+                    //}
+
                     #endregion
                 }
                 else if (nodeManufacture == cso)
@@ -2120,7 +2136,22 @@ where NO_Active = 1
                             if (b == 10)
                             {
                                 string line = lineBuilder.ToString();
-                                lines.Add(line);
+                                
+                                if (nodeManufacture == hwe && nodeVersion == "5.160" && line.Length > 80)
+                                {
+                                    int looptimes = (int)Math.Ceiling((float)line.Length / 80);
+
+                                    for (int loop = 0; loop < looptimes; loop++)
+                                    {
+                                        int sisa = 80;
+                                        if (loop == looptimes - 1) sisa = line.Length - (loop * 80);
+                                        string curline = line.Substring(loop * 80, sisa);
+                                        lines.Add(curline);
+                                    }
+                                }
+                                else
+                                    lines.Add(line);
+
                                 lineBuilder.Clear();
                             }
                             else if (b >= 32) lineBuilder.Append((char)b);

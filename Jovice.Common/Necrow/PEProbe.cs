@@ -278,7 +278,7 @@ namespace Jovice
     {
         #region Methods
 
-        private void PEProcess()
+        private bool PEProcess()
         {
             #region Variables
 
@@ -340,10 +340,11 @@ namespace Jovice
                 {
                     #region xr
 
-                    if (Send("show vrf all")) { NodeStop(); return; }
+                    if (Send("show vrf all")) { NodeSaveMainLoopRestart(); return true; }
                     bool timeout;
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     int linen = 0;
                     foreach (string line in lines)
@@ -404,11 +405,12 @@ namespace Jovice
                 {
                     #region !xr
 
-                    if (Send("show ip vrf detail | in RD|Export VPN|Import VPN|RT")) { NodeStop(); return; }
+                    if (Send("show ip vrf detail | in RD|Export VPN|Import VPN|RT")) { NodeSaveMainLoopRestart(); return true; }
                     bool timeout;
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
-                                        
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
+
                     int stage = 0;
 
                     foreach (string line in lines)
@@ -483,10 +485,11 @@ namespace Jovice
                 string RDIPv6 = null;                
                 List<string> routeTargets = new List<string>();
 
-                if (Send("display ip vpn-instance verbose | include VPN-Instance Name and ID|Address family|Export VPN Targets|Import VPN Targets|Route Distinguisher")) { NodeStop(); return; }
+                if (Send("display ip vpn-instance verbose | include VPN-Instance Name and ID|Address family|Export VPN Targets|Import VPN Targets|Route Distinguisher")) { NodeSaveMainLoopRestart(); return true; }
                 bool timeout;
                 List<string> lines = NodeRead(out timeout);
-                if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                if (timeout) { NodeReadTimeOutExit(); return true; }
 
                 foreach (string line in lines)
                 {
@@ -814,10 +817,11 @@ namespace Jovice
                 {
                     #region asr
 
-                    if (Send("show policy-map list | in PolicyMap")) { NodeStop(); return; }
+                    if (Send("show policy-map list | in PolicyMap")) { NodeSaveMainLoopRestart(); return true; }
                     bool timeout;
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -840,10 +844,11 @@ namespace Jovice
                 {
                     #region !asr
 
-                    if (Send("show policy-map | in Policy Map")) { NodeStop(); return; }
+                    if (Send("show policy-map | in Policy Map")) { NodeSaveMainLoopRestart(); return true; }
                     bool timeout;
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -975,10 +980,11 @@ namespace Jovice
             {
                 #region cso
 
-                if (Send("show int desc")) { NodeStop(); return; }
+                if (Send("show int desc")) { NodeSaveMainLoopRestart(); return true; }
                 bool timeout;
                 List<string> lines = NodeRead(out timeout);
-                if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                if (timeout) { NodeReadTimeOutExit(); return true; }
 
                 if (nodeVersion == xr)
                 {
@@ -1017,9 +1023,10 @@ namespace Jovice
                     }
 
                     // vrf to interface
-                    if (Send("show vrf all detail")) { NodeStop(); return; }
+                    if (Send("show vrf all detail")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     string currentVrf = null;
                     string currentVrfName = null;
@@ -1080,9 +1087,10 @@ namespace Jovice
                     }
 
                     // policy map
-                    if (Send("show policy-map targets")) { NodeStop(); return; }
+                    if (Send("show policy-map targets")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     string currentpolicy = null;
                     int currentconfigrate = -1;
@@ -1194,9 +1202,10 @@ namespace Jovice
                     }
 
                     // ip
-                    if (Send("show ipv4 vrf all interface | in \"Internet address|Secondary address|ipv4\"")) { NodeStop(); return; }
+                    if (Send("show ipv4 vrf all interface | in \"Internet address|Secondary address|ipv4\"")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     #endregion
                 }
@@ -1236,9 +1245,10 @@ namespace Jovice
                     }
 
                     // vrf to interface
-                    if (Send("show ip vrf interfaces")) { NodeStop(); return; }
+                    if (Send("show ip vrf interfaces")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -1258,9 +1268,10 @@ namespace Jovice
                     if (nodeSubVersion.StartsWith("12.4"))
                     {
                         #region 12.4
-                        if (Send("show policy-map interface | in Service-policy_input|Service-policy_output|Ethernet|Serial")) { NodeStop(); return; }
+                        if (Send("show policy-map interface | in Service-policy_input|Service-policy_output|Ethernet|Serial")) { NodeSaveMainLoopRestart(); return true; }
                         lines = NodeRead(out timeout);
-                        if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                        if (timeout) { NodeReadTimeOutExit(); return true; }
 
                         string currentif = null;
                         string parentPort = null;
@@ -1387,13 +1398,16 @@ namespace Jovice
                     else
                     {
                         #region !12.4
-                        if (Send("show policy-map interface input brief")) { NodeStop(); return; }
+                        if (Send("show policy-map interface input brief")) { NodeSaveMainLoopRestart(); return true; }
                         lines = NodeRead(out timeout);
-                        if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                        if (timeout) { NodeReadTimeOutExit(); return true; }
 
-                        if (Send("show policy-map interface output brief")) { NodeStop(); return; }
-                        lines.AddRange(NodeRead(out timeout));
-                        if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                        if (Send("show policy-map interface output brief")) { NodeSaveMainLoopRestart(); return true; }
+                        List<string> tlines = NodeRead(out timeout);
+                        if (tlines != null) lines.AddRange(tlines);
+                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                        if (timeout) { NodeReadTimeOutExit(); return true; }
 
                         string currentpolicy = null;
                         string type = "input";
@@ -1496,9 +1510,10 @@ namespace Jovice
                     }
 
                     // rate-limit
-                    if (Send("show interface rate-limit")) { NodeStop(); return; }
+                    if (Send("show interface rate-limit")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     string currentinterface = null;
                     string currentmode = null;
@@ -1615,9 +1630,10 @@ namespace Jovice
                     }
 
                     // ip
-                    if (Send("show ip interface | in Internet address|Secondary address|line protocol")) { NodeStop(); return; }
+                    if (Send("show ip interface | in Internet address|Secondary address|line protocol")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     #endregion
                 }
@@ -1667,10 +1683,11 @@ namespace Jovice
             {
                 #region hwe
 
-                if (Send("display interface description")) { NodeStop(); return; }
+                if (Send("display interface description")) { NodeSaveMainLoopRestart(); return true; }
                 bool timeout;
                 List<string> lines = NodeRead(out timeout);
-                if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                if (timeout) { NodeReadTimeOutExit(); return true; }
 
                 #endregion
             }
@@ -2232,7 +2249,9 @@ namespace Jovice
             
             #endregion
 
-            NodeEnd();
+            NodeSaveExit();
+
+            return false;
         }
 
         #endregion

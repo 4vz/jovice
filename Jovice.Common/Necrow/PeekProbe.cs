@@ -11,7 +11,7 @@ namespace Jovice
     {
         #region Methods
 
-        private void PeekProcess()
+        private bool PeekProcess()
         {
             #region CPU / Memory
 
@@ -27,10 +27,11 @@ namespace Jovice
             {
                 #region cso
 
-                if (Send("show processes cpu | in CPU")) { NodeStop(); return; }
+                if (Send("show processes cpu | in CPU")) { NodeSaveMainLoopRestart(); return true; }
                 bool timeout;
                 List<string> lines = NodeRead(out timeout);
-                if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                if (timeout) { NodeReadTimeOutExit(); return true; }
 
                 foreach (string line in lines)
                 {
@@ -49,9 +50,10 @@ namespace Jovice
                 if (nodeVersion == xr)
                 {
                     //show memory summary | in Physical Memory
-                    if (Send("show memory summary | in Physical Memory")) { NodeStop(); return; }
+                    if (Send("show memory summary | in Physical Memory")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -88,9 +90,10 @@ namespace Jovice
                 else
                 {
                     //show process memory  | in Processor Pool
-                    if (Send("show process memory | in Total:")) { NodeStop(); return; }
+                    if (Send("show process memory | in Total:")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -138,10 +141,11 @@ namespace Jovice
             {
                 #region alu
 
-                if (Send("show system cpu | match \"Busiest Core\"")) { NodeStop(); return; }
+                if (Send("show system cpu | match \"Busiest Core\"")) { NodeSaveMainLoopRestart(); return true; }
                 bool timeout;
                 List<string> lines = NodeRead(out timeout);
-                if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                if (timeout) { NodeReadTimeOutExit(); return true; }
 
                 foreach (string line in lines)
                 {
@@ -166,9 +170,10 @@ namespace Jovice
 
                 //show system memory-pools | match bytes
 
-                if (Send("show system memory-pools | match bytes")) { NodeStop(); return; }
+                if (Send("show system memory-pools | match bytes")) { NodeSaveMainLoopRestart(); return true; }
                 lines = NodeRead(out timeout);
-                if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                if (timeout) { NodeReadTimeOutExit(); return true; }
 
                 foreach (string line in lines)
                 {
@@ -205,10 +210,11 @@ namespace Jovice
             {
                 #region hwe
 
-                if (Send("display cpu-usage")) { NodeStop(); return; }
+                if (Send("display cpu-usage")) { NodeSaveMainLoopRestart(); return true; }
                 bool timeout;
                 List<string> lines = NodeRead(out timeout);
-                if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                if (timeout) { NodeReadTimeOutExit(); return true; }
 
 
                 foreach (string line in lines)
@@ -244,9 +250,10 @@ namespace Jovice
                 }
 
 
-                if (Send("display memory-usage")) { NodeStop(); return; }
+                if (Send("display memory-usage")) { NodeSaveMainLoopRestart(); return true; }
                 lines = NodeRead(out timeout);
-                if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                if (timeout) { NodeReadTimeOutExit(); return true; }
 
                 foreach (string line in lines)
                 {
@@ -282,10 +289,11 @@ namespace Jovice
                 #region jun
 
                 //show chassis routing-engine | match Idle
-                if (Send("show chassis routing-engine | match Idle")) { NodeStop(); return; }
+                if (Send("show chassis routing-engine | match Idle")) { NodeSaveMainLoopRestart(); return true; }
                 bool timeout;
                 List<string> lines = NodeRead(out timeout);
-                if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                if (timeout) { NodeReadTimeOutExit(); return true; }
 
                 foreach (string line in lines)
                 {
@@ -312,9 +320,10 @@ namespace Jovice
                 }
 
                 //show task memory
-                if (Send("show task memory")) { NodeStop(); return; }
+                if (Send("show task memory")) { NodeSaveMainLoopRestart(); return true; }
                 lines = NodeRead(out timeout);
-                if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                if (timeout) { NodeReadTimeOutExit(); return true; }
 
                 foreach (string line in lines)
                 {
@@ -396,6 +405,8 @@ namespace Jovice
             #endregion
 
             #endregion            
+
+            return false;
         }
 
         #endregion

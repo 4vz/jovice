@@ -396,7 +396,7 @@ namespace Jovice
 
     internal sealed partial class Probe
     {
-        private void MEProcess()
+        private bool MEProcess()
         {
             #region Variables
 
@@ -429,10 +429,11 @@ namespace Jovice
 
                     if (nodeManufacture == alu)
                     {
-                        if (Send("show service customer | match \"Customer-ID\"")) { NodeStop(); return; }
+                        if (Send("show service customer | match \"Customer-ID\"")) { NodeSaveMainLoopRestart(); return true; }
                         bool timeout;
                         List<string> lines = NodeRead(out timeout);
-                        if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                        if (timeout) { NodeReadTimeOutExit(); return true; }
 
                         foreach (string line in lines)
                         {
@@ -506,10 +507,11 @@ namespace Jovice
                 {
                     #region alu
 
-                    if (Send("show qos sap-ingress")) { NodeStop(); return; }
+                    if (Send("show qos sap-ingress")) { NodeSaveMainLoopRestart(); return true; }
                     bool timeout;
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -524,9 +526,10 @@ namespace Jovice
                         }
                     }
 
-                    if (Send("show qos sap-egress")) { NodeStop(); return; }
+                    if (Send("show qos sap-egress")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -555,10 +558,11 @@ namespace Jovice
                 {
                     #region hwe
 
-                    if (Send("display qos-profile configuration")) { NodeStop(); return; }
+                    if (Send("display qos-profile configuration")) { NodeSaveMainLoopRestart(); return true; }
                     bool timeout;
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     bool qosCollect = false;
                     foreach (string line in lines)
@@ -735,10 +739,11 @@ namespace Jovice
                 {
                     #region alu
 
-                    if (Send("show service sdp")) { NodeStop(); return; }
+                    if (Send("show service sdp")) { NodeSaveMainLoopRestart(); return true; }
                     bool timeout;
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -798,10 +803,11 @@ namespace Jovice
                     #region hwe
 
                     // dari mpls
-                    if (Send("display mpls ldp remote-peer")) { NodeStop(); return; }
+                    if (Send("display mpls ldp remote-peer")) { NodeSaveMainLoopRestart(); return true; }
                     bool timeout;
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     string farend = null;
                     int active = -1;
@@ -840,9 +846,10 @@ namespace Jovice
                     }
 
                     // dari vsi
-                    if (Send("display vsi verbose | in Peer Router ID")) { NodeStop(); return; }
+                    if (Send("display vsi verbose | in Peer Router ID")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -873,9 +880,10 @@ namespace Jovice
 
                     // dari mpls
                     //
-                    if (Send("display mpls l2vc | in destination")) { NodeStop(); return; }
+                    if (Send("display mpls l2vc | in destination")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -1070,7 +1078,7 @@ namespace Jovice
             // hwe only
             List<string[]> circuitethernetdetail = null;
 
-            if (feature == null || feature == "service")
+            if (feature == null || feature == "service" || feature == "interface")
             {
                 Event("Checking Service");
                 
@@ -1146,10 +1154,11 @@ MC_NO = {0} and MC_VCID = {1}
                     foreach (Row vdbco in vdbcr) { vdbc.Add(vdbco["MU_UID"].ToString(), vdbco["MU_ID"].ToString()); }
 
                     // STEP 1, dari display config untuk epipe dan vpls, biar dapet mtu dan deskripsinya
-                    if (Send("admin display-config | match customer context children")) { NodeStop(); return; }
+                    if (Send("admin display-config | match customer context children")) { NodeSaveMainLoopRestart(); return true; }
                     bool timeout;
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     MECircuitToDatabase cservice = null;
                     foreach (string line in lines)
@@ -1201,9 +1210,10 @@ MC_NO = {0} and MC_VCID = {1}
                     }
 
                     // STEP 2, dari service-using, sisanya
-                    if (Send("show service service-using")) { NodeStop(); return; }
+                    if (Send("show service service-using")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -1241,10 +1251,11 @@ MC_NO = {0} and MC_VCID = {1}
                     // display mpls l2vc brief
 
                     // STEP 1, VSI Name dan VSI ID
-                    if (Send("display vsi verbose | in VSI Name|VSI ID")) { NodeStop(); return; }
+                    if (Send("display vsi verbose | in VSI Name|VSI ID")) { NodeSaveMainLoopRestart(); return true; }
                     bool timeout;
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     MECircuitToDatabase cservice = null;
                     foreach (string line in lines)
@@ -1287,9 +1298,10 @@ MC_NO = {0} and MC_VCID = {1}
                     }
 
                     // STEP 2, VSI Name and VSI Detail
-                    if (Send("display vsi")) { NodeStop(); return; }
+                    if (Send("display vsi")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -1320,9 +1332,10 @@ MC_NO = {0} and MC_VCID = {1}
                     circuitethernetdetail = new List<string[]>();
 
                     //display mpls l2vc | in client interface|VC ID|local VC MTU|destination
-                    if (Send("display mpls l2vc | in client interface|VC ID|local VC MTU|destination")) { NodeStop(); return; }
+                    if (Send("display mpls l2vc | in client interface|VC ID|local VC MTU|destination")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     string cinterface = null;
                     string cinterfaceVCID = null;
@@ -1636,10 +1649,11 @@ MC_NO = {0} and MC_VCID = {1}
                 {
                     #region alu
 
-                    if (Send("show service sdp-using")) { NodeStop(); return; }
+                    if (Send("show service sdp-using")) { NodeSaveMainLoopRestart(); return true; }
                     bool timeout;
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -1684,10 +1698,11 @@ MC_NO = {0} and MC_VCID = {1}
                     #region hwe
 
                     // peernya vsi
-                    if (Send("display vsi peer-info")) { NodeStop(); return; }
+                    if (Send("display vsi peer-info")) { NodeSaveMainLoopRestart(); return true; }
                     bool timeout;
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     string cvsi = null;
                     foreach (string line in lines)
@@ -2026,10 +2041,11 @@ MC_NO = {0} and MC_VCID = {1}
                 {
                     #region alu
 
-                    if (Send("show port description")) { NodeStop(); return; }
+                    if (Send("show port description")) { NodeSaveMainLoopRestart(); return true; }
                     bool timeout;
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     string port = null;
                     StringBuilder description = new StringBuilder();
@@ -2094,9 +2110,10 @@ MC_NO = {0} and MC_VCID = {1}
                         }
                     }
 
-                    if (Send("show port")) { NodeStop(); return; }
+                    if (Send("show port")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -2194,9 +2211,10 @@ MC_NO = {0} and MC_VCID = {1}
 
                     if (nodeVersion.StartsWith("TiMOS-B")) // sementara TiMOS-B ga bisa dapet deskripsi
                     {
-                        if (Send("show service sap-using")) { NodeStop(); return; }
+                        if (Send("show service sap-using")) { NodeSaveMainLoopRestart(); return true; }
                         lines = NodeRead(out timeout);
-                        if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                        if (timeout) { NodeReadTimeOutExit(); return true; }
 
                         foreach (string line in lines)
                         {
@@ -2264,9 +2282,10 @@ MC_NO = {0} and MC_VCID = {1}
                     }
                     else
                     {
-                        if (Send("show service sap-using description")) { NodeStop(); return; }
+                        if (Send("show service sap-using description")) { NodeSaveMainLoopRestart(); return true; }
                         lines = NodeRead(out timeout);
-                        if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                        if (timeout) { NodeReadTimeOutExit(); return true; }
 
                         port = null;
                         description = new StringBuilder();
@@ -2383,9 +2402,10 @@ MC_NO = {0} and MC_VCID = {1}
                             }
                         }
 
-                        if (Send("show service sap-using")) { NodeStop(); return; }
+                        if (Send("show service sap-using")) { NodeSaveMainLoopRestart(); return true; }
                         lines = NodeRead(out timeout);
-                        if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                        if (timeout) { NodeReadTimeOutExit(); return true; }
 
                         foreach (string line in lines)
                         {
@@ -2435,10 +2455,11 @@ MC_NO = {0} and MC_VCID = {1}
                 {
                     #region hwe
 
-                    if (Send("display interface description")) { NodeStop(); return; }
+                    if (Send("display interface description")) { NodeSaveMainLoopRestart(); return true; }
                     bool timeout;
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     bool begin = false;
                     string port = null;
@@ -2528,9 +2549,10 @@ MC_NO = {0} and MC_VCID = {1}
                         port = null;
                     }
 
-                    if (Send("display interface brief")) { NodeStop(); return; }
+                    if (Send("display interface brief")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     begin = false;
                     string aggre = null;
@@ -2632,9 +2654,10 @@ MC_NO = {0} and MC_VCID = {1}
                     }
 
                     // vsi ke port (l2 binding vsi)
-                    if (Send("display vsi services all")) { NodeStop(); return; }
+                    if (Send("display vsi services all")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     //GigabitEthernet7/0/3.2999           "ZZZ ZZZ"                       up
                     //GigabitEthernet7/0/10.20            OAMN-MSAN-PWT02
@@ -2667,9 +2690,10 @@ MC_NO = {0} and MC_VCID = {1}
                     }
 
                     // qos
-                    if (Send("display cur int | in interface |qos-profile |user-queue")) { NodeStop(); return; }
+                    if (Send("display cur int | in interface |qos-profile |user-queue")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     string qosInterface = null;
                     foreach (string line in lines)
@@ -3084,7 +3108,7 @@ MC_NO = {0} and MC_VCID = {1}
             }
 
             // DELETE SERVICE
-            if (feature == null && feature == "service")
+            if (feature == null && feature == "service" && feature == "interface")
             {
                 batchline = 0;
                 batchlist1.Clear();
@@ -3193,7 +3217,9 @@ MC_NO = {0} and MC_VCID = {1}
 
             #endregion
 
-            NodeEnd();
+            NodeSaveExit();
+
+            return false;
         }
     }
 }

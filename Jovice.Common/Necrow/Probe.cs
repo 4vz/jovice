@@ -120,12 +120,6 @@ namespace Jovice
             LastConfiguration
         }
         
-        protected enum NodeExitReasons
-        {
-            None,
-            Timeout
-        }
-
         #endregion
 
         #region Fields
@@ -136,14 +130,12 @@ namespace Jovice
 
         private ProbeMode mode;
 
-        private bool endProbe = false;
-
         private Queue<string> outputs = new Queue<string>();
         private Dictionary<string, object> updates;
         private string defaultOutputIdentifier = null;
         private string outputIdentifier = null;
 
-        protected Database j;
+        private Database j;
 
         private string sshServer = null;
         private string sshUser = null;
@@ -186,6 +178,8 @@ namespace Jovice
                 return mainLoop != null;
             }
         }
+
+        public bool requestFailure = false;
 
         #endregion
 
@@ -294,7 +288,7 @@ namespace Jovice
             base.Stop();
         }
 
-        private void StopThenRestart()
+        private void MainLoopRestart()
         {
             outputIdentifier = null;
 
@@ -477,62 +471,41 @@ where NO_Active = 1
                         Event(eligibleNodes + " eligible nodes");
 
                         Shuffle<string>(ids);
-                        index = 0;
 
                         #endregion
+
+                        index = 0;
                     }
 
-                    #region Prioritize
-
+                    Row node = null;
+                    bool forceGoFurther = false;
+                    
                     if (prioritize.Count > 0)
                     {
                         string nodeName = prioritize.Dequeue();
-
                         Event("Prioritizing Probe: " + nodeName);
-
                         Result rnode = j.Query("select * from Node where lower(NO_Name) = {0}", nodeName.ToLower());
-                        
-                        if (rnode.Count == 1)
-                        {
-                            Row node = rnode[0];
-                            bool goFurther = false;
 
-                            if (NodeEnter(node, out goFurther))
-                            {
-                                Thread.Sleep(10000);
-                                continue;
-                            }
+                        forceGoFurther = true; // prioritize is always goFurther
 
-                            goFurther = true; // prioritize is always goFurther
-
-                            PeekProcess();
-
-                            if (goFurther)
-                            {
-                                Event("Continue to process");
-
-                                if (nodeType == "P") PEProcess();
-                                else if (nodeType == "M") MEProcess();
-                            }
-                            else NodeEnd();
-
-                            Thread.Sleep(10000);
-                        }
+                        if (rnode.Count == 1) node = rnode[0];
                         else
                         {
                             Event("Failed, not exists in the database.");
-                        }
-                        continue;
+                            continue;
+                        }                        
                     }
-
-                    #endregion
-
-                    if (index < ids.Count)
+                    else if (index < ids.Count)
                     {
-                        string id = ids[index++];
+                        index++;
+                        string id = ids[index];
                         Result rnode = j.Query("select * from Node where NO_ID = {0}", id);
+                        node = rnode[0];
+                    }
+                    else index = -1;
 
-                        Row node = rnode[0];
+                    if (node != null)
+                    {
                         bool goFurther = false;
 
                         if (NodeEnter(node, out goFurther))
@@ -540,21 +513,21 @@ where NO_Active = 1
                             Thread.Sleep(10000);
                             continue;
                         }
+                        
+                        if (forceGoFurther) goFurther = true; 
 
                         PeekProcess();
 
                         if (goFurther)
                         {
                             Event("Continue to process");
-
                             if (nodeType == "P") PEProcess();
                             else if (nodeType == "M") MEProcess();
                         }
-                        else NodeEnd();
+                        else NodeSaveExit();
 
                         Thread.Sleep(10000);
                     }
-                    else index = -1;
                 }
 
                 #endregion
@@ -573,7 +546,7 @@ where NO_Active = 1
 
                         if (wait == 3)
                         {
-                            StopThenRestart();
+                            MainLoopRestart();
                         }
                     }
 
@@ -606,47 +579,53 @@ where NO_Active = 1
 
         #region Send
 
-        private void SendControlRightBracket()
+        private bool SendControlRightBracket()
         {
             if (IsConnected)
             {
-                Request((char)29);
+                bool ret = Request((char)29);
                 Thread.Sleep(250);
+                return ret;
             }
+            else return true;
         }
 
-        private void SendControlC()
+        private bool SendControlC()
         {
             if (IsConnected)
             {
-                Request((char)3);
+                bool ret = Request((char)3);
                 Thread.Sleep(250);
+                return ret;
             }
+            else return true;
         }
 
-        private void SendControlZ()
+        private bool SendControlZ()
         {
             if (IsConnected)
             {
-                Request((char)26);
+                bool ret = Request((char)26);
                 Thread.Sleep(250);
+                return ret;
             }
+            else return true;
         }
 
-        private void SendSpace()
+        private bool SendSpace()
         {
             if (IsConnected)
             {
-                Request((char)32);
+                return Request((char)32);
             }
+            else return true;
         }
 
-        private bool Send(string command)
+        private bool Send(string command) // Actually only alias of SSHConnection.Request
         {
             if (IsConnected)
             {
-                Request(command);
-                return false;
+                return Request(command);
             }
             else return true;
         }
@@ -675,8 +654,15 @@ where NO_Active = 1
         
         private List<string> SSHRead(string request)
         {
-            Request(request);
-            Request("echo end\\ request");
+            bool exp = false;
+            if (!exp) exp = Request(request);
+            if (!exp) exp = Request("echo end\\ request");
+
+            if (exp)
+            {
+                requestFailure = true;
+                return null;
+            }
 
             StringBuilder lineBuilder = new StringBuilder();
             List<string> lines = new List<string>();
@@ -793,6 +779,8 @@ where NO_Active = 1
 
             List<string> lines = SSHRead("cat /etc/hosts | grep -i " + hostname);
 
+            if (lines == null) return null;
+
             Dictionary<string, string> greppair = new Dictionary<string, string>();
             foreach (string line in lines)
             {
@@ -887,14 +875,17 @@ where NO_Active = 1
             while (SSHWait())
             {
                 wait++;
-                Event("MCE Waiting... (" + wait + ")");
-                Request((char)13);
-                SendControlRightBracket();
-                SendControlC();
+                Event("MCE Waiting I... (" + wait + ")");
+                bool exp = false;
+                if (!exp) exp = Request((char)13);
+                if (!exp) exp = SendControlRightBracket();
+                if (!exp) exp = SendControlC();
+
                 Thread.Sleep(1000);
-                if (wait == 3)
+
+                if (exp || wait == 3)
                 {
-                    StopThenRestart();
+                    MainLoopRestart();
                     return true;
                 }
             }
@@ -934,7 +925,7 @@ where NO_Active = 1
             else
             {
                 Event("Unsupported node manufacture");
-                NodeStop();
+                NodeSaveExit();
                 return true;
             }
             #endregion
@@ -944,8 +935,14 @@ where NO_Active = 1
             Event("Checking host IP");
             string resolvedIP = SSHCheckNodeIP(nodeName);
 
-            if (resolvedIP == null) Event("Hostname is unresolved");
+            if (requestFailure)
+            {
+                requestFailure = false;
+                MainLoopRestart();
+                return true;
+            }
 
+            if (resolvedIP == null) Event("Hostname is unresolved");
             if (nodeIP == null)
             {
                 if (resolvedIP == null)
@@ -956,7 +953,7 @@ where NO_Active = 1
                     else
                         NodeUpdate(NodeUpdateTypes.Remark, "UNRESOLVED");
 
-                    NodeStop();
+                    NodeSave();
                     return true;
                     #endregion
                 }
@@ -976,7 +973,15 @@ where NO_Active = 1
                     #region RESOLVED!, null
                     // reverse ip?
                     Event("Resolving by reverse host name");
+
                     string hostName = SSHCheckNodeIP(nodeIP, true);
+
+                    if (requestFailure)
+                    {
+                        requestFailure = false;
+                        MainLoopRestart();
+                        return true;
+                    }
 
                     if (hostName != null)
                     {
@@ -1115,7 +1120,7 @@ where NO_Active = 1
                             #endregion
                         }
 
-                        NodeStop();
+                        NodeSave();
                         return true;
                         #endregion
                     }
@@ -1128,7 +1133,7 @@ where NO_Active = 1
                         else
                             NodeUpdate(NodeUpdateTypes.Remark, "UNRESOLVED");
 
-                        NodeStop();
+                        NodeSave();
                         return true;
                         #endregion                            
                     }
@@ -1143,7 +1148,7 @@ where NO_Active = 1
                     NodeUpdate(NodeUpdateTypes.Remark, "IPHASCHANGED");
                     NodeUpdate(NodeUpdateTypes.Active, 0);
 
-                    NodeStop();
+                    NodeSave();
                     return true;
 
                     #endregion
@@ -1152,9 +1157,9 @@ where NO_Active = 1
 
             Event("Host identified");
 
-            #endregion
-
             outputIdentifier = nodeName;
+
+            #endregion
 
             #region CONNECT
 
@@ -1177,14 +1182,17 @@ where NO_Active = 1
                 while (SSHWait())
                 {
                     wait++;
-                    Event("MCE Waiting... (" + wait + ")");
-                    Request((char)13);
-                    SendControlRightBracket();
-                    SendControlC();
+                    Event("MCE Waiting II... (" + wait + ")");
+                    bool exp = false;
+                    if (!exp) exp = Request((char)13);
+                    if (!exp) exp = SendControlRightBracket();
+                    if (!exp) exp = SendControlC();
+
                     Thread.Sleep(1000);
-                    if (wait == 3)
+
+                    if (exp || wait == 3)
                     {
-                        StopThenRestart();
+                        MainLoopRestart();
                         return true;
                     }
                 }
@@ -1207,6 +1215,14 @@ where NO_Active = 1
                 if (currentConnectType == "T")
                 {
                     connectSuccess = NodeConnectByTelnet(nodeName, nodeManufacture, nodeUser, nodePass);
+
+                    if (requestFailure)
+                    {
+                        requestFailure = false;
+                        MainLoopRestart();
+                        return true;
+                    }
+
                     if (connectSuccess) connectBy = "T";
                     else
                     {
@@ -1216,6 +1232,14 @@ where NO_Active = 1
                 else if (currentConnectType == "S")
                 {
                     connectSuccess = NodeConnectBySSH(nodeName, nodeManufacture, nodeUser, nodePass);
+
+                    if (requestFailure)
+                    {
+                        requestFailure = false;
+                        MainLoopRestart();
+                        return true;
+                    }
+
                     if (connectSuccess) connectBy = "S";
                     else
                     {
@@ -1239,20 +1263,36 @@ where NO_Active = 1
                     while (SSHWait())
                     {
                         wait++;
-                        Event("MCE Waiting... (" + wait + ")");
-                        Request((char)13);
-                        SendControlRightBracket();
-                        SendControlC();
+                        Event("MCE Waiting III... (" + wait + ")");
+                        bool exp = false;
+                        if (!exp) exp = Request((char)13);
+                        if (!exp) exp = SendControlRightBracket();
+                        if (!exp) exp = SendControlC();
+
+                        Thread.Sleep(1000);
+
+                        if (exp || wait == 3)
+                        {
+                            MainLoopRestart();
+                            return true;
+                        }
                     }
 
                     string testOtherNode;
 
-                    if (nodeName == "PE-D2-JT2-MGT") testOtherNode = "PE2-D2-JT2-MGT";
-                    else testOtherNode = "PE-D2-JT2-MGT";
+                    if (nodeName == "PE-D2-TAN") testOtherNode = "PE2-D2-JT2-MGT";
+                    else testOtherNode = "PE-D2-TAN";
 
                     Event("Trying to connect to other node...(" + testOtherNode + ")");
 
                     bool testConnected = NodeConnectByTelnet(testOtherNode, cso, nodeUser, nodePass);
+
+                    if (requestFailure)
+                    {
+                        requestFailure = false;
+                        MainLoopRestart();
+                        return true;
+                    }
 
                     if (testConnected)
                     {
@@ -1299,7 +1339,6 @@ where NO_Active = 1
                     }
                 }
 
-
                 if (tacacError)
                 {
                     // this node is innocent
@@ -1314,7 +1353,7 @@ where NO_Active = 1
 
                 }
 
-                NodeStop();
+                NodeSave();
                 return true;
             }
 
@@ -1348,7 +1387,7 @@ where NO_Active = 1
                 if (terminal.EndsWith(">"))
                 {
                     Event("Error: Not In Privileged EXEC mode");
-                    NodeEnd();
+                    NodeSaveExit();
                     return true;
                 }
             }
@@ -1377,13 +1416,15 @@ where NO_Active = 1
 
             if (nodeManufacture == alu)
             {
-                if (Send("environment no saved-ind-prompt")) { NodeStop(); return true; }
+                if (Send("environment no saved-ind-prompt")) { NodeSaveMainLoopRestart(); return true; }
                 NodeRead(out timeout);
-                if (timeout) { NodeStop(); return true; }
+                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                if (timeout) { NodeReadTimeOutExit(); return true; }
 
-                if (Send("environment no more")) { NodeStop(); return true; }
+                if (Send("environment no more")) { NodeSaveMainLoopRestart(); return true; }
                 List<string> lines = NodeRead(out timeout);
-                if (timeout) { NodeStop(); return true; }
+                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                if (timeout) { NodeReadTimeOutExit(); return true; }
 
                 string oline = string.Join(" ", lines);
                 if (oline.IndexOf("CLI Command not allowed for this user.") > -1)
@@ -1393,21 +1434,24 @@ where NO_Active = 1
             }
             else if (nodeManufacture == hwe)
             {
-                if (Send("screen-length 0 temporary")) { NodeStop(); return true; }
+                if (Send("screen-length 0 temporary")) { NodeSaveMainLoopRestart(); return true; }
                 NodeRead(out timeout);
-                if (timeout) { NodeStop(); return true; }
+                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                if (timeout) { NodeReadTimeOutExit(); return true; }
             }
             else if (nodeManufacture == cso)
             {
-                if (Send("terminal length 0")) { NodeStop(); return true; }
+                if (Send("terminal length 0")) { NodeSaveMainLoopRestart(); return true; }
                 NodeRead(out timeout);
-                if (timeout) { NodeStop(); return true; }
+                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                if (timeout) { NodeReadTimeOutExit(); return true; }
             }
             else if (nodeManufacture == jun)
             {
-                if (Send("set cli screen-length 0")) { NodeStop(); return true; }
+                if (Send("set cli screen-length 0")) { NodeSaveMainLoopRestart(); return true; }
                 NodeRead(out timeout);
-                if (timeout) { NodeStop(); return true; }
+                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                if (timeout) { NodeReadTimeOutExit(); return true; }
             }
 
             #endregion
@@ -1435,9 +1479,10 @@ where NO_Active = 1
                 if (nodeManufacture == alu)
                 {
                     #region alu
-                    if (Send("show version | match TiMOS")) { NodeStop(); return true; }
+                    if (Send("show version | match TiMOS")) { NodeSaveMainLoopRestart(); return true; }
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(); return true; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -1454,9 +1499,10 @@ where NO_Active = 1
                 else if (nodeManufacture == hwe)
                 {
                     #region hwe
-                    if (Send("display version")) { NodeStop(); return true; }
+                    if (Send("display version")) { NodeSaveMainLoopRestart(); return true; }
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(); return true; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -1479,9 +1525,10 @@ where NO_Active = 1
                 else if (nodeManufacture == cso)
                 {
                     #region cso
-                    if (Send("show version | in IOS")) { NodeStop(); return true; }
+                    if (Send("show version | in IOS")) { NodeSaveMainLoopRestart(); return true; }
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(); return true; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     string sl = string.Join("", lines.ToArray());
 
@@ -1520,9 +1567,11 @@ where NO_Active = 1
                         }
 
                         // model
-                        if (Send("show version | in bytes of memory")) { NodeStop(); return true; }
+                        if (Send("show version | in bytes of memory")) { NodeSaveMainLoopRestart(); return true; }
                         lines = NodeRead(out timeout);
-                        if (timeout) { NodeStop(); return true; }
+                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                        if (timeout) { NodeReadTimeOutExit(); return true; }
+
                         sl = string.Join("", lines.ToArray());
                         string slo = sl.ToLower();
 
@@ -1544,9 +1593,10 @@ where NO_Active = 1
                 }
                 else if (nodeManufacture == jun)
                 {
-                    if (Send("show version | match \"JUNOS Base OS boot\"")) { NodeStop(); return true; }
+                    if (Send("show version | match \"JUNOS Base OS boot\"")) { NodeSaveMainLoopRestart(); return true; }
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(); return true; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -1584,7 +1634,7 @@ where NO_Active = 1
             if (nodeVersion == null)
             {
                 Event("Cant determined node version.");
-                NodeEnd();
+                NodeSaveExit();
                 return true;
             }
 
@@ -1603,9 +1653,10 @@ where NO_Active = 1
             if (nodeManufacture == alu)
             {
                 #region alu
-                if (Send("show system information | match \"Time Last Modified\"")) { NodeStop(); return true; }
+                if (Send("show system information | match \"Time Last Modified\"")) { NodeSaveMainLoopRestart(); return true; }
                 List<string> lines = NodeRead(out timeout);
-                if (timeout) { NodeStop(NodeExitReasons.Timeout); return true; }
+                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                if (timeout) { NodeReadTimeOutExit(); return true; }
 
                 bool lastModified = false;
 
@@ -1628,9 +1679,10 @@ where NO_Active = 1
 
                 if (lastModified == false)
                 {
-                    if (Send("show system information | match \"Time Last Saved\"")) { NodeStop(); return true; }
+                    if (Send("show system information | match \"Time Last Saved\"")) { NodeSaveMainLoopRestart(); return true; }
                     lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return true; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -1656,9 +1708,10 @@ where NO_Active = 1
             else if (nodeManufacture == hwe)
             {
                 #region hwe
-                if (Send("display changed-configuration time")) { NodeStop(); return true; }
+                if (Send("display changed-configuration time")) { NodeSaveMainLoopRestart(); return true; }
                 List<string> lines = NodeRead(out timeout);
-                if (timeout) { NodeStop(NodeExitReasons.Timeout); return true; }
+                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                if (timeout) { NodeReadTimeOutExit(); return true; }
 
                 foreach (string line in lines)
                 {
@@ -1687,9 +1740,10 @@ where NO_Active = 1
                 if (nodeVersion == xr)
                 {
                     #region xr
-                    if (Send("show configuration history commit last 1 | in commit")) { NodeStop(); return true; }
+                    if (Send("show configuration history commit last 1 | in commit")) { NodeSaveMainLoopRestart(); return true; }
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return true; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -1725,9 +1779,10 @@ where NO_Active = 1
                     bool passed = false;
 
                     // most of ios version will work this way
-                    if (Send("show configuration id detail")) { NodeStop(); return true; }
+                    if (Send("show configuration id detail")) { NodeSaveMainLoopRestart(); return true; }
                     List<string> lines = NodeRead(out timeout);
-                    if (timeout) { NodeStop(NodeExitReasons.Timeout); return true; }
+                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                    if (timeout) { NodeReadTimeOutExit(); return true; }
 
                     foreach (string line in lines)
                     {
@@ -1758,9 +1813,10 @@ where NO_Active = 1
                     {
                         // using xr-like command history
                         //show configuration history
-                        if (Send("show configuration history")) { NodeStop(); return true; }
+                        if (Send("show configuration history")) { NodeSaveMainLoopRestart(); return true; }
                         lines = NodeRead(out timeout);
-                        if (timeout) { NodeStop(NodeExitReasons.Timeout); return true; }
+                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                        if (timeout) { NodeReadTimeOutExit(); return true; }
 
                         string lastline = null;
                         foreach (string line in lines)
@@ -1796,9 +1852,10 @@ where NO_Active = 1
                     if (passed == false)
                     {
                         // and here we are, using forbidden command ever
-                        if (Send("show log | in CONFIG_I")) { NodeStop(); return true; }
+                        if (Send("show log | in CONFIG_I")) { NodeSaveMainLoopRestart(); return true; }
                         lines = NodeRead(out timeout);
-                        if (timeout) { NodeStop(NodeExitReasons.Timeout); return true; }
+                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                        if (timeout) { NodeReadTimeOutExit(); return true; }
 
                         string lastline = null;
                         foreach (string line in lines)
@@ -1838,9 +1895,10 @@ where NO_Active = 1
                     if (passed == false)
                     {
                         // and... if everything fail, we will use this slowlest command ever
-                        if (Send("show run | in Last config")) { NodeStop(); return true; }
+                        if (Send("show run | in Last config")) { NodeSaveMainLoopRestart(); return true; }
                         lines = NodeRead(out timeout);
-                        if (timeout) { NodeStop(NodeExitReasons.Timeout); return true; }
+                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                        if (timeout) { NodeReadTimeOutExit(); return true; }
 
                         foreach (string line in lines)
                         {
@@ -1879,9 +1937,10 @@ where NO_Active = 1
             else if (nodeManufacture == jun)
             {
                 #region jun
-                if (Send("show system uptime | match \"Last configured\"")) { NodeStop(); return true; }
+                if (Send("show system uptime | match \"Last configured\"")) { NodeSaveMainLoopRestart(); return true; }
                 List<string> lines = NodeRead(out timeout);
-                if (timeout) { NodeStop(NodeExitReasons.Timeout); return true; }
+                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
+                if (timeout) { NodeReadTimeOutExit(); return true; }
 
                 foreach (string line in lines)
                 {
@@ -1936,7 +1995,8 @@ where NO_Active = 1
             bool connectSuccess = false;
 
             Event("Connecting with Telnet... (" + user + "@" + host + ")");
-            Request("telnet " + host);
+
+            if (Request("telnet " + host)) { requestFailure = true; return false; }
 
             if (manufacture == alu)
             {
@@ -1945,26 +2005,26 @@ where NO_Active = 1
                 if (expect == 0)
                 {
                     Event("Authenticating: User");
-                    Request(user);
+                    if (Request(user)) { requestFailure = true; return false; }
                     expect = SSHExpect("assword:");
                     if (expect == 0)
                     {
                         Event("Authenticating: Password");
-                        Request(pass);
+                        if (Request(pass)) { requestFailure = true; return false; }
                         expect = SSHExpect("#", "ogin:", "closed by foreign");
                         if (expect == 0) connectSuccess = true;
-                        else SendControlZ();
+                        else if (SendControlZ()) { requestFailure = true; return false; }
                     }
                     else
                     {
                         Event("Cannot find password console prefix");
-                        SendControlZ();
+                        if (SendControlZ()) { requestFailure = true; return false; }
                     }
                 }
                 else
                 {
                     Event("Cannot find login console prefix");
-                    SendControlC();
+                    if (SendControlC()) { requestFailure = true; return false; }
                 }
                 #endregion
             }
@@ -1975,31 +2035,35 @@ where NO_Active = 1
                 if (expect == 0)
                 {
                     Event("Authenticating: User");
-                    Request(user);
+                    if (Request(user)) { requestFailure = true; return false; }
                     expect = SSHExpect("assword:");
                     if (expect == 0)
                     {
                         Event("Authenticating: Password");
-                        Request(pass);
+                        if (Request(pass)) { requestFailure = true; return false; }
                         expect = SSHExpect(">", "sername:", "Tacacs server reject");
                         if (expect == 0) connectSuccess = true;
                         else
                         {
-                            SendControlRightBracket();
-                            SendControlC();
+                            bool exp = false;
+                            if (!exp) exp = SendControlRightBracket();
+                            if (!exp) exp = SendControlC();
+                            if (exp) { requestFailure = true; return false; }
                         }
                     }
                     else
                     {
                         Event("Cannot find password console prefix");
-                        SendControlRightBracket();
-                        SendControlC();
+                        bool exp = false;
+                        if (!exp) exp = SendControlRightBracket();
+                        if (!exp) exp = SendControlC();
+                        if (exp) { requestFailure = true; return false; }
                     }
                 }
                 else
                 {
                     Event("Cannot find username console prefix");
-                    SendControlC();
+                    if (SendControlC()) { requestFailure = true; return false; }
                 }
                 #endregion
             }
@@ -2010,35 +2074,39 @@ where NO_Active = 1
                 if (expect == 0)
                 {
                     Event("Authenticating: User");
-                    Request(user);
+                    if (Request(user)) { requestFailure = true; return false; }
                     expect = SSHExpect("assword:");
                     if (expect == 0)
                     {
                         Event("Authenticating: Password");
-                        Request(pass);
+                        if (Request(pass)) { requestFailure = true; return false; }
                         expect = SSHExpect("#", "sername:", "closed by foreign", "cation failed");
                         if (expect == 0) connectSuccess = true;
                         else
                         {
-                            SendControlRightBracket();
-                            SendControlC();
+                            bool exp = false;
+                            if (!exp) exp = SendControlRightBracket();
+                            if (!exp) exp = SendControlC();
+                            if (exp) { requestFailure = true; return false; }
                         }
                     }
                     else
                     {
                         Event("Cannot find password console prefix");
-                        SendControlRightBracket();
-                        SendControlC();
+                        bool exp = false;
+                        if (!exp) exp = SendControlRightBracket();
+                        if (!exp) exp = SendControlC();
+                        if (exp) { requestFailure = true; return false; }
                     }
                 }
                 else
                 {
                     Event("Cannot find username console prefix");
-                    SendControlC();
+                    if (SendControlC()) { requestFailure = true; return false; }
                 }
                 #endregion
             }
-            else SendControlC();
+            else if (SendControlC()) { requestFailure = true; return false; }
 
             return connectSuccess;
         }
@@ -2049,7 +2117,7 @@ where NO_Active = 1
             bool connectSuccess = false;
 
             Event("Connecting with SSH... (" + user + "@" + host + ")");
-            Request("ssh -o StrictHostKeyChecking=no " + user + "@" + host);
+            if (Request("ssh -o StrictHostKeyChecking=no " + user + "@" + host)) { requestFailure = true; return false; }
 
             if (manufacture == hwe)
             {
@@ -2058,12 +2126,12 @@ where NO_Active = 1
                 if (expect == 0)
                 {
                     Event("Authenticating: Password");
-                    Request(pass);
+                    if (Request(pass)) { requestFailure = true; return false; }
                     expect = SSHExpect(">", "assword:");
                     if (expect == 0) connectSuccess = true;
-                    else SendControlC();
+                    else if (SendControlC()) { requestFailure = true; return false; }
                 }
-                else SendControlC();
+                else if (SendControlC()) { requestFailure = true; return false; }
                 #endregion
             }
             else if (manufacture == cso)
@@ -2073,12 +2141,12 @@ where NO_Active = 1
                 if (expect == 0)
                 {
                     Event("Authenticating: Password");
-                    Request(pass);
+                    if (Request(pass)) { requestFailure = true; return false; }
                     expect = SSHExpect("#", "assword:");
                     if (expect == 0) connectSuccess = true;
-                    else SendControlC();
+                    else if (SendControlC()) { requestFailure = true; return false; }
                 }
-                else SendControlC();
+                else if (SendControlC()) { requestFailure = true; return false; }
                 #endregion
             }
             else if (manufacture == jun)
@@ -2088,15 +2156,15 @@ where NO_Active = 1
                 if (expect == 0)
                 {
                     Event("Authenticating: Password");
-                    Request(pass);
+                    if (Request(pass)) { requestFailure = true; return false; }
                     expect = SSHExpect(">", "assword:");
                     if (expect == 0) connectSuccess = true;
-                    else SendControlC();
+                    else if (SendControlC()) { requestFailure = true; return false; }
                 }
-                else SendControlC();
+                else if (SendControlC()) { requestFailure = true; return false; }
                 #endregion
             }
-            else SendControlC();
+            else if (SendControlC()) { requestFailure = true; return false; }
 
             return connectSuccess;
         }
@@ -2180,7 +2248,7 @@ where NO_Active = 1
 
                                     lines = newlines;
 
-                                    SendSpace();
+                                    if (SendSpace()) { requestFailure = true; return null; }
                                 }
                             }
                         }
@@ -2197,13 +2265,12 @@ where NO_Active = 1
                         Event("Waiting...");
                     }
 
-
                     Thread.Sleep(100);
                     if (wait == 400)
                     {
                         timeout = true;
                         Thread.Sleep(1000);
-                        SendControlC();
+                        if (SendControlC()) { requestFailure = true; return null; }
                         break;
                     }
                 }
@@ -2216,30 +2283,24 @@ where NO_Active = 1
 
             return lines;
         }
-
-        private void NodeEnd()
+        
+        private void NodeSaveExit()
         {
-            NodeExit();
             NodeSave();
+            NodeExit();
         }
 
-        private void NodeStop(NodeExitReasons because)
+        private void NodeReadTimeOutExit()
         {
-            if (because == NodeExitReasons.Timeout)
-            {
-                Event("Reading timeout");
-                NodeExit();
-            }
-            else
-            {
-                NodeSave();
-                outputIdentifier = null;
-            }
+            Event("Reading timeout");
+            NodeExit();
         }
 
-        private void NodeStop()
+        private void NodeSaveMainLoopRestart()
         {
-            NodeStop(NodeExitReasons.None);
+            NodeSave();
+            MainLoopRestart();
+            outputIdentifier = null;
         }
         
         private void NodeExit()
@@ -2256,10 +2317,10 @@ where NO_Active = 1
         private void NodeExit(string manufacture)
         {
             Thread.Sleep(100);
-            if (manufacture == alu && Send("logout")) { NodeStop(); return; }
-            else if (manufacture == hwe && Send("quit")) { NodeStop(); return; }
-            else if (manufacture == cso && Send("exit")) { NodeStop(); return; }
-            else if (manufacture == jun && Send("exit")) { NodeStop(); return; }
+            if (manufacture == alu && Send("logout")) { MainLoopRestart(); return; }
+            else if (manufacture == hwe && Send("quit")) { MainLoopRestart(); return; }
+            else if (manufacture == cso && Send("exit")) { MainLoopRestart(); return; }
+            else if (manufacture == jun && Send("exit")) { MainLoopRestart(); return; }
 
             int wait = 0;
             while (SSHWait())
@@ -2272,7 +2333,7 @@ where NO_Active = 1
                 Thread.Sleep(1000);
                 if (wait == 3)
                 {
-                    StopThenRestart();
+                    MainLoopRestart();
                     break;
                 }
             }

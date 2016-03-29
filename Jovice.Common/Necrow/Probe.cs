@@ -374,7 +374,7 @@ namespace Jovice
 
             if (properties.TestProbeNode != null)
             {
-                probeInstance.PrioritizeQueue(properties.TestProbeNode);
+                probeInstance.PrioritizeQueue(properties.TestProbeNode + "*");
             }
 
             probeInstance.Start(ProbeMode.Default);
@@ -596,10 +596,18 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     }
 
                     Row node = null;
+                    bool forceProcess = false;
 
                     if (prioritize.Count > 0)
                     {
                         string nodeName = prioritize.Dequeue();
+
+                        if (nodeName.EndsWith("*"))
+                        {
+                            nodeName = nodeName.TrimEnd(new char[] { '*' });
+                            forceProcess = true;
+                        }
+
                         Event("Prioritizing Probe: " + nodeName);
                         Result rnode = Query("select * from Node where lower(NO_Name) = {0}", nodeName.ToLower());
 
@@ -626,7 +634,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     {
                         bool continueProcess = false;
 
-                        Enter(node, out continueProcess);
+                        Enter(node, out continueProcess, forceProcess);
 
                         if (continueProcess)
                         {
@@ -1008,8 +1016,8 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
         {
             if (key != null)
             {
-                if (summaries.ContainsKey(key)) updates[key] = value;
-                else updates.Add(key, value);
+                if (summaries.ContainsKey(key)) summaries[key] = value;
+                else summaries.Add(key, value);
             }
         }
 
@@ -1416,7 +1424,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             }
         }
 
-        private void Enter(Row row, out bool continueProcess)
+        private void Enter(Row row, out bool continueProcess, bool forceProcess)
         {  
             continueProcess = false;
 
@@ -2804,6 +2812,11 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             {
                 continueProcess = true;
                 if (nodeNVER < Necrow.Version) Update(UpdateTypes.NecrowVersion, Necrow.Version);
+            }
+            else if (forceProcess)
+            {
+                Event("Process forced to continue");
+                continueProcess = true;
             }
             else
             {

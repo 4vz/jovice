@@ -469,27 +469,24 @@ namespace Aphysoft.Common
 
         public override Result Query(string sql)
         {
-            Result result = new Result(sql);
+            Result result = new Result(sql);            
 
             using (SqlConnection connection = new SqlConnection(database.ConnectionString))
             {
+                SqlCommand command = null;
+                SqlDataReader reader = null;
+
                 try
                 {
-                    connection.Open();                   
-
                     stopwatch.Restart();
 
-                    SqlCommand command = new SqlCommand(sql, connection);
-
-                    command.CommandTimeout = 0;
-
-                    SqlDataReader reader = command.ExecuteReader();
+                    connection.Open(); 
+                    command = new SqlCommand(sql, connection);
+                    reader = command.ExecuteReader();
 
                     stopwatch.Stop();
 
-                    result.ExecutionTime = stopwatch.Elapsed;
-
-                    command.Dispose();
+                    result.ExecutionTime = stopwatch.Elapsed;                    
 
                     List<string> names = new List<string>();
                     for (int i = 0; i < reader.FieldCount; i++)
@@ -513,7 +510,6 @@ namespace Aphysoft.Common
 
                         if (result.Count >= 50000) break;
                     }
-                    reader.Close();
                 }
                 catch (Exception e)
                 {
@@ -522,7 +518,10 @@ namespace Aphysoft.Common
                 }
                 finally
                 {
-                    if (connection != null && connection.State == ConnectionState.Open) connection.Close();
+                    if (command != null) command.Dispose();
+                    if (reader != null) reader.Close();
+                    connection.Close();
+                    connection.Dispose();
                 }
             }
 
@@ -532,28 +531,29 @@ namespace Aphysoft.Common
         public override Column Scalar(string sql)
         {
             Column column = null;
-
+                    
             using (SqlConnection connection = new SqlConnection(database.ConnectionString))
             {
+                SqlCommand command = null;
+
                 try
                 {
                     connection.Open();
-
-                    SqlCommand command = new SqlCommand(sql, connection);
-                    object reader = command.ExecuteScalar();
-
-                    command.Dispose();
-
-                    if (reader != null)
-                        column = new Column(null, reader, false);
+                    command = new SqlCommand(sql, connection);
+                    object data = command.ExecuteScalar();
+                    if (data != null)
+                        column = new Column(null, data, false);
                 }
                 catch (Exception e)
                 {
+                    column = null;
                     Exception(e, sql);
                 }
                 finally
                 {
-                    if (connection != null && connection.State == ConnectionState.Open) connection.Close();
+                    if (command != null) command.Dispose();                    
+                    connection.Close();
+                    connection.Dispose();
                 }
             }
 
@@ -566,14 +566,17 @@ namespace Aphysoft.Common
 
             using (SqlConnection connection = new SqlConnection(database.ConnectionString))
             {
+                SqlCommand command = null;
+
                 try
                 {
-                    connection.Open();
-
                     stopwatch.Restart();
 
-                    SqlCommand command = new SqlCommand(sql, connection);
+                    connection.Open();
+                    command = new SqlCommand(sql, connection);
                     result.AffectedRows = command.ExecuteNonQuery();
+
+                    command.CommandTimeout = 3600;
 
                     stopwatch.Stop();
 
@@ -581,12 +584,9 @@ namespace Aphysoft.Common
 
                     if (returnIdentity)
                     {
-                        sql = "select cast(SCOPE_IDENTITY() as bigint)";
-                        command = new SqlCommand(sql, connection);
+                        command = new SqlCommand("select cast(SCOPE_IDENTITY() as bigint)", connection);
                         result.Identity = (Int64)command.ExecuteScalar();
                     }
-
-                    command.Dispose();
                 }
                 catch (Exception e)
                 {
@@ -595,7 +595,9 @@ namespace Aphysoft.Common
                 }
                 finally
                 {
-                    if (connection != null && connection.State == ConnectionState.Open) connection.Close();
+                    if (command != null) command.Dispose();
+                    connection.Close();
+                    connection.Dispose();
                 }
             }
 
@@ -691,7 +693,7 @@ namespace Aphysoft.Common
                 }
                 finally
                 {
-                    if (connection != null && connection.State == ConnectionState.Open) connection.Close();
+                    if (connection != null) connection.Close();
                 }
             }
 
@@ -722,7 +724,7 @@ namespace Aphysoft.Common
                 }
                 finally
                 {
-                    if (connection != null && connection.State == ConnectionState.Open) connection.Close();
+                    if (connection != null) connection.Close();
                 }
             }
 
@@ -757,7 +759,7 @@ namespace Aphysoft.Common
                 }
                 finally
                 {
-                    if (connection != null && connection.State == ConnectionState.Open) connection.Close();
+                    if (connection != null) connection.Close();
                 }
             }
 
@@ -838,7 +840,7 @@ namespace Aphysoft.Common
                 }
                 finally
                 {
-                    if (connection != null && connection.State == ConnectionState.Open) connection.Close();
+                    if (connection != null) connection.Close();
                 }
             }
 
@@ -869,7 +871,7 @@ namespace Aphysoft.Common
                 }
                 finally
                 {
-                    if (connection != null && connection.State == ConnectionState.Open) connection.Close();
+                    if (connection != null) connection.Close();
                 }
             }
 
@@ -904,7 +906,7 @@ namespace Aphysoft.Common
                 }
                 finally
                 {
-                    if (connection != null && connection.State == ConnectionState.Open) connection.Close();
+                    if (connection != null) connection.Close();
                 }
             }
 

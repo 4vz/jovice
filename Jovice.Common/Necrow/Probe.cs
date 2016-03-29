@@ -98,13 +98,16 @@ namespace Jovice
         Default,
         StandBy
     }
+
+    
     
     internal sealed partial class Probe : SshConnection
     {
         #region Enums
         
-        protected enum NodeUpdateTypes
+        private enum UpdateTypes
         {
+            NecrowVersion,
             TimeStamp,
             Remark,
             RemarkUser,
@@ -119,19 +122,26 @@ namespace Jovice
             VersionTime,
             LastConfiguration
         }
-        
+
+        private enum StopState
+        {
+            Stop,
+            Failure
+        }
+
         #endregion
 
         #region Fields
 
         private Thread mainLoop = null;
 
-        private static bool stop = false;
+        private StopState stop;
 
         private ProbeMode mode;
 
         private Queue<string> outputs = new Queue<string>();
         private Dictionary<string, object> updates;
+        private Dictionary<string, string> summaries;
         private string defaultOutputIdentifier = null;
         private string outputIdentifier = null;
 
@@ -155,13 +165,15 @@ namespace Jovice
         private string nodeConnectType;
         private string nodeAreaID;
         private string nodeType;
+        private int nodeNVER;
 
         private bool noMore = false;
 
-        private string alu = "ALCATEL-LUCENT";
-        private string hwe = "HUAWEI";
-        private string cso = "CISCO";
-        private string jun = "JUNIPER";
+        private readonly string alu = "ALCATEL-LUCENT";
+        private readonly string hwe = "HUAWEI";
+        private readonly string cso = "CISCO";
+        private readonly string jun = "JUNIPER";
+        private readonly int batchmax = 20;
 
         private string xr = "XR";
 
@@ -197,6 +209,155 @@ namespace Jovice
             j = Necrow.JoviceDatabase;
         }
 
+        #endregion
+
+        #region Database
+
+        public Result Query(string sql)
+        {
+            Result result = null;
+            while (true)
+            {
+                result = j.Query(sql);
+                if (result.OK) break;
+                else
+                {
+                    Event("Exception while executing query, retrying...");
+                    Thread.Sleep(5000);
+                }
+            }
+
+            return result;
+        }
+
+        public string Format(string sql, params object[] args)
+        {
+            return j.Format(sql, args);
+        }
+
+        public Result Query(string sql, params object[] args)
+        {
+            Result result = null;
+            while (true)
+            {
+                result = j.Query(sql, args);
+                if (result.OK) break;
+                else
+                {
+                    Event("Exception while executing query, retrying...");
+                    Thread.Sleep(5000);
+                }
+            }
+
+            return result;
+        }
+
+        public Column Scalar(string sql)
+        {
+            Column result = null;
+            while (true)
+            {
+                Column c = j.Scalar(sql);
+                if (c != null) break;
+                else
+                {
+                    Event("Exception while executing scalar, retrying...");
+                    Thread.Sleep(5000);
+                }
+            }
+
+            return result;
+        }
+
+        public Column Scalar(string sql, params object[] args)
+        {
+            Column result = null;
+            while (true)
+            {
+                Column c = j.Scalar(sql, args);
+                if (c != null) break;
+                else
+                {
+                    Event("Exception while executing scalar, retrying...");
+                    Thread.Sleep(5000);
+                }
+            }
+
+            return result;
+        }
+
+        public Result Execute(string sql)
+        {
+            Result result = null;
+            while (true)
+            {
+                result = j.Execute(sql);
+                if (result.OK) break;
+                else
+                {
+                    Event("Exception while executing execute, retrying...");
+                    Thread.Sleep(5000);
+                }
+            }
+
+            return result;
+        }
+
+        public Result Execute(string sql, params object[] args)
+        {
+            Result result = null;
+            while (true)
+            {
+                result = j.Execute(sql, args);
+                if (result.OK) break;
+                else
+                {
+                    if (result.AffectedRows > 0) break; // if there are affected rows, break anyway
+                    else
+                    {
+                        Event("Exception while executing execute, retrying...");
+                        Thread.Sleep(5000);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        public Result ExecuteIdentity(string sql)
+        {
+            Result result = null;
+            while (true)
+            {
+                result = j.ExecuteIdentity(sql);
+                if (result.OK) break;
+                else
+                {
+                    Event("Exception while executing execute identity, retrying...");
+                    Thread.Sleep(5000);
+                }
+            }
+
+            return result;
+        }
+
+        public Result ExecuteIdentity(string sql, params object[] args)
+        {
+            Result result = null;
+            while (true)
+            {
+                result = j.ExecuteIdentity(sql, args);
+                if (result.OK) break;
+                else
+                {
+                    Event("Exception while executing execute identity, retrying...");
+                    Thread.Sleep(5000);
+                }
+            }
+
+            return result;
+        }
+        
         #endregion
 
         #region Static
@@ -276,11 +437,12 @@ namespace Jovice
 
         private new void Stop()
         {
-            outputIdentifier = null;
+            Event("Stop requested");
 
+            outputIdentifier = null;
             Event("Disconnecting...");
 
-            stop = true;
+            stop = StopState.Stop;
 
             mainLoop.Abort();
             mainLoop = null;
@@ -288,11 +450,14 @@ namespace Jovice
             base.Stop();
         }
 
-        private void MainLoopRestart()
+        private void Failure()
         {
-            outputIdentifier = null;
+            Event("Connection failure has occured");
 
+            outputIdentifier = null;
             Event("Disconnecting...");
+
+            stop = StopState.Failure;
 
             mainLoop.Abort();
             mainLoop = null;
@@ -321,7 +486,7 @@ namespace Jovice
         
         protected override void Connected()
         {
-            Event("Connected");
+            Event("Connected!");
 
             if (mainLoop != null)
             {
@@ -330,8 +495,6 @@ namespace Jovice
             }
 
             mainLoop = new Thread(new ThreadStart(MainLoop));
-
-            stop = false;
 
             mainLoop.Start();
         }
@@ -349,9 +512,6 @@ namespace Jovice
             Event("Disconnected");
 
             Thread.Sleep(5000);
-
-            if (stop == false)
-                Restart();
         }
 
         public override void OnResponse(string output)
@@ -378,8 +538,6 @@ namespace Jovice
                 List<string> ids = null;
                 int index = -1;
 
-                List<string> ispop = null;
-
                 while (true)
                 {
                     if (index == -1)
@@ -388,89 +546,49 @@ namespace Jovice
 
                         #region Preparing node list
 
-                        Result pres = j.Query("select PO_NO from PEPOP");
-                        ispop = new List<string>();
-                        foreach (Row prow in pres) { ispop.Add(prow["PO_NO"].ToString()); }
-
-                        Result nres = j.Query(@"
-select NO_ID, NO_Name, NO_TimeStamp, NO_Remark, NO_Type, NO_Version, AG_Index
-from Node
-left join Area on NO_AR = AR_ID
-left join AreaWitel on AR_AW = AW_ID
-left join AreaGroup on AW_AG = AG_ID
-where NO_Active = 1
+                        Result nres = Query(@"
+select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_TimeStamp is null and NO_LastConfiguration is null                        
 ");
+                        Result mres = Query(@"
+select a.NO_ID, a.NO_Name, a.NO_Remark, a.NO_TimeStamp, CASE WHEN a.span < 0 then 0 else a.span end as span from (
+select NO_ID, NO_Name, NO_Remark, NO_LastConfiguration, NO_TimeStamp, DateDiff(hour, NO_LastConfiguration, NO_TimeStamp) as span 
+from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_TimeStamp is not null and NO_LastConfiguration is not null
+) a
+order by span asc, a.NO_LastConfiguration asc
+");
+                        Result sres = Query(@"
+select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_TimeStamp is not null and NO_LastConfiguration is null                        
+");
+
                         ids = new List<string>();
 
-                        Event(nres.Count + " active nodes");
+                        int excluded = 0;
 
-                        int eligibleNodes = 0;
-                        foreach (Row nrow in nres)
+                        foreach (Row row in nres) ids.Add(row["NO_ID"].ToString());
+                        foreach (Row row in mres)
                         {
-                            string remark = nrow["NO_Remark"].ToString();
-
+                            string remark = row["NO_Remark"].ToString();
                             if (remark != null)
                             {
-                                DateTime timestamp = nrow["NO_TimeStamp"].ToDateTime();
+                                DateTime timestamp = row["NO_TimeStamp"].ToDateTime();
                                 TimeSpan span = DateTime.Now - timestamp;
 
-                                if (remark == "CONNECTFAIL" && span.TotalHours <= 3)
+                                if (
+                                    (remark == "CONNECTFAIL" && span.TotalHours <= 3) ||
+                                    (remark == "UNRESOLVED" && span.TotalDays <= 1)
+                                )
                                 {
-                                    Event("Excluded: " + nrow["NO_Name"].ToString() + " Remark: " + remark);
-                                    continue;
-                                }
-                                else if (remark == "UNRESOLVED" && span.TotalDays <= 1)
-                                {
-                                    Event("Excluded: " + nrow["NO_Name"].ToString() + " Remark: " + remark);
+                                    excluded++;
+                                    Event("Excluded: " + row["NO_Name"].ToString() + " Remark: " + remark);
                                     continue;
                                 }
                             }
 
-                            string noid = nrow["NO_ID"].ToString();
-                            string notype = nrow["NO_Type"].ToString();
-                            int noag = nrow["AG_Index"].ToInt();
-
-                            if (notype == "P")
-                            {
-                                if (noag == 2)
-                                {
-                                    if (ispop.Contains(noid)) for (int i = 0; i < 6; i++) { ids.Add(noid); }
-                                    else for (int i = 0; i < 3; i++) { ids.Add(noid); }
-                                }
-                                else if (noag == 5 || noag == 6)
-                                {
-                                    if (ispop.Contains(noid)) for (int i = 0; i < 5; i++) { ids.Add(noid); }
-                                    else for (int i = 0; i < 2; i++) { ids.Add(noid); }
-                                }
-                                else if (noag == 1 || noag == 3 || noag == 4)
-                                {
-                                    if (ispop.Contains(noid)) for (int i = 0; i < 4; i++) { ids.Add(noid); }
-                                    else for (int i = 0; i < 2; i++) { ids.Add(noid); }
-                                }
-                                else if (noag == 7)
-                                {
-                                    if (ispop.Contains(noid)) for (int i = 0; i < 3; i++) { ids.Add(noid); }
-                                    else for (int i = 0; i < 1; i++) { ids.Add(noid); }
-                                }
-                                else
-                                {
-                                    for (int i = 0; i < 1; i++) { ids.Add(noid); }
-                                }
-                            }
-                            else if (notype == "M")
-                            {
-                                if (noag == 2) for (int i = 0; i < 5; i++) { ids.Add(noid); }
-                                else if (noag == 5 || noag == 6) for (int i = 0; i < 4; i++) { ids.Add(noid); }
-                                else if (noag == 1 || noag == 3 || noag == 4) for (int i = 0; i < 3; i++) { ids.Add(noid); }
-                                else if (noag == 7) for (int i = 0; i < 2; i++) { ids.Add(noid); }
-                                else for (int i = 0; i < 1; i++) { ids.Add(noid); }
-                            }
-                            eligibleNodes++;
+                            ids.Add(row["NO_ID"].ToString());
                         }
-
-                        Event(eligibleNodes + " eligible nodes");
-
-                        Shuffle<string>(ids);
+                        foreach (Row row in sres) ids.Add(row["NO_ID"].ToString());
+                        int total = ids.Count + excluded;
+                        Event("Total " + total + " nodes available, " + ids.Count + " nodes eligible, " + excluded + " excluded in this iteration.");
 
                         #endregion
 
@@ -478,17 +596,17 @@ where NO_Active = 1
                     }
 
                     Row node = null;
-                    bool forceGoFurther = false;
-                    
+
                     if (prioritize.Count > 0)
                     {
                         string nodeName = prioritize.Dequeue();
                         Event("Prioritizing Probe: " + nodeName);
-                        Result rnode = j.Query("select * from Node where lower(NO_Name) = {0}", nodeName.ToLower());
+                        Result rnode = Query("select * from Node where lower(NO_Name) = {0}", nodeName.ToLower());
 
-                        forceGoFurther = true; // prioritize is always goFurther
-
-                        if (rnode.Count == 1) node = rnode[0];
+                        if (rnode.Count == 1)
+                        {
+                            node = rnode[0];
+                        }
                         else
                         {
                             Event("Failed, not exists in the database.");
@@ -499,34 +617,27 @@ where NO_Active = 1
                     {
                         index++;
                         string id = ids[index];
-                        Result rnode = j.Query("select * from Node where NO_ID = {0}", id);
+                        Result rnode = Query("select * from Node where NO_ID = {0}", id);
                         node = rnode[0];
                     }
                     else index = -1;
-
+                    
                     if (node != null)
                     {
-                        bool goFurther = false;
+                        bool continueProcess = false;
 
-                        if (NodeEnter(node, out goFurther))
+                        Enter(node, out continueProcess);
+
+                        if (continueProcess)
                         {
-                            Thread.Sleep(10000);
-                            continue;
-                        }
-                        
-                        if (forceGoFurther) goFurther = true; 
-
-                        PeekProcess();
-
-                        if (goFurther)
-                        {
-                            Event("Continue to process");
+                            Event("Continue process...");
                             if (nodeType == "P") PEProcess();
                             else if (nodeType == "M") MEProcess();
                         }
-                        else NodeSaveExit();
 
-                        Thread.Sleep(10000);
+                        // delay after probing finished
+                        Event("Next node in 5 seconds...");
+                        Thread.Sleep(5000);
                     }
                 }
 
@@ -539,16 +650,16 @@ where NO_Active = 1
                 while (true)
                 {
                     int wait = 0;
-                    while (SSHWait())
+                    /*while (SSHWait())
                     {
                         Event("Waiting");
                         wait++;
 
                         if (wait == 3)
                         {
-                            MainLoopRestart();
+                            Failure();
                         }
-                    }
+                    }*/
 
                     Event("Idle");
 
@@ -577,92 +688,105 @@ where NO_Active = 1
             prioritize.Enqueue(nodeName);
         }
 
-        #region Send
+        #region Methods
 
-        private bool SendControlRightBracket()
+        private void SendLine(string command)
+        {
+            SendLine(command, false);
+        }
+
+        private void SendLine(string command, bool saveOnFailure)
         {
             if (IsConnected)
             {
-                bool ret = Request((char)29);
                 Thread.Sleep(250);
-                return ret;
-            }
-            else return true;
-        }
-
-        private bool SendControlC()
-        {
-            if (IsConnected)
-            {
-                bool ret = Request((char)3);
-                Thread.Sleep(250);
-                return ret;
-            }
-            else return true;
-        }
-
-        private bool SendControlZ()
-        {
-            if (IsConnected)
-            {
-                bool ret = Request((char)26);
-                Thread.Sleep(250);
-                return ret;
-            }
-            else return true;
-        }
-
-        private bool SendSpace()
-        {
-            if (IsConnected)
-            {
-                return Request((char)32);
-            }
-            else return true;
-        }
-
-        private bool Send(string command) // Actually only alias of SSHConnection.Request
-        {
-            if (IsConnected)
-            {
-                return Request(command);
-            }
-            else return true;
-        }
-
-        #endregion
-
-        #region SSH
-
-        private bool SSHWait()
-        {
-            int wait = 0;
-            bool continueWait = true;
-            while (wait < 100)
-            {
-                while (outputs.Count > 0) lock (outputs) outputs.Dequeue();
-                if (LastOutput != null && LastOutput.TrimEnd().EndsWith(sshTerminal))
+                bool res = WriteLine(command);
+                if (res == false)
                 {
-                    continueWait = false;
-                    break;
+                    if (saveOnFailure) Save();
+                    Failure();
                 }
-                Thread.Sleep(100);
-                wait++;
             }
-            return continueWait;
         }
-        
-        private List<string> SSHRead(string request)
-        {
-            bool exp = false;
-            if (!exp) exp = Request(request);
-            if (!exp) exp = Request("echo end\\ request");
 
-            if (exp)
+        private void Send(string line)
+        {
+            if (IsConnected)
             {
-                requestFailure = true;
-                return null;
+                Thread.Sleep(250);
+                bool res = Write(line);
+                if (res == false) Failure();
             }
+        }
+
+        private void SendCharacter(char character)
+        {
+            Send(character.ToString());
+        }
+
+        private void SendSpace()
+        {
+            SendCharacter((char)32);
+        }
+
+        private void SendControlRightBracket()
+        {
+            SendCharacter((char)29);
+        }
+
+        private void SendControlC()
+        {
+            SendCharacter((char)3);
+        }
+
+        private void SendControlZ()
+        {
+            SendCharacter((char)26);
+        }
+
+        private void WaitUntilMCETerminalReady(string waitMessage)
+        {
+            int loop = 0;
+
+            while (true)
+            {
+                // check output, break when terminal is ready
+                int wait = 0;
+                bool continueWait = true;
+                while (wait < 100)
+                {
+                    while (outputs.Count > 0) lock (outputs) outputs.Dequeue();
+                    if (LastOutput != null && LastOutput.TrimEnd().EndsWith(sshTerminal))
+                    {
+                        continueWait = false;
+                        break;
+                    }
+                    Thread.Sleep(100);
+                    wait++;
+                } 
+                if (continueWait == false) break;
+
+                // else continue wait...
+                loop++;
+                if (loop == 3) Failure(); // loop 3 times, its a failure
+
+                // print message where we are waiting (or why)
+                Event(waitMessage + "... (" + loop + ")");
+
+                // try sending exit characters
+                SendCharacter((char)13);
+                SendControlRightBracket();
+                SendControlC();
+
+                Thread.Sleep(1000);
+            }
+
+        }
+
+        private List<string> MCESendLine(string command)
+        {
+            SendLine(command);
+            SendLine("echo end\\ request");
 
             StringBuilder lineBuilder = new StringBuilder();
             List<string> lines = new List<string>();
@@ -712,7 +836,7 @@ where NO_Active = 1
             return lines;
         }
 
-        private int SSHExpect(params string[] args)
+        private int MCEExpect(params string[] args)
         {
             if (args.Length == 0) return -1;
 
@@ -768,17 +892,16 @@ where NO_Active = 1
             return expectReturn;
         }
 
-        private string SSHCheckNodeIP(string hostname)
+        private string MCECheckNodeIP(string hostname)
         {
-            return SSHCheckNodeIP(hostname, false);
+            return MCECheckNodeIP(hostname, false);
         }
 
-        private string SSHCheckNodeIP(string hostname, bool reverse)
+        private string MCECheckNodeIP(string hostname, bool reverse)
         {
             string cpeip = null;
 
-            List<string> lines = SSHRead("cat /etc/hosts | grep -i " + hostname);
-
+            List<string> lines = MCESendLine("cat /etc/hosts | grep -i " + hostname);
             if (lines == null) return null;
 
             Dictionary<string, string> greppair = new Dictionary<string, string>();
@@ -807,54 +930,53 @@ where NO_Active = 1
             if (greppair.ContainsKey(hostname.ToLower())) cpeip = greppair[hostname.ToLower()].ToUpper();
             return cpeip;
         }
-
-        #endregion
-
-        #region Node
-
-        private void NodeUpdate(NodeUpdateTypes type, object value)
+        
+        private void Update(UpdateTypes type, object value)
         {
             string key = null;
 
             switch (type)
             {
-                case NodeUpdateTypes.TimeStamp:
+                case UpdateTypes.NecrowVersion:
+                    key = "NO_NVER";
+                    break;
+                case UpdateTypes.TimeStamp:
                     key = "NO_TimeStamp";
                     break;
-                case NodeUpdateTypes.Remark:
+                case UpdateTypes.Remark:
                     key = "NO_Remark";
                     break;
-                case NodeUpdateTypes.RemarkUser:
+                case UpdateTypes.RemarkUser:
                     key = "NO_RemarkUser";
                     break;
-                case NodeUpdateTypes.IP:
+                case UpdateTypes.IP:
                     key = "NO_IP";
                     break;
-                case NodeUpdateTypes.Name:
+                case UpdateTypes.Name:
                     key = "NO_Name";
                     break;
-                case NodeUpdateTypes.Active:
+                case UpdateTypes.Active:
                     key = "NO_Active";
                     break;
-                case NodeUpdateTypes.Terminal:
+                case UpdateTypes.Terminal:
                     key = "NO_Terminal";
                     break;
-                case NodeUpdateTypes.ConnectType:
+                case UpdateTypes.ConnectType:
                     key = "NO_ConnectType";
                     break;
-                case NodeUpdateTypes.Model:
+                case UpdateTypes.Model:
                     key = "NO_Model";
                     break;
-                case NodeUpdateTypes.Version:
+                case UpdateTypes.Version:
                     key = "NO_Version";
                     break;
-                case NodeUpdateTypes.SubVersion:
+                case UpdateTypes.SubVersion:
                     key = "NO_SubVersion";
                     break;
-                case NodeUpdateTypes.VersionTime:
+                case UpdateTypes.VersionTime:
                     key = "NO_VersionTime";
                     break;
-                case NodeUpdateTypes.LastConfiguration:
+                case UpdateTypes.LastConfiguration:
                     key = "NO_LastConfiguration";
                     break;
             }
@@ -867,1314 +989,69 @@ where NO_Active = 1
             }
         }
 
-        private bool NodeEnter(Row row, out bool goFurther)
+        private void Summary(string key, int value)
         {
-            goFurther = false;
+            Summary(key, value.ToString());
+        }
 
-            int wait = 0;
-            while (SSHWait())
+        private void Summary(string key, float value)
+        {
+            Summary(key, value.ToString());
+        }
+
+        private void Summary(string key, bool value)
+        {
+            Summary(key, value ? 1 : 0);
+        }
+
+        private void Summary(string key, string value)
+        {
+            if (key != null)
             {
-                wait++;
-                Event("MCE Waiting I... (" + wait + ")");
-                bool exp = false;
-                if (!exp) exp = Request((char)13);
-                if (!exp) exp = SendControlRightBracket();
-                if (!exp) exp = SendControlC();
-
-                Thread.Sleep(1000);
-
-                if (exp || wait == 3)
-                {
-                    MainLoopRestart();
-                    return true;
-                }
+                if (summaries.ContainsKey(key)) updates[key] = value;
+                else updates.Add(key, value);
             }
+        }
 
-            updates = new Dictionary<string, object>();
-
-            nodeID = row["NO_ID"].ToString();
-            nodeName = row["NO_Name"].ToString();
-            nodeManufacture = row["NO_Manufacture"].ToString();
-            nodeModel = row["NO_Model"].ToString();
-            nodeVersion = row["NO_Version"].ToString();
-            nodeSubVersion = row["NO_SubVersion"].ToString();
-            nodeIP = row["NO_IP"].ToString();
-            nodeTerminal = row["NO_Terminal"].ToString();
-            nodeConnectType = row["NO_ConnectType"].ToString();
-            nodeAreaID = row["NO_AR"].ToString();
-            nodeType = row["NO_Type"].ToString();
-
-            string previousRemark = row["NO_Remark"].ToString();
-
-            string nodeUser = tacacUser;
-            string nodePass = tacacPassword;
-
-            Event("Begin probing into " + nodeName);
-            if (nodeIP != null) Event("Host IP: " + nodeIP);
-            Event("Manufacture: " + nodeManufacture + "");
-            if (nodeModel != null) Event("Model: " + nodeModel);
-
-            DateTime now = DateTime.Now;
-
-            NodeUpdate(NodeUpdateTypes.Remark, null);
-            NodeUpdate(NodeUpdateTypes.RemarkUser, null);
-            NodeUpdate(NodeUpdateTypes.TimeStamp, now);
-
-            #region CHECK COMPATIBILITY
-            if (nodeManufacture == alu || nodeManufacture == cso || nodeManufacture == hwe || nodeManufacture == jun) ;
-            else
+        private void Exit()
+        {
+            Event("Exiting...");
+            if (outputIdentifier != null)
             {
-                Event("Unsupported node manufacture");
-                NodeSaveExit();
-                return true;
+                Exit(nodeManufacture);
             }
-            #endregion
-            
-            #region CHECK IP
-
-            Event("Checking host IP");
-            string resolvedIP = SSHCheckNodeIP(nodeName);
-
-            if (requestFailure)
-            {
-                requestFailure = false;
-                MainLoopRestart();
-                return true;
-            }
-
-            if (resolvedIP == null) Event("Hostname is unresolved");
-            if (nodeIP == null)
-            {
-                if (resolvedIP == null)
-                {
-                    #region null, null
-                    if (previousRemark == "UNRESOLVED")
-                        NodeUpdate(NodeUpdateTypes.Active, 0);
-                    else
-                        NodeUpdate(NodeUpdateTypes.Remark, "UNRESOLVED");
-
-                    NodeSave();
-                    return true;
-                    #endregion
-                }
-                else
-                {
-                    #region null, RESOLVED!
-                    Event("Host IP Resolved: " + resolvedIP);
-                    nodeIP = resolvedIP;
-                    NodeUpdate(NodeUpdateTypes.IP, nodeIP);
-                    #endregion
-                }
-            }
-            else
-            {
-                if (resolvedIP == null)
-                {
-                    #region RESOLVED!, null
-                    // reverse ip?
-                    Event("Resolving by reverse host name");
-
-                    string hostName = SSHCheckNodeIP(nodeIP, true);
-
-                    if (requestFailure)
-                    {
-                        requestFailure = false;
-                        MainLoopRestart();
-                        return true;
-                    }
-
-                    if (hostName != null)
-                    {
-                        #region RESOLVED!, null, RESOLVED!
-                        Event("Hostname has probably changed to: " + hostName);
-
-                        Result result = j.Query("select * from Node where NO_Name = {0}", hostName);
-
-                        if (result.Count == 1)
-                        {
-                            #region CHANGED to existing???
-
-                            string existingtype = result[0]["NO_Type"].ToString();
-                            string existingnodeid = result[0]["NO_ID"].ToString();
-
-                            if (existingtype == "P")
-                            {
-                                // cek interface
-                                Column checkInterface = j.Scalar("select count(*) from PEInterface where PI_NO = {0}", existingnodeid);
-
-                                string deletethisnode;
-                                string keepthisnode;
-
-                                int ci = checkInterface.ToInt();                               
-
-                                if (ci > 0)
-                                {
-                                    Event("Existing node has found, delete this node");
-                                    // yg existing sudah punya interface, yg ini dihapus aja
-                                    deletethisnode = nodeID;
-                                    keepthisnode = existingnodeid;
-
-                                    Event("Creating alias");
-                                    j.Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})",
-                                        Database.ID(), existingnodeid, nodeName);
-                                }
-                                else
-                                {
-                                    Event("Delete/update existing node properties");
-                                    // yg existing kosong, pake yg ini, rename ini jadi existing, hapus existing
-                                    deletethisnode = existingnodeid;
-                                    keepthisnode = nodeID;
-
-                                    NodeUpdate(NodeUpdateTypes.Name, hostName);
-                                }
-
-                                int n;
-                                // update POP
-                                n = j.Execute("update PEPOP set PO_NO = {0} where PO_NO = {1}", keepthisnode, deletethisnode).AffectedRows;
-                                if (n == 1) Event("Update PoP OK");
-                                // update ME_TO_PI
-                                n = j.Execute("update MEInterface set MI_TO_PI = null where MI_TO_PI in (select PI_ID from PEInterface where PI_NO = {0})", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Update ME interface to PI: " + n + " entries");
-                                // hapus interface IP
-                                n = j.Execute("delete from PEInterfaceIP where PP_PI in (select PI_ID from PEInterface where PI_NO = {0})", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Delete interface IP: " + n + " entries");
-                                // hapus interface
-                                n = j.Execute("delete from PEInterface where PI_NO = {0}", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Delete interface: " + n + " entries");
-                                // hapus QOS
-                                n = j.Execute("delete from PEQOS where PQ_NO = {0}", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Delete QOS: " + n + " entries");
-                                // hapus Route Name
-                                n = j.Execute("delete from PERouteName where PN_NO = {0}", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Delete route name: " + n + " entries");
-                                // hapus Node
-                                n = j.Execute("delete from Node where NO_ID = {0}", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Node deleted");
-                            }
-                            else if (existingnodeid == "M")
-                            {
-                                // cek interface
-                                Column checkInterface = j.Scalar("select count(*) from MEInterface where MI_NO = {0}", existingnodeid);
-
-                                string deletethisnode;
-                                string keepthisnode;
-
-                                int ci = checkInterface.ToInt();
-
-                                if (ci > 0)
-                                {
-                                    Event("Existing node has found, delete this node");
-                                    // yg existing sudah punya interface, yg ini dihapus aja
-                                    deletethisnode = nodeID;
-                                    keepthisnode = existingnodeid;
-
-                                    Event("Creating alias");
-                                    j.Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})",
-                                        Database.ID(), existingnodeid, nodeName);
-                                }
-                                else
-                                {
-                                    Event("Delete/update existing node properties");
-                                    // yg existing kosong, pake yg ini, rename ini jadi existing, hapus existing
-                                    deletethisnode = existingnodeid;
-                                    keepthisnode = nodeID;
-
-                                    NodeUpdate(NodeUpdateTypes.Name, hostName);
-                                }
-
-                                int n;
-                                // hapus customer
-                                n = j.Execute("delete from MECustomer where MU_NO = {0}", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Delete customer: " + n + " entries");
-                                // hapus service peer
-                                n = j.Execute("delete from MEPeer where MP_MC in (select MC_ID from MECircuit where MC_NO = {0})", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Delete service peer: " + n + " entries");
-                                // hapus interface
-                                n = j.Execute("delete from MEInterface where MI_NO = {0}", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Delete interface: " + n + " entries");
-                                // hapus circuit
-                                n = j.Execute("delete from MECircuit where MC_NO = {0}", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Delete service: " + n + " entries");
-                                // hapus sdp
-                                n = j.Execute("delete from MESDP where MS_NO = {0}", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Delete peer: " + n + " entries");
-                                // hapus Node
-                                n = j.Execute("delete from Node where NO_ID = {0}", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Node deleted");
-                            }
-
-                            #endregion
-                        }
-                        else
-                        {
-                            #region NO PROBLEM
-
-                            // simply change to the new one
-                            NodeUpdate(NodeUpdateTypes.Name, hostName);
-
-                            // insert old name alias
-                            Event("Creating alias");
-                            j.Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})",
-                                Database.ID(), nodeID, nodeName);
-
-                            #endregion
-                        }
-
-                        NodeSave();
-                        return true;
-                        #endregion
-                    }
-                    else
-                    {
-                        #region RESOLVED!, null, null
-
-                        if (previousRemark == "UNRESOLVED")
-                            NodeUpdate(NodeUpdateTypes.Active, 0);
-                        else
-                            NodeUpdate(NodeUpdateTypes.Remark, "UNRESOLVED");
-
-                        NodeSave();
-                        return true;
-                        #endregion                            
-                    }
-                    #endregion
-                }
-                else if (nodeIP != resolvedIP)
-                {
-                    #region IP HAS CHANGED
-
-                    Event("IP has changed to: " + resolvedIP + "");
-
-                    NodeUpdate(NodeUpdateTypes.Remark, "IPHASCHANGED");
-                    NodeUpdate(NodeUpdateTypes.Active, 0);
-
-                    NodeSave();
-                    return true;
-
-                    #endregion
-                }
-            }
-
-            Event("Host identified");
-
-            outputIdentifier = nodeName;
-
-            #endregion
-
-            #region CONNECT
-
-            NodeUpdate(NodeUpdateTypes.RemarkUser, nodeUser);
-
-            string connectType = nodeConnectType;
-            int connectSequence = 0;
-            string connectBy = null;
-
-            if (connectType == null)
-            {
-                if (nodeManufacture == alu || nodeManufacture == cso) connectType = "T";
-                else if (nodeManufacture == hwe || nodeManufacture == jun) connectType = "S";
-            }
-
-            bool connectSuccess = false;
-            while (true)
-            {
-                wait = 0;
-                while (SSHWait())
-                {
-                    wait++;
-                    Event("MCE Waiting II... (" + wait + ")");
-                    bool exp = false;
-                    if (!exp) exp = Request((char)13);
-                    if (!exp) exp = SendControlRightBracket();
-                    if (!exp) exp = SendControlC();
-
-                    Thread.Sleep(1000);
-
-                    if (exp || wait == 3)
-                    {
-                        MainLoopRestart();
-                        return true;
-                    }
-                }
-
-                string currentConnectType = null;
-
-                #region Determine connect type
-                if (connectSequence == 0)
-                {
-                    if (connectType == "T") currentConnectType = "T";
-                    else if (connectType == "S") currentConnectType = "S";
-                }
-                else if (connectSequence == 1)
-                {
-                    if (connectType == "T") currentConnectType = "S";
-                    else if (connectType == "S") currentConnectType = "T";
-                }
-                #endregion
-
-                if (currentConnectType == "T")
-                {
-                    connectSuccess = NodeConnectByTelnet(nodeName, nodeManufacture, nodeUser, nodePass);
-
-                    if (requestFailure)
-                    {
-                        requestFailure = false;
-                        MainLoopRestart();
-                        return true;
-                    }
-
-                    if (connectSuccess) connectBy = "T";
-                    else
-                    {
-                        Event("Telnet failed");
-                    }
-                }
-                else if (currentConnectType == "S")
-                {
-                    connectSuccess = NodeConnectBySSH(nodeName, nodeManufacture, nodeUser, nodePass);
-
-                    if (requestFailure)
-                    {
-                        requestFailure = false;
-                        MainLoopRestart();
-                        return true;
-                    }
-
-                    if (connectSuccess) connectBy = "S";
-                    else
-                    {
-                        Event("SSH failed");
-                    }
-                }
-
-                if (connectSuccess || connectSequence == 1) break;
-                else connectSequence++;
-            }
-
-            if (connectSuccess == false)
-            {
-                Event("Connection failed");
-
-                bool tacacError = false;
-                int loop = 0;
-                while (true)
-                {
-                    wait = 0;
-                    while (SSHWait())
-                    {
-                        wait++;
-                        Event("MCE Waiting III... (" + wait + ")");
-                        bool exp = false;
-                        if (!exp) exp = Request((char)13);
-                        if (!exp) exp = SendControlRightBracket();
-                        if (!exp) exp = SendControlC();
-
-                        Thread.Sleep(1000);
-
-                        if (exp || wait == 3)
-                        {
-                            MainLoopRestart();
-                            return true;
-                        }
-                    }
-
-                    string testOtherNode;
-
-                    if (nodeName == "PE-D2-TAN") testOtherNode = "PE2-D2-JT2-MGT";
-                    else testOtherNode = "PE-D2-TAN";
-
-                    Event("Trying to connect to other node...(" + testOtherNode + ")");
-
-                    bool testConnected = NodeConnectByTelnet(testOtherNode, cso, nodeUser, nodePass);
-
-                    if (requestFailure)
-                    {
-                        requestFailure = false;
-                        MainLoopRestart();
-                        return true;
-                    }
-
-                    if (testConnected)
-                    {
-                        NodeExit(cso);
-                        Event("Connected! TACAC server is OK.");
-                        break;
-                    }
-                    else
-                    {
-                        tacacError = true;
-                        Event("Connection failed, TACAC server is possible overloaded/error/not responding.");
-
-                        int time = 1;
-                        #region time
-                        if (loop == 0)
-                        {
-                            Event("Try again in 1 minute");
-                        }
-                        else if (loop == 1)
-                        {
-                            Event("Try again in 5 minutes");
-                            time = 5;
-                        }
-                        else if (loop == 2)
-                        {
-                            Event("Try again in 15 minutes");
-                            time = 15;
-                        }
-                        else if (loop == 3)
-                        {
-                            Event("Try again in 30 minutes");
-                            time = 30;
-                        }
-                        else if (loop >= 4)
-                        {
-                            Event("Try again in 1 hour");
-                            time = 60;
-                        }
-                        #endregion
-
-                        Thread.Sleep(60000 * time);
-
-                        loop++;
-                    }
-                }
-
-                if (tacacError)
-                {
-                    // this node is innocent
-                    // TODO: try again?
-                }
-                else
-                {
-                    if (previousRemark == "CONNECTFAIL")
-                        NodeUpdate(NodeUpdateTypes.Active, 0);
-                    else
-                        NodeUpdate(NodeUpdateTypes.Remark, "CONNECTFAIL");
-
-                }
-
-                NodeSave();
-                return true;
-            }
-
-            if (nodeConnectType == null || connectBy != connectType)
-                NodeUpdate(NodeUpdateTypes.ConnectType, connectBy);
-
-            Event("Connected!");
-
-            string terminal = null;
-
-            if (nodeManufacture == alu)
-            {
-                string[] lines = LastOutput.Split('\n');
-                string lastLine = lines[lines.Length - 1];
-
-                int titik2 = lastLine.LastIndexOf(':');
-                terminal = lastLine.Substring(titik2 + 1);
-            }
-            else if (nodeManufacture == hwe)
-            {
-                string[] lines = LastOutput.Split('\n');
-                string lastLine = lines[lines.Length - 1];
-                terminal = lastLine;
-            }
-            else if (nodeManufacture == cso)
-            {
-                string[] lines = LastOutput.Split('\n');
-                string lastLine = lines[lines.Length - 1];
-                terminal = lastLine;
-
-                if (terminal.EndsWith(">"))
-                {
-                    Event("Error: Not In Privileged EXEC mode");
-                    NodeSaveExit();
-                    return true;
-                }
-            }
-            else if (nodeManufacture == jun)
-            {
-                string[] lines = LastOutput.Split('\n');
-                string lastLine = lines[lines.Length - 1];
-
-                string[] linex = lastLine.Split(new char[] { '@' }, StringSplitOptions.RemoveEmptyEntries);
-                terminal = linex[1];
-            }
-
-            Event("Terminal: " + terminal + "");
-
-            if (terminal != nodeTerminal) NodeUpdate(NodeUpdateTypes.Terminal, terminal);
-            nodeTerminal = terminal;
-
-            #endregion
-
-            #region TERMINAL SETUP
-
-            Event("Setup terminal");
-
+            outputIdentifier = null;
+            Event("Exit!");
+        }
+
+        private void Exit(string manufacture)
+        {
+            Thread.Sleep(100);
+
+            if (manufacture == alu) SendLine("logout");
+            else if (manufacture == hwe) SendLine("quit");
+            else if (manufacture == cso) SendLine("exit");
+            else if (manufacture == jun) SendLine("exit");
+
+            WaitUntilMCETerminalReady("MCE Waiting on Exit");
+        }
+
+        private void SaveExit()
+        {
+            Save();
+            Exit();
+        }
+
+        private List<string> Read()
+        {
             bool timeout;
-            noMore = true; // by default, we can no more
-
-            if (nodeManufacture == alu)
-            {
-                if (Send("environment no saved-ind-prompt")) { NodeSaveMainLoopRestart(); return true; }
-                NodeRead(out timeout);
-                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                if (timeout) { NodeReadTimeOutExit(); return true; }
-
-                if (Send("environment no more")) { NodeSaveMainLoopRestart(); return true; }
-                List<string> lines = NodeRead(out timeout);
-                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                if (timeout) { NodeReadTimeOutExit(); return true; }
-
-                string oline = string.Join(" ", lines);
-                if (oline.IndexOf("CLI Command not allowed for this user.") > -1)
-                    noMore = false;
-                else
-                    noMore = true;
-            }
-            else if (nodeManufacture == hwe)
-            {
-                if (Send("screen-length 0 temporary")) { NodeSaveMainLoopRestart(); return true; }
-                NodeRead(out timeout);
-                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                if (timeout) { NodeReadTimeOutExit(); return true; }
-            }
-            else if (nodeManufacture == cso)
-            {
-                if (Send("terminal length 0")) { NodeSaveMainLoopRestart(); return true; }
-                NodeRead(out timeout);
-                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                if (timeout) { NodeReadTimeOutExit(); return true; }
-            }
-            else if (nodeManufacture == jun)
-            {
-                if (Send("set cli screen-length 0")) { NodeSaveMainLoopRestart(); return true; }
-                NodeRead(out timeout);
-                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                if (timeout) { NodeReadTimeOutExit(); return true; }
-            }
-
-            #endregion
-
-            #region VERSION
-
-            bool checkVersion = false;
-
-            if (nodeVersion == null) checkVersion = true;
-            else
-            {
-                DateTime versionTime = row["NO_VersionTime"].ToDateTime();
-                TimeSpan span = now - versionTime;
-                if (span.TotalDays >= 7) checkVersion = true;
-            }
-
-            if (checkVersion)
-            {
-                Event("Checking Version");
-
-                string version = null;
-                string subVersion = null;
-                string model = null;
-
-                if (nodeManufacture == alu)
-                {
-                    #region alu
-                    if (Send("show version | match TiMOS")) { NodeSaveMainLoopRestart(); return true; }
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
-
-                    foreach (string line in lines)
-                    {
-                        //TiMOS-C-11.0.R6 cp
-                        //0123456789012345
-                        if (line.StartsWith("TiMOS"))
-                        {
-                            version = line.Substring(0, line.IndexOf(' ')).Trim();
-                            break;
-                        }
-                    }
-                    #endregion
-                }
-                else if (nodeManufacture == hwe)
-                {
-                    #region hwe
-                    if (Send("display version")) { NodeSaveMainLoopRestart(); return true; }
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
-
-                    foreach (string line in lines)
-                    {
-                        if (line.StartsWith("VRP (R) software"))
-                        {
-                            version = line.Substring(26, line.IndexOf(' ', 26) - 26).Trim();
-                            break;
-                        }
-                    }
-                    // additional setup for huawei >5.90 for screen-width tweak (help problem with 5.160 auto text-wrap)
-                    //if (version == "5.160")
-                    //{
-                    //    if (Send("screen-width 80" + (char)13 + "Y")) { NodeStop(); return true; }
-                    //    NodeRead(out timeout);
-                    //    if (timeout) { NodeStop(); return true; }
-                    //}
-
-                    #endregion
-                }
-                else if (nodeManufacture == cso)
-                {
-                    #region cso
-                    if (Send("show version | in IOS")) { NodeSaveMainLoopRestart(); return true; }
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
-
-                    string sl = string.Join("", lines.ToArray());
-
-                    if (sl.IndexOf("Cisco IOS XR Software") > -1)
-                    {
-                        // ASR
-                        model = "ASR";
-                        version = "XR";
-                        int iv = sl.IndexOf("Version");
-                        if (iv > -1)
-                        {
-                            string ivonw = sl.Substring(iv + 7).Trim();
-                            if (ivonw.Length > 0)
-                            {
-                                iv = ivonw.IndexOf('[');
-                                if (iv == -1) iv = ivonw.IndexOf(',');
-                                if (iv == -1) iv = ivonw.IndexOf(' ');
-                                if (iv > -1)
-                                {
-                                    subVersion = ivonw.Substring(0, iv);
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // IOS
-                        version = "IOS";
-
-                        // software
-                        int iver = sl.IndexOf("Version ");
-                        if (iver > -1)
-                        {
-                            string imod = sl.Substring(iver + 8, sl.IndexOf(',', iver + 8) - (iver + 8));
-                            subVersion = imod;
-                        }
-
-                        // model
-                        if (Send("show version | in bytes of memory")) { NodeSaveMainLoopRestart(); return true; }
-                        lines = NodeRead(out timeout);
-                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                        if (timeout) { NodeReadTimeOutExit(); return true; }
-
-                        sl = string.Join("", lines.ToArray());
-                        string slo = sl.ToLower();
-
-                        int cisc = slo.IndexOf("cisco ");
-                        if (cisc > -1)
-                        {
-                            string imod = sl.Substring(cisc + 6, sl.IndexOf(' ', cisc + 6) - (cisc + 6));
-
-                            int iod = 0;
-                            foreach (char imodc in imod)
-                            {
-                                if (char.IsDigit(imodc)) { break; }
-                                iod++;
-                            }
-                            model = imod.Substring(iod);
-                        }
-                    }
-                    #endregion
-                }
-                else if (nodeManufacture == jun)
-                {
-                    if (Send("show version | match \"JUNOS Base OS boot\"")) { NodeSaveMainLoopRestart(); return true; }
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
-
-                    foreach (string line in lines)
-                    {
-                        if (line.StartsWith("JUNOS Base OS boot"))
-                        {
-                            string[] linex = line.Split(new char[] { '[', ']' }, StringSplitOptions.RemoveEmptyEntries);
-                            if (linex.Length >= 2) version = linex[1];
-                            break;
-                        }
-                    }
-                }
-
-                if (model != nodeModel)
-                {
-                    nodeModel = model;
-                    NodeUpdate(NodeUpdateTypes.Model, model);
-                    Event("Model discovered: " + model);
-                }
-                if (version != nodeVersion)
-                {
-                    nodeVersion = version;
-                    NodeUpdate(NodeUpdateTypes.Version, version);
-                    Event("Version updated: " + version);
-                }
-                if (subVersion != nodeSubVersion)
-                {
-                    nodeSubVersion = subVersion;
-                    NodeUpdate(NodeUpdateTypes.SubVersion, subVersion);
-                    Event("SubVersion updated: " + subVersion);
-                }
-
-                NodeUpdate(NodeUpdateTypes.VersionTime, now);
-            }
-
-            if (nodeVersion == null)
-            {
-                Event("Cant determined node version.");
-                NodeSaveExit();
-                return true;
-            }
-
-            Event("Version: " + nodeVersion + ((nodeSubVersion != null) ? ":" + nodeSubVersion : ""));
-
-            #endregion
-
-            #region LAST CONFIGURATION
-
-            Event("Checking Last Configuration");
-
-            bool lastconfliveisnull = true;
-
-            DateTime lastconflive = DateTime.MinValue;
-
-            if (nodeManufacture == alu)
-            {
-                #region alu
-                if (Send("show system information | match \"Time Last Modified\"")) { NodeSaveMainLoopRestart(); return true; }
-                List<string> lines = NodeRead(out timeout);
-                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                if (timeout) { NodeReadTimeOutExit(); return true; }
-
-                bool lastModified = false;
-
-                foreach (string line in lines)
-                {
-                    if (line.StartsWith("Time Last Modified"))
-                    {
-                        lastModified = true;
-                        //Time Last Modified     : 2
-                        //01234567890123456789012345
-                        string datetime = line.Substring(25).Trim();
-                        lastconflive = DateTime.Parse(datetime);
-                        lastconflive = new DateTime(
-                            lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
-                            lastconflive.Kind
-                            );
-                        lastconfliveisnull = false;
-                    }
-                }
-
-                if (lastModified == false)
-                {
-                    if (Send("show system information | match \"Time Last Saved\"")) { NodeSaveMainLoopRestart(); return true; }
-                    lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
-
-                    foreach (string line in lines)
-                    {
-                        if (line.StartsWith("Time Last Saved"))
-                        {
-                            lastModified = true;
-                            //Time Last Saved        : 2015/01/13 01:13:56
-                            //01234567890123456789012345
-                            string datetime = line.Substring(25).Trim();
-                            if (DateTime.TryParse(datetime, out lastconflive))
-                            {
-                                lastconflive = new DateTime(
-                                    lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
-                                    lastconflive.Kind
-                                    );
-                                lastconfliveisnull = false;
-                            }
-                        }
-                    }
-                }
-                #endregion
-            }
-            else if (nodeManufacture == hwe)
-            {
-                #region hwe
-                if (Send("display changed-configuration time")) { NodeSaveMainLoopRestart(); return true; }
-                List<string> lines = NodeRead(out timeout);
-                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                if (timeout) { NodeReadTimeOutExit(); return true; }
-
-                foreach (string line in lines)
-                {
-                    if (line.StartsWith("The time"))
-                    {
-                        string dateparts = line.Substring(line.IndexOf(':') + 1);
-
-                        if (dateparts != null)
-                        {
-                            if (DateTime.TryParse(dateparts, out lastconflive))
-                            {
-                                lastconflive = new DateTime(
-                                    lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
-                                    lastconflive.Kind
-                                    );
-                                lastconfliveisnull = false;
-                            }
-                        }
-                    }
-                }
-                #endregion
-            }
-            else if (nodeManufacture == cso)
-            {
-                #region cso
-                if (nodeVersion == xr)
-                {
-                    #region xr
-                    if (Send("show configuration history commit last 1 | in commit")) { NodeSaveMainLoopRestart(); return true; }
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
-
-                    foreach (string line in lines)
-                    {
-                        if (line.Length > 0 && line[0] == '1')
-                        {
-                            //1     commit     id 1000000807                  Fri
-                            //01234567890123456789012345678901234567890123456789
-                            string dateparts = line.Substring(48).Trim();
-
-                            if (dateparts != null)
-                            {
-                                //Fri Jan 16 11:18:46 2015
-                                string[] dates = dateparts.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-
-                                if (DateTime.TryParse(dates[1] + " " + dates[2] + " " + dates[4] + " " + dates[3], out lastconflive))
-                                {
-                                    lastconflive = new DateTime(
-                                        lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
-                                        lastconflive.Kind
-                                        );
-                                    lastconfliveisnull = false;
-                                }
-                            }
-                        }
-                    }
-                    #endregion
-                }
-                else
-                {
-                    #region !xr
-
-                    // because so many differences between IOS version, we might try every possible command
-                    bool passed = false;
-
-                    // most of ios version will work this way
-                    if (Send("show configuration id detail")) { NodeSaveMainLoopRestart(); return true; }
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
-
-                    foreach (string line in lines)
-                    {
-                        if (line.StartsWith("Last change time"))
-                        {                           
-                            //Last change time             : 2015-01-17T02:33:01.553Z
-                            //01234567890123456789012345678901234567890123456789
-                            //          1         2         3
-                            string dateparts = line.Substring(31).Trim();
-                            if (dateparts != null)
-                            {
-                                if (DateTime.TryParse(dateparts, out lastconflive))
-                                {
-                                    Event("Using configuration id");
-                                    passed = true;
-                                    lastconflive = new DateTime(
-                                        lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
-                                        lastconflive.Kind
-                                        );
-                                    lastconfliveisnull = false;
-                                }
-                            }
-                            break;
-                        }
-                    }
-
-                    if (passed == false)
-                    {
-                        // using xr-like command history
-                        //show configuration history
-                        if (Send("show configuration history")) { NodeSaveMainLoopRestart(); return true; }
-                        lines = NodeRead(out timeout);
-                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                        if (timeout) { NodeReadTimeOutExit(); return true; }
-
-                        string lastline = null;
-                        foreach (string line in lines)
-                        {
-                            if (line.IndexOf("Invalid input detected") > -1) break;
-                            else if (line == "") break;
-                            else if (char.IsDigit(line[0])) lastline = line;
-                        }
-
-                        if (lastline != null)
-                        {
-                            string[] linex = lastline.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-                            //5    23:33:21 WIB Tue Mar 1 2016User : ffm-myarham
-                            string datetime = linex[1];
-                            string datemonth = linex[4].ToUpper();
-                            string datedate = linex[5];
-                            string dateyear = linex[6];
-                            if (dateyear.Length > 4) dateyear = dateyear.Substring(0, 4);
-
-                            string datestr = datemonth + " " + datedate + " " + dateyear + " " + datetime;
-
-                            DateTime parsedDT = DateTime.MinValue;
-                            if (DateTime.TryParse(datestr, out parsedDT))
-                            {
-                                Event("Using configuration history");
-                                passed = true;
-                                lastconflive = parsedDT;
-                                lastconfliveisnull = false;
-                            }
-                        }
-                    }
-
-                    if (passed == false)
-                    {
-                        // and here we are, using forbidden command ever
-                        if (Send("show log | in CONFIG_I")) { NodeSaveMainLoopRestart(); return true; }
-                        lines = NodeRead(out timeout);
-                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                        if (timeout) { NodeReadTimeOutExit(); return true; }
-
-                        string lastline = null;
-                        foreach (string line in lines)
-                        {
-                            if (line.StartsWith("*")) lastline = line;
-                        }
-
-                        if (lastline != null)
-                        {                            
-                            string[] lastlines = lastline.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-
-                            string datemonth = lastlines[0].TrimStart(new char[] { '*' }).ToUpper();
-                            string datedate = lastlines[1];
-                            string datetime = lastlines[2];
-
-                            string datestr = datemonth + " " + datedate + " " + DateTime.Now.Year + " " + datetime;
-
-                            DateTime parsedDT = DateTime.MinValue;
-                            if (DateTime.TryParse(datestr, out parsedDT))
-                            {
-                                Event("Using log config");
-                                passed = true;
-
-                                if (parsedDT > DateTime.Now)
-                                {
-                                    // probably year is wrong, so use last year
-                                    string datestrrev = datemonth + " " + datedate + " " + (DateTime.Now.Year - 1) + " " + datetime;
-                                    parsedDT = DateTime.Parse(datestrrev);
-                                }
-
-                                lastconflive = parsedDT;
-                                lastconfliveisnull = false;
-                            }
-                        }
-                    }
-
-                    if (passed == false)
-                    {
-                        // and... if everything fail, we will use this slowlest command ever
-                        if (Send("show run | in Last config")) { NodeSaveMainLoopRestart(); return true; }
-                        lines = NodeRead(out timeout);
-                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                        if (timeout) { NodeReadTimeOutExit(); return true; }
-
-                        foreach (string line in lines)
-                        {
-                            //! Last configuration change at 1
-                            //01234567890123456789012345678901
-                            if (line.StartsWith("! Last config"))
-                            {
-                                string eline = line.Substring(31);
-                                string[] linex = eline.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-                                //17:27:19 WIB Tue Mar 1 2016 
-                                //0        1   2   3   4 5
-                                string datetime = linex[0];
-                                string datemonth = linex[3].ToUpper();
-                                string datedate = linex[4];
-                                string dateyear = linex[5];
-
-                                string datestr = datemonth + " " + datedate + " " + dateyear + " " + datetime;
-
-                                DateTime parsedDT = DateTime.MinValue;
-                                if (DateTime.TryParse(datestr, out parsedDT))
-                                {
-                                    Event("Using running configuration");
-                                    passed = true;
-                                    lastconflive = parsedDT;
-                                    lastconfliveisnull = false;
-                                }
-                                break;
-                            }
-                        }
-                    }
-
-                    #endregion
-                }
-                #endregion
-            }
-            else if (nodeManufacture == jun)
-            {
-                #region jun
-                if (Send("show system uptime | match \"Last configured\"")) { NodeSaveMainLoopRestart(); return true; }
-                List<string> lines = NodeRead(out timeout);
-                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                if (timeout) { NodeReadTimeOutExit(); return true; }
-
-                foreach (string line in lines)
-                {
-                    if (line.StartsWith("Last configured: "))
-                    {
-                        //Last configured: 2015-01-20 09:53:54
-                        //0123456789012345678901234567890123456789
-                        string lineTrim = line.Substring(17).Trim();
-                        string[] linex = lineTrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-
-                        if (DateTime.TryParse(linex[0] + " " + linex[1], out lastconflive))
-                        {
-                            lastconflive = new DateTime(
-                                lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
-                                lastconflive.Kind
-                                );
-                            lastconfliveisnull = false;
-                        }
-                        break;
-                    }
-                }
-                #endregion
-            }
-
-            DateTime lastconfdb = row["NO_LastConfiguration"].ToDateTime();
-
-            if (lastconfliveisnull == false)
-            {
-                Event("Last configuration on " + lastconflive.ToString("yy/MM/dd HH:mm:ss.fff"));
-            }
-
-            if (lastconfliveisnull == false && lastconflive != lastconfdb)
-            {
-                Event("Configuration has changed!");
-                NodeUpdate(NodeUpdateTypes.LastConfiguration, lastconflive);
-
-                goFurther = true;
-            }
-            else
-            {
-                Event("Configuration is up to date");
-            }
-
-            #endregion
-
-            return false;
+            return Read(out timeout);
         }
 
-        private bool NodeConnectByTelnet(string host, string manufacture, string user, string pass)
-        {
-            int expect = -1;
-            bool connectSuccess = false;
-
-            Event("Connecting with Telnet... (" + user + "@" + host + ")");
-
-            if (Request("telnet " + host)) { requestFailure = true; return false; }
-
-            if (manufacture == alu)
-            {
-                #region alu
-                expect = SSHExpect("ogin:");
-                if (expect == 0)
-                {
-                    Event("Authenticating: User");
-                    if (Request(user)) { requestFailure = true; return false; }
-                    expect = SSHExpect("assword:");
-                    if (expect == 0)
-                    {
-                        Event("Authenticating: Password");
-                        if (Request(pass)) { requestFailure = true; return false; }
-                        expect = SSHExpect("#", "ogin:", "closed by foreign");
-                        if (expect == 0) connectSuccess = true;
-                        else if (SendControlZ()) { requestFailure = true; return false; }
-                    }
-                    else
-                    {
-                        Event("Cannot find password console prefix");
-                        if (SendControlZ()) { requestFailure = true; return false; }
-                    }
-                }
-                else
-                {
-                    Event("Cannot find login console prefix");
-                    if (SendControlC()) { requestFailure = true; return false; }
-                }
-                #endregion
-            }
-            else if (manufacture == hwe)
-            {
-                #region hwe
-                expect = SSHExpect("sername:", "closed by foreign");
-                if (expect == 0)
-                {
-                    Event("Authenticating: User");
-                    if (Request(user)) { requestFailure = true; return false; }
-                    expect = SSHExpect("assword:");
-                    if (expect == 0)
-                    {
-                        Event("Authenticating: Password");
-                        if (Request(pass)) { requestFailure = true; return false; }
-                        expect = SSHExpect(">", "sername:", "Tacacs server reject");
-                        if (expect == 0) connectSuccess = true;
-                        else
-                        {
-                            bool exp = false;
-                            if (!exp) exp = SendControlRightBracket();
-                            if (!exp) exp = SendControlC();
-                            if (exp) { requestFailure = true; return false; }
-                        }
-                    }
-                    else
-                    {
-                        Event("Cannot find password console prefix");
-                        bool exp = false;
-                        if (!exp) exp = SendControlRightBracket();
-                        if (!exp) exp = SendControlC();
-                        if (exp) { requestFailure = true; return false; }
-                    }
-                }
-                else
-                {
-                    Event("Cannot find username console prefix");
-                    if (SendControlC()) { requestFailure = true; return false; }
-                }
-                #endregion
-            }
-            else if (manufacture == cso)
-            {
-                #region cso
-                expect = SSHExpect("sername:");
-                if (expect == 0)
-                {
-                    Event("Authenticating: User");
-                    if (Request(user)) { requestFailure = true; return false; }
-                    expect = SSHExpect("assword:");
-                    if (expect == 0)
-                    {
-                        Event("Authenticating: Password");
-                        if (Request(pass)) { requestFailure = true; return false; }
-                        expect = SSHExpect("#", "sername:", "closed by foreign", "cation failed");
-                        if (expect == 0) connectSuccess = true;
-                        else
-                        {
-                            bool exp = false;
-                            if (!exp) exp = SendControlRightBracket();
-                            if (!exp) exp = SendControlC();
-                            if (exp) { requestFailure = true; return false; }
-                        }
-                    }
-                    else
-                    {
-                        Event("Cannot find password console prefix");
-                        bool exp = false;
-                        if (!exp) exp = SendControlRightBracket();
-                        if (!exp) exp = SendControlC();
-                        if (exp) { requestFailure = true; return false; }
-                    }
-                }
-                else
-                {
-                    Event("Cannot find username console prefix");
-                    if (SendControlC()) { requestFailure = true; return false; }
-                }
-                #endregion
-            }
-            else if (SendControlC()) { requestFailure = true; return false; }
-
-            return connectSuccess;
-        }
-
-        private bool NodeConnectBySSH(string host, string manufacture, string user, string pass)
-        {
-            int expect = -1;
-            bool connectSuccess = false;
-
-            Event("Connecting with SSH... (" + user + "@" + host + ")");
-            if (Request("ssh -o StrictHostKeyChecking=no " + user + "@" + host)) { requestFailure = true; return false; }
-
-            if (manufacture == hwe)
-            {
-                #region hwe
-                expect = SSHExpect("assword:", "Connection refused");
-                if (expect == 0)
-                {
-                    Event("Authenticating: Password");
-                    if (Request(pass)) { requestFailure = true; return false; }
-                    expect = SSHExpect(">", "assword:");
-                    if (expect == 0) connectSuccess = true;
-                    else if (SendControlC()) { requestFailure = true; return false; }
-                }
-                else if (SendControlC()) { requestFailure = true; return false; }
-                #endregion
-            }
-            else if (manufacture == cso)
-            {
-                #region cso
-                expect = SSHExpect("assword:", "Connection refused");
-                if (expect == 0)
-                {
-                    Event("Authenticating: Password");
-                    if (Request(pass)) { requestFailure = true; return false; }
-                    expect = SSHExpect("#", "assword:");
-                    if (expect == 0) connectSuccess = true;
-                    else if (SendControlC()) { requestFailure = true; return false; }
-                }
-                else if (SendControlC()) { requestFailure = true; return false; }
-                #endregion
-            }
-            else if (manufacture == jun)
-            {
-                #region jun
-                expect = SSHExpect("password:");
-                if (expect == 0)
-                {
-                    Event("Authenticating: Password");
-                    if (Request(pass)) { requestFailure = true; return false; }
-                    expect = SSHExpect(">", "assword:");
-                    if (expect == 0) connectSuccess = true;
-                    else if (SendControlC()) { requestFailure = true; return false; }
-                }
-                else if (SendControlC()) { requestFailure = true; return false; }
-                #endregion
-            }
-            else if (SendControlC()) { requestFailure = true; return false; }
-
-            return connectSuccess;
-        }
-
-        private List<string> NodeRead(out bool timeout)
+        private List<string> Read(out bool timeout)
         {
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
-
-            // Event("Reading...");
 
             timeout = false;
             if (nodeTerminal == null) return null;
@@ -2184,7 +1061,7 @@ where NO_Active = 1
             int wait = 0;
 
             StringBuilder lastOutputSB = new StringBuilder();
-                        
+
             while (true)
             {
                 if (outputs.Count > 0)
@@ -2204,7 +1081,7 @@ where NO_Active = 1
                             if (b == 10)
                             {
                                 string line = lineBuilder.ToString();
-                                
+
                                 if (nodeManufacture == hwe && nodeVersion == "5.160" && line.Length > 80)
                                 {
                                     int looptimes = (int)Math.Ceiling((float)line.Length / 80);
@@ -2248,7 +1125,7 @@ where NO_Active = 1
 
                                     lines = newlines;
 
-                                    if (SendSpace()) { requestFailure = true; return null; }
+                                    SendSpace();
                                 }
                             }
                         }
@@ -2269,8 +1146,10 @@ where NO_Active = 1
                     if (wait == 400)
                     {
                         timeout = true;
+                        Event("Reading timeout");
+
                         Thread.Sleep(1000);
-                        if (SendControlC()) { requestFailure = true; return null; }
+                        SendControlC();
                         break;
                     }
                 }
@@ -2284,64 +1163,198 @@ where NO_Active = 1
             return lines;
         }
         
-        private void NodeSaveExit()
+        private bool ConnectByTelnet(string host, string manufacture, string user, string pass)
         {
-            NodeSave();
-            NodeExit();
-        }
+            int expect = -1;
+            bool connectSuccess = false;
 
-        private void NodeReadTimeOutExit()
-        {
-            Event("Reading timeout");
-            NodeExit();
-        }
+            Event("Connecting with Telnet... (" + user + "@" + host + ")");
 
-        private void NodeSaveMainLoopRestart()
-        {
-            NodeSave();
-            MainLoopRestart();
-            outputIdentifier = null;
-        }
-        
-        private void NodeExit()
-        {
-            Event("Exiting...");
-            if (outputIdentifier != null)
+            if (WriteLine("telnet " + host)) { requestFailure = true; return false; }
+
+            if (manufacture == alu)
             {
-                NodeExit(nodeManufacture);
-            }
-            outputIdentifier = null;
-            Event("Exit!");
-        }
-
-        private void NodeExit(string manufacture)
-        {
-            Thread.Sleep(100);
-            if (manufacture == alu && Send("logout")) { MainLoopRestart(); return; }
-            else if (manufacture == hwe && Send("quit")) { MainLoopRestart(); return; }
-            else if (manufacture == cso && Send("exit")) { MainLoopRestart(); return; }
-            else if (manufacture == jun && Send("exit")) { MainLoopRestart(); return; }
-
-            int wait = 0;
-            while (SSHWait())
-            {
-                wait++;
-                Event("MCE Wait " + wait + ": exit node");
-                Request((char)13);
-                SendControlRightBracket();
-                SendControlC();
-                Thread.Sleep(1000);
-                if (wait == 3)
+                #region alu
+                expect = MCEExpect("ogin:");
+                if (expect == 0)
                 {
-                    MainLoopRestart();
-                    break;
+                    Event("Authenticating: User");
+                    SendLine(user);
+
+                    expect = MCEExpect("assword:");
+                    if (expect == 0)
+                    {
+                        Event("Authenticating: Password");
+                        SendLine(pass);
+
+                        expect = MCEExpect("#", "ogin:", "closed by foreign");
+                        if (expect == 0) connectSuccess = true;
+                        else SendControlZ();
+                    }
+                    else
+                    {
+                        Event("Cannot find password console prefix");
+                        SendControlZ();
+                    }
                 }
+                else
+                {
+                    Event("Cannot find login console prefix");
+                    SendControlC();
+                }
+                #endregion
             }
+            else if (manufacture == hwe)
+            {
+                #region hwe
+                expect = MCEExpect("sername:", "closed by foreign");
+                if (expect == 0)
+                {
+                    Event("Authenticating: User");
+                    SendLine(user);
+
+                    expect = MCEExpect("assword:");
+                    if (expect == 0)
+                    {
+                        Event("Authenticating: Password");
+                        SendLine(pass);
+
+                        expect = MCEExpect(">", "sername:", "Tacacs server reject");
+                        if (expect == 0) connectSuccess = true;
+                        else
+                        {
+                            SendControlRightBracket();
+                            SendControlC();
+                        }
+                    }
+                    else
+                    {
+                        Event("Cannot find password console prefix");
+                        SendControlRightBracket();
+                        SendControlC();
+                    }
+                }
+                else
+                {
+                    Event("Cannot find username console prefix");
+                    SendControlC();
+                }
+                #endregion
+            }
+            else if (manufacture == cso)
+            {
+                #region cso
+                expect = MCEExpect("sername:");
+                if (expect == 0)
+                {
+                    Event("Authenticating: User");
+                    SendLine(user);
+
+                    expect = MCEExpect("assword:");
+                    if (expect == 0)
+                    {
+                        Event("Authenticating: Password");
+                        SendLine(pass);
+
+                        expect = MCEExpect("#", "sername:", "closed by foreign", "cation failed");
+                        if (expect == 0) connectSuccess = true;
+                        else
+                        {
+                            SendControlRightBracket();
+                            SendControlC();
+                        }
+                    }
+                    else
+                    {
+                        Event("Cannot find password console prefix");
+                        SendControlRightBracket();
+                        SendControlC();
+                    }
+                }
+                else
+                {
+                    Event("Cannot find username console prefix");
+                    SendControlC();
+                }
+                #endregion
+            }
+            else SendControlC();
+
+            return connectSuccess;
         }
 
-        private void NodeSave()
+        private bool ConnectBySSH(string host, string manufacture, string user, string pass)
         {
-            StringBuilder sb = new StringBuilder();
+            int expect = -1;
+            bool connectSuccess = false;
+
+            Event("Connecting with SSH... (" + user + "@" + host + ")");
+            SendLine("ssh -o StrictHostKeyChecking=no " + user + "@" + host);
+
+            if (manufacture == hwe)
+            {
+                #region hwe
+
+                expect = MCEExpect("assword:", "Connection refused");
+                if (expect == 0)
+                {
+                    Event("Authenticating: Password");
+                    SendLine(pass);
+
+                    expect = MCEExpect(">", "assword:");
+                    if (expect == 0) connectSuccess = true;
+                    else SendControlC();
+                }
+                else SendControlC();
+
+                #endregion
+            }
+            else if (manufacture == cso)
+            {
+                #region cso
+
+                expect = MCEExpect("assword:", "Connection refused");
+                if (expect == 0)
+                {
+                    Event("Authenticating: Password");
+                    SendLine(pass);
+
+                    expect = MCEExpect("#", "assword:");
+                    if (expect == 0) connectSuccess = true;
+                    else SendControlC();
+                }
+                else SendControlC();
+
+                #endregion
+            }
+            else if (manufacture == jun)
+            {
+                #region jun
+
+                expect = MCEExpect("password:");
+                if (expect == 0)
+                {
+                    Event("Authenticating: Password");
+                    SendLine(pass);
+
+                    expect = MCEExpect(">", "assword:");
+                    if (expect == 0) connectSuccess = true;
+                    else SendControlC();
+                }
+                else SendControlC();
+
+                #endregion
+            }
+            else SendControlC();
+
+            return connectSuccess;
+        }
+
+        private void Save()
+        {
+            StringBuilder sb;
+            
+            sb = new StringBuilder();
             foreach (KeyValuePair<string, object> pair in updates)
             {
                 if (sb.Length > 0) sb.Append(", ");
@@ -2353,7 +1366,1448 @@ where NO_Active = 1
                 string sql = "update Node set " +
                     StringHelper.EscapeFormat(sb.ToString()) +
                     " where NO_ID = {0}";
-                j.Scalar(sql, nodeID);
+
+                Result r = j.Execute(sql, nodeID);
+            }
+
+            Result nsr = Query("select * from NodeSummary where NS_NO = {0}", nodeID);
+            Dictionary<string, string[]> nsd = new Dictionary<string, string[]>();
+            foreach (Row ns in nsr)
+            {
+                string nsk = ns["NS_Key"].ToString();
+                string nsid = ns["NS_ID"].ToString();
+                string nsv = ns["NS_Value"].ToString();
+
+                nsd.Add(nsk, new string[] { nsid, nsv });
+            }
+
+            sb = new StringBuilder();
+            foreach (KeyValuePair<string, string> pair in summaries)
+            {
+                string[] db = null;
+                if (nsd.ContainsKey(pair.Key)) db = nsd[pair.Key];
+
+                if (db == null)
+                {
+                    if (pair.Value == null)
+                    {
+
+                    }
+                    else
+                    {
+                        // insert
+                        sb.Append(j.Format("insert into NodeSummary(NS_ID, NS_NO, NS_Key, NS_Value) values({0}, {1}, {2}, {3});", 
+                            Database.ID(), nodeID, pair.Key, pair.Value));
+                    }
+                }
+                else
+                {
+                    string dbi = db[0];
+                    string dbv = db[1];
+
+                    if (pair.Value == null) sb.Append(j.Format("delete from NodeSummary where NS_ID = {0};", dbi));
+                    else if (pair.Value != dbv) sb.Append(j.Format("update NodeSummary set NS_Value = {0} where NS_ID = {1};", pair.Value, dbi));
+                }
+            }
+
+            if (sb.Length > 0)
+            {
+                j.Execute(sb.ToString());
+            }
+        }
+
+        private void Enter(Row row, out bool continueProcess)
+        {  
+            continueProcess = false;
+
+            WaitUntilMCETerminalReady("MCE Waiting I");
+
+            updates = new Dictionary<string, object>();
+            summaries = new Dictionary<string, string>();
+
+            nodeID = row["NO_ID"].ToString();
+            nodeName = row["NO_Name"].ToString();
+            nodeManufacture = row["NO_Manufacture"].ToString();
+            nodeModel = row["NO_Model"].ToString();
+            nodeVersion = row["NO_Version"].ToString();
+            nodeSubVersion = row["NO_SubVersion"].ToString();
+            nodeIP = row["NO_IP"].ToString();
+            nodeTerminal = row["NO_Terminal"].ToString();
+            nodeConnectType = row["NO_ConnectType"].ToString();
+            nodeAreaID = row["NO_AR"].ToString();
+            nodeType = row["NO_Type"].ToString();
+            nodeNVER = row["NO_NVER"].ToInt(0);
+
+            string previousRemark = row["NO_Remark"].ToString();
+
+            bool timeout;
+            string nodeUser = tacacUser;
+            string nodePass = tacacPassword;
+
+            Event("Begin probing into " + nodeName);
+            if (nodeIP != null) Event("Host IP: " + nodeIP);
+            Event("Manufacture: " + nodeManufacture + "");
+            if (nodeModel != null) Event("Model: " + nodeModel);
+
+            DateTime now = DateTime.Now;
+
+            Update(UpdateTypes.Remark, null);
+            Update(UpdateTypes.RemarkUser, null);
+            Update(UpdateTypes.TimeStamp, now);
+
+            // check node manufacture
+            if (nodeManufacture == alu || nodeManufacture == cso || nodeManufacture == hwe || nodeManufacture == jun) ;
+            else
+            {
+                Event("Unsupported node manufacture");
+                Save();
+                return;
+            }
+            
+            #region CHECK IP
+
+            Event("Checking host IP");
+            string resolvedIP = MCECheckNodeIP(nodeName);
+
+            if (resolvedIP == null) Event("Hostname is unresolved");
+            if (nodeIP == null)
+            {
+                if (resolvedIP == null)
+                {
+                    #region null, null
+                    if (previousRemark == "UNRESOLVED")
+                        Update(UpdateTypes.Active, 0);
+                    else
+                        Update(UpdateTypes.Remark, "UNRESOLVED");
+
+                    Save();
+                    return;
+                    #endregion
+                }
+                else
+                {
+                    #region null, RESOLVED!
+                    Event("Host IP Resolved: " + resolvedIP);
+                    nodeIP = resolvedIP;
+                    Update(UpdateTypes.IP, nodeIP);
+                    #endregion
+                }
+            }
+            else
+            {
+                if (resolvedIP == null)
+                {
+                    #region RESOLVED!, null
+
+                    // reverse ip?
+                    Event("Resolving by reverse host name");
+                    string hostName = MCECheckNodeIP(nodeIP, true);
+
+                    if (hostName != null)
+                    {
+                        #region RESOLVED!, null, RESOLVED!
+                        Event("Hostname has probably changed to: " + hostName);
+
+                        Result result = Query("select * from Node where NO_Name = {0}", hostName);
+
+                        if (result.Count == 1)
+                        {
+                            #region CHANGED to existing???
+
+                            string existingtype = result[0]["NO_Type"].ToString();
+                            string existingnodeid = result[0]["NO_ID"].ToString();
+
+                            if (existingtype == "P")
+                            {
+                                // cek interface count
+                                Column interfaceCount = j.Scalar("select count(PI_ID) from PEInterface where PI_NO = {0}", existingnodeid);
+
+                                string deletethisnode;
+                                string keepthisnode;
+
+                                int ci = interfaceCount.ToInt();                               
+
+                                if (ci > 0)
+                                {
+                                    Event("Existing node has found, delete this node");
+                                    // yg existing sudah punya interface, yg ini dihapus aja
+                                    deletethisnode = nodeID;
+                                    keepthisnode = existingnodeid;
+
+                                    Event("Creating alias");
+                                    Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})",
+                                        Database.ID(), existingnodeid, nodeName);
+                                }
+                                else
+                                {
+                                    Event("Delete/update existing node properties");
+                                    // yg existing kosong, pake yg ini, rename ini jadi existing, hapus existing
+                                    deletethisnode = existingnodeid;
+                                    keepthisnode = nodeID;
+
+                                    Update(UpdateTypes.Name, hostName);
+                                }
+
+                                int n;
+                                // update POP
+                                n = Execute("update PEPOP set PO_NO = {0} where PO_NO = {1}", keepthisnode, deletethisnode).AffectedRows;
+                                if (n == 1) Event("Update PoP OK");
+                                // update ME_TO_PI
+                                n = Execute("update MEInterface set MI_TO_PI = null where MI_TO_PI in (select PI_ID from PEInterface where PI_NO = {0})", deletethisnode).AffectedRows;
+                                if (n > 0) Event("Update ME interface to PI: " + n + " entries");
+                                // hapus interface IP
+                                n = Execute("delete from PEInterfaceIP where PP_PI in (select PI_ID from PEInterface where PI_NO = {0})", deletethisnode).AffectedRows;
+                                if (n > 0) Event("Delete interface IP: " + n + " entries");
+                                // hapus interface
+                                n = Execute("delete from PEInterface where PI_NO = {0}", deletethisnode).AffectedRows;
+                                if (n > 0) Event("Delete interface: " + n + " entries");
+                                // hapus QOS
+                                n = Execute("delete from PEQOS where PQ_NO = {0}", deletethisnode).AffectedRows;
+                                if (n > 0) Event("Delete QOS: " + n + " entries");
+                                // hapus Route Name
+                                n = Execute("delete from PERouteName where PN_NO = {0}", deletethisnode).AffectedRows;
+                                if (n > 0) Event("Delete route name: " + n + " entries");
+                                // hapus Node
+                                n = Execute("delete from Node where NO_ID = {0}", deletethisnode).AffectedRows;
+                                if (n > 0) Event("Node deleted");
+                            }
+                            else if (existingnodeid == "M")
+                            {
+                                // cek interface
+                                Column interfaceCount = Scalar("select count(MI_ID) from MEInterface where MI_NO = {0}", existingnodeid);
+
+                                string deletethisnode;
+                                string keepthisnode;
+
+                                int ci = interfaceCount.ToInt();
+
+                                if (ci > 0)
+                                {
+                                    Event("Existing node has found, delete this node");
+                                    // yg existing sudah punya interface, yg ini dihapus aja
+                                    deletethisnode = nodeID;
+                                    keepthisnode = existingnodeid;
+
+                                    Event("Creating alias");
+                                    Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})",
+                                        Database.ID(), existingnodeid, nodeName);
+                                }
+                                else
+                                {
+                                    Event("Delete/update existing node properties");
+                                    // yg existing kosong, pake yg ini, rename ini jadi existing, hapus existing
+                                    deletethisnode = existingnodeid;
+                                    keepthisnode = nodeID;
+
+                                    Update(UpdateTypes.Name, hostName);
+                                }
+
+                                int n;
+                                // hapus customer
+                                n = Execute("delete from MECustomer where MU_NO = {0}", deletethisnode).AffectedRows;
+                                if (n > 0) Event("Delete customer: " + n + " entries");
+                                // hapus service peer
+                                n = Execute("delete from MEPeer where MP_MC in (select MC_ID from MECircuit where MC_NO = {0})", deletethisnode).AffectedRows;
+                                if (n > 0) Event("Delete service peer: " + n + " entries");
+                                // hapus interface
+                                n = Execute("delete from MEInterface where MI_NO = {0}", deletethisnode).AffectedRows;
+                                if (n > 0) Event("Delete interface: " + n + " entries");
+                                // hapus circuit
+                                n = Execute("delete from MECircuit where MC_NO = {0}", deletethisnode).AffectedRows;
+                                if (n > 0) Event("Delete service: " + n + " entries");
+                                // hapus sdp
+                                n = Execute("delete from MESDP where MS_NO = {0}", deletethisnode).AffectedRows;
+                                if (n > 0) Event("Delete peer: " + n + " entries");
+                                // hapus Node
+                                n = Execute("delete from Node where NO_ID = {0}", deletethisnode).AffectedRows;
+                                if (n > 0) Event("Node deleted");
+                            }
+
+                            #endregion
+                        }
+                        else
+                        {
+                            #region NO PROBLEM
+
+                            // simply change to the new one
+                            Update(UpdateTypes.Name, hostName);
+
+                            // insert old name alias
+                            Event("Creating alias");
+                            Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})",
+                                Database.ID(), nodeID, nodeName);
+
+                            #endregion
+                        }
+
+                        Save();
+                        return;
+                        #endregion
+                    }
+                    else
+                    {
+                        #region RESOLVED!, null, null
+
+                        if (previousRemark == "UNRESOLVED")
+                            Update(UpdateTypes.Active, 0);
+                        else
+                            Update(UpdateTypes.Remark, "UNRESOLVED");
+
+                        Save();
+                        return;
+                        #endregion                            
+                    }
+                    #endregion
+                }
+                else if (nodeIP != resolvedIP)
+                {
+                    #region IP HAS CHANGED
+
+                    Event("IP has changed to: " + resolvedIP + "");
+
+                    Update(UpdateTypes.Remark, "IPHASCHANGED");
+                    Update(UpdateTypes.Active, 0);
+
+                    Save();
+                    return;
+
+                    #endregion
+                }
+            }
+
+            Event("Host identified");
+
+            outputIdentifier = nodeName;
+
+            #endregion
+
+            #region CONNECT
+
+            Update(UpdateTypes.RemarkUser, nodeUser);
+
+            string connectType = nodeConnectType;
+            int connectSequence = 0;
+            string connectBy = null;
+
+            if (connectType == null)
+            {
+                if (nodeManufacture == alu || nodeManufacture == cso) connectType = "T";
+                else if (nodeManufacture == hwe || nodeManufacture == jun) connectType = "S";
+            }
+
+            bool connectSuccess = false;
+
+            while (true)
+            {
+                WaitUntilMCETerminalReady("MCE Waiting II");
+
+                string currentConnectType = null;
+
+                if (connectSequence == 0)
+                {
+                    if (connectType == "T") currentConnectType = "T";
+                    else if (connectType == "S") currentConnectType = "S";
+                }
+                else if (connectSequence == 1)
+                {
+                    if (connectType == "T") currentConnectType = "S";
+                    else if (connectType == "S") currentConnectType = "T";
+                }
+
+                if (currentConnectType == "T")
+                {
+                    connectSuccess = ConnectByTelnet(nodeName, nodeManufacture, nodeUser, nodePass);
+                    if (connectSuccess) connectBy = "T";
+                    else Event("Telnet failed");
+                }
+                else if (currentConnectType == "S")
+                {
+                    connectSuccess = ConnectBySSH(nodeName, nodeManufacture, nodeUser, nodePass);
+                    if (connectSuccess) connectBy = "S";
+                    else Event("SSH failed");
+                }
+
+                if (connectSuccess || connectSequence == 1) break;
+                else connectSequence++;
+            }
+
+            if (connectSuccess == false)
+            {
+                Event("Connection failed");
+
+                bool tacacError = false;
+                int loop = 0;
+                while (true)
+                {
+                    WaitUntilMCETerminalReady("MCE Waiting III");
+
+                    string testOtherNode;
+
+                    if (nodeName == "PE-D2-TAN") testOtherNode = "PE2-D2-JT2-MGT";
+                    else testOtherNode = "PE-D2-TAN";
+
+                    Event("Trying to connect to other node...(" + testOtherNode + ")");
+
+                    bool testConnected = ConnectByTelnet(testOtherNode, cso, nodeUser, nodePass);
+
+                    if (testConnected)
+                    {
+                        Exit(cso);
+                        Event("Connected! TACAC server is OK.");
+                        break;
+                    }
+                    else
+                    {
+                        tacacError = true;
+                        Event("Connection failed, TACAC server is possible overloaded/error/not responding.");
+
+                        int time = 1;
+                        #region time
+                        if (loop == 0)
+                        {
+                            Event("Try again in 1 minute");
+                        }
+                        else if (loop == 1)
+                        {
+                            Event("Try again in 5 minutes");
+                            time = 5;
+                        }
+                        else if (loop == 2)
+                        {
+                            Event("Try again in 15 minutes");
+                            time = 15;
+                        }
+                        else if (loop == 3)
+                        {
+                            Event("Try again in 30 minutes");
+                            time = 30;
+                        }
+                        else if (loop >= 4)
+                        {
+                            Event("Try again in 1 hour");
+                            time = 60;
+                        }
+                        #endregion
+
+                        Thread.Sleep(60000 * time);
+                        loop++;
+                    }
+                }
+
+                if (tacacError)
+                {
+                    // this node is innocent
+                    // TODO: try again?
+                }
+                else
+                {
+                    if (previousRemark == "CONNECTFAIL")
+                        Update(UpdateTypes.Active, 0);
+                    else
+                        Update(UpdateTypes.Remark, "CONNECTFAIL");
+
+                }
+
+                Save();
+                return;
+            }
+
+            if (nodeConnectType == null || connectBy != connectType)
+                Update(UpdateTypes.ConnectType, connectBy);
+
+            Event("Connected!");
+
+            string terminal = null;
+
+            if (nodeManufacture == alu)
+            {
+                string[] lines = LastOutput.Split('\n');
+                string lastLine = lines[lines.Length - 1];
+
+                int titik2 = lastLine.LastIndexOf(':');
+                terminal = lastLine.Substring(titik2 + 1);
+            }
+            else if (nodeManufacture == hwe)
+            {
+                string[] lines = LastOutput.Split('\n');
+                string lastLine = lines[lines.Length - 1];
+                terminal = lastLine;
+            }
+            else if (nodeManufacture == cso)
+            {
+                string[] lines = LastOutput.Split('\n');
+                string lastLine = lines[lines.Length - 1];
+                terminal = lastLine;
+
+                if (terminal.EndsWith(">"))
+                {
+                    Event("Error: Not In Privileged EXEC mode");
+                    Save();
+                    Exit();
+                    return;
+                }
+            }
+            else if (nodeManufacture == jun)
+            {
+                string[] lines = LastOutput.Split('\n');
+                string lastLine = lines[lines.Length - 1];
+
+                string[] linex = lastLine.Split(new char[] { '@' }, StringSplitOptions.RemoveEmptyEntries);
+                terminal = linex[1];
+            }
+
+            Event("Terminal: " + terminal + "");
+
+            if (terminal != nodeTerminal) Update(UpdateTypes.Terminal, terminal);
+            nodeTerminal = terminal;
+
+            #endregion
+
+            #region TERMINAL SETUP
+
+            Event("Setup terminal");
+
+            noMore = true; // by default, we can no more
+
+            if (nodeManufacture == alu)
+            {
+                
+                SendLine("environment no saved-ind-prompt", true);
+                Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+
+                SendLine("environment no more");
+                List<string> lines = Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+
+                string oline = string.Join(" ", lines);
+                if (oline.IndexOf("CLI Command not allowed for this user.") > -1)
+                    noMore = false;
+                else
+                    noMore = true;
+            }
+            else if (nodeManufacture == hwe)
+            {
+                SendLine("screen-length 0 temporary");
+                Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+            }
+            else if (nodeManufacture == cso)
+            {
+                SendLine("terminal length 0");
+                Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+            }
+            else if (nodeManufacture == jun)
+            {
+                SendLine("set cli screen-length 0");
+                Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+            }
+
+            #endregion
+
+            #region VERSION
+
+            bool checkVersion = false;
+
+            if (nodeVersion == null) checkVersion = true;
+            else
+            {
+                DateTime versionTime = row["NO_VersionTime"].ToDateTime();
+                TimeSpan span = now - versionTime;
+                if (span.TotalDays >= 7) checkVersion = true;
+            }
+
+            if (checkVersion)
+            {
+                Event("Checking Version");
+
+                string version = null;
+                string subVersion = null;
+                string model = null;
+
+                if (nodeManufacture == alu)
+                {
+                    #region alu
+                    SendLine("show version | match TiMOS");
+                    List<string> lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
+
+                    foreach (string line in lines)
+                    {
+                        //TiMOS-C-11.0.R6 cp
+                        //0123456789012345
+                        if (line.StartsWith("TiMOS"))
+                        {
+                            version = line.Substring(0, line.IndexOf(' ')).Trim();
+                            break;
+                        }
+                    }
+                    #endregion
+                }
+                else if (nodeManufacture == hwe)
+                {
+                    #region hwe
+                    SendLine("display version");
+                    List<string> lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
+
+                    foreach (string line in lines)
+                    {
+                        if (line.StartsWith("VRP (R) software"))
+                        {
+                            version = line.Substring(26, line.IndexOf(' ', 26) - 26).Trim();
+                            break;
+                        }
+                    }
+                    // additional setup for huawei >5.90 for screen-width tweak (help problem with 5.160 auto text-wrap)
+                    //if (version == "5.160")
+                    //{
+                    //    if (Send("screen-width 80" + (char)13 + "Y")) { NodeStop(); return true; }
+                    //    NodeRead(out timeout);
+                    //    if (timeout) { NodeStop(); return true; }
+                    //}
+
+                    #endregion
+                }
+                else if (nodeManufacture == cso)
+                {
+                    #region cso
+                    SendLine("show version | in IOS");
+                    List<string> lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
+
+                    string sl = string.Join("", lines.ToArray());
+
+                    if (sl.IndexOf("Cisco IOS XR Software") > -1)
+                    {
+                        // ASR
+                        model = "ASR";
+                        version = "XR";
+                        int iv = sl.IndexOf("Version");
+                        if (iv > -1)
+                        {
+                            string ivonw = sl.Substring(iv + 7).Trim();
+                            if (ivonw.Length > 0)
+                            {
+                                iv = ivonw.IndexOf('[');
+                                if (iv == -1) iv = ivonw.IndexOf(',');
+                                if (iv == -1) iv = ivonw.IndexOf(' ');
+                                if (iv > -1)
+                                {
+                                    subVersion = ivonw.Substring(0, iv);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // IOS
+                        version = "IOS";
+
+                        // software
+                        int iver = sl.IndexOf("Version ");
+                        if (iver > -1)
+                        {
+                            string imod = sl.Substring(iver + 8, sl.IndexOf(',', iver + 8) - (iver + 8));
+                            subVersion = imod;
+                        }
+
+                        // model
+                        SendLine("show version | in bytes of memory");
+                        lines = Read(out timeout);        
+                        if (timeout) { SaveExit(); return; }
+
+                        sl = string.Join("", lines.ToArray());
+                        string slo = sl.ToLower();
+
+                        int cisc = slo.IndexOf("cisco ");
+                        if (cisc > -1)
+                        {
+                            string imod = sl.Substring(cisc + 6, sl.IndexOf(' ', cisc + 6) - (cisc + 6));
+
+                            int iod = 0;
+                            foreach (char imodc in imod)
+                            {
+                                if (char.IsDigit(imodc)) { break; }
+                                iod++;
+                            }
+                            model = imod.Substring(iod);
+                        }
+                    }
+                    #endregion
+                }
+                else if (nodeManufacture == jun)
+                {
+                    SendLine("show version | match \"JUNOS Base OS boot\"");
+                    List<string> lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
+
+                    foreach (string line in lines)
+                    {
+                        if (line.StartsWith("JUNOS Base OS boot"))
+                        {
+                            string[] linex = line.Split(new char[] { '[', ']' }, StringSplitOptions.RemoveEmptyEntries);
+                            if (linex.Length >= 2) version = linex[1];
+                            break;
+                        }
+                    }
+                }
+
+                if (model != nodeModel)
+                {
+                    nodeModel = model;
+                    Update(UpdateTypes.Model, model);
+                    Event("Model discovered: " + model);
+                }
+                if (version != nodeVersion)
+                {
+                    nodeVersion = version;
+                    Update(UpdateTypes.Version, version);
+                    Event("Version updated: " + version);
+                }
+                if (subVersion != nodeSubVersion)
+                {
+                    nodeSubVersion = subVersion;
+                    Update(UpdateTypes.SubVersion, subVersion);
+                    Event("SubVersion updated: " + subVersion);
+                }
+
+                Update(UpdateTypes.VersionTime, now);
+            }
+
+            if (nodeVersion == null)
+            {
+                Event("Cant determined node version.");
+                SaveExit();
+                return;
+            }
+
+            Event("Version: " + nodeVersion + ((nodeSubVersion != null) ? ":" + nodeSubVersion : ""));
+
+            #endregion
+            
+            #region LAST CONFIGURATION
+
+            Event("Checking Last Configuration");
+
+            bool configurationHasChanged = false;
+            bool lastconfliveisnull = true;
+
+            DateTime lastconflive = DateTime.MinValue;
+
+            if (nodeManufacture == alu)
+            {
+                #region alu
+                SendLine("show system information | match \"Time Last Modified\"");
+                List<string> lines = Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+
+                bool lastModified = false;
+
+                foreach (string line in lines)
+                {
+                    if (line.StartsWith("Time Last Modified"))
+                    {
+                        lastModified = true;
+                        //Time Last Modified     : 2
+                        //01234567890123456789012345
+                        string datetime = line.Substring(25).Trim();
+                        lastconflive = DateTime.Parse(datetime);
+                        lastconflive = new DateTime(
+                            lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
+                            lastconflive.Kind
+                            );
+                        lastconfliveisnull = false;
+                    }
+                }
+
+                if (lastModified == false)
+                {
+                    SendLine("show system information | match \"Time Last Saved\"");
+                    lines = Read(out timeout);
+                    if (timeout) { SaveExit(); return; }
+
+                    foreach (string line in lines)
+                    {
+                        if (line.StartsWith("Time Last Saved"))
+                        {
+                            lastModified = true;
+                            //Time Last Saved        : 2015/01/13 01:13:56
+                            //01234567890123456789012345
+                            string datetime = line.Substring(25).Trim();
+                            if (DateTime.TryParse(datetime, out lastconflive))
+                            {
+                                lastconflive = new DateTime(
+                                    lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
+                                    lastconflive.Kind
+                                    );
+                                lastconfliveisnull = false;
+                            }
+                        }
+                    }
+                }
+                #endregion
+            }
+            else if (nodeManufacture == hwe)
+            {
+                #region hwe
+                SendLine("display changed-configuration time");
+                List<string> lines = Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+
+                foreach (string line in lines)
+                {
+                    if (line.StartsWith("The time"))
+                    {
+                        string dateparts = line.Substring(line.IndexOf(':') + 1);
+
+                        if (dateparts != null)
+                        {
+                            if (DateTime.TryParse(dateparts, out lastconflive))
+                            {
+                                lastconflive = new DateTime(
+                                    lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
+                                    lastconflive.Kind
+                                    );
+                                lastconfliveisnull = false;
+                            }
+                        }
+                    }
+                }
+                #endregion
+            }
+            else if (nodeManufacture == cso)
+            {
+                #region cso
+                if (nodeVersion == xr)
+                {
+                    #region xr
+                    SendLine("show configuration history commit last 1 | in commit");
+                    List<string> lines = Read(out timeout);
+                    if (timeout) { SaveExit(); return; }
+
+                    foreach (string line in lines)
+                    {
+                        if (line.Length > 0 && line[0] == '1')
+                        {
+                            //1     commit     id 1000000807                  Fri
+                            //01234567890123456789012345678901234567890123456789
+                            string dateparts = line.Substring(48).Trim();
+
+                            if (dateparts != null)
+                            {
+                                //Fri Jan 16 11:18:46 2015
+                                string[] dates = dateparts.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                                if (DateTime.TryParse(dates[1] + " " + dates[2] + " " + dates[4] + " " + dates[3], out lastconflive))
+                                {
+                                    lastconflive = new DateTime(
+                                        lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
+                                        lastconflive.Kind
+                                        );
+                                    lastconfliveisnull = false;
+                                }
+                            }
+                        }
+                    }
+                    #endregion
+                }
+                else
+                {
+                    #region !xr
+
+                    // because so many differences between IOS version, we might try every possible command
+                    bool passed = false;
+
+                    // most of ios version will work this way
+                    SendLine("show configuration id detail");
+                    List<string> lines = Read(out timeout);
+                    if (timeout) { SaveExit(); return; }
+
+                    foreach (string line in lines)
+                    {
+                        if (line.StartsWith("Last change time"))
+                        {
+                            //Last change time             : 2015-01-17T02:33:01.553Z
+                            //01234567890123456789012345678901234567890123456789
+                            //          1         2         3
+                            string dateparts = line.Substring(31).Trim();
+                            if (dateparts != null)
+                            {
+                                if (DateTime.TryParse(dateparts, out lastconflive))
+                                {
+                                    Event("Using configuration id");
+                                    passed = true;
+                                    lastconflive = new DateTime(
+                                        lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
+                                        lastconflive.Kind
+                                        );
+                                    lastconfliveisnull = false;
+                                }
+                            }
+                            break;
+                        }
+                    }
+
+                    if (passed == false)
+                    {
+                        // using xr-like command history
+                        //show configuration history
+                        SendLine("show configuration history");
+                        lines = Read(out timeout);
+                        if (timeout) { SaveExit(); return; }
+
+                        string lastline = null;
+                        foreach (string line in lines)
+                        {
+                            if (line.IndexOf("Invalid input detected") > -1) break;
+                            else if (line == "") break;
+                            else if (char.IsDigit(line[0])) lastline = line;
+                        }
+
+                        if (lastline != null)
+                        {
+                            string[] linex = lastline.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                            //5    23:33:21 WIB Tue Mar 1 2016User : ffm-myarham
+                            string datetime = linex[1];
+                            string datemonth = linex[4].ToUpper();
+                            string datedate = linex[5];
+                            string dateyear = linex[6];
+                            if (dateyear.Length > 4) dateyear = dateyear.Substring(0, 4);
+
+                            string datestr = datemonth + " " + datedate + " " + dateyear + " " + datetime;
+
+                            DateTime parsedDT = DateTime.MinValue;
+                            if (DateTime.TryParse(datestr, out parsedDT))
+                            {
+                                Event("Using configuration history");
+                                passed = true;
+                                lastconflive = parsedDT;
+                                lastconfliveisnull = false;
+                            }
+                        }
+                    }
+
+                    if (passed == false)
+                    {
+                        // and here we are, using forbidden command ever
+                        SendLine("show log | in CONFIG_I");
+                        lines = Read(out timeout);
+                        if (timeout) { SaveExit(); return; }
+
+                        string lastline = null;
+                        foreach (string line in lines)
+                        {
+                            if (line.StartsWith("*")) lastline = line;
+                        }
+
+                        if (lastline != null)
+                        {
+                            string[] lastlines = lastline.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                            string datemonth = lastlines[0].TrimStart(new char[] { '*' }).ToUpper();
+                            string datedate = lastlines[1];
+                            string datetime = lastlines[2];
+
+                            string datestr = datemonth + " " + datedate + " " + DateTime.Now.Year + " " + datetime;
+
+                            DateTime parsedDT = DateTime.MinValue;
+                            if (DateTime.TryParse(datestr, out parsedDT))
+                            {
+                                Event("Using log config");
+                                passed = true;
+
+                                if (parsedDT > DateTime.Now)
+                                {
+                                    // probably year is wrong, so use last year
+                                    string datestrrev = datemonth + " " + datedate + " " + (DateTime.Now.Year - 1) + " " + datetime;
+                                    parsedDT = DateTime.Parse(datestrrev);
+                                }
+
+                                lastconflive = parsedDT;
+                                lastconfliveisnull = false;
+                            }
+                        }
+                    }
+
+                    if (passed == false)
+                    {
+                        // and... if everything fail, we will use this slowlest command ever
+                        SendLine("show run | in Last config");
+                        lines = Read(out timeout);
+
+                        if (timeout) { SaveExit(); return; }
+
+                        foreach (string line in lines)
+                        {
+                            //! Last configuration change at 1
+                            //01234567890123456789012345678901
+                            if (line.StartsWith("! Last config"))
+                            {
+                                string eline = line.Substring(31);
+                                string[] linex = eline.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                                //17:27:19 WIB Tue Mar 1 2016 
+                                //0        1   2   3   4 5
+                                string datetime = linex[0];
+                                string datemonth = linex[3].ToUpper();
+                                string datedate = linex[4];
+                                string dateyear = linex[5];
+                                string datestr = datemonth + " " + datedate + " " + dateyear + " " + datetime;
+
+                                DateTime parsedDT = DateTime.MinValue;
+                                if (DateTime.TryParse(datestr, out parsedDT))
+                                {
+                                    Event("Using running configuration");
+                                    passed = true;
+                                    lastconflive = parsedDT;
+                                    lastconfliveisnull = false;
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    #endregion
+                }
+                #endregion
+            }
+            else if (nodeManufacture == jun)
+            {
+                #region jun
+                SendLine("show system uptime | match \"Last configured\"");
+                List<string> lines = Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+
+                foreach (string line in lines)
+                {
+                    if (line.StartsWith("Last configured: "))
+                    {
+                        //Last configured: 2015-01-20 09:53:54
+                        //0123456789012345678901234567890123456789
+                        string lineTrim = line.Substring(17).Trim();
+                        string[] linex = lineTrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                        if (DateTime.TryParse(linex[0] + " " + linex[1], out lastconflive))
+                        {
+                            lastconflive = new DateTime(
+                                lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
+                                lastconflive.Kind
+                                );
+                            lastconfliveisnull = false;
+                        }
+                        break;
+                    }
+                }
+                #endregion
+            }
+
+            DateTime lastconfdb = row["NO_LastConfiguration"].ToDateTime();
+
+            if (lastconfliveisnull == false)
+            {
+                Event("Last configuration on " + lastconflive.ToString("yy/MM/dd HH:mm:ss.fff"));
+            }
+
+            if (lastconfliveisnull == false && lastconflive != lastconfdb)
+            {
+                Event("Configuration has changed!");
+                Update(UpdateTypes.LastConfiguration, lastconflive);
+
+                //continueProcess = true;
+                configurationHasChanged = true;
+            }
+            else
+            {
+                Event("Configuration is up to date");
+            }
+
+            #endregion
+
+            #region CPU / MEMORY
+
+            Event("Checking CPU / Memory"); //mengecek memory dan CPU 
+
+            int cpu = -1;
+            int mtotal = -1;
+            int mused = -1;
+
+            #region Live
+
+            if (nodeManufacture == cso)
+            {
+                #region cso
+
+                SendLine("show processes cpu | in CPU");
+                List<string> lines = Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+
+                foreach (string line in lines)
+                {
+                    if (line.StartsWith("CPU "))
+                    {
+                        int oid = line.Trim().LastIndexOf(' ');
+                        if (oid > -1)
+                        {
+                            string okx = line.Substring(oid + 1).Trim();
+                            string perc = okx.Substring(0, okx.IndexOf('%'));
+                            if (!int.TryParse(perc, out cpu)) cpu = -1;
+                        }
+                    }
+                }
+
+                if (nodeVersion == xr)
+                {
+                    //show memory summary | in Physical Memory
+                    SendLine("show memory summary | in Physical Memory");
+                    lines = Read(out timeout);
+                    if (timeout) { SaveExit(); return; }
+
+                    foreach (string line in lines)
+                    {
+                        string lint = line.Trim();
+                        if (lint.StartsWith("Physical Memory: "))
+                        {
+                            string[] linex = lint.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                            string ltot = linex[2];
+                            string lfree = linex[4];
+
+                            ltot = ltot.Substring(0, ltot.Length - 1);
+                            lfree = lfree.Substring(1, lfree.Length - 2);
+
+                            int ltots;
+                            if (int.TryParse(ltot, out ltots))
+                                mtotal = ltots * 1000;
+                            else
+                                mtotal = -1;
+
+                            if (mtotal > -1)
+                            {
+                                int lfrees;
+                                if (int.TryParse(lfree, out lfrees))
+                                    mused = mtotal - (lfrees * 1000);
+                                else
+                                    mused = -1;
+                            }
+
+                        }
+
+                    }
+                }
+                else
+                {
+                    //show process memory  | in Processor Pool
+                    SendLine("show process memory | in Total:");
+                    lines = Read(out timeout);
+
+                    if (timeout) { SaveExit(); return; }
+
+                    foreach (string line in lines)
+                    {
+                        string lint = line.Trim();
+                        if (lint.StartsWith("Processor Pool"))
+                        {
+                            string[] linex = lint.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                            string ltot = linex[3];
+                            string luse = linex[5];
+
+                            double ltots;
+                            if (!double.TryParse(ltot, out ltots)) ltots = -1;
+
+                            double luses;
+                            if (!double.TryParse(luse, out luses)) luses = -1;
+
+                            if (ltots >= 0) mtotal = (int)Math.Round(ltots / 1000);
+                            if (luses >= 0) mused = (int)Math.Round(luses / 1000);
+                            break;
+                        }
+                        else if (lint.StartsWith("Total:"))
+                        {
+                            string[] linex = lint.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+                            string ltot = linex[0].Trim().Split(StringSplitTypes.Space)[1];
+                            string luse = linex[1].Trim().Split(StringSplitTypes.Space)[1];
+
+                            double ltots;
+                            if (!double.TryParse(ltot, out ltots)) ltots = -1;
+
+                            double luses;
+                            if (!double.TryParse(luse, out luses)) luses = -1;
+
+                            if (ltots >= 0) mtotal = (int)Math.Round(ltots / 1000);
+                            if (luses >= 0) mused = (int)Math.Round(luses / 1000);
+                            break;
+                        }
+                    }
+                }
+
+                #endregion
+            }
+            else if (nodeManufacture == alu)
+            {
+                #region alu
+
+                SendLine("show system cpu | match \"Busiest Core\"");
+                List<string> lines = Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+
+                foreach (string line in lines)
+                {
+                    string lint = line.Trim();
+
+                    if (lint.StartsWith("Busiest Core "))
+                    {
+                        int oid = lint.LastIndexOf(' ');
+                        if (oid > -1)
+                        {
+                            string okx = lint.Substring(oid + 1).Trim();
+                            string perc = okx.Substring(0, okx.IndexOf('%'));
+
+                            float cpuf;
+                            if (!float.TryParse(perc, out cpuf)) cpuf = -1;
+
+                            if (cpuf == -1) cpu = -1;
+                            else cpu = (int)Math.Round(cpuf);
+                        }
+                    }
+                }
+
+                //show system memory-pools | match bytes
+                SendLine("show system memory-pools | match bytes");
+                lines = Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+
+                foreach (string line in lines)
+                {
+                    string lint = line.Trim();
+
+                    if (lint.StartsWith("Total In Use") || lint.StartsWith("Available Memory"))
+                    {
+                        string[] linex = lint.Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (linex.Length >= 2)
+                        {
+                            string ibytes = linex[1].Trim();
+                            ibytes = ibytes.Substring(0, ibytes.IndexOf(' '));
+                            string[] ibytesx = ibytes.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                            string cbytes = string.Join("", ibytesx);
+
+                            double dbytes;
+                            if (!double.TryParse(cbytes, out dbytes)) dbytes = -1;
+
+                            if (lint.StartsWith("Total In Use") && dbytes > -1)
+                            {
+                                mused = (int)Math.Round(dbytes / 1000);
+                            }
+                            else if (mused > -1 && lint.StartsWith("Available Memory") && dbytes > -1)
+                            {
+                                mtotal = mused + (int)Math.Round(dbytes / 1000);
+                            }
+                        }
+                    }
+                }
+
+                #endregion
+            }
+            else if (nodeManufacture == hwe)
+            {
+                #region hwe
+
+                SendLine("display cpu-usage");
+                List<string> lines = Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+
+
+                foreach (string line in lines)
+                {
+                    string lint = line.Trim();
+
+                    if (nodeVersion.StartsWith("8"))
+                    {
+                        //System cpu use rate is : 10%
+                        //012345678901234567890123456789
+                        if (lint.StartsWith("System cpu use rate is"))
+                        {
+                            string okx = line.Substring(25).Trim();
+                            string perc = okx.Substring(0, okx.IndexOf('%'));
+                            if (!int.TryParse(perc, out cpu)) cpu = -1;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        if (lint.StartsWith("CPU utilization for"))
+                        {
+                            int oid = lint.LastIndexOf(' ');
+                            if (oid > -1)
+                            {
+                                string okx = line.Substring(oid + 1).Trim();
+                                string perc = okx.Substring(0, okx.IndexOf('%'));
+                                if (!int.TryParse(perc, out cpu)) cpu = -1;
+                            }
+                            break;
+                        }
+                    }
+                }
+                
+                SendLine("display memory-usage");
+                lines = Read(out timeout);
+
+                if (timeout) { SaveExit(); return; }
+
+                foreach (string line in lines)
+                {
+                    string lint = line.Trim();
+
+                    if (lint.StartsWith("System Total") || lint.StartsWith("Total Memory"))
+                    {
+                        string[] linex = lint.Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
+
+                        if (linex.Length >= 2)
+                        {
+                            string odata = linex[1].Trim();
+                            odata = odata.Substring(0, odata.IndexOf(' '));
+
+                            double dbytes;
+                            if (!double.TryParse(odata, out dbytes)) dbytes = -1;
+
+                            if (lint.StartsWith("System Total"))
+                            {
+                                mtotal = (int)Math.Round(dbytes / 1000);
+                            }
+                            else if (lint.StartsWith("Total Memory"))
+                            {
+                                mused = (int)Math.Round(dbytes / 1000);
+                            }
+                        }
+                    }
+                }
+                #endregion
+            }
+            else if (nodeManufacture == jun)
+            {
+                #region jun
+
+                //show chassis routing-engine | match Idle
+                SendLine("show chassis routing-engine | match Idle");
+                List<string> lines = Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+
+                foreach (string line in lines)
+                {
+                    string lint = line.Trim();
+
+                    if (lint.StartsWith("Idle"))
+                    {
+                        string[] linex = lint.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                        if (linex.Length == 3)
+                        {
+                            string perc = linex[1];
+                            int idlecpu;
+                            if (int.TryParse(perc, out idlecpu))
+                            {
+                                cpu = 100 - idlecpu;
+                            }
+                            else
+                            {
+                                cpu = -1;
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                //show task memory
+                SendLine("show task memory");
+                lines = Read(out timeout);
+
+                if (timeout) { SaveExit(); return; }
+
+                foreach (string line in lines)
+                {
+                    string lint = line.Trim();
+
+                    if (lint.StartsWith("Currently In Use:") || lint.StartsWith("Available:"))
+                    {
+                        string[] linex = lint.Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
+
+                        if (linex.Length >= 2)
+                        {
+                            string rightside = linex[1].Trim();
+
+                            linex = rightside.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                            if (linex.Length >= 1)
+                            {
+                                string odata = linex[0].Trim();
+                                int dbytes;
+                                if (!int.TryParse(odata, out dbytes)) dbytes = -1;
+
+                                if (lint.StartsWith("Currently In Use:"))
+                                {
+                                    mused = dbytes;
+                                }
+                                else if (mused > -1 && lint.StartsWith("Available:"))
+                                {
+                                    mtotal = mused + dbytes;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                #endregion
+            }
+
+            #endregion
+
+            #region Check and Update
+
+            if (cpu > -1 && cpu < 100)
+            {
+                Event("CPU = " + cpu + "%");
+                Summary("CPU", cpu);
+            }
+            else
+            {
+                Event("CPU load is unavailable (" + cpu + ")");
+                Summary("CPU", null);
+            }
+            if (mtotal > -1)
+            {
+                Event("Memory total = " + mtotal + "KB");
+                Summary("MEMORY_TOTAL", mtotal);
+            }
+            else
+            {
+                Event("Memory total is unavailable");
+                Summary("MEMORY_TOTAL", null);
+            }
+            if (mused > -1)
+            {
+                Event("Memory used = " + mused + "KB");
+                Summary("MEMORY_USED", mused);
+            }
+            else
+            {
+                Event("Memory used is unavailable");
+                Summary("MEMORY_USED", null);
+            }
+
+            #endregion
+
+            #endregion            
+            
+            if (configurationHasChanged || nodeNVER < Necrow.Version)
+            {
+                continueProcess = true;
+                if (nodeNVER < Necrow.Version) Update(UpdateTypes.NecrowVersion, Necrow.Version);
+            }
+            else
+            {
+                SaveExit();
             }
         }
 

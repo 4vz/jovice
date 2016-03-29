@@ -278,7 +278,7 @@ namespace Jovice
     {
         #region Methods
 
-        private bool PEProcess()
+        private void PEProcess()
         {
             #region Variables
 
@@ -299,10 +299,10 @@ namespace Jovice
             string routeinsertsql = "insert into PERoute(PR_ID) values";
             string routetargetinsertsql = "insert into PERouteTarget(PT_ID, PT_PR, PT_Type, PT_Community, PT_IPv6) values";
             string routenameinsertsql = "insert into PERouteName(PN_ID, PN_PR, PN_NO, PN_Name, PN_RD, PN_RDv6) values";            
-            Result routenamedbresult = j.Query("select * from PERouteName where PN_NO = {0} order by PN_Name asc", nodeID);
+            Result routenamedbresult = Query("select * from PERouteName where PN_NO = {0} order by PN_Name asc", nodeID);
             Dictionary<string, Row> routenamedb = new Dictionary<string, Row>();
             foreach (Row row in routenamedbresult) { routenamedb.Add(row["PN_Name"].ToString(), row); }
-            Result routetargetdbresult = j.Query("select * from PERouteName, PERouteTarget where PN_PR = PT_PR and PN_NO = {0}", nodeID);
+            Result routetargetdbresult = Query("select * from PERouteName, PERouteTarget where PN_PR = PT_PR and PN_NO = {0}", nodeID);
             Dictionary<string, List<string>> routetargetlocaldb = new Dictionary<string, List<string>>();
             foreach (Row row in routetargetdbresult)
             {
@@ -340,11 +340,10 @@ namespace Jovice
                 {
                     #region xr
 
-                    if (Send("show vrf all")) { NodeSaveMainLoopRestart(); return true; }
+                    SendLine("show vrf all");
                     bool timeout;
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    List<string> lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     int linen = 0;
                     foreach (string line in lines)
@@ -405,11 +404,10 @@ namespace Jovice
                 {
                     #region !xr
 
-                    if (Send("show ip vrf detail | in RD|Export VPN|Import VPN|RT")) { NodeSaveMainLoopRestart(); return true; }
+                    SendLine("show ip vrf detail | in RD|Export VPN|Import VPN|RT");
                     bool timeout;
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    List<string> lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     int stage = 0;
 
@@ -485,11 +483,10 @@ namespace Jovice
                 string RDIPv6 = null;                
                 List<string> routeTargets = new List<string>();
 
-                if (Send("display ip vpn-instance verbose | include VPN-Instance Name and ID|Address family|Export VPN Targets|Import VPN Targets|Route Distinguisher")) { NodeSaveMainLoopRestart(); return true; }
+                SendLine("display ip vpn-instance verbose | include VPN-Instance Name and ID|Address family|Export VPN Targets|Import VPN Targets|Route Distinguisher");
                 bool timeout;
-                List<string> lines = NodeRead(out timeout);
-                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                if (timeout) { NodeReadTimeOutExit(); return true; }
+                List<string> lines = Read(out timeout);
+                if (timeout) { SaveExit(); return; }
 
                 foreach (string line in lines)
                 {
@@ -635,7 +632,9 @@ namespace Jovice
                         Event("Route Name MODIFY: " + pair.Key + " " + updateinfo.ToString());
                     }
                 }
-            }           
+            }
+
+            Summary("VRF_COUNT", routelive.Count);
 
             #endregion
 
@@ -659,7 +658,7 @@ namespace Jovice
                 if (!routesearch.ContainsKey(length))
                 {
                     // search route target for 
-                    r = j.Query("select a.PT_PR, a.PT_TC from " +
+                    r = Query("select a.PT_PR, a.PT_TC from " +
                         "(select PT_PR, STR(CASE WHEN (PT_IPv6 IS NULL) THEN '0' ELSE '1' END) + LTRIM(STR(PT_Type)) + PT_Community as 'PT_TC' from PERouteTarget) a, " +
                         "(select PT_PR, COUNT(PT_PR) as 'COUNT' from PERouteTarget group by PT_PR) b " +
                         "where a.PT_PR = b.PT_PR and COUNT = {0} order by a.PT_PR ", length);
@@ -703,29 +702,29 @@ namespace Jovice
             int newroute = 0, newroutetarget = 0;
             foreach (KeyValuePair<string, string[]> pair in routetargetinsert)
             {
-                batchlist1.Add(j.Format("({0})", pair.Key));
+                batchlist1.Add(Format("({0})", pair.Key));
                 foreach (string routeTarget in pair.Value)
                 {
                     int ipv6 = routeTarget[0] == '1' ? 1 : 0;
                     int type = routeTarget[1] == '1' ? 1 : 0;
                     string community = routeTarget.Substring(2);
-                    batchlist2.Add(j.Format("({0}, {1}, {2}, {3}, {4})", Database.ID(), pair.Key, type, community, ipv6));
+                    batchlist2.Add(Format("({0}, {1}, {2}, {3}, {4})", Database.ID(), pair.Key, type, community, ipv6));
                 }
-                if (batchlist1.Count == 50 || batchlist2.Count >= 50)
+                if (batchlist1.Count == batchmax || batchlist2.Count >= batchmax)
                 {
-                    newroute += j.Execute(routeinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                    newroute += Execute(routeinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
                     batchlist1.Clear();
                     if (batchlist2.Count > 0)
                     {
-                        newroutetarget += j.Execute(routetargetinsertsql + string.Join(",", batchlist2.ToArray())).AffectedRows;
+                        newroutetarget += Execute(routetargetinsertsql + string.Join(",", batchlist2.ToArray())).AffectedRows;
                         batchlist2.Clear();
                     }
                 }
             }
             if (batchlist1.Count > 0)
-                newroute += j.Execute(routeinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                newroute += Execute(routeinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
             if (batchlist2.Count > 0)
-                newroutetarget += j.Execute(routetargetinsertsql + string.Join(",", batchlist2.ToArray())).AffectedRows;
+                newroutetarget += Execute(routetargetinsertsql + string.Join(",", batchlist2.ToArray())).AffectedRows;
             if (newroute > 0)
                 Event(newroute + " route(s) added");
             if (newroutetarget > 0)
@@ -740,17 +739,17 @@ namespace Jovice
             int newroutename = 0;
             foreach (PERouteNameToDatabase s in routenameinsert)
             {
-                batchlist1.Add(j.Format("({0}, {1}, {2}, {3}, {4}, {5})",
+                batchlist1.Add(Format("({0}, {1}, {2}, {3}, {4}, {5})",
                     Database.ID(), s.RouteID, nodeID, s.Name, s.RD, s.RDIPv6
                     ));
-                if (batchlist1.Count == 50)
+                if (batchlist1.Count == batchmax)
                 {
-                    newroutename += j.Execute(routenameinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                    newroutename += Execute(routenameinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
                     batchlist1.Clear();
                 }
             }
             if (batchlist1.Count > 0)
-                newroutename += j.Execute(routenameinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                newroutename += Execute(routenameinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
             if (newroutename > 0)
                 Event(newroutename + " route name(s) added");
 
@@ -764,32 +763,32 @@ namespace Jovice
             foreach (PERouteNameToDatabase s in routenameupdate)
             {
                 List<string> v = new List<string>();
-                if (s.UpdateRD) v.Add(j.Format("PN_RD = {0}", s.RD));
-                if (s.UpdateRDIPv6) v.Add(j.Format("PN_RDv6 = {0}", s.RDIPv6));
-                if (s.UpdateRouteTargets) v.Add(j.Format("PN_PR = {0}", s.RouteID));
+                if (s.UpdateRD) v.Add(Format("PN_RD = {0}", s.RD));
+                if (s.UpdateRDIPv6) v.Add(Format("PN_RDv6 = {0}", s.RDIPv6));
+                if (s.UpdateRouteTargets) v.Add(Format("PN_PR = {0}", s.RouteID));
                 
                 if (v.Count > 0)
                 {
-                    string q = j.Format("update PERouteName set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where PN_ID = {0};", s.ID);
+                    string q = Format("update PERouteName set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where PN_ID = {0};", s.ID);
                     batchline++;
                     batchstring.AppendLine(q);
 
-                    if (batchline == 50)
+                    if (batchline == batchmax)
                     {
-                        modifiedroutename += j.Execute(batchstring.ToString()).AffectedRows;
+                        modifiedroutename += Execute(batchstring.ToString()).AffectedRows;
                         batchstring.Clear();
                         batchline = 0;
                     }
                 }
             }
             if (batchline > 0)
-                modifiedroutename += j.Execute(batchstring.ToString()).AffectedRows;
+                modifiedroutename += Execute(batchstring.ToString()).AffectedRows;
             if (modifiedroutename > 0)
                 Event(modifiedroutename + " route name(s) modified");                       
 
             #endregion
 
-            routenamedbresult = j.Query("select * from PERouteName where PN_NO = {0} order by PN_Name asc", nodeID);
+            routenamedbresult = Query("select * from PERouteName where PN_NO = {0} order by PN_Name asc", nodeID);
             routenamedb = new Dictionary<string, Row>();
             foreach (Row row in routenamedbresult) { routenamedb.Add(row["PN_Name"].ToString(), row); }
 
@@ -801,7 +800,7 @@ namespace Jovice
 
             string qosinsertsql = "insert into PEQOS(PQ_ID, PQ_NO, PQ_Name, PQ_Bandwidth, PQ_Package) values";
             string qosdeletesql = "delete from PEQOS where ";
-            Result qosdbresult = j.Query("select * from PEQOS where PQ_NO = {0}", nodeID);
+            Result qosdbresult = Query("select * from PEQOS where PQ_NO = {0}", nodeID);
             Dictionary<string, Row> qosdb = new Dictionary<string, Row>();
             foreach (Row row in qosdbresult) { qosdb.Add(row["PQ_Name"].ToString(), row); }
             Dictionary<string, PEQOSToDatabase> qoslive = new Dictionary<string, PEQOSToDatabase>();
@@ -817,11 +816,10 @@ namespace Jovice
                 {
                     #region asr
 
-                    if (Send("show policy-map list | in PolicyMap")) { NodeSaveMainLoopRestart(); return true; }
+                    SendLine("show policy-map list | in PolicyMap");
                     bool timeout;
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    List<string> lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     foreach (string line in lines)
                     {
@@ -844,11 +842,10 @@ namespace Jovice
                 {
                     #region !asr
 
-                    if (Send("show policy-map | in Policy Map")) { NodeSaveMainLoopRestart(); return true; }
+                    SendLine("show policy-map | in Policy Map");
                     bool timeout;
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    List<string> lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     foreach (string line in lines)
                     {
@@ -895,6 +892,8 @@ namespace Jovice
                 }
             }
 
+            Summary("QOS_COUNT", qoslive.Count);
+
             #endregion
 
             #region Execute
@@ -911,23 +910,23 @@ namespace Jovice
                 string id = Database.ID();
 
                 // PQ_ID, PQ_NO, PQ_Name, PQ_Bandwidth, PQ_Package
-                if (s.Bandwidth == -1) batchlist1.Add(j.Format("({0}, {1}, {2}, null, {3})", id, nodeID, s.Name, s.Package));
-                else batchlist1.Add(j.Format("({0}, {1}, {2}, {3}, {4})", id, nodeID, s.Name, s.Bandwidth, s.Package));
+                if (s.Bandwidth == -1) batchlist1.Add(Format("({0}, {1}, {2}, null, {3})", id, nodeID, s.Name, s.Package));
+                else batchlist1.Add(Format("({0}, {1}, {2}, {3}, {4})", id, nodeID, s.Name, s.Bandwidth, s.Package));
                 
-                if (batchlist1.Count == 50)
+                if (batchlist1.Count == batchmax)
                 {
-                    newqos += j.Execute(qosinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                    newqos += Execute(qosinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
                     batchlist1.Clear();
                 }
             }
             if (batchlist1.Count > 0)
-                newqos += j.Execute(qosinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                newqos += Execute(qosinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
             if (newqos > 0)
                 Event(newqos + " QOS(s) added");
 
             #endregion
 
-            qosdbresult = j.Query("select * from PEQOS where PQ_NO = {0}", nodeID);
+            qosdbresult = Query("select * from PEQOS where PQ_NO = {0}", nodeID);
             qosdb = new Dictionary<string, Row>();
             foreach (Row row in qosdbresult) { qosdb.Add(row["PQ_Name"].ToString(), row); }
 
@@ -943,11 +942,11 @@ namespace Jovice
             string interfaceremoveref2sql = "update MEInterface set MI_TO_PI = null where ";
             string ipinsertsql = "insert into PEInterfaceIP(PP_ID, PP_PI, PP_Type, PP_IP) values";
             string ipdeletesql = "delete from PEInterfaceIP where ";
-            Result interfacedbresult = j.Query("select * from PEInterface where PI_NO = {0}", nodeID);
+            Result interfacedbresult = Query("select * from PEInterface where PI_NO = {0}", nodeID);
             Dictionary<string, Row> interfacedb = new Dictionary<string, Row>();
             foreach (Row row in interfacedbresult) { interfacedb.Add(row["PI_Name"].ToString(), row); }
             Dictionary<string, PEInterfaceToDatabase> interfacelive = new Dictionary<string, PEInterfaceToDatabase>();
-            Result ipdbresult = j.Query("select PI_Name, PP_ID, PP_Type + ':' + PP_IP as IP from PEInterface, PEInterfaceIP where PP_PI = PI_ID and PI_NO = {0} order by PI_Name asc", nodeID);
+            Result ipdbresult = Query("select PI_Name, PP_ID, PP_Type + ':' + PP_IP as IP from PEInterface, PEInterfaceIP where PP_PI = PI_ID and PI_NO = {0} order by PI_Name asc", nodeID);
             Dictionary<string, List<string[]>> ipdb = new Dictionary<string,List<string[]>>();
             foreach (Row row in ipdbresult)
             {
@@ -980,11 +979,10 @@ namespace Jovice
             {
                 #region cso
 
-                if (Send("show int desc")) { NodeSaveMainLoopRestart(); return true; }
+                SendLine("show int desc");
                 bool timeout;
-                List<string> lines = NodeRead(out timeout);
-                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                if (timeout) { NodeReadTimeOutExit(); return true; }
+                List<string> lines = Read(out timeout);
+                if (timeout) { SaveExit(); return; }
 
                 if (nodeVersion == xr)
                 {
@@ -1023,10 +1021,9 @@ namespace Jovice
                     }
 
                     // vrf to interface
-                    if (Send("show vrf all detail")) { NodeSaveMainLoopRestart(); return true; }
-                    lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    SendLine("show vrf all detail");
+                    lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     string currentVrf = null;
                     string currentVrfName = null;
@@ -1087,10 +1084,9 @@ namespace Jovice
                     }
 
                     // policy map
-                    if (Send("show policy-map targets")) { NodeSaveMainLoopRestart(); return true; }
-                    lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    SendLine("show policy-map targets");
+                    lines = Read(out timeout);
+                    if (timeout) { SaveExit(); return; }
 
                     string currentpolicy = null;
                     int currentconfigrate = -1;
@@ -1202,10 +1198,9 @@ namespace Jovice
                     }
 
                     // ip
-                    if (Send("show ipv4 vrf all interface | in \"Internet address|Secondary address|ipv4\"")) { NodeSaveMainLoopRestart(); return true; }
-                    lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    SendLine("show ipv4 vrf all interface | in \"Internet address|Secondary address|ipv4\"");
+                    lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     #endregion
                 }
@@ -1245,10 +1240,9 @@ namespace Jovice
                     }
 
                     // vrf to interface
-                    if (Send("show ip vrf interfaces")) { NodeSaveMainLoopRestart(); return true; }
-                    lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    SendLine("show ip vrf interfaces");
+                    lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     foreach (string line in lines)
                     {
@@ -1268,10 +1262,9 @@ namespace Jovice
                     if (nodeSubVersion.StartsWith("12.4"))
                     {
                         #region 12.4
-                        if (Send("show policy-map interface | in Service-policy_input|Service-policy_output|Ethernet|Serial")) { NodeSaveMainLoopRestart(); return true; }
-                        lines = NodeRead(out timeout);
-                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                        if (timeout) { NodeReadTimeOutExit(); return true; }
+                        SendLine("show policy-map interface | in Service-policy_input|Service-policy_output|Ethernet|Serial");
+                        lines = Read(out timeout);        
+                        if (timeout) { SaveExit(); return; }
 
                         string currentif = null;
                         string parentPort = null;
@@ -1398,16 +1391,14 @@ namespace Jovice
                     else
                     {
                         #region !12.4
-                        if (Send("show policy-map interface input brief")) { NodeSaveMainLoopRestart(); return true; }
-                        lines = NodeRead(out timeout);
-                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                        if (timeout) { NodeReadTimeOutExit(); return true; }
+                        SendLine("show policy-map interface input brief");
+                        lines = Read(out timeout);        
+                        if (timeout) { SaveExit(); return; }
 
-                        if (Send("show policy-map interface output brief")) { NodeSaveMainLoopRestart(); return true; }
-                        List<string> tlines = NodeRead(out timeout);
-                        if (tlines != null) lines.AddRange(tlines);
-                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                        if (timeout) { NodeReadTimeOutExit(); return true; }
+                        SendLine("show policy-map interface output brief");
+                        List<string> tlines = Read(out timeout);
+                        if (tlines != null) lines.AddRange(tlines);        
+                        if (timeout) { SaveExit(); return; }
 
                         string currentpolicy = null;
                         string type = "input";
@@ -1510,10 +1501,9 @@ namespace Jovice
                     }
 
                     // rate-limit
-                    if (Send("show interface rate-limit")) { NodeSaveMainLoopRestart(); return true; }
-                    lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    SendLine("show interface rate-limit");
+                    lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     string currentinterface = null;
                     string currentmode = null;
@@ -1630,10 +1620,9 @@ namespace Jovice
                     }
 
                     // ip
-                    if (Send("show ip interface | in Internet address|Secondary address|line protocol")) { NodeSaveMainLoopRestart(); return true; }
-                    lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    SendLine("show ip interface | in Internet address|Secondary address|line protocol");
+                    lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     #endregion
                 }
@@ -1683,11 +1672,10 @@ namespace Jovice
             {
                 #region hwe
 
-                if (Send("display interface description")) { NodeSaveMainLoopRestart(); return true; }
+                SendLine("display interface description");
                 bool timeout;
-                List<string> lines = NodeRead(out timeout);
-                if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                if (timeout) { NodeReadTimeOutExit(); return true; }
+                List<string> lines = Read(out timeout);
+                if (timeout) { SaveExit(); return; }
 
                 #endregion
             }
@@ -1696,8 +1684,41 @@ namespace Jovice
 
             #region Check
 
+            int sinf = 0, sinfup = 0, sinfhu = 0, sinfhuup = 0, sinfte = 0, sinfteup = 0, sinfgi = 0, sinfgiup = 0, sinffa = 0, sinffaup = 0, sinfet = 0, sinfetup = 0, sinfse = 0, sinfseup = 0,
+                ssubinf = 0, ssubinfup = 0, ssubinfupup = 0, ssubinfhu = 0, ssubinfhuup = 0, ssubinfhuupup = 0, ssubinfte = 0, ssubinfteup = 0, ssubinfteupup = 0, ssubinfgi = 0, ssubinfgiup = 0, ssubinfgiupup = 0, ssubinffa = 0, ssubinffaup = 0, ssubinffaupup = 0, ssubinfet = 0, ssubinfetup = 0, ssubinfetupup = 0;
+
+
             foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
             {
+                PEInterfaceToDatabase li = pair.Value;
+                string liname = li.Name;
+
+                if (liname.IndexOf('.') > -1)
+                {
+                    ssubinf++;
+                    if (li.Status == 1)
+                    {
+                        ssubinfup++;
+                        if (li.Protocol == 1) ssubinfupup++;
+                    }
+                    if (liname.StartsWith("Hu")) { ssubinfhu++; if (li.Status == 1) { ssubinfhuup++; if (li.Protocol == 1) ssubinfhuupup++; } }
+                    if (liname.StartsWith("Te")) { ssubinfte++; if (li.Status == 1) { ssubinfteup++; if (li.Protocol == 1) ssubinfteupup++; } }
+                    if (liname.StartsWith("Gi")) { ssubinfgi++; if (li.Status == 1) { ssubinfgiup++; if (li.Protocol == 1) ssubinfgiupup++; } }
+                    if (liname.StartsWith("Fa")) { ssubinffa++; if (li.Status == 1) { ssubinffaup++; if (li.Protocol == 1) ssubinffaupup++; } }
+                    if (liname.StartsWith("Et")) { ssubinfet++; if (li.Status == 1) { ssubinfetup++; if (li.Protocol == 1) ssubinfetupup++; } }
+                }
+                else
+                {
+                    sinf++;
+                    if (li.Status == 1) sinfup++;
+                    if (liname.StartsWith("Hu")) { sinfhu++; if (li.Status == 1) sinfhuup++; }
+                    if (liname.StartsWith("Te")) { sinfte++; if (li.Status == 1) sinfteup++; }
+                    if (liname.StartsWith("Gi")) { sinfgi++; if (li.Status == 1) sinfgiup++; }
+                    if (liname.StartsWith("Fa")) { sinffa++; if (li.Status == 1) sinffaup++; }
+                    if (liname.StartsWith("Et")) { sinfet++; if (li.Status == 1) sinfetup++; }
+                    if (liname.StartsWith("Se")) { sinfse++; if (li.Status == 1) sinfseup++; }
+                }
+
                 if (!interfacedb.ContainsKey(pair.Key))
                 {
                     // ADD
@@ -1714,8 +1735,7 @@ namespace Jovice
 
                     PEInterfaceToDatabase u = new PEInterfaceToDatabase();
                     u.ID = db["PI_ID"].ToString();
-
-                    PEInterfaceToDatabase li = pair.Value;
+                                        
                     bool update = false;
 
                     StringBuilder updateinfo = new StringBuilder();
@@ -1874,6 +1894,34 @@ namespace Jovice
                 }
             }
 
+            Summary("INTERFACE_COUNT", sinf);
+            Summary("INTERFACE_COUNT_UP", sinfup);
+            Summary("INTERFACE_COUNT_HU", sinfhu);
+            Summary("INTERFACE_COUNT_HU_UP", sinfhuup);
+            Summary("INTERFACE_COUNT_TE", sinfte);
+            Summary("INTERFACE_COUNT_TE_UP", sinfteup);
+            Summary("INTERFACE_COUNT_GI", sinfgi);
+            Summary("INTERFACE_COUNT_GI_UP", sinfgiup);
+            Summary("INTERFACE_COUNT_FA", sinffa);
+            Summary("INTERFACE_COUNT_FA_UP", sinffaup);
+            Summary("INTERFACE_COUNT_SE", sinfse);
+            Summary("INTERFACE_COUNT_SE_UP", sinfseup);
+            Summary("SUBINTERFACE_COUNT", ssubinf);
+            Summary("SUBINTERFACE_COUNT_UP", ssubinfup);
+            Summary("SUBINTERFACE_COUNT_UP_UP", ssubinfupup);
+            Summary("SUBINTERFACE_COUNT_HU", ssubinfhu);
+            Summary("SUBINTERFACE_COUNT_HU_UP", ssubinfhuup);
+            Summary("SUBINTERFACE_COUNT_HU_UP_UP", ssubinfhuupup);
+            Summary("SUBINTERFACE_COUNT_TE", ssubinfte);
+            Summary("SUBINTERFACE_COUNT_TE_UP", ssubinfteup);
+            Summary("SUBINTERFACE_COUNT_TE_UP_UP", ssubinfteupup);
+            Summary("SUBINTERFACE_COUNT_GI", ssubinfgi);
+            Summary("SUBINTERFACE_COUNT_GI_UP", ssubinfgiup);
+            Summary("SUBINTERFACE_COUNT_GI_UP_UP", ssubinfgiupup);
+            Summary("SUBINTERFACE_COUNT_FA", ssubinffa);
+            Summary("SUBINTERFACE_COUNT_FA_UP", ssubinffaup);
+            Summary("SUBINTERFACE_COUNT_FA_UP_UP", ssubinffaupup);
+
             #endregion
 
             #region Execute
@@ -1888,7 +1936,7 @@ namespace Jovice
             foreach (PEInterfaceToDatabase s in interfaceinsert)
             {
                 string id = Database.ID();
-                batchlist1.Add(j.Format("({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, " + ((s.RateLimitInput == -1) ? "null" : (s.RateLimitInput + "")) + ", " + ((s.RateLimitOutput == -1) ? "null" : (s.RateLimitOutput + "")) +
+                batchlist1.Add(Format("({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, " + ((s.RateLimitInput == -1) ? "null" : (s.RateLimitInput + "")) + ", " + ((s.RateLimitOutput == -1) ? "null" : (s.RateLimitOutput + "")) +
                     "," + (s.CirConfigTotalInput == -1 ? "null" : (s.CirConfigTotalInput + "")) + "," + (s.CirConfigTotalOutput == -1 ? "null" : (s.CirConfigTotalOutput + "")) + "," + (s.CirTotalInput == -1 ? "null" : (s.CirTotalInput + "")) + "," + (s.CirTotalOutput == -1 ? "null" : (s.CirTotalOutput + "")) + ")",
                     id, nodeID, s.Name, s.Status, s.Protocol, s.Description, s.RouteID, s.InputQOSID, s.OutputQOSID
                     ));
@@ -1896,14 +1944,14 @@ namespace Jovice
                 if (s.IP != null)
                     ipinsert.Add(id, s.IP);
 
-                if (batchlist1.Count == 50)
+                if (batchlist1.Count == batchmax)
                 {
-                    newinterface += j.Execute(interfaceinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                    newinterface += Execute(interfaceinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
                     batchlist1.Clear();
                 }
             }
             if (batchlist1.Count > 0)
-                newinterface += j.Execute(interfaceinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                newinterface += Execute(interfaceinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
             if (newinterface > 0)
                 Event(newinterface + " interface(s) added");
 
@@ -1919,15 +1967,15 @@ namespace Jovice
                 List<string> v = new List<string>();
                 if (s.UpdateDescription)
                 {
-                    v.Add(j.Format("PI_Description = {0}", s.Description));
+                    v.Add(Format("PI_Description = {0}", s.Description));
                     v.Add("PI_SE = null");
                     v.Add("PI_SE_Check = null");
                 }
                 if (s.UpdateStatus) v.Add("PI_Status = " + s.Status);
                 if (s.UpdateProtocol) v.Add("PI_Protocol = " + s.Protocol);
-                if (s.UpdateRouteID) v.Add(j.Format("PI_PN = {0}", s.RouteID));
-                if (s.UpdateInputQOSID) v.Add(j.Format("PI_PQ_Input = {0}", s.InputQOSID));
-                if (s.UpdateOutputQOSID) v.Add(j.Format("PI_PQ_Output = {0}", s.OutputQOSID));
+                if (s.UpdateRouteID) v.Add(Format("PI_PN = {0}", s.RouteID));
+                if (s.UpdateInputQOSID) v.Add(Format("PI_PQ_Input = {0}", s.InputQOSID));
+                if (s.UpdateOutputQOSID) v.Add(Format("PI_PQ_Output = {0}", s.OutputQOSID));
                 if (s.UpdateRateLimitInput)
                 {
                     if (s.RateLimitInput > -1) v.Add("PI_Rate_Input = " + s.RateLimitInput);
@@ -1966,20 +2014,20 @@ namespace Jovice
 
                 if (v.Count > 0)
                 {
-                    string q = j.Format("update PEInterface set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where PI_ID = {0};", s.ID);
+                    string q = Format("update PEInterface set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where PI_ID = {0};", s.ID);
                     batchline++;
                     batchstring.AppendLine(q);
 
-                    if (batchline == 50)
+                    if (batchline == batchmax)
                     {
-                        modifiedinterface += j.Execute(batchstring.ToString()).AffectedRows;
+                        modifiedinterface += Execute(batchstring.ToString()).AffectedRows;
                         batchstring.Clear();
                         batchline = 0;
                     }
                 }
             }
             if (batchline > 0)
-                modifiedinterface += j.Execute(batchstring.ToString()).AffectedRows;
+                modifiedinterface += Execute(batchstring.ToString()).AffectedRows;
             if (modifiedinterface > 0)
                 Event(modifiedinterface + " interface(s) modified");
 
@@ -2001,19 +2049,19 @@ namespace Jovice
                     string type = ip.Substring(0, 1);
                     string oip = ip.Substring(2);
 
-                    batchlist1.Add(j.Format("({0}, {1}, {2}, {3})",
+                    batchlist1.Add(Format("({0}, {1}, {2}, {3})",
                         id, pair.Key, type, oip
                         ));
 
-                    if (batchlist1.Count == 50)
+                    if (batchlist1.Count == batchmax)
                     {
-                        newip += j.Execute(ipinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                        newip += Execute(ipinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
                         batchlist1.Clear();
                     }
                 }               
             }
             if (batchlist1.Count > 0)
-                newip += j.Execute(ipinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                newip += Execute(ipinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
             if (newip > 0)
                 Event(newip + " interface IP(s) added");
 
@@ -2034,17 +2082,17 @@ namespace Jovice
                 if (!interfacelive.ContainsKey(pair.Key))
                 {
                     string piid = pair.Value["PI_ID"].ToString();
-                    batchlist1.Add(j.Format("PI_ID = {0}", piid));
-                    batchlist2.Add(j.Format("PP_PI = {0}", piid));
-                    batchlist3.Add(j.Format("PI_PI = {0}", piid));
-                    batchlist4.Add(j.Format("MI_TO_PI = {0}", piid));
+                    batchlist1.Add(Format("PI_ID = {0}", piid));
+                    batchlist2.Add(Format("PP_PI = {0}", piid));
+                    batchlist3.Add(Format("PI_PI = {0}", piid));
+                    batchlist4.Add(Format("MI_TO_PI = {0}", piid));
                     Event("Interface DELETE: " + pair.Key);
                 }
             }
             foreach (KeyValuePair<string, List<string>> pair in ipdelete)
             {
                 List<string> ips = pair.Value;
-                foreach (string ppid in ips) { batchlist2.Add(j.Format("PP_ID = {0}", ppid)); }            
+                foreach (string ppid in ips) { batchlist2.Add(Format("PP_ID = {0}", ppid)); }            
             }
 
             batchline = 0;
@@ -2056,7 +2104,7 @@ namespace Jovice
                 {
                     if (batchstring.Length > 0)
                     {
-                        removedrefinterface += j.Execute(interfaceremoveref2sql + batchstring.ToString()).AffectedRows;
+                        removedrefinterface += Execute(interfaceremoveref2sql + batchstring.ToString()).AffectedRows;
                         batchstring.Clear();
                     }
                     batchstring.Append(s);
@@ -2065,7 +2113,7 @@ namespace Jovice
                 batchline++;
             }
             if (batchstring.Length > 0)
-                removedrefinterface += j.Execute(interfaceremoveref2sql + batchstring.ToString()).AffectedRows;
+                removedrefinterface += Execute(interfaceremoveref2sql + batchstring.ToString()).AffectedRows;
 
             batchline = 0;
             batchstring.Clear();
@@ -2076,7 +2124,7 @@ namespace Jovice
                 {
                     if (batchstring.Length > 0)
                     {
-                        removedrefinterface += j.Execute(interfaceremoveref1sql + batchstring.ToString()).AffectedRows;
+                        removedrefinterface += Execute(interfaceremoveref1sql + batchstring.ToString()).AffectedRows;
                         batchstring.Clear();
                     }
                     batchstring.Append(s);
@@ -2085,7 +2133,7 @@ namespace Jovice
                 batchline++;
             }
             if (batchstring.Length > 0)
-                removedrefinterface += j.Execute(interfaceremoveref1sql + batchstring.ToString()).AffectedRows;
+                removedrefinterface += Execute(interfaceremoveref1sql + batchstring.ToString()).AffectedRows;
 
             batchline = 0;
             batchstring.Clear();
@@ -2096,7 +2144,7 @@ namespace Jovice
                 {
                     if (batchstring.Length > 0)
                     {
-                        deletedip += j.Execute(ipdeletesql + batchstring.ToString()).AffectedRows;
+                        deletedip += Execute(ipdeletesql + batchstring.ToString()).AffectedRows;
                         batchstring.Clear();
                     }
                     batchstring.Append(s);
@@ -2105,7 +2153,7 @@ namespace Jovice
                 batchline++;
             }
             if (batchstring.Length > 0)
-                deletedip += j.Execute(ipdeletesql + batchstring.ToString()).AffectedRows;
+                deletedip += Execute(ipdeletesql + batchstring.ToString()).AffectedRows;
                 
             batchline = 0;
             batchstring.Clear();
@@ -2116,7 +2164,7 @@ namespace Jovice
                 {
                     if (batchstring.Length > 0)
                     {
-                        deletedinterface += j.Execute(interfacedeletesql + batchstring.ToString()).AffectedRows;
+                        deletedinterface += Execute(interfacedeletesql + batchstring.ToString()).AffectedRows;
                         batchstring.Clear();
                     }
                     batchstring.Append(s);
@@ -2125,7 +2173,7 @@ namespace Jovice
                 batchline++;
             }
             if (batchstring.Length > 0)
-                deletedinterface += j.Execute(interfacedeletesql + batchstring.ToString()).AffectedRows;
+                deletedinterface += Execute(interfacedeletesql + batchstring.ToString()).AffectedRows;
 
             if (deletedinterface > 0)
                 Event(deletedinterface + " interface(s) deleted");
@@ -2149,7 +2197,7 @@ namespace Jovice
             {
                 if (!qoslive.ContainsKey(pair.Key))
                 {
-                    batchlist1.Add(j.Format("PQ_ID = {0}", pair.Value["PQ_ID"].ToString()));
+                    batchlist1.Add(Format("PQ_ID = {0}", pair.Value["PQ_ID"].ToString()));
                     Event("QOS DELETE: " + pair.Key);
                 }
             }
@@ -2161,7 +2209,7 @@ namespace Jovice
                     {
                         if (batchstring.Length > 0)
                         {
-                            deletedqos += j.Execute(qosdeletesql + batchstring.ToString()).AffectedRows;
+                            deletedqos += Execute(qosdeletesql + batchstring.ToString()).AffectedRows;
                             batchstring.Clear();
                         }
                         batchstring.Append(s);
@@ -2170,7 +2218,7 @@ namespace Jovice
                     batchline++;
                 }
                 if (batchstring.Length > 0)
-                    deletedqos += j.Execute(qosdeletesql + batchstring.ToString()).AffectedRows;
+                    deletedqos += Execute(qosdeletesql + batchstring.ToString()).AffectedRows;
             }
             if (deletedqos > 0)
                 Event(deletedqos + " QOS(s) deleted");
@@ -2189,18 +2237,18 @@ namespace Jovice
                 if (!routelive.ContainsKey(pair.Key))
                 {
                     string id = pair.Value["PN_ID"].ToString();
-                    batchlist1.Add(j.Format("PN_ID = {0}", id));
+                    batchlist1.Add(Format("PN_ID = {0}", id));
                     batchlist2.Add(id);
-                    if (batchlist2.Count == 50)
+                    if (batchlist2.Count == batchmax)
                     {
-                        j.Execute(routeinterfaceupdatesql + " ('" + string.Join("','", batchlist2.ToArray()) + "')");
+                        Execute(routeinterfaceupdatesql + " ('" + string.Join("','", batchlist2.ToArray()) + "')");
                         batchlist2.Clear();
                     }
                     Event("Route Name DELETE: " + pair.Key);
                 }
             }
             if (batchlist2.Count > 0)
-                j.Execute(routeinterfaceupdatesql + " ('" + string.Join("','", batchlist2.ToArray()) + "')");
+                Execute(routeinterfaceupdatesql + " ('" + string.Join("','", batchlist2.ToArray()) + "')");
             if (batchlist1.Count > 0)
             {
                 foreach (string s in batchlist1)
@@ -2209,7 +2257,7 @@ namespace Jovice
                     {
                         if (batchstring.Length > 0)
                         {
-                            deletedroutename += j.Execute(routenamedeletesql + batchstring.ToString()).AffectedRows;
+                            deletedroutename += Execute(routenamedeletesql + batchstring.ToString()).AffectedRows;
                             batchstring.Clear();
                         }
                         batchstring.Append(s);
@@ -2218,14 +2266,14 @@ namespace Jovice
                     batchline++;
                 }
                 if (batchstring.Length > 0)
-                    deletedroutename += j.Execute(routenamedeletesql + batchstring.ToString()).AffectedRows;
+                    deletedroutename += Execute(routenamedeletesql + batchstring.ToString()).AffectedRows;
             }
             if (deletedroutename > 0)
                 Event(deletedroutename + " route name(s) deleted");
 
             int deletedroutetarget = 0, deletedroute = 0;
-            deletedroutetarget = j.Execute("delete from PERouteTarget where PT_PR in (select PR_ID from PERoute left join PERouteName on PN_PR = PR_ID where PN_ID is null)").AffectedRows;
-            deletedroute = j.Execute("delete from PERoute where PR_ID in (select PR_ID from PERoute left join PERouteName on PN_PR = PR_ID where PN_ID is null)").AffectedRows;
+            deletedroutetarget = Execute("delete from PERouteTarget where PT_PR in (select PR_ID from PERoute left join PERouteName on PN_PR = PR_ID where PN_ID is null)").AffectedRows;
+            deletedroute = Execute("delete from PERoute where PR_ID in (select PR_ID from PERoute left join PERouteName on PN_PR = PR_ID where PN_ID is null)").AffectedRows;
 
             if (deletedroutetarget > 0)
                 Event(deletedroutetarget + " route target(s) deleted");
@@ -2234,7 +2282,7 @@ namespace Jovice
 
             #endregion
 
-            interfacedbresult = j.Query("select * from PEInterface where PI_NO = {0}", nodeID);
+            interfacedbresult = Query("select * from PEInterface where PI_NO = {0}", nodeID);
             interfacedb = new Dictionary<string, Row>();
             foreach (Row row in interfacedbresult) { interfacedb.Add(row["PI_Name"].ToString(), row); }
 
@@ -2249,9 +2297,7 @@ namespace Jovice
             
             #endregion
 
-            NodeSaveExit();
-
-            return false;
+            SaveExit();
         }
 
         #endregion

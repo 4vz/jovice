@@ -60,8 +60,6 @@
     <Compile Include="Helpers\NodeInterface.cs" />
     <Compile Include="Jovice.cs" />
     <Compile Include="Necrow\Necrow.cs" />
-    <Compile Include="Necrow\NodeSummary.cs" />
-    <Compile Include="Necrow\PeekProbe.cs" />
     <Compile Include="Necrow\Probe.cs" />
     <Compile Include="Necrow\MEProbe.cs" />
     <Compile Include="Necrow\PEProbe.cs" />

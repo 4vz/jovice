@@ -178,38 +178,32 @@ namespace Jovice
             shell = null;
         }
 
-        protected bool Request(string data)
+        protected bool WriteLine(string data)
         {
             try
             {
                 if (shell.Connected)
                 {
                     shell.WriteLine(data);
-                    return false;
+                    return true;
                 }
-                else return true;
+                else return false;
             }
-            catch (Exception ex)
-            {
-                return true;
-            }
+            catch { return false; }
         }
 
-        protected bool Request(char data)
+        protected bool Write(string data)
         {
             try
             {
                 if (shell.Connected)
                 {
-                    shell.Write(data.ToString());
-                    return false;
+                    shell.Write(data);
+                    return true;
                 }
-                else return true;
+                else return false;
             }
-            catch (Exception ex)
-            {
-                return true;
-            }
+            catch { return false; }
         }
 
         public virtual void OnResponse(string output)

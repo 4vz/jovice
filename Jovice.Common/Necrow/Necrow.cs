@@ -127,6 +127,8 @@ namespace Jovice
     {
         #region Fields
 
+        internal readonly static int Version = 5;
+
         private static Database joviceDatabase = null;
 
         internal static Database JoviceDatabase
@@ -256,7 +258,7 @@ namespace Jovice
                     }
                     if (services.IsFlagSet(NecrowServices.Summary))
                     {
-                        Summary.Start();
+                        //Summary.Start();
                     }
                 }
             }));
@@ -278,10 +280,6 @@ namespace Jovice
             if (services.IsFlagSet(NecrowServices.TopologyFinder))
             {
                 TopologyFinder.Stop();
-            }
-            if (services.IsFlagSet(NecrowServices.Summary))
-            {
-                Summary.Stop();
             }
             if (services.IsFlagSet(NecrowServices.Probe))
             {

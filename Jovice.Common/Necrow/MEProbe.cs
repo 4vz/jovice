@@ -396,7 +396,7 @@ namespace Jovice
 
     internal sealed partial class Probe
     {
-        private bool MEProcess()
+        private void MEProcess()
         {
             #region Variables
 
@@ -415,7 +415,7 @@ namespace Jovice
             string custinsertsql = "insert into MECustomer(MU_ID, MU_NO, MU_UID) values";
             string custdeletesql = "delete from MECustomer where ";
             Dictionary<string, string> custlive = new Dictionary<string, string>();
-            Result custdbresult = j.Query("select * from MECustomer where MU_NO = {0}", nodeID);
+            Result custdbresult = Query("select * from MECustomer where MU_NO = {0}", nodeID);
             Dictionary<string, string> custdb = new Dictionary<string, string>();
             foreach (Row row in custdbresult) { custdb.Add(row["MU_UID"].ToString(), row["MU_ID"].ToString()); }
 
@@ -429,11 +429,10 @@ namespace Jovice
 
                     if (nodeManufacture == alu)
                     {
-                        if (Send("show service customer | match \"Customer-ID\"")) { NodeSaveMainLoopRestart(); return true; }
+                        SendLine("show service customer | match \"Customer-ID\"");
                         bool timeout;
-                        List<string> lines = NodeRead(out timeout);
-                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                        if (timeout) { NodeReadTimeOutExit(); return true; }
+                        List<string> lines = Read(out timeout);        
+                        if (timeout) { SaveExit(); return; }
 
                         foreach (string line in lines)
                         {
@@ -464,17 +463,17 @@ namespace Jovice
                             Event("Customer ADD: " + uid);
                             string id = Database.ID();
 
-                            batchlist1.Add(j.Format("({0}, {1}, {2})", id, nodeID, uid));
+                            batchlist1.Add(Format("({0}, {1}, {2})", id, nodeID, uid));
 
-                            if (batchlist1.Count >= 50)
+                            if (batchlist1.Count >= batchmax)
                             {
-                                newcustomer += j.Execute(custinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                                newcustomer += Execute(custinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
                                 batchlist1.Clear();
                             }
                         }
                     }
                     if (batchlist1.Count > 0)
-                        j.Execute(custinsertsql + string.Join(",", batchlist1.ToArray()));
+                        Execute(custinsertsql + string.Join(",", batchlist1.ToArray()));
                     if (newcustomer > 0)
                         Event(newcustomer + " customer(s) added");
 
@@ -490,7 +489,7 @@ namespace Jovice
 
             string qosinsertsql = "insert into MEQOS(MQ_ID, MQ_NO, MQ_Name, MQ_Type, MQ_Bandwidth) values";
             string qosdeletesql = "delete from MEQOS where ";
-            Result qosdbresult = j.Query("select * from MEQOS where MQ_NO = {0}", nodeID);
+            Result qosdbresult = Query("select * from MEQOS where MQ_NO = {0}", nodeID);
             Dictionary<string, Row> qosdb = new Dictionary<string, Row>();
             foreach (Row sdbo in qosdbresult) { qosdb.Add((sdbo["MQ_Type"].ToBoolean() ? "1" : "0") + "_" + sdbo["MQ_Name"].ToString(), sdbo); }
             Dictionary<string, MEQOSToDatabase> qoslive = new Dictionary<string, MEQOSToDatabase>();
@@ -507,11 +506,10 @@ namespace Jovice
                 {
                     #region alu
 
-                    if (Send("show qos sap-ingress")) { NodeSaveMainLoopRestart(); return true; }
+                    SendLine("show qos sap-ingress");
                     bool timeout;
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    List<string> lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     foreach (string line in lines)
                     {
@@ -526,10 +524,9 @@ namespace Jovice
                         }
                     }
 
-                    if (Send("show qos sap-egress")) { NodeSaveMainLoopRestart(); return true; }
-                    lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    SendLine("show qos sap-egress");
+                    lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     foreach (string line in lines)
                     {
@@ -558,11 +555,10 @@ namespace Jovice
                 {
                     #region hwe
 
-                    if (Send("display qos-profile configuration")) { NodeSaveMainLoopRestart(); return true; }
+                    SendLine("display qos-profile configuration");
                     bool timeout;
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    List<string> lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     bool qosCollect = false;
                     foreach (string line in lines)
@@ -659,23 +655,23 @@ namespace Jovice
 
                     if (s.Type == -1)
                     {
-                        if (s.Bandwidth == -1) batchlist1.Add(j.Format("({0}, {1}, {2}, null, null)", id, nodeID, s.Name));
-                        else batchlist1.Add(j.Format("({0}, {1}, {2}, null, {3})", id, nodeID, s.Name, s.Bandwidth));
+                        if (s.Bandwidth == -1) batchlist1.Add(Format("({0}, {1}, {2}, null, null)", id, nodeID, s.Name));
+                        else batchlist1.Add(Format("({0}, {1}, {2}, null, {3})", id, nodeID, s.Name, s.Bandwidth));
                     }
                     else
                     {
-                        if (s.Bandwidth == -1) batchlist1.Add(j.Format("({0}, {1}, {2}, {3}, null)", id, nodeID, s.Name, s.Type));
-                        else batchlist1.Add(j.Format("({0}, {1}, {2}, {3}, {4})", id, nodeID, s.Name, s.Type, s.Bandwidth));
+                        if (s.Bandwidth == -1) batchlist1.Add(Format("({0}, {1}, {2}, {3}, null)", id, nodeID, s.Name, s.Type));
+                        else batchlist1.Add(Format("({0}, {1}, {2}, {3}, {4})", id, nodeID, s.Name, s.Type, s.Bandwidth));
                     }
 
-                    if (batchlist1.Count == 50)
+                    if (batchlist1.Count == batchmax)
                     {
-                        newqos += j.Execute(qosinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                        newqos += Execute(qosinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
                         batchlist1.Clear();
                     }
                 }
                 if (batchlist1.Count > 0)
-                    newqos += j.Execute(qosinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                    newqos += Execute(qosinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
                 if (newqos > 0)
                     Event(newqos + " qos(s) added");
 
@@ -688,31 +684,31 @@ namespace Jovice
                 foreach (MEQOSToDatabase s in qosupdate)
                 {
                     List<string> v = new List<string>();
-                    if (s.UpdateBandwidth) v.Add(s.Bandwidth == -1 ? "MQ_Bandwidth = null" : j.Format("MQ_Bandwidth = {0}", s.Bandwidth));
+                    if (s.UpdateBandwidth) v.Add(s.Bandwidth == -1 ? "MQ_Bandwidth = null" : Format("MQ_Bandwidth = {0}", s.Bandwidth));
 
                     if (v.Count > 0)
                     {
-                        string q = j.Format("update MEQOS set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MQ_ID = {0};", s.ID);
+                        string q = Format("update MEQOS set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MQ_ID = {0};", s.ID);
                         batchline++;
                         batchstring.AppendLine(q);
 
-                        if (batchline == 50)
+                        if (batchline == batchmax)
                         {
-                            modifiedqos += j.Execute(batchstring.ToString()).AffectedRows;
+                            modifiedqos += Execute(batchstring.ToString()).AffectedRows;
                             batchstring.Clear();
                             batchline = 0;
                         }
                     }
                 }
                 if (batchline > 0)
-                    modifiedqos += j.Execute(batchstring.ToString()).AffectedRows;
+                    modifiedqos += Execute(batchstring.ToString()).AffectedRows;
                 if (modifiedqos > 0)
                     Event(modifiedqos + " qos(s) modified");
 
                 #endregion
             }
 
-            qosdbresult = j.Query("select * from MEQOS where MQ_NO = {0}", nodeID);
+            qosdbresult = Query("select * from MEQOS where MQ_NO = {0}", nodeID);
             qosdb = new Dictionary<string, Row>();
             foreach (Row sdbo in qosdbresult) { qosdb.Add((sdbo["MQ_Type"].ToBoolean() ? "1" : "0") + "_" + sdbo["MQ_Name"].ToString(), sdbo); }
 
@@ -722,7 +718,7 @@ namespace Jovice
                         
             string peerinsertsql = "insert into MESDP(MS_ID, MS_NO, MS_SDP, MS_Status, MS_Protocol, MS_IP, MS_MTU, MS_Type, MS_LSP) values";
             string peerdeletesql = "delete from MESDP where ";
-            Result peerdbresult = j.Query("select * from MESDP where MS_NO = {0}", nodeID);
+            Result peerdbresult = Query("select * from MESDP where MS_NO = {0}", nodeID);
             Dictionary<string, Row> peerdb = new Dictionary<string, Row>();                
             foreach (Row sdbo in peerdbresult) { peerdb.Add(sdbo["MS_SDP"].ToString(), sdbo); }
             Dictionary<string, MESDPToDatabase> peerlive = new Dictionary<string, MESDPToDatabase>();
@@ -739,11 +735,10 @@ namespace Jovice
                 {
                     #region alu
 
-                    if (Send("show service sdp")) { NodeSaveMainLoopRestart(); return true; }
+                    SendLine("show service sdp");
                     bool timeout;
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    List<string> lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     foreach (string line in lines)
                     {
@@ -803,11 +798,10 @@ namespace Jovice
                     #region hwe
 
                     // dari mpls
-                    if (Send("display mpls ldp remote-peer")) { NodeSaveMainLoopRestart(); return true; }
+                    SendLine("display mpls ldp remote-peer");
                     bool timeout;
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    List<string> lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     string farend = null;
                     int active = -1;
@@ -846,10 +840,9 @@ namespace Jovice
                     }
 
                     // dari vsi
-                    if (Send("display vsi verbose | in Peer Router ID")) { NodeSaveMainLoopRestart(); return true; }
-                    lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    SendLine("display vsi verbose | in Peer Router ID");
+                    lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     foreach (string line in lines)
                     {
@@ -880,10 +873,9 @@ namespace Jovice
 
                     // dari mpls
                     //
-                    if (Send("display mpls l2vc | in destination")) { NodeSaveMainLoopRestart(); return true; }
-                    lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    SendLine("display mpls l2vc | in destination");
+                    lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     foreach (string line in lines)
                     {
@@ -1003,18 +995,18 @@ namespace Jovice
                 foreach (MESDPToDatabase s in peerinsert)
                 {
                     string id = Database.ID();
-                    batchlist1.Add(j.Format("({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8})",
+                    batchlist1.Add(Format("({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8})",
                         id, nodeID, s.SDP, s.Status, s.Protocol, s.FarEnd, s.AdmMTU, s.Type, s.LSP
                         ));
 
-                    if (batchlist1.Count == 50)
+                    if (batchlist1.Count == batchmax)
                     {
-                        newpeer += j.Execute(peerinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                        newpeer += Execute(peerinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
                         batchlist1.Clear();
                     }
                 }
                 if (batchlist1.Count > 0)
-                    newpeer += j.Execute(peerinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                    newpeer += Execute(peerinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
                 if (newpeer > 0)
                     Event(newpeer + " peer(s) added");
 
@@ -1029,34 +1021,34 @@ namespace Jovice
                     List<string> v = new List<string>();
                     if (s.UpdateStatus) v.Add("MS_Status = " + s.Status);
                     if (s.UpdateProtocol) v.Add("MS_Protocol = " + s.Protocol);
-                    if (s.UpdateType) v.Add(j.Format("MS_Type = {0}", s.Type));
-                    if (s.UpdateLSP) v.Add(j.Format("MS_LSP = {0}", s.LSP));
-                    if (s.UpdateAdmMTU) v.Add(s.AdmMTU == 0 ? j.Format("MS_MTU = {0}", null) : ("MS_MTU = " + s.AdmMTU));
-                    if (s.UpdateFarEnd) v.Add(j.Format("MS_IP = {0}", s.FarEnd));
+                    if (s.UpdateType) v.Add(Format("MS_Type = {0}", s.Type));
+                    if (s.UpdateLSP) v.Add(Format("MS_LSP = {0}", s.LSP));
+                    if (s.UpdateAdmMTU) v.Add(s.AdmMTU == 0 ? Format("MS_MTU = {0}", null) : ("MS_MTU = " + s.AdmMTU));
+                    if (s.UpdateFarEnd) v.Add(Format("MS_IP = {0}", s.FarEnd));
 
                     if (v.Count > 0)
                     {
-                        string q = j.Format("update MESDP set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MS_ID = {0};", s.ID);
+                        string q = Format("update MESDP set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MS_ID = {0};", s.ID);
                         batchline++;
                         batchstring.AppendLine(q);
 
-                        if (batchline == 50)
+                        if (batchline == batchmax)
                         {
-                            modifiedpeer += j.Execute(batchstring.ToString()).AffectedRows;
+                            modifiedpeer += Execute(batchstring.ToString()).AffectedRows;
                             batchstring.Clear();
                             batchline = 0;
                         }
                     }
                 }
                 if (batchline > 0)
-                    modifiedpeer += j.Execute(batchstring.ToString()).AffectedRows;
+                    modifiedpeer += Execute(batchstring.ToString()).AffectedRows;
                 if (modifiedpeer > 0)
                     Event(modifiedpeer + " peer(s) modified");
 
                 #endregion
             }
 
-            peerdbresult = j.Query("select * from MESDP where MS_NO = {0}", nodeID);
+            peerdbresult = Query("select * from MESDP where MS_NO = {0}", nodeID);
             peerdb = new Dictionary<string, Row>();
             foreach (Row sdbo in peerdbresult) { peerdb.Add(sdbo["MS_SDP"].ToString(), sdbo); }
                 
@@ -1067,7 +1059,7 @@ namespace Jovice
             string circuitinsertsql = "insert into MECircuit(MC_ID, MC_NO, MC_VCID, MC_Type, MC_Status, MC_Protocol, MC_MU, MC_Description, MC_MTU) values";
             string circuitdeletesql = "delete from MECircuit where ";
             string circuitremoverefsql = "update MEPeer set MP_TO_MC = null, MP_TO_Check = null where ";
-            Result circuitdbresult = j.Query("select * from MECircuit where MC_NO = {0}", nodeID);
+            Result circuitdbresult = Query("select * from MECircuit where MC_NO = {0}", nodeID);
             Dictionary<string, Row> circuitdb = new Dictionary<string, Row>();                
             Dictionary<string, MECircuitToDatabase> circuitlive = new Dictionary<string, MECircuitToDatabase>();
             List<MECircuitToDatabase> circuitinsert = new List<MECircuitToDatabase>();
@@ -1095,7 +1087,7 @@ namespace Jovice
 
                         if (circuitdb.ContainsKey(vcid))
                         {
-                            Result orx = j.Query(@"
+                            Result orx = Query(@"
 select MC_ID, MI_ID from MECircuit
 left join MEInterface on MI_MC = MC_ID
 where
@@ -1125,12 +1117,12 @@ MC_NO = {0} and MC_VCID = {1}
                                 if (ygSudahDiinsertBener)
                                 {
                                     // mcid has no mi, remove mcid
-                                    cccircuit.Add(j.Format("{0}", mcid));
+                                    cccircuit.Add(Format("{0}", mcid));
                                 }
                                 else
                                 {
                                     circuitdb.Remove(vcid); // remove yg sudah ada, diganti mcid yg ini
-                                    cccircuit.Add(j.Format("{0}", insertedmcid));
+                                    cccircuit.Add(Format("{0}", insertedmcid));
                                     circuitdb.Add(vcid, vdbo);
                                 }
                             }
@@ -1143,22 +1135,21 @@ MC_NO = {0} and MC_VCID = {1}
                     {
                         Event("Duplicate Service(s) found (" + cccircuit.Count + "), began deleting...");
                         string dsql = string.Format("delete from MECircuit where MC_ID in ({0})", string.Join(",", cccircuit));
-                        Result rex = j.Execute(dsql);
+                        Result rex = Execute(dsql);
                         Event("" + rex.AffectedRows + " entries deleted.");
                     }
 
 
 
-                    Result vdbcr = j.Query("select * from MECustomer where MU_NO = {0}", nodeID);
+                    Result vdbcr = Query("select * from MECustomer where MU_NO = {0}", nodeID);
                     Dictionary<string, string> vdbc = new Dictionary<string, string>();
                     foreach (Row vdbco in vdbcr) { vdbc.Add(vdbco["MU_UID"].ToString(), vdbco["MU_ID"].ToString()); }
 
                     // STEP 1, dari display config untuk epipe dan vpls, biar dapet mtu dan deskripsinya
-                    if (Send("admin display-config | match customer context children")) { NodeSaveMainLoopRestart(); return true; }
+                    SendLine("admin display-config | match customer context children");
                     bool timeout;
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    List<string> lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     MECircuitToDatabase cservice = null;
                     foreach (string line in lines)
@@ -1210,10 +1201,9 @@ MC_NO = {0} and MC_VCID = {1}
                     }
 
                     // STEP 2, dari service-using, sisanya
-                    if (Send("show service service-using")) { NodeSaveMainLoopRestart(); return true; }
-                    lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    SendLine("show service service-using");
+                    lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     foreach (string line in lines)
                     {
@@ -1251,11 +1241,10 @@ MC_NO = {0} and MC_VCID = {1}
                     // display mpls l2vc brief
 
                     // STEP 1, VSI Name dan VSI ID
-                    if (Send("display vsi verbose | in VSI Name|VSI ID")) { NodeSaveMainLoopRestart(); return true; }
+                    SendLine("display vsi verbose | in VSI Name|VSI ID");
                     bool timeout;
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    List<string> lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     MECircuitToDatabase cservice = null;
                     foreach (string line in lines)
@@ -1298,10 +1287,9 @@ MC_NO = {0} and MC_VCID = {1}
                     }
 
                     // STEP 2, VSI Name and VSI Detail
-                    if (Send("display vsi")) { NodeSaveMainLoopRestart(); return true; }
-                    lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    SendLine("display vsi");
+                    lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     foreach (string line in lines)
                     {
@@ -1332,10 +1320,9 @@ MC_NO = {0} and MC_VCID = {1}
                     circuitethernetdetail = new List<string[]>();
 
                     //display mpls l2vc | in client interface|VC ID|local VC MTU|destination
-                    if (Send("display mpls l2vc | in client interface|VC ID|local VC MTU|destination")) { NodeSaveMainLoopRestart(); return true; }
-                    lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    SendLine("display mpls l2vc | in client interface|VC ID|local VC MTU|destination");
+                    lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     string cinterface = null;
                     string cinterfaceVCID = null;
@@ -1530,18 +1517,18 @@ MC_NO = {0} and MC_VCID = {1}
                 {
                     //(MC_ID, MC_NO, MC_VCID, MC_Type, MC_Status, MC_Protocol, MC_MU, MC_Description, MC_MTU)
                     string id = Database.ID();
-                    batchlist1.Add(j.Format("({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8})",
+                    batchlist1.Add(Format("({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8})",
                         id, nodeID, s.VCID, s.Type, s.Status, s.Protocol, s.CustomerID, s.Description, s.AdmMTU
                         ));
 
-                    if (batchlist1.Count == 50)
+                    if (batchlist1.Count == batchmax)
                     {
-                        newservice += j.Execute(circuitinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                        newservice += Execute(circuitinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
                         batchlist1.Clear();
                     }
                 }
                 if (batchlist1.Count > 0)
-                    newservice += j.Execute(circuitinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                    newservice += Execute(circuitinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
                 if (newservice > 0)
                     Event(newservice + " service(s) added");
 
@@ -1556,39 +1543,39 @@ MC_NO = {0} and MC_VCID = {1}
                     List<string> v = new List<string>();
                     if (s.UpdateStatus) v.Add("MC_Status = " + s.Status);
                     if (s.UpdateProtocol) v.Add("MC_Protocol = " + s.Protocol);
-                    if (s.UpdateType) v.Add(j.Format("MC_Type = {0}", s.Type));
+                    if (s.UpdateType) v.Add(Format("MC_Type = {0}", s.Type));
                     if (s.UpdateDescription)
                     {
-                        v.Add(j.Format("MC_Description = {0}", s.Description));
+                        v.Add(Format("MC_Description = {0}", s.Description));
                         v.Add("MC_SE = null");
                         v.Add("MC_SE_Check = null");
                     }
-                    if (s.UpdateAdmMTU) v.Add(s.AdmMTU == 0 ? j.Format("MC_MTU = {0}", null) : ("MC_MTU = " + s.AdmMTU));
-                    if (s.UpdateCustomer) v.Add(j.Format("MC_MU = {0}", s.CustomerID));
+                    if (s.UpdateAdmMTU) v.Add(s.AdmMTU == 0 ? Format("MC_MTU = {0}", null) : ("MC_MTU = " + s.AdmMTU));
+                    if (s.UpdateCustomer) v.Add(Format("MC_MU = {0}", s.CustomerID));
 
                     if (v.Count > 0)
                     {
-                        string q = j.Format("update MECircuit set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MC_ID = {0};", s.ID);
+                        string q = Format("update MECircuit set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MC_ID = {0};", s.ID);
                         batchline++;
                         batchstring.AppendLine(q);
 
-                        if (batchline == 50)
+                        if (batchline == batchmax)
                         {
-                            modifiedservice += j.Execute(batchstring.ToString()).AffectedRows;
+                            modifiedservice += Execute(batchstring.ToString()).AffectedRows;
                             batchstring.Clear();
                             batchline = 0;
                         }
                     }
                 }
                 if (batchline > 0)
-                    modifiedservice += j.Execute(batchstring.ToString()).AffectedRows;
+                    modifiedservice += Execute(batchstring.ToString()).AffectedRows;
                 if (modifiedservice > 0)
                     Event(modifiedservice + " service(s) modified");
 
                 #endregion
             }
 
-            circuitdbresult = j.Query("select * from MECircuit where MC_NO = {0}", nodeID);
+            circuitdbresult = Query("select * from MECircuit where MC_NO = {0}", nodeID);
             circuitdb = new Dictionary<string, Row>();
 
             if (nodeManufacture == alu) foreach (Row vdbo in circuitdbresult) { circuitdb.Add(vdbo["MC_VCID"].ToString(), vdbo); }
@@ -1600,7 +1587,7 @@ MC_NO = {0} and MC_VCID = {1}
 
             string servpeerinsertsql = "insert into MEPeer(MP_ID, MP_MC, MP_MS, MP_VCID, MP_Protocol, MP_Type) values";
             string servpeerdeletesql = "delete from MEPeer where ";
-            Result servpeerdbresult = j.Query("select * from MEPeer, MECircuit, MESDP where MP_MC = MC_ID and MP_MS = MS_ID and MC_NO = {0}", nodeID);
+            Result servpeerdbresult = Query("select * from MEPeer, MECircuit, MESDP where MP_MC = MC_ID and MP_MS = MS_ID and MC_NO = {0}", nodeID);
             Dictionary<string, Row> servpeerdb = new Dictionary<string, Row>();
 
             List<string> sdpvcidduplicate = new List<string>();
@@ -1623,14 +1610,14 @@ MC_NO = {0} and MC_VCID = {1}
                 {
                     batchlist1.Add(sdpvcidduplicate[i]);
 
-                    if (batchlist1.Count >= 50)
+                    if (batchlist1.Count >= batchmax)
                     {
-                        sdpvcidduplicatedeleted += j.Execute("delete from MEPeer where MP_ID in ('" + string.Join("','", batchlist1.ToArray()) + "')").AffectedRows;
+                        sdpvcidduplicatedeleted += Execute("delete from MEPeer where MP_ID in ('" + string.Join("','", batchlist1.ToArray()) + "')").AffectedRows;
                         batchlist1.Clear();
                     }
                 }
                 if (batchlist1.Count > 0)
-                    sdpvcidduplicatedeleted += j.Execute("delete from MEPeer where MP_ID in ('" + string.Join("','", batchlist1.ToArray()) + "')").AffectedRows;
+                    sdpvcidduplicatedeleted += Execute("delete from MEPeer where MP_ID in ('" + string.Join("','", batchlist1.ToArray()) + "')").AffectedRows;
 
                 Event(sdpvcidduplicatedeleted + " entries deleted.");
             }
@@ -1649,11 +1636,10 @@ MC_NO = {0} and MC_VCID = {1}
                 {
                     #region alu
 
-                    if (Send("show service sdp-using")) { NodeSaveMainLoopRestart(); return true; }
+                    SendLine("show service sdp-using");
                     bool timeout;
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    List<string> lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     foreach (string line in lines)
                     {
@@ -1698,11 +1684,10 @@ MC_NO = {0} and MC_VCID = {1}
                     #region hwe
 
                     // peernya vsi
-                    if (Send("display vsi peer-info")) { NodeSaveMainLoopRestart(); return true; }
+                    SendLine("display vsi peer-info");
                     bool timeout;
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    List<string> lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     string cvsi = null;
                     foreach (string line in lines)
@@ -1846,18 +1831,18 @@ MC_NO = {0} and MC_VCID = {1}
                     string id = Database.ID();
 
                     //MP_ID, MP_MC, MP_MS, MP_VCID, MP_Protocol, MP_Type
-                    batchlist1.Add(j.Format("({0}, {1}, {2}, {3}, {4}, {5})",
+                    batchlist1.Add(Format("({0}, {1}, {2}, {3}, {4}, {5})",
                         id, s.CircuitID, s.SDPID, s.VCID, s.Protocol, s.Type
                         ));
 
-                    if (batchlist1.Count == 50)
+                    if (batchlist1.Count == batchmax)
                     {
-                        newservpeer += j.Execute(servpeerinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                        newservpeer += Execute(servpeerinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
                         batchlist1.Clear();
                     }
                 }
                 if (batchlist1.Count > 0)
-                    newservpeer += j.Execute(servpeerinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                    newservpeer += Execute(servpeerinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
                 if (newservpeer > 0)
                     Event(newservpeer + " service peer(s) added");
 
@@ -1871,24 +1856,24 @@ MC_NO = {0} and MC_VCID = {1}
                 {
                     List<string> v = new List<string>();
                     if (s.UpdateProtocol) v.Add("MP_Protocol = " + s.Protocol);
-                    if (s.UpdateType) v.Add(j.Format("MP_Type = {0}", s.Type));
+                    if (s.UpdateType) v.Add(Format("MP_Type = {0}", s.Type));
 
                     if (v.Count > 0)
                     {
-                        string q = j.Format("update MEPeer set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MP_ID = {0};", s.ID);
+                        string q = Format("update MEPeer set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MP_ID = {0};", s.ID);
                         batchline++;
                         batchstring.AppendLine(q);
 
-                        if (batchline == 50)
+                        if (batchline == batchmax)
                         {
-                            modifiedservpeer += j.Execute(batchstring.ToString()).AffectedRows;
+                            modifiedservpeer += Execute(batchstring.ToString()).AffectedRows;
                             batchstring.Clear();
                             batchline = 0;
                         }
                     }
                 }
                 if (batchline > 0)
-                    modifiedservpeer += j.Execute(batchstring.ToString()).AffectedRows;
+                    modifiedservpeer += Execute(batchstring.ToString()).AffectedRows;
                 if (modifiedservpeer > 0)
                     Event(modifiedservpeer + " service peer(s) modified");
 
@@ -1914,7 +1899,7 @@ MC_NO = {0} and MC_VCID = {1}
                     if (delete)
                     {
                         // DELETE
-                        batchlist1.Add(j.Format("MP_ID = {0}", pair.Value["MP_ID"].ToString()));
+                        batchlist1.Add(Format("MP_ID = {0}", pair.Value["MP_ID"].ToString()));
                         Event("Service Peer DELETE: " + pair.Key);
                     }
                 }
@@ -1926,7 +1911,7 @@ MC_NO = {0} and MC_VCID = {1}
                         {
                             if (batchstring.Length > 0)
                             {
-                                deletedservpeer += j.Execute(servpeerdeletesql + batchstring.ToString()).AffectedRows;
+                                deletedservpeer += Execute(servpeerdeletesql + batchstring.ToString()).AffectedRows;
                                 batchstring.Clear();
                             }
                             batchstring.Append(s);
@@ -1935,7 +1920,7 @@ MC_NO = {0} and MC_VCID = {1}
                         batchline++;
                     }
                     if (batchstring.Length > 0)
-                        deletedservpeer += j.Execute(servpeerdeletesql + batchstring.ToString()).AffectedRows;
+                        deletedservpeer += Execute(servpeerdeletesql + batchstring.ToString()).AffectedRows;
                 }
                 if (deletedservpeer > 0)
                     Event(deletedservpeer + " service peer(s) deleted");
@@ -1957,7 +1942,7 @@ MC_NO = {0} and MC_VCID = {1}
                 {
                     if (!peerlive.ContainsKey(pair.Key))
                     {
-                        batchlist1.Add(j.Format("MS_ID = {0}", pair.Value["MS_ID"].ToString()));
+                        batchlist1.Add(Format("MS_ID = {0}", pair.Value["MS_ID"].ToString()));
                         Event("Peer DELETE: " + pair.Key);
                     }
                 }
@@ -1969,7 +1954,7 @@ MC_NO = {0} and MC_VCID = {1}
                         {
                             if (batchstring.Length > 0)
                             {
-                                deletedpeer += j.Execute(peerdeletesql + batchstring.ToString()).AffectedRows;
+                                deletedpeer += Execute(peerdeletesql + batchstring.ToString()).AffectedRows;
                                 batchstring.Clear();
                             }
                             batchstring.Append(s);
@@ -1978,7 +1963,7 @@ MC_NO = {0} and MC_VCID = {1}
                         batchline++;
                     }
                     if (batchstring.Length > 0)
-                        deletedpeer += j.Execute(peerdeletesql + batchstring.ToString()).AffectedRows;
+                        deletedpeer += Execute(peerdeletesql + batchstring.ToString()).AffectedRows;
                 }
                 if (deletedpeer > 0)
                     Event(deletedpeer + " peer(s) deleted");
@@ -1994,7 +1979,7 @@ MC_NO = {0} and MC_VCID = {1}
             string interfacesdeletesql = "delete from MEInterface where ";
             string interfaceremoveref1sql = "update MEInterface set MI_MI = null where ";
             string interfaceremoveref2sql = "update PEInterface set PI_TO_MI = null where ";
-            Result interfacedbresult = j.Query("select * from MEInterface where MI_NO = {0}", nodeID);
+            Result interfacedbresult = Query("select * from MEInterface where MI_NO = {0}", nodeID);
             Dictionary<string, Row> interfacedb = new Dictionary<string, Row>();
             List<string> interfaceduplicate = new List<string>();
             foreach (Row row in interfacedbresult)
@@ -2016,14 +2001,14 @@ MC_NO = {0} and MC_VCID = {1}
                 {
                     batchlist1.Add(interfaceduplicate[i]);
 
-                    if (batchlist1.Count >= 50)
+                    if (batchlist1.Count >= batchmax)
                     {
-                        interfaceduplicatedeleted += j.Execute("delete from MEInterface where MI_ID in ('" + string.Join("','", batchlist1.ToArray()) + "')").AffectedRows;
+                        interfaceduplicatedeleted += Execute("delete from MEInterface where MI_ID in ('" + string.Join("','", batchlist1.ToArray()) + "')").AffectedRows;
                         batchlist1.Clear();
                     }
                 }
                 if (batchlist1.Count > 0)
-                    interfaceduplicatedeleted += j.Execute("delete from MEInterface where MI_ID in ('" + string.Join("','", batchlist1.ToArray()) + "')").AffectedRows;
+                    interfaceduplicatedeleted += Execute("delete from MEInterface where MI_ID in ('" + string.Join("','", batchlist1.ToArray()) + "')").AffectedRows;
 
                 Event(interfaceduplicatedeleted + " entries deleted.");
             }
@@ -2041,11 +2026,10 @@ MC_NO = {0} and MC_VCID = {1}
                 {
                     #region alu
 
-                    if (Send("show port description")) { NodeSaveMainLoopRestart(); return true; }
+                    SendLine("show port description");
                     bool timeout;
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    List<string> lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     string port = null;
                     StringBuilder description = new StringBuilder();
@@ -2110,10 +2094,9 @@ MC_NO = {0} and MC_VCID = {1}
                         }
                     }
 
-                    if (Send("show port")) { NodeSaveMainLoopRestart(); return true; }
-                    lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    SendLine("show port");
+                    lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     foreach (string line in lines)
                     {
@@ -2211,10 +2194,9 @@ MC_NO = {0} and MC_VCID = {1}
 
                     if (nodeVersion.StartsWith("TiMOS-B")) // sementara TiMOS-B ga bisa dapet deskripsi
                     {
-                        if (Send("show service sap-using")) { NodeSaveMainLoopRestart(); return true; }
-                        lines = NodeRead(out timeout);
-                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                        if (timeout) { NodeReadTimeOutExit(); return true; }
+                        SendLine("show service sap-using");
+                        lines = Read(out timeout);        
+                        if (timeout) { SaveExit(); return; }
 
                         foreach (string line in lines)
                         {
@@ -2282,10 +2264,9 @@ MC_NO = {0} and MC_VCID = {1}
                     }
                     else
                     {
-                        if (Send("show service sap-using description")) { NodeSaveMainLoopRestart(); return true; }
-                        lines = NodeRead(out timeout);
-                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                        if (timeout) { NodeReadTimeOutExit(); return true; }
+                        SendLine("show service sap-using description");
+                        lines = Read(out timeout);        
+                        if (timeout) { SaveExit(); return; }
 
                         port = null;
                         description = new StringBuilder();
@@ -2402,10 +2383,9 @@ MC_NO = {0} and MC_VCID = {1}
                             }
                         }
 
-                        if (Send("show service sap-using")) { NodeSaveMainLoopRestart(); return true; }
-                        lines = NodeRead(out timeout);
-                        if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                        if (timeout) { NodeReadTimeOutExit(); return true; }
+                        SendLine("show service sap-using");
+                        lines = Read(out timeout);        
+                        if (timeout) { SaveExit(); return; }
 
                         foreach (string line in lines)
                         {
@@ -2455,11 +2435,10 @@ MC_NO = {0} and MC_VCID = {1}
                 {
                     #region hwe
 
-                    if (Send("display interface description")) { NodeSaveMainLoopRestart(); return true; }
+                    SendLine("display interface description");
                     bool timeout;
-                    List<string> lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    List<string> lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     bool begin = false;
                     string port = null;
@@ -2549,10 +2528,9 @@ MC_NO = {0} and MC_VCID = {1}
                         port = null;
                     }
 
-                    if (Send("display interface brief")) { NodeSaveMainLoopRestart(); return true; }
-                    lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    SendLine("display interface brief");
+                    lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     begin = false;
                     string aggre = null;
@@ -2654,10 +2632,9 @@ MC_NO = {0} and MC_VCID = {1}
                     }
 
                     // vsi ke port (l2 binding vsi)
-                    if (Send("display vsi services all")) { NodeSaveMainLoopRestart(); return true; }
-                    lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    SendLine("display vsi services all");
+                    lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     //GigabitEthernet7/0/3.2999           "ZZZ ZZZ"                       up
                     //GigabitEthernet7/0/10.20            OAMN-MSAN-PWT02
@@ -2690,10 +2667,9 @@ MC_NO = {0} and MC_VCID = {1}
                     }
 
                     // qos
-                    if (Send("display cur int | in interface |qos-profile |user-queue")) { NodeSaveMainLoopRestart(); return true; }
-                    lines = NodeRead(out timeout);
-                    if (requestFailure) { requestFailure = false; MainLoopRestart(); return true; }
-                    if (timeout) { NodeReadTimeOutExit(); return true; }
+                    SendLine("display cur int | in interface |qos-profile |user-queue");
+                    lines = Read(out timeout);    
+                    if (timeout) { SaveExit(); return; }
 
                     string qosInterface = null;
                     foreach (string line in lines)
@@ -2930,17 +2906,17 @@ MC_NO = {0} and MC_VCID = {1}
                 {
                     string miid = Database.ID();
 
-                    batchlist1.Add(j.Format("({0}, {1}, {2}, {3}, {4}, " + (s.Aggr == -1 ? "null" : s.Aggr + "") + ", {5}, {6}, {7}, {8}, {9}, " + ((s.RateLimitInput == -1) ? "null" : (s.RateLimitInput + "")) + ", " + ((s.RateLimitOutput == -1) ? "null" : (s.RateLimitOutput + "")) + "," + ((s.Used == -1) ? "null" : (s.Used + "")) + ", {10})",
+                    batchlist1.Add(Format("({0}, {1}, {2}, {3}, {4}, " + (s.Aggr == -1 ? "null" : s.Aggr + "") + ", {5}, {6}, {7}, {8}, {9}, " + ((s.RateLimitInput == -1) ? "null" : (s.RateLimitInput + "")) + ", " + ((s.RateLimitOutput == -1) ? "null" : (s.RateLimitOutput + "")) + "," + ((s.Used == -1) ? "null" : (s.Used + "")) + ", {10})",
                         miid, nodeID, s.Name, s.Status, s.Protocol, s.Description, s.CircuitID, s.InterfaceType, s.IngressID, s.EgressID, s.Info));
 
-                    if (batchlist1.Count >= 50)
+                    if (batchlist1.Count >= batchmax)
                     {
-                        newinterface += j.Execute(interfacesinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                        newinterface += Execute(interfacesinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
                         batchlist1.Clear();
                     }
                 }
                 if (batchlist1.Count > 0)
-                    newinterface += j.Execute(interfacesinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                    newinterface += Execute(interfacesinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
                 if (newinterface > 0)
                     Event(newinterface + " interface(s) added");
 
@@ -2955,7 +2931,7 @@ MC_NO = {0} and MC_VCID = {1}
                     List<string> v = new List<string>();
                     if (s.UpdateDescription)
                     {
-                        v.Add(j.Format("MI_Description = {0}", s.Description));
+                        v.Add(Format("MI_Description = {0}", s.Description));
                         v.Add("MI_SE = null");
                         v.Add("MI_SE_Check = null");
                     }
@@ -2968,10 +2944,10 @@ MC_NO = {0} and MC_VCID = {1}
                         else
                             v.Add("MI_Aggregator = " + s.Aggr);
                     }
-                    if (s.UpdateCircuit) v.Add(j.Format("MI_MC = {0}", s.CircuitID));
-                    if (s.UpdateInterfaceType) v.Add(j.Format("MI_Type = {0}", s.InterfaceType));
-                    if (s.UpdateIngressID) v.Add(j.Format("MI_MQ_Input = {0}", s.IngressID));
-                    if (s.UpdateEgressID) v.Add(j.Format("MI_MQ_Output = {0}", s.EgressID));
+                    if (s.UpdateCircuit) v.Add(Format("MI_MC = {0}", s.CircuitID));
+                    if (s.UpdateInterfaceType) v.Add(Format("MI_Type = {0}", s.InterfaceType));
+                    if (s.UpdateIngressID) v.Add(Format("MI_MQ_Input = {0}", s.IngressID));
+                    if (s.UpdateEgressID) v.Add(Format("MI_MQ_Output = {0}", s.EgressID));
                     if (s.UpdateRateLimitInput)
                     {
                         if (s.RateLimitInput > -1) v.Add("MI_Rate_Input = " + s.RateLimitInput);
@@ -2987,25 +2963,25 @@ MC_NO = {0} and MC_VCID = {1}
                         if (s.Used > -1) v.Add("MI_Used = " + s.Used);
                         else v.Add("MI_Used = null");
                     }
-                    if (s.UpdateInfo) v.Add(j.Format("MI_Info = {0}", s.Info));
+                    if (s.UpdateInfo) v.Add(Format("MI_Info = {0}", s.Info));
 
                     if (v.Count > 0)
                     {
                         string ustr = string.Join(",", v.ToArray());
-                        string usql = j.Format("update MEInterface set " + StringHelper.EscapeFormat(ustr) + " where MI_ID = {0};", s.ID);
+                        string usql = Format("update MEInterface set " + StringHelper.EscapeFormat(ustr) + " where MI_ID = {0};", s.ID);
                         batchline++;
                         batchstring.AppendLine(usql);
 
-                        if (batchline == 50)
+                        if (batchline == batchmax)
                         {
-                            modifiedinterface += j.Execute(batchstring.ToString()).AffectedRows;
+                            modifiedinterface += Execute(batchstring.ToString()).AffectedRows;
                             batchstring.Clear();
                             batchline = 0;
                         }
                     }
                 }
                 if (batchline > 0)
-                    modifiedinterface += j.Execute(batchstring.ToString()).AffectedRows;
+                    modifiedinterface += Execute(batchstring.ToString()).AffectedRows;
                 if (modifiedinterface > 0)
                     Event(modifiedinterface + " interface(s) modified");
 
@@ -3025,9 +3001,9 @@ MC_NO = {0} and MC_VCID = {1}
                     {
                         // DELETE
                         string miid = pair.Value["MI_ID"].ToString();
-                        batchlist1.Add(j.Format("MI_ID = {0}", miid));
-                        batchlist3.Add(j.Format("MI_MI = {0}", miid));
-                        batchlist4.Add(j.Format("PI_TO_MI = {0}", miid));
+                        batchlist1.Add(Format("MI_ID = {0}", miid));
+                        batchlist3.Add(Format("MI_MI = {0}", miid));
+                        batchlist4.Add(Format("PI_TO_MI = {0}", miid));
                         Event("Interface DELETE: " + pair.Key);
                     }
                 }
@@ -3038,7 +3014,7 @@ MC_NO = {0} and MC_VCID = {1}
                     {
                         if (batchstring.Length > 0)
                         {
-                            removedrefinterface += j.Execute(interfaceremoveref2sql + batchstring.ToString()).AffectedRows;
+                            removedrefinterface += Execute(interfaceremoveref2sql + batchstring.ToString()).AffectedRows;
                             batchstring.Clear();
                         }
                         batchstring.Append(s);
@@ -3047,7 +3023,7 @@ MC_NO = {0} and MC_VCID = {1}
                     batchline++;
                 }
                 if (batchstring.Length > 0)
-                    removedrefinterface += j.Execute(interfaceremoveref2sql + batchstring.ToString()).AffectedRows;
+                    removedrefinterface += Execute(interfaceremoveref2sql + batchstring.ToString()).AffectedRows;
 
                 batchline = 0;
                 batchstring.Clear();
@@ -3058,7 +3034,7 @@ MC_NO = {0} and MC_VCID = {1}
                     {
                         if (batchstring.Length > 0)
                         {
-                            removedrefinterface += j.Execute(interfaceremoveref1sql + batchstring.ToString()).AffectedRows;
+                            removedrefinterface += Execute(interfaceremoveref1sql + batchstring.ToString()).AffectedRows;
                             batchstring.Clear();
                         }
                         batchstring.Append(s);
@@ -3067,7 +3043,7 @@ MC_NO = {0} and MC_VCID = {1}
                     batchline++;
                 }
                 if (batchstring.Length > 0)
-                    removedrefinterface += j.Execute(interfaceremoveref1sql + batchstring.ToString()).AffectedRows;
+                    removedrefinterface += Execute(interfaceremoveref1sql + batchstring.ToString()).AffectedRows;
 
                 batchline = 0;
                 batchstring.Clear();
@@ -3078,7 +3054,7 @@ MC_NO = {0} and MC_VCID = {1}
                     {
                         if (batchstring.Length > 0)
                         {
-                            deletedinterface += j.Execute(interfacesdeletesql + batchstring.ToString()).AffectedRows;
+                            deletedinterface += Execute(interfacesdeletesql + batchstring.ToString()).AffectedRows;
                             batchstring.Clear();
                         }
                         batchstring.Append(mii);
@@ -3087,7 +3063,7 @@ MC_NO = {0} and MC_VCID = {1}
                     batchline++;
                 }
                 if (batchstring.Length > 0)
-                    deletedinterface += j.Execute(interfacesdeletesql + batchstring.ToString()).AffectedRows;
+                    deletedinterface += Execute(interfacesdeletesql + batchstring.ToString()).AffectedRows;
 
                 if (deletedinterface > 0)
                     Event(deletedinterface + " interface(s) deleted");
@@ -3123,8 +3099,8 @@ MC_NO = {0} and MC_VCID = {1}
                     if (!circuitlive.ContainsKey(pair.Key))
                     {
                         string mcid = pair.Value["MC_ID"].ToString();
-                        batchlist1.Add(j.Format("MC_ID = {0}", mcid));
-                        batchlist2.Add(j.Format("MP_TO_MC = {0}", mcid));
+                        batchlist1.Add(Format("MC_ID = {0}", mcid));
+                        batchlist2.Add(Format("MP_TO_MC = {0}", mcid));
                         Event("Service DELETE: " + pair.Key);
                     }
                 }
@@ -3135,7 +3111,7 @@ MC_NO = {0} and MC_VCID = {1}
                     {
                         if (batchstring.Length > 0)
                         {
-                            removedrefservice += j.Execute(circuitremoverefsql + batchstring.ToString()).AffectedRows;
+                            removedrefservice += Execute(circuitremoverefsql + batchstring.ToString()).AffectedRows;
                             batchstring.Clear();
                         }
                         batchstring.Append(s);
@@ -3144,7 +3120,7 @@ MC_NO = {0} and MC_VCID = {1}
                     batchline++;
                 }
                 if (batchstring.Length > 0)
-                    removedrefservice += j.Execute(circuitremoverefsql + batchstring.ToString()).AffectedRows;
+                    removedrefservice += Execute(circuitremoverefsql + batchstring.ToString()).AffectedRows;
 
                 batchline = 0;
                 batchstring.Clear();
@@ -3155,7 +3131,7 @@ MC_NO = {0} and MC_VCID = {1}
                     {
                         if (batchstring.Length > 0)
                         {
-                            deletedservice += j.Execute(circuitdeletesql + batchstring.ToString()).AffectedRows;
+                            deletedservice += Execute(circuitdeletesql + batchstring.ToString()).AffectedRows;
                             batchstring.Clear();
                         }
                         batchstring.Append(s);
@@ -3164,7 +3140,7 @@ MC_NO = {0} and MC_VCID = {1}
                     batchline++;
                 }
                 if (batchstring.Length > 0)
-                    deletedservice += j.Execute(circuitdeletesql + batchstring.ToString()).AffectedRows;
+                    deletedservice += Execute(circuitdeletesql + batchstring.ToString()).AffectedRows;
 
                 if (deletedservice > 0)
                     Event(deletedservice + " service(s) deleted");
@@ -3186,7 +3162,7 @@ MC_NO = {0} and MC_VCID = {1}
                     {
                         if (!custlive.ContainsKey(pair.Key))
                         {
-                            batchlist1.Add(j.Format("MU_ID = {0}", pair.Value));
+                            batchlist1.Add(Format("MU_ID = {0}", pair.Value));
                             Event("Customer DELETE: " + pair.Key);
                         }
                     }
@@ -3198,7 +3174,7 @@ MC_NO = {0} and MC_VCID = {1}
                             {
                                 if (batchstring.Length > 0)
                                 {
-                                    deletedcustomer += j.Execute(custdeletesql + batchstring.ToString()).AffectedRows;
+                                    deletedcustomer += Execute(custdeletesql + batchstring.ToString()).AffectedRows;
                                     batchstring.Clear();
                                 }
                                 batchstring.Append(c);
@@ -3207,7 +3183,7 @@ MC_NO = {0} and MC_VCID = {1}
                             batchline++;
                         }
                         if (batchstring.Length > 0)
-                            deletedcustomer += j.Execute(custdeletesql + batchstring.ToString()).AffectedRows;
+                            deletedcustomer += Execute(custdeletesql + batchstring.ToString()).AffectedRows;
                     }
                     if (deletedcustomer > 0)
                         Event(deletedcustomer + " customer(s) deleted");
@@ -3217,9 +3193,7 @@ MC_NO = {0} and MC_VCID = {1}
 
             #endregion
 
-            NodeSaveExit();
-
-            return false;
+            SaveExit();
         }
     }
 }

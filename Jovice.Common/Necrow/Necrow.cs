@@ -256,10 +256,6 @@ namespace Jovice
                     {
                         TopologyFinder.Start();
                     }
-                    if (services.IsFlagSet(NecrowServices.Summary))
-                    {
-                        //Summary.Start();
-                    }
                 }
             }));
 

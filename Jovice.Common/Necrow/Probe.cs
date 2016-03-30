@@ -2683,11 +2683,17 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
                             if (lint.StartsWith("System Total"))
                             {
-                                mtotal = (int)Math.Round(dbytes / 1000);
+                                if (nodeVersion == "8.80") // already in Kbytes
+                                    mtotal = (int)Math.Round(dbytes);
+                                else
+                                    mtotal = (int)Math.Round(dbytes / 1000);
                             }
                             else if (lint.StartsWith("Total Memory"))
                             {
-                                mused = (int)Math.Round(dbytes / 1000);
+                                if (nodeVersion == "8.80") // already in Kbytes
+                                    mused = (int)Math.Round(dbytes);
+                                else
+                                    mused = (int)Math.Round(dbytes / 1000);
                             }
                         }
                     }

@@ -164,8 +164,16 @@ namespace Jovice
                         string port = null;
                         int channel = -1;
                         int subif = -1;
-
                         string rest = input.Substring(portIndexOf);
+
+                        // cek huawei weirdness to define TenGig, it used GE and ends with (10G).
+                        if (rest.EndsWith("(10G)"))
+                        {
+                            rest = rest.Remove(rest.Length - 4);
+                            interfaceType = "te";
+                        }
+
+                        // cek subinterface
                         string[] restbydot = rest.Split(new char[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
 
                         if (restbydot.Length == 2)
@@ -174,6 +182,7 @@ namespace Jovice
                             if (!int.TryParse(restbydot[1], out subif)) { subif = -1; }
                         }
 
+                        // cek channel
                         string[] restbycha = rest.Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
                         port = restbycha[0];
 
@@ -181,7 +190,6 @@ namespace Jovice
                         {
                             if (!int.TryParse(restbycha[1], out channel)) { channel = -1; }
                         }
-
 
                         // fix port
                         StringBuilder portfix = new StringBuilder();

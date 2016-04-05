@@ -1677,6 +1677,83 @@ namespace Jovice
                 List<string> lines = Read(out timeout);
                 if (timeout) { SaveExit(); return; }
 
+                bool begin = false;
+                string port = null;
+                string status = null;
+                string protocol = null;
+                StringBuilder description = new StringBuilder();
+
+                foreach (string line in lines)
+                {
+                    if (line.Length > 0)
+                    {
+                        if (begin)
+                        {
+                            if (line[0] != ' ' && line.Length >= 30)
+                            {
+                                if (port != null)
+                                {
+                                    if (!interfacelive.ContainsKey(port))
+                                    {
+                                        PEInterfaceToDatabase pid = new PEInterfaceToDatabase();
+                                        pid.Name = port;
+                                        pid.Description = description.ToString();
+                                        pid.Status = (status == "up" || status == "up(s)") ? 1 : 0;
+                                        pid.Protocol = (status == "up" || status == "up(s)") ? 1 : 0;
+                                        interfacelive.Add(port, pid);
+                                    }
+
+                                    description.Clear();
+                                    port = null;
+                                    status = null;
+                                    protocol = null;
+                                }
+
+                                // 8.x
+                                //Eth-Trunk1                    up      up       AGGR_PE2-D1-PBR-TRANSIT/ETH-TRUNK1_TO_T-D1-PBR/BE5_5x10G
+                                //GE1/0/7(10G)                  up      up       TRUNK_PE2-D1-PBR-TRANSIT_GE1/0/7_TO_T-D1-PBR_Te0/3/0/2_No4_10G_Eth-Trunk1
+                                //GE1/0/8(10G)                  down    down
+                                //012345678901234567890123456789012345678901234567
+                                //          1         2         3         4
+                                string inf = line.Substring(0, 30).Trim();
+                                status = line.Substring(30, 7).Trim();
+                                protocol = line.Substring(38, 7).Trim();                               
+
+                                if (inf.StartsWith("Eth-Trunk")) port = "Ag" + inf.Substring(9);
+                                else
+                                {
+                                    NodeInterface nif = NodeInterface.Parse(inf);
+                                    if (nif != null) port = nif.GetShort();
+                                }
+
+                                if (port != null)
+                                {
+                                    string descarea = null;
+                                    if (line.Length > 47) descarea = line.Substring(47).TrimStart();
+
+                                    description.Append(descarea);
+                                }
+                            }
+                            else if (port != null) description.Append(line.TrimStart());
+                        }
+                        else if (line.StartsWith("Interface")) begin = true;
+                    }
+                }
+                if (port != null)
+                {
+                    if (!interfacelive.ContainsKey(port))
+                    {
+                        //MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
+                        //mid.Name = port;
+                        //mid.Description = description.ToString();
+
+                        //interfacelive.Add(port, mid);
+                    }
+
+                    description = new StringBuilder();
+                    port = null;
+                }
+
                 #endregion
             }
 

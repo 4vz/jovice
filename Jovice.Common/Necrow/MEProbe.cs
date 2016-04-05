@@ -2015,9 +2015,9 @@ MC_NO = {0} and MC_VCID = {1}
 
                 Event(interfaceduplicatedeleted + " entries deleted.");
             }
-            Dictionary<string, MEInterfaceToDatabase> interfaceslive = new Dictionary<string, MEInterfaceToDatabase>();
-            List<MEInterfaceToDatabase> interfacesinsert = new List<MEInterfaceToDatabase>();
-            List<MEInterfaceToDatabase> interfacesupdate = new List<MEInterfaceToDatabase>();
+            Dictionary<string, MEInterfaceToDatabase> interfacelive = new Dictionary<string, MEInterfaceToDatabase>();
+            List<MEInterfaceToDatabase> interfaceinsert = new List<MEInterfaceToDatabase>();
+            List<MEInterfaceToDatabase> interfaceupdate = new List<MEInterfaceToDatabase>();
 
             if (feature == null || feature == "interface")
             {
@@ -2044,12 +2044,12 @@ MC_NO = {0} and MC_VCID = {1}
                             {
                                 if (port != null)
                                 {
-                                    if (!interfaceslive.ContainsKey(port))
+                                    if (!interfacelive.ContainsKey(port))
                                     {
                                         MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                         mid.Name = port;
                                         mid.Description = description.ToString();
-                                        interfaceslive.Add(port, mid);
+                                        interfacelive.Add(port, mid);
                                     }
                                 }
 
@@ -2072,13 +2072,13 @@ MC_NO = {0} and MC_VCID = {1}
                             {
                                 if (port != null)
                                 {
-                                    if (!interfaceslive.ContainsKey(port))
+                                    if (!interfacelive.ContainsKey(port))
                                     {
                                         MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                         mid.Name = port;
                                         mid.Description = description.ToString();
 
-                                        interfaceslive.Add(port, mid);
+                                        interfacelive.Add(port, mid);
                                     }
                                     port = null;
                                 }
@@ -2087,13 +2087,13 @@ MC_NO = {0} and MC_VCID = {1}
                     }
                     if (port != null)
                     {
-                        if (!interfaceslive.ContainsKey(port))
+                        if (!interfacelive.ContainsKey(port))
                         {
                             MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                             mid.Name = port;
                             mid.Description = description.ToString();
 
-                            interfaceslive.Add(port, mid);
+                            interfacelive.Add(port, mid);
                         }
                     }
 
@@ -2114,20 +2114,20 @@ MC_NO = {0} and MC_VCID = {1}
                                     string portex = "Ex" + linex[0].Trim();
                                     portex = portex.Replace('.', ':');
 
-                                    if (interfaceslive.ContainsKey(portex))
+                                    if (interfacelive.ContainsKey(portex))
                                     {
-                                        interfaceslive[portex].Status = (linex[1].Trim() == "Up") ? 1 : 0;
+                                        interfacelive[portex].Status = (linex[1].Trim() == "Up") ? 1 : 0;
 
                                         string il3 = linex[3].Trim();
                                         if (il3 == "Link") il3 = "Up";
 
-                                        interfaceslive[portex].Protocol = (il3 == "Up") ? 1 : 0;
+                                        interfacelive[portex].Protocol = (il3 == "Up") ? 1 : 0;
 
-                                        if (interfaceslive[portex].Status == 1 && interfaceslive[portex].Protocol == 1)
-                                            interfaceslive[portex].Used = 1; // 1 1
+                                        if (interfacelive[portex].Status == 1 && interfacelive[portex].Protocol == 1)
+                                            interfacelive[portex].Used = 1; // 1 1
                                         else
                                         {
-                                            string desc = interfaceslive[portex].Description.Trim();
+                                            string desc = interfacelive[portex].Description.Trim();
                                             if (desc != null && (
                                                         desc.ToUpper().StartsWith("RESERVED") ||
                                                         desc.ToUpper().StartsWith("TRUNK") ||
@@ -2135,29 +2135,29 @@ MC_NO = {0} and MC_VCID = {1}
                                                         desc.ToUpper().StartsWith("BOOK") ||
                                                         desc.ToUpper().StartsWith("TO")
                                                         ))
-                                                interfaceslive[portex].Used = 1;
+                                                interfacelive[portex].Used = 1;
                                             else
-                                                interfaceslive[portex].Used = 0;
+                                                interfacelive[portex].Used = 0;
                                         }
 
                                         if (linex.Length >= 7)
                                         {
                                             string agr = linex[6].Trim();
-                                            if (agr == "-") interfaceslive[portex].Aggr = -1;
+                                            if (agr == "-") interfacelive[portex].Aggr = -1;
                                             else
                                             {
                                                 int agri;
                                                 if (!int.TryParse(agr, out agri)) agri = -1;
-                                                interfaceslive[portex].Aggr = agri;
+                                                interfacelive[portex].Aggr = agri;
                                             }
 
                                             if (agr != "-")
                                             {
-                                                if (!interfaceslive.ContainsKey("Ag" + agr))
+                                                if (!interfacelive.ContainsKey("Ag" + agr))
                                                 {
                                                     MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                                     mid.Name = "Ag" + agr;
-                                                    interfaceslive.Add("Ag" + agr, mid);
+                                                    interfacelive.Add("Ag" + agr, mid);
                                                 }
                                             }
 
@@ -2173,7 +2173,7 @@ MC_NO = {0} and MC_VCID = {1}
 
                                                 if (ity != null)
                                                 {
-                                                    interfaceslive[portex].InterfaceType = ity;
+                                                    interfacelive[portex].InterfaceType = ity;
                                                 }
 
 
@@ -2185,7 +2185,7 @@ MC_NO = {0} and MC_VCID = {1}
                                                     string endinfo = line.Substring(63).Trim();
 
                                                     if (endinfo.Length > 0)
-                                                        interfaceslive[portex].Info = endinfo;
+                                                        interfacelive[portex].Info = endinfo;
                                                 }
                                             }
                                         }
@@ -2225,11 +2225,11 @@ MC_NO = {0} and MC_VCID = {1}
 
                                     if (name.StartsWith("Ag"))
                                     {
-                                        if (!interfaceslive.ContainsKey(name))
+                                        if (!interfacelive.ContainsKey(name))
                                         {
                                             MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                             mid.Name = name;
-                                            interfaceslive.Add(name, mid);
+                                            interfacelive.Add(name, mid);
                                         }
                                     }
 
@@ -2245,7 +2245,7 @@ MC_NO = {0} and MC_VCID = {1}
                                     if (qosdb.ContainsKey("1_" + linex[4])) egressID = qosdb["1_" + linex[4]]["MQ_ID"].ToString();
 
 
-                                    if (!interfaceslive.ContainsKey(thisport))
+                                    if (!interfacelive.ContainsKey(thisport))
                                     {
                                         MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                         mid.Name = thisport;
@@ -2255,10 +2255,10 @@ MC_NO = {0} and MC_VCID = {1}
                                         mid.IngressID = ingressID;
                                         mid.EgressID = egressID;
 
-                                        interfaceslive.Add(thisport, mid);
+                                        interfacelive.Add(thisport, mid);
 
-                                        if (interfaceslive.ContainsKey(name))
-                                            interfaceslive[name].Used = 1;
+                                        if (interfacelive.ContainsKey(name))
+                                            interfacelive[name].Used = 1;
                                     }
                                 }
                             }
@@ -2284,7 +2284,7 @@ MC_NO = {0} and MC_VCID = {1}
                                 {
                                     if (port != null)
                                     {
-                                        if (!interfaceslive.ContainsKey(port))
+                                        if (!interfacelive.ContainsKey(port))
                                         {
                                             string desc = description.ToString();
                                             if (desc == "(Not Specified)") desc = null;
@@ -2296,7 +2296,7 @@ MC_NO = {0} and MC_VCID = {1}
                                             mid.Protocol = (protocol == "Up") ? 1 : 0;
                                             mid.CircuitID = circuitID;
 
-                                            interfaceslive.Add(port, mid);
+                                            interfacelive.Add(port, mid);
                                         }
                                     }
 
@@ -2313,11 +2313,11 @@ MC_NO = {0} and MC_VCID = {1}
 
                                     if (name.StartsWith("Ag"))
                                     {
-                                        if (!interfaceslive.ContainsKey(name))
+                                        if (!interfacelive.ContainsKey(name))
                                         {
                                             MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                             mid.Name = name;
-                                            interfaceslive.Add(name, mid);
+                                            interfacelive.Add(name, mid);
                                         }
                                     }
 
@@ -2349,7 +2349,7 @@ MC_NO = {0} and MC_VCID = {1}
                                 {
                                     if (port != null)
                                     {
-                                        if (!interfaceslive.ContainsKey(port))
+                                        if (!interfacelive.ContainsKey(port))
                                         {
                                             string desc = description.ToString();
                                             if (desc == "(Not Specified)") desc = null;
@@ -2361,7 +2361,7 @@ MC_NO = {0} and MC_VCID = {1}
                                             mid.Protocol = (protocol == "Up") ? 1 : 0;
                                             mid.CircuitID = circuitID;
 
-                                            interfaceslive.Add(port, mid);
+                                            interfacelive.Add(port, mid);
                                         }
                                         port = null;
                                     }
@@ -2370,7 +2370,7 @@ MC_NO = {0} and MC_VCID = {1}
                         }
                         if (port != null)
                         {
-                            if (!interfaceslive.ContainsKey(port))
+                            if (!interfacelive.ContainsKey(port))
                             {
                                 string desc = description.ToString();
                                 if (desc == "(Not Specified)") desc = null;
@@ -2382,7 +2382,7 @@ MC_NO = {0} and MC_VCID = {1}
                                 mid.Protocol = (protocol == "Up") ? 1 : 0;
                                 mid.CircuitID = circuitID;
 
-                                interfaceslive.Add(port, mid);
+                                interfacelive.Add(port, mid);
                             }
                         }
 
@@ -2416,15 +2416,15 @@ MC_NO = {0} and MC_VCID = {1}
                                     string egressID = null;
                                     if (qosdb.ContainsKey("1_" + linex[4])) egressID = qosdb["1_" + linex[4]]["MQ_ID"].ToString();
 
-                                    if (interfaceslive.ContainsKey(thisport))
+                                    if (interfacelive.ContainsKey(thisport))
                                     {
                                         if (ingressID != null)
-                                            interfaceslive[thisport].IngressID = ingressID;
+                                            interfacelive[thisport].IngressID = ingressID;
                                         if (egressID != null)
-                                            interfaceslive[thisport].EgressID = egressID;
+                                            interfacelive[thisport].EgressID = egressID;
 
-                                        if (interfaceslive.ContainsKey(name))
-                                            interfaceslive[name].Used = 1;
+                                        if (interfacelive.ContainsKey(name))
+                                            interfacelive[name].Used = 1;
                                     }
                                 }
 
@@ -2457,16 +2457,16 @@ MC_NO = {0} and MC_VCID = {1}
                                 {
                                     if (port != null)
                                     {
-                                        if (!interfaceslive.ContainsKey(port))
+                                        if (!interfacelive.ContainsKey(port))
                                         {
                                             MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                             mid.Name = port;
                                             mid.Description = description.ToString();
 
-                                            interfaceslive.Add(port, mid);
+                                            interfacelive.Add(port, mid);
                                         }
 
-                                        description = new StringBuilder();
+                                        description.Clear();
                                         port = null;
                                     }
 
@@ -2484,21 +2484,10 @@ MC_NO = {0} and MC_VCID = {1}
                                     //Aux0/0/1                      down    down     HUAWEI, Aux0/0/1 Interface
 
                                     // 8.x
-                                    //Eth-Trunk1                    up      up       AGGR_PE2-D1-PBR-TRANSIT/ETH-TRUNK1_TO_T-D1-PBR/BE5_5x10G
+                                    //Eth-Trunk1????                up      up       AGGR_PE2-D1-PBR-TRANSIT/ETH-TRUNK1_TO_T-D1-PBR/BE5_5x10G
                                     //012345678901234567890123456789012345678901234567
                                     //          1         2         3         4
-
-
-                                    string descarea = null;
-                                    if (nodeVersion == "5.90")
-                                        descarea = line.Substring(30).TrimStart();
-                                    else
-                                        descarea = line.Substring(47).TrimStart();
-
-                                    //descarea = descarea.TrimEnd(newline);
-
                                     string inf = line.Substring(0, 30).Trim();
-
                                     if (inf.StartsWith("Eth-Trunk")) port = "Ag" + inf.Substring(9);
                                     else
                                     {
@@ -2508,6 +2497,12 @@ MC_NO = {0} and MC_VCID = {1}
 
                                     if (port != null)
                                     {
+                                        string descarea = null;
+                                        if (nodeVersion == "5.90")
+                                            descarea = line.Substring(30).TrimStart();
+                                        else
+                                            descarea = line.Substring(47).TrimStart();
+
                                         description.Append(descarea);
                                     }
                                 }
@@ -2518,13 +2513,13 @@ MC_NO = {0} and MC_VCID = {1}
                     }
                     if (port != null)
                     {
-                        if (!interfaceslive.ContainsKey(port))
+                        if (!interfacelive.ContainsKey(port))
                         {
                             MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                             mid.Name = port;
                             mid.Description = description.ToString();
 
-                            interfaceslive.Add(port, mid);
+                            interfacelive.Add(port, mid);
                         }
 
                         description = new StringBuilder();
@@ -2567,15 +2562,15 @@ MC_NO = {0} and MC_VCID = {1}
 
                                 if (poe != null)
                                 {
-                                    if (interfaceslive.ContainsKey(poe))
+                                    if (interfacelive.ContainsKey(poe))
                                     {
-                                        interfaceslive[poe].Status = (pstat == "Up") ? 1 : 0;
-                                        interfaceslive[poe].Protocol = (pprot == "Up") ? 1 : 0;
+                                        interfacelive[poe].Status = (pstat == "Up") ? 1 : 0;
+                                        interfacelive[poe].Protocol = (pprot == "Up") ? 1 : 0;
 
                                         if (issif == false)
                                         {
                                             if (pot == "Gi" && line.IndexOf("(10G)") > -1) pot = "Te";
-                                            interfaceslive[poe].InterfaceType = pot;
+                                            interfacelive[poe].InterfaceType = pot;
                                         }
                                     }
                                 }
@@ -2597,11 +2592,11 @@ MC_NO = {0} and MC_VCID = {1}
                                     if (nif != null)
                                     {
                                         string portnif = nif.GetShort();
-                                        if (interfaceslive.ContainsKey(portnif))
+                                        if (interfacelive.ContainsKey(portnif))
                                         {
                                             int agr;
                                             if (!int.TryParse(aggre, out agr)) agr = -1;
-                                            interfaceslive[portnif].Aggr = agr;
+                                            interfacelive[portnif].Aggr = agr;
                                         }
                                     }
                                 }
@@ -2626,10 +2621,10 @@ MC_NO = {0} and MC_VCID = {1}
 
                         if (circuitdb.ContainsKey(vcidname))
                         {
-                            if (interfaceslive.ContainsKey(inf))
+                            if (interfacelive.ContainsKey(inf))
                             {
                                 string cid = circuitdb[vcidname]["MC_ID"].ToString();
-                                interfaceslive[inf].CircuitID = cid;
+                                interfacelive[inf].CircuitID = cid;
                             }
                         }
                     }
@@ -2657,12 +2652,12 @@ MC_NO = {0} and MC_VCID = {1}
                                 string portnif = nif.GetShort();
                                 string vsi = line.Substring(36, 31).Trim();
 
-                                if (interfaceslive.ContainsKey(portnif))
+                                if (interfacelive.ContainsKey(portnif))
                                 {
                                     if (circuitdb.ContainsKey(vsi))
                                     {
                                         string cid = circuitdb[vsi]["MC_ID"].ToString();
-                                        interfaceslive[portnif].CircuitID = cid;
+                                        interfacelive[portnif].CircuitID = cid;
                                     }
                                 }
                             }
@@ -2691,7 +2686,7 @@ MC_NO = {0} and MC_VCID = {1}
                                 if (nif != null) nifs = nif.GetShort();
                             }
 
-                            if (nifs != null && interfaceslive.ContainsKey(nifs))
+                            if (nifs != null && interfacelive.ContainsKey(nifs))
                                 qosInterface = nifs;
                         }
                         else if (qosInterface != null)
@@ -2709,8 +2704,8 @@ MC_NO = {0} and MC_VCID = {1}
                                     {
                                         string qosID = qosdb["0_" + qosName]["MQ_ID"].ToString();
 
-                                        if (qosDir == "inbound") interfaceslive[qosInterface].IngressID = qosID;
-                                        else if (qosDir == "outbound") interfaceslive[qosInterface].EgressID = qosID;
+                                        if (qosDir == "inbound") interfacelive[qosInterface].IngressID = qosID;
+                                        else if (qosDir == "outbound") interfacelive[qosInterface].EgressID = qosID;
                                     }
                                 }
                             }
@@ -2726,8 +2721,8 @@ MC_NO = {0} and MC_VCID = {1}
                                     int size;
                                     if (!int.TryParse(rSize, out size)) size = -1;
 
-                                    if (rDir == "inbound") interfaceslive[qosInterface].RateLimitInput = size;
-                                    else if (rDir == "outbound") interfaceslive[qosInterface].RateLimitOutput = size;
+                                    if (rDir == "inbound") interfacelive[qosInterface].RateLimitInput = size;
+                                    else if (rDir == "outbound") interfacelive[qosInterface].RateLimitOutput = size;
                                 }
                             }
                         }
@@ -2741,12 +2736,12 @@ MC_NO = {0} and MC_VCID = {1}
 
                 #region Check
 
-                foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfaceslive)
+                foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
                 {
                     if (!interfacedb.ContainsKey(pair.Key))
                     {
                         // ADD
-                        interfacesinsert.Add(pair.Value);
+                        interfaceinsert.Add(pair.Value);
                         Event("Interface ADD: " + pair.Key);
                     }
                     else
@@ -2890,7 +2885,7 @@ MC_NO = {0} and MC_VCID = {1}
                         if (update)
                         {
                             Event("Interface MODIFY: " + pair.Key + " " + updateinfo.ToString());
-                            interfacesupdate.Add(u);
+                            interfaceupdate.Add(u);
                         }
                     }
                 }
@@ -2905,7 +2900,7 @@ MC_NO = {0} and MC_VCID = {1}
                 batchstring.Clear();
 
                 int newinterface = 0;
-                foreach (MEInterfaceToDatabase s in interfacesinsert)
+                foreach (MEInterfaceToDatabase s in interfaceinsert)
                 {
                     string miid = Database.ID();
 
@@ -2929,7 +2924,7 @@ MC_NO = {0} and MC_VCID = {1}
                 batchstring.Clear();
 
                 int modifiedinterface = 0;
-                foreach (MEInterfaceToDatabase s in interfacesupdate)
+                foreach (MEInterfaceToDatabase s in interfaceupdate)
                 {
                     List<string> v = new List<string>();
                     if (s.UpdateDescription)
@@ -3000,7 +2995,7 @@ MC_NO = {0} and MC_VCID = {1}
 
                 foreach (KeyValuePair<string, Row> pair in interfacedb)
                 {
-                    if (!interfaceslive.ContainsKey(pair.Key))
+                    if (!interfacelive.ContainsKey(pair.Key))
                     {
                         // DELETE
                         string miid = pair.Value["MI_ID"].ToString();

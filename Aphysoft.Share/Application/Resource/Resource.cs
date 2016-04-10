@@ -69,7 +69,7 @@ namespace Aphysoft.Share
             Resource.Register("script_jquery", "jquery", ResourceType.JavaScript, Resources.Scripts.ResourceManager, "jquery").NoMinify();
             Resource.Group(CommonResourceScript, "script_jquery", 1);
 
-            Resource.Register("script_modernizr", ResourceType.JavaScript, Resources.Scripts.ResourceManager, "modernizr");
+            Resource.Register("script_modernizr", ResourceType.JavaScript, Resources.Scripts.ResourceManager, "modernizr").NoMinify();
             Resource.Group(CommonResourceScript, "script_modernizr", 2);
 
             Resource.Register("script_libs", ResourceType.JavaScript, Resources.Scripts.ResourceManager, "libs");

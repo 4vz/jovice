@@ -4,16 +4,16 @@ if (create) {
         height: 80, top: ei * 80,
     });
     r.nodeName = ui.text(b)({
-        font: ["head", 18], color: "accent", top: 18, left: 20, nobreak: true, text: "PE-D2-CKA"
+        font: ["head", 18], color: "accent", top: 18, left: 20, noBreak: true, text: "PE-D2-CKA"
     });
     r.nodeName.resize = function () {
 
     };
     r.interfaceName = ui.text(b)({
-        font: ["head", 17], color: 25, top: 19, left: 210, nobreak: true, text: "Gi1/2/3.4567"
+        font: ["head", 17], color: 25, top: 19, left: 210, noBreak: true, text: "Gi1/2/3.4567"
     });
     r.description = ui.text(b)({
-        font: ["body", 17], color: 25, top: 45, leftRight: [20, 20], nobreak: true, truncate: true, text: "Deskripsi disini"
+        font: ["body", 17], color: 25, top: 45, leftRight: [20, 20], noBreak: true, truncate: true, text: "Deskripsi disini"
     });
 
     r.statusIcon = ui.icon(b, "arrow2")({

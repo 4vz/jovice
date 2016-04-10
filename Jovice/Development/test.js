@@ -3,12 +3,11 @@
     ui("test", {
         init: function (p) {
             
-            var color = "#ff0055";
+            var v = jovice.vselect(p);
 
-            color = $$.color(color, 0.5);
-
-            debug(color);
-
+            v.add("powercut", "DISCONNECTED");
+            v.add("search", "SEARCH");
+            v.add("refresh", "REFRESH");
 
             p.done();
         },

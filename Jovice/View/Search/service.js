@@ -42,8 +42,8 @@
 
             r.topologyRef = [];
                         
-            r.serviceID = ui.text(b)({ font: ["body", 22], color: "accent", top: 20, left: 20, weight: "600", nobreak: true, clickToSelect: true, cursor: "copy" });            
-            r.customerName = ui.text(b)({ font: ["body", 22], color: 25, weight: "600", nobreak: true, truncate: true, attach: [r.serviceID, "right2", 20, 20] });
+            r.serviceID = ui.text(b)({ font: ["body", 22], color: "accent", top: 20, left: 20, weight: "600", noBreak: true, clickToSelect: true, cursor: "copy" });            
+            r.customerName = ui.text(b)({ font: ["body", 22], color: 25, weight: "600", noBreak: true, truncate: true, attach: [r.serviceID, "right2", 20, 20] });
             r.serviceType = ui.text(b)({ font: ["body", 19], color: 25, top: 59, left: 20, clickToSelect: true, cursor: "copy" });
 
             r.topology = ui.box(b)({ top: 100, height: 70, leftRight: 20 });
@@ -60,20 +60,20 @@
 
                 ref.speedArea = ui.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: false });
                 ui.icon(ref.speedArea, jovice.icon("speed"))({ top: 2, left: 0, color: 45, size: [20, 20] });
-                ref.speedText = ui.text(ref.speedArea)({ font: ["body", 17], color: 0, top: 0, left: 28, nobreak: true, clickToSelect: true, cursor: "copy" });
+                ref.speedText = ui.text(ref.speedArea)({ font: ["body", 17], color: 0, top: 0, left: 28, noBreak: true, clickToSelect: true, cursor: "copy" });
 
                 ref.vrfArea = ui.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
                 ui.icon(ref.vrfArea, jovice.icon("cloud"))({ top: 2, left: 0, color: 45, size: [20, 20] });
-                ref.vrfText = ui.text(ref.vrfArea)({ font: ["body", 17], color: 0, top: 0, left: 28, nobreak: true, clickToSelect: true, cursor: "copy" });
+                ref.vrfText = ui.text(ref.vrfArea)({ font: ["body", 17], color: 0, top: 0, left: 28, noBreak: true, clickToSelect: true, cursor: "copy" });
 
                 ref.ipArea = ui.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
                 ui.icon(ref.ipArea, jovice.icon("IP"))({ top: 2, left: 0, color: 45, size: [20, 20] });
-                ref.ipText = ui.text(ref.ipArea)({ font: ["body", 17], color: 0, top: 0, left: 28, nobreak: true, clickToSelect: true, cursor: "copy" });
+                ref.ipText = ui.text(ref.ipArea)({ font: ["body", 17], color: 0, top: 0, left: 28, noBreak: true, clickToSelect: true, cursor: "copy" });
 
                 ref.vcidArea = ui.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
                 ui.text(ref.vcidArea)({ top: 2, left: 4, font: ["body", 8], text: "VC", color: 25 });
                 ui.text(ref.vcidArea)({ top: 10, left: 5, font: ["body", 8], text: "ID", color: 25 });
-                ref.vcidText = ui.text(ref.vcidArea)({ font: ["body", 17], color: 0, top: 0, left: 28, nobreak: true, clickToSelect: true, cursor: "copy" });
+                ref.vcidText = ui.text(ref.vcidArea)({ font: ["body", 17], color: 0, top: 0, left: 28, noBreak: true, clickToSelect: true, cursor: "copy" });
      
                 ref.topoArea = ui.box(ref.area)({ leftRight: [0, 0], top: 29, height: 42, hide: true, scroll: { vertical: false, horizontal: true, type: "button" } });
                 ref.topoCanvas = ui.raphael(ref.topoArea)({ left: 0, top: 0, height: 42 });
@@ -267,11 +267,11 @@
                 var pi = getSection(topology, "PI");
                 if (pi != null) {
                     var piNO = ui.text(ref.topoContents)({
-                        text: pi[1], top: 8, font: 18, left: left, nobreak: true, clickToSelect: true, cursor: "copy"
+                        text: pi[1], top: 8, font: 18, left: left, noBreak: true, clickToSelect: true, cursor: "copy"
                     });
                     left = piNO.leftWidth();
                     var piName = ui.text(ref.topoContents)({
-                        text: pi[8], top: 11, font: 14, left: left + 10, color: pi[10] ? 0 : 55, nobreak: true, clickToSelect: true, cursor: "copy"
+                        text: pi[8], top: 11, font: 14, left: left + 10, color: pi[10] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
                     });
                     left = piName.leftWidth();
 
@@ -332,11 +332,11 @@
                     //1: no
                     //2: pi
                     var xpiNO = ui.text(ref.topoContents)({
-                        text: xpi[1], top: 8, left: left, font: 18, color: 75, nobreak: true, clickToSelect: true, cursor: "copy"
+                        text: xpi[1], top: 8, left: left, font: 18, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
                     });
                     left = xpiNO.leftWidth();
                     var xpiName = ui.text(ref.topoContents)({
-                        text: xpi[2], top: 11, font: 14, left: left + 10, color: 75, nobreak: true, clickToSelect: true, cursor: "copy"
+                        text: xpi[2], top: 11, font: 14, left: left + 10, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
                     });
                     left = xpiName.leftWidth();
 
@@ -357,19 +357,19 @@
                         }
                     });
                     var netxt = ui.text(nebox)({
-                        text: "MISSING", left: 5, top: 1, font: 15, nobreak: true
+                        text: "MISSING", left: 5, top: 1, font: 15, noBreak: true
                     });
                 }
 
                 var mid = getSection(topology, "MID");
                 if (mid != null) {
                     var midNO = ui.text(ref.topoContents)({
-                        text: mid[1], left: left, top: 8, font: 18, color: 0, nobreak: true, clickToSelect: true, cursor: "copy"
+                        text: mid[1], left: left, top: 8, font: 18, color: 0, noBreak: true, clickToSelect: true, cursor: "copy"
                     });
                     left = midNO.leftWidth();
 
                     var midName = ui.text(ref.topoContents)({
-                        text: jovice.formatInterfaceName(mid[5], mid[2]), top: 11, font: 14, left: left + 10, color: mid[7] ? 0 : 55, nobreak: true, clickToSelect: true, cursor: "copy"
+                        text: jovice.formatInterfaceName(mid[5], mid[2]), top: 11, font: 14, left: left + 10, color: mid[7] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
                     });
                     left = midName.leftWidth();
 
@@ -380,7 +380,7 @@
                 var mil = getSection(topology, "MIL");
                 if (mil != null) {
                     var endlLocal = ui.text(ref.topoContents)({
-                        text: "LAST MILE", left: left, top: 11, font: 14, nobreak: true
+                        text: "LAST MILE", left: left, top: 11, font: 14, noBreak: true
                     });
                     left = endlLocal.leftWidth();
 
@@ -393,7 +393,7 @@
                         left += 40;
 
                         var endlname = ui.text(ref.topoContents)({
-                            text: mil[1], top: 8, font: 18, left: left + 10, nobreak: true, clickToSelect: true, cursor: "copy"
+                            text: mil[1], top: 8, font: 18, left: left + 10, noBreak: true, clickToSelect: true, cursor: "copy"
                         });
                         left = endlname.leftWidth();
                     }
@@ -416,7 +416,7 @@
                         left += 15;
 
                         var mi2Name = ui.text(ref.topoContents)({
-                            text: jovice.formatInterfaceName(mi2[5], mi2[2]), top: 11, font: 14, left: left + 10, color: mi2[7] ? 0 : 55, nobreak: true, clickToSelect: true, cursor: "copy"
+                            text: jovice.formatInterfaceName(mi2[5], mi2[2]), top: 11, font: 14, left: left + 10, color: mi2[7] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
                         });
                         left = mi2Name.leftWidth();
 
@@ -433,7 +433,7 @@
                     }
 
                     var mi2NO = ui.text(ref.topoContents)({
-                        text: mi2[1], top: 8, font: 18, left: left, nobreak: true, clickToSelect: true, cursor: "copy"
+                        text: mi2[1], top: 8, font: 18, left: left, noBreak: true, clickToSelect: true, cursor: "copy"
                     });
                     left = mi2NO.leftWidth();
 
@@ -455,12 +455,12 @@
                     if (pivar == "EX") {
                         // 20 21 22
                         var xmi2Name = ui.text(ref.topoContents)({
-                            text: jovice.formatInterfaceName(pi[20], pi[22]), top: 11, font: 14, left: left + 10, color: 75, nobreak: true, clickToSelect: true, cursor: "copy"
+                            text: jovice.formatInterfaceName(pi[20], pi[22]), top: 11, font: 14, left: left + 10, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
                         });
                         var xle = left;
                         left = xmi2Name.leftWidth();
                         var xmi2NO = ui.text(ref.topoContents)({
-                            text: pi[21], top: 8, font: 18, left: left + 10, color: 75, nobreak: true, clickToSelect: true, cursor: "copy"
+                            text: pi[21], top: 8, font: 18, left: left + 10, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
                         });
                         pi2Link.attr({ fill: ui.color(75) });
                         left = xmi2NO.leftWidth();
@@ -476,14 +476,14 @@
                             }
                         });
                         var netxt = ui.text(nebox)({
-                            text: "MISSING", left: 5, top: 1, font: 15, nobreak: true
+                            text: "MISSING", left: 5, top: 1, font: 15, noBreak: true
                         });
                     }
                     else {
                         var pmn = pi[20];
                         var piEnd = ui.text(ref.topoContents)({
                             text: pmn == null ? "LAST MILE" : pmn, top: pmn == null ? 11 : 8,
-                            font: pmn == null ? 14 : 18, left: left + 10, nobreak: true
+                            font: pmn == null ? 14 : 18, left: left + 10, noBreak: true
                         });
                         left = piEnd.leftWidth();
 
@@ -497,7 +497,7 @@
                     var xmi2 = getSection(topology, "XMI2");
                     if (xmi2 != null) {
                         var xpiName = ui.text(ref.topoContents)({
-                            text: "PE", top: 8, font: 18, left: left + 10, color: 75, nobreak: true
+                            text: "PE", top: 8, font: 18, left: left + 10, color: 75, noBreak: true
                         });
                         left = xpiName.leftWidth();
 
@@ -505,7 +505,7 @@
                         left += 40;
 
                         var xmi2Name = ui.text(ref.topoContents)({
-                            text: "METRO END 2", top: 8, font: 18, left: left + 10, color: 75, nobreak: true
+                            text: "METRO END 2", top: 8, font: 18, left: left + 10, color: 75, noBreak: true
                         });
                         left = xmi2Name.leftWidth();
 
@@ -520,7 +520,7 @@
                             }
                         });
                         var netxt = ui.text(nebox)({
-                            text: "MISSING", left: 5, top: 1, font: 15, nobreak: true
+                            text: "MISSING", left: 5, top: 1, font: 15, noBreak: true
                         });
                         setWidth(left);
                     }
@@ -544,7 +544,7 @@
                     });
 
                     var cloudsid = ui.text(linkbox)({
-                        left: 10, top: 6, font: 14, text: "CLOUD METRO VCID " + vcid, color: 100, nobreak: true
+                        left: 10, top: 6, font: 14, text: "CLOUD METRO VCID " + vcid, color: 100, noBreak: true
                     });
 
                     linkbox.width(cloudsid.width() + 20);
@@ -585,7 +585,7 @@
                     }
 
                     var mi1NO = ui.text(ref.topoContents)({
-                        text: mc[1], top: 8, font: 18, left: left + 10, nobreak: true, clickToSelect: true, cursor: "copy"
+                        text: mc[1], top: 8, font: 18, left: left + 10, noBreak: true, clickToSelect: true, cursor: "copy"
                     });
                     left = mi1NO.leftWidth();
 
@@ -599,7 +599,7 @@
                     left += 40;
 
                     var xmi1NO = ui.text(ref.topoContents)({
-                        text: xmc[1], top: 8, font: 18, left: left + 10, color: 75, nobreak: true, clickToSelect: true, cursor: "copy"
+                        text: xmc[1], top: 8, font: 18, left: left + 10, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
                     });
                     left = xmi1NO.leftWidth();
 
@@ -607,7 +607,7 @@
                     left += 40;
 
                     var end1Local = ui.text(ref.topoContents)({
-                        text: "LAST MILE", top: 11, font: 14, left: left + 10, color: 75, nobreak: true
+                        text: "LAST MILE", top: 11, font: 14, left: left + 10, color: 75, noBreak: true
                     });
 
                     left = end1Local.leftWidth();
@@ -623,7 +623,7 @@
                         }
                     });
                     var netxt = ui.text(nebox)({
-                        text: "MISSING", left: 5, top: 1, font: 15, nobreak: true
+                        text: "MISSING", left: 5, top: 1, font: 15, noBreak: true
                     });
 
                     setWidth(left);
@@ -644,7 +644,7 @@
                     else ntype = mi2[2];
 
                     var mi1Name = ui.text(ref.topoContents)({
-                        text: jovice.formatInterfaceName(mi1[1], ntype), top: 11, font: 14, left: left + 10, color: mi1[3] ? 0 : 55, nobreak: true, clickToSelect: true, cursor: "copy"
+                        text: jovice.formatInterfaceName(mi1[1], ntype), top: 11, font: 14, left: left + 10, color: mi1[3] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
                     });
                     left = mi1Name.leftWidth();
 
@@ -657,7 +657,7 @@
                     else end1name = end1var;
 
                     var end1 = ui.text(ref.topoContents)({
-                        text: end1name, top: end1var == null ? 11 : 8, font: end1var == null ? 14 : 18, left: left + 10, nobreak: true, clickToSelect: end1var == null ? false : true, cursor: end1var == null ? "" : "copy"
+                        text: end1name, top: end1var == null ? 11 : 8, font: end1var == null ? 14 : 18, left: left + 10, noBreak: true, clickToSelect: end1var == null ? false : true, cursor: end1var == null ? "" : "copy"
                     });
                     left = end1.leftWidth();
 
@@ -677,7 +677,7 @@
                     left += 40;
 
                     var end1Local = ui.text(ref.topoContents)({
-                        text: "LAST MILE", top: 11, font: 14, left: left + 10, nobreak: true
+                        text: "LAST MILE", top: 11, font: 14, left: left + 10, noBreak: true
                     });
 
                     left = end1Local.leftWidth();
@@ -693,7 +693,7 @@
                         });
 
                         var cloudsid = ui.text(linkbox)({
-                            left: 10, top: 6, font: 14, text: "SID " + rightcloudsid, color: 100, nobreak: true
+                            left: 10, top: 6, font: 14, text: "SID " + rightcloudsid, color: 100, noBreak: true
                         });
 
                         linkbox.width(cloudsid.width() + 20);
@@ -712,7 +712,7 @@
 
         //-- EXPAND
         r.expanded = false;
-        r.expand = function (create) {
+        r.expand = function (create, callback) {
             r.expanded = true;
 
             if (create) {
@@ -721,10 +721,11 @@
                     r.content.scrollLeft(c, { duration: 166 });
                 };
 
-
-                r.content = ui.box(b)({ top: 230, height: 250, leftRight: [20, 20], scroll: { type: "button", horizontal: true, vertical: false, horizontalStep: [371, 1091, 5000] } });
+                r.content = ui.box(b)({ top: 230, height: 250, leftRight: [20, 20], scroll: { type: "button", horizontal: true, vertical: false, 
+                    horizontalStep: [371, 1091, 2261, 3431, 4671, 6000] } });
                 r.overviewtitle = ui.text(b)({ top: 185, left: 20, font: 28, text: "Overview", color: 30, cursor: "default", click: function () { scrollTo(0); } });
                 r.analysistitle = ui.text(b)({ top: 185, left: 145, font: 28, text: "Analysis", color: 70, cursor: "pointer", click: function () { scrollTo(1091); } });
+                r.sharetitle = ui.text(b)({ top: 185, left: 255, font: 28, text: "Share", color: 70, cursor: "pointer", click: function () { scrollTo(4671); } });
 
                 r.contents = [];
 
@@ -733,35 +734,38 @@
                 r.contents[0] = cr;
 
                 ui.text(cr)({ position: [0, 15], text: "Last Checked", weight: "600", color: 25, font: 18, tooltipAreaHeight: 55, tooltip: "This date represents the oldest updated network element in the current topology." });
-                r.lastchecked = ui.text(cr)({ position: [0, 45], color: 0, nobreak: true });
+                r.lastchecked = ui.text(cr)({ position: [0, 45], color: 0, noBreak: true });
                 ui.text(cr)({ position: [0, 90], text: "Local Access", weight: "600", color: 25, font: 18 });
                 r.localaccess = ui.text(cr)({ position: [0, 120], color: 0, width: 380, lineHeight: 25 });
 
                 cr = ui.box(r.content)({ topBottom: [10, 0], left: 410, width: 690, borderTop: { size: 1, color: 80 } });
                 r.contents[1] = cr;
 
-                r.rateinputtitle = ui.text(cr)({ position: [0, 15], text: "Overall Input Rate", weight: "600", color: 25, font: 18, nobreak: true });
+                r.rateinputtitle = ui.text(cr)({ position: [0, 15], text: "Overall Input Rate", weight: "600", color: 25, font: 18, noBreak: true });
                 r.rateinputicond = ui.icon(cr, jovice.icon("upload"))({ size: [30, 30], position: [-2, 48], color: 40, });
-                r.rateinput = ui.text(cr)({ position: [35, 45], font: 25, nobreak: true });
+                r.rateinput = ui.text(cr)({ position: [35, 45], font: 25, noBreak: true });
 
-                r.rateoutputtitle = ui.text(cr)({ position: [0, 110], text: "Overall Output Rate", weight: "600", color: 25, font: 18, nobreak: true });
+                r.rateoutputtitle = ui.text(cr)({ position: [0, 110], text: "Overall Output Rate", weight: "600", color: 25, font: 18, noBreak: true });
                 r.rateoutputicond = ui.icon(cr, jovice.icon("download"))({ size: [30, 30], position: [-2, 143], color: 40, });
-                r.rateoutput = ui.text(cr)({ position: [35, 140], font: 25, nobreak: true });
+                r.rateoutput = ui.text(cr)({ position: [35, 140], font: 25, noBreak: true });
 
-                r.perateinputtitle = ui.text(cr)({ position: [240, 15], text: "PE Router Input Rate", weight: "600", color: 25, font: 18, nobreak: true });
+                r.perateinputtitle = ui.text(cr)({ position: [240, 15], text: "PE Router Input Rate", weight: "600", color: 25, font: 18, noBreak: true });
                 r.perateinputicon = ui.icon(cr, jovice.icon("boxin"))({ size: [30, 30], position: [238, 48], color: 40, });
-                r.perateinput = ui.text(cr)({ position: [275, 45], font: 25, nobreak: true });
+                r.perateinput = ui.text(cr)({ position: [275, 45], font: 25, noBreak: true });
 
-                r.perateoutputtitle = ui.text(cr)({ position: [240, 110], text: "PE Router Output Rate", weight: "600", color: 25, font: 18, nobreak: true });
+                r.perateoutputtitle = ui.text(cr)({ position: [240, 110], text: "PE Router Output Rate", weight: "600", color: 25, font: 18, noBreak: true });
                 r.perateoutputicon = ui.icon(cr, jovice.icon("boxout"))({ size: [30, 30], position: [238, 143], color: 40, });
-                r.perateoutput = ui.text(cr)({ position: [275, 140], font: 25, nobreak: true });
+                r.perateoutput = ui.text(cr)({ position: [275, 140], font: 25, noBreak: true });
 
-                r.pepackagetitle = ui.text(cr)({ position: [480, 15], text: "Service Package", weight: "600", color: 25, font: 18, nobreak: true });
+                r.pepackagetitle = ui.text(cr)({ position: [480, 15], text: "Service Package", weight: "600", color: 25, font: 18, noBreak: true });
                 r.pepackageicon = ui.icon(cr, jovice.icon("boxsel"))({ size: [30, 30], position: [478, 48], color: 40, });
-                r.pepackage = ui.text(cr)({ position: [515, 45], font: 25, nobreak: true });
+                r.pepackage = ui.text(cr)({ position: [515, 45], font: 25, noBreak: true });
 
-                r.pingarea = ui.box(r.content)({ top: 10, left: 1200, width: 1030, height: 240 });
-                r.pinghistory = ui.box(r.pingarea)({ width: 300, height: 240, borderRight: { size: 1, color: 80 }, scroll: true });
+                // ping
+                r.pingarea = ui.box(r.content)({ top: 10, left: 1200, width: 1070, height: 240 });
+                r.contents[2] = r.pingarea;
+
+                r.pinghistory = ui.box(r.pingarea)({ width: 230, height: 240, borderRight: { size: 1, color: 80 }, scroll: true });
 
                 r.pingtitlelabel = ui.text(r.pingarea)({ font: 15, text: "TITLE", position: [353, 9] });
                 r.pingtitleinput = ui.textinput(r.pingarea)({ font: 23, weight: "300", position: [400, 2], width: 500, color: 20 });
@@ -769,7 +773,7 @@
                 r.pingtargetlabel = ui.text(r.pingarea)({ font: 15, text: "END 2", position: [346, 56] });
                 r.pingtargettext = ui.text(r.pingarea)({ font: 23, position: [400, 49], spanColor: [[30], [70]] });
                 r.pingtargetwarn = ui.icon(r.pingarea, jovice.icon("warning"))({ size: 30, attach: [r.pingtargettext, "right", 15, 2], color: 0 });
-                
+
                 r.pingvrflabel = ui.text(r.pingarea)({ font: 15, text: "VRF", position: [362, 103] });
                 r.pingvrftext = ui.text(r.pingarea)({ font: 23, position: [400, 96] });
                 r.pingvrfwarn = ui.icon(r.pingarea, jovice.icon("warning"))({ size: 30, attach: [r.pingvrftext, "right", 15, 2], color: 0 });
@@ -782,23 +786,34 @@
                 r.pingdestinput = ui.textinput(r.pingarea)({ font: 23, weight: "300", position: [400, 143], width: 180, maxlength: 15, color: 20 });
 
                 r.pingexec = ui.button(r.pingarea)({ text: "PING", left: 400, bottom: 10, width: 200 });
-
-                
                 r.pingexec.click(function () {
                     debug("executing...");
                     r.pingexec.disable();
                     $$.post(50005, { pi: ref.piid, ip: r.pingdestinput.value(), t: r.pingtitleinput.value() });
                 });
-                
+
+                // routing
+                r.routearea = ui.box(r.content)({ top: 10, left: 2370, width: 1070, height: 100, color: "red" });
+                r.contents[3] = r.routearea;
+
+                // routing
+                r.showconfigarea = ui.box(r.content)({ top: 10, left: 3540, width: 1070, height: 100, color: "blue" });
+                r.contents[4] = r.showconfigarea;
+
+                // share
+                r.sharearea = ui.box(r.content)({ top: 10, left: 4710, width: 1070, height: 100, color: "green" });
+                r.contents[5] = r.sharearea;
+
+
+
                 r.analysisoffline = ui.box(b)({ top: 240, left: 130, hide: true, width: 700, height: 300 });
-                ui.text(r.analysisoffline)({ top: 0, text: "We are sorry, the analysis services are currently not available. We will back soon.", font: 17 });
-                ui.text(r.analysisoffline)({ top: 50, color: 70, text: "You don't have to refresh the page, this section will automatically displayed after the service is restored.", font: 17 });
+                ui.icon(r.analysisoffline, "powercut")({ size: 80, color: 50, position: [10, 10] });
                 
                 var analysismenuexpand = false;
                 var analysismenuexpandid = null;
-                
-                r.analysismenu = ui.box(b)({
-                    top: 240, height: 120, left: 65, width: 40, z: 6000, hide: true, over: function (e) {
+
+                r.analysismenu = ui.box(r.content)({
+                    top: 10, width: 40, height: 120, hide: true, z: 6000, over: function (e) {
                         if (analysismenuexpand == false && this.x() == 0) {
                             analysismenuexpand = true;
                             analysismenuexpandid = setTimeout(function () {
@@ -815,31 +830,52 @@
 
                 var analysisbutton = {
                     normal: function () {
-                        if (!this.data("selected")) this.color(97, 0.9);
-                        else this.color(40, 0.9);
+                        this.color(97, 0.9);
                     },
                     over: function () {
-                        if (!this.data("selected")) this.color(90, 0.9);
+                        this.color(90, 0.9);
                     }
                 };
 
-                r.pingcon = [];
-                r.ping = ui.box(r.analysismenu)({ top: 0, height: 40, dataTag: "selected", width: "100%", color: [40, 0.9], cursor: "default", button: analysisbutton });
-                r.pingcon[0] = ui.icon(r.ping, jovice.icon("excl"))({ size: 15, color: 100, position: [7, 12] });
-                r.pingcon[1] = ui.icon(r.ping, jovice.icon("excl"))({ size: 15, color: 100, position: [13, 12] });
-                r.pingcon[2] = ui.icon(r.ping, jovice.icon("excl"))({ size: 15, color: 100, position: [19, 12] });
-                r.pingcon[3] = ui.text(r.ping)({ position: [50, 4], text: "Ping Test", color: 100, font: 20, nobreak: true });
+                var boxes = [];
+                boxes[0] = ui.box(r.analysismenu)({
+                    width: "100%", height: 40, color: [40, 0.9], top: 0
+                });
+                boxes[1] = ui.box(r.analysismenu)({
+                    width: "100%", top: 0, color: [97, 0.9], height: 0, cursor: "pointer"
+                });
+                boxes[2] = ui.box(r.analysismenu)({
+                    width: "100%", bottom: 0, color: [97, 0.9], height: 80, cursor: "pointer"
+                });
 
-                r.maccon = [];
-                r.mac = ui.box(r.analysismenu)({ top: 40, height: 40, width: "100%", color: [97, 0.9], cursor: "pointer", button: analysisbutton });                
-                r.maccon[0] = ui.icon(r.mac, jovice.icon("route"))({ size: 25, color: 25, position: [7, 8] });
-                r.maccon[1] = ui.text(r.mac)({ position: [50, 4], text: "Display Routing", color: 30, font: 20, nobreak: true });
+                $.each(boxes, function (bi, bv) {
+                    var ping = ui.box(bv)({ top: 0, height: 40, width: "100%" });
+                    if (bi != 0) {
+                        ping.button(analysisbutton);
+                        ping.click(function () { scrollTo(1091); });
+                    }
+                    ui.icon(ping, jovice.icon("excl"))({ size: 15, color: bi == 0 ? 100 : 25, position: [7, 12] });
+                    ui.icon(ping, jovice.icon("excl"))({ size: 15, color: bi == 0 ? 100 : 25, position: [13, 12] });
+                    ui.icon(ping, jovice.icon("excl"))({ size: 15, color: bi == 0 ? 100 : 25, position: [19, 12] });
+                    ui.text(ping)({ position: [50, 4], noSelect: true, text: "Ping Test", color: bi == 0 ? 100 : 30, font: 20, noBreak: true });
 
-                r.runcon = [];
-                r.run = ui.box(r.analysismenu)({ top: 80, height: 40, width: "100%", color: [97, 0.9], cursor: "pointer", button: analysisbutton });
-                r.runcon[0] = ui.icon(r.run, jovice.icon("gear"))({ size: 30, color: 30, position: [5, 5] });
-                r.runcon[1] = ui.text(r.run)({ position: [50, 4], text: "Display Running Configuration", color: 30, font: 20, nobreak: true });
-                                
+                    var mac = ui.box(bv)({ top: 40, height: 40, width: "100%" });
+                    if (bi != 0) {
+                        mac.button(analysisbutton);
+                        mac.click(function () { scrollTo(2261); });
+                    }
+                    ui.icon(mac, jovice.icon("route"))({ size: 25, color: bi == 0 ? 100 : 25, position: [7, 8] });
+                    ui.text(mac)({ position: [50, 4], noSelect: true, text: "Display Routing", color: bi == 0 ? 100 : 30, font: 20, noBreak: true });
+
+                    var run = ui.box(bv)({ top: 80, height: 40, width: "100%" });
+                    if (bi != 0) {
+                        run.button(analysisbutton);
+                        run.click(function () { scrollTo(3431); });
+                    }
+                    ui.icon(run, jovice.icon("gear"))({ size: 30, color: bi == 0 ? 100 : 30, position: [5, 5] });
+                    ui.text(run)({ position: [50, 4], noSelect: true, text: "Display Running Configuration", color: bi == 0 ? 100 : 30, font: 20, noBreak: true });
+                });
+
                 function scrollColor(current, prevuntil, main, until, nextmain) {
 
                     if (main <= current && current < until) return 0;
@@ -858,32 +894,81 @@
                     }
 
                 }
-                 
+
                 r.content.scroll(function (o) {
                     var l = o.left;
+
+                    //debug(l);
+
                     var c1 = scrollColor(l, 0, 0, 691, 1091);
                     r.overviewtitle({ cursor: c1 == 0 ? "default" : "pointer", color: (c1 / 100 * 40) + 30 });
-                    var c2 = scrollColor(l, 691, 1091, 1500, 1591);
+                    var c2 = scrollColor(l, 691, 1091, 3431, 4671);
                     r.analysistitle({ cursor: c2 == 0 ? "default" : "pointer", color: (c2 / 100 * 40) + 30 });
-                               
-                    if (1091 <= l) {
-                        r.analysismenu({ show: true, opacity: 1 });
-                        r.analysismenu.$.css({ x: 0 });
-                        if (!f.isNecrowOnline()) r.analysisoffline.show();   
-                        r.analysisoffline.$.css({ x: 0, opacity: 1 });
+                    var c3 = scrollColor(l, 3431, 4671, 6000, 7000);
+                    r.sharetitle({ curspr: c3 == 0 ? "default" : "pointer", color: (c3 / 100 * 40) + 30 });
+
+                    if (4601 <= l) {
+                        r.analysismenu({ show: true });
+                        r.analysismenu.$.css({ left: 4646, opacity: 1 });
+
+                        boxes[0].top(80);
+                        boxes[0].$.scrollTop(80);
+                        boxes[1].height(80);
+                        boxes[2].height(0);
+                        boxes[2].$.scrollTop(120);
+
+                    }
+                    else if (1091 <= l) {
+                        r.analysismenu({ show: true });
+                        r.analysismenu.$.css({ left: l + 44, opacity: 1 });
+
+                        var b0t, b0s, b1h, b2h, b2s;
+
+                        if (3431 <= l) {
+                            b0t = 80; b0s = 80; b1h = 80; b2h = 0; b2s = 120;
+                        }
+                        else if (2931 <= l) {
+                            var sel = Math.round(((l - 2931) / 500) * 40);
+                            b0t = 40 + sel; b0s = b0t; b1h = 40 + sel; b2h = 40 - sel; b2s = 80 + sel;
+                        }
+                        else if (2261 <= l) {
+                            b0t = 40; b0s = 40; b1h = 40; b2h = 40; b2s = 80;
+                        }
+                        else if (1761 <= l) {
+                            var sel = Math.round(((l - 1761) / 500) * 40);
+                            b0t = sel; b0s = b0t; b1h = sel; b2h = 80 - sel; b2s = 40 + sel;
+                        }
+                        else {
+                            b0t = 0; b0s = 0; b1h = 0; b2h = 80; b2s = 40;
+                        }
+
+                        boxes[0].top(b0t);
+                        boxes[0].$.scrollTop(b0s);
+                        boxes[1].height(b1h);
+                        boxes[2].height(b2h);
+                        boxes[2].$.scrollTop(b2s);
+
+                        //if (!f.isNecrowOnline()) r.analysisoffline.show();
+                        //r.analysisoffline.$.css({ x: 0, opacity: 1 });
                     }
                     else if (691 <= l) {
                         r.analysismenu({ show: true });
-                        r.analysismenu.$.css({ x: 1091 - l, opacity: (l - 691) / (1091 - 691) });
-                        if (!f.isNecrowOnline()) r.analysisoffline.show();   
-                        r.analysisoffline.$.css({ x: 1091 - l, opacity: (l - 691) / (1091 - 691) });
+                        r.analysismenu.$.css({ opacity: (l - 691) / (1091 - 691), left: 1135 });
+
+                        //if (!f.isNecrowOnline()) r.analysisoffline.show();
+                        //r.analysisoffline.$.css({ x: 1091 - l, opacity: (l - 691) / (1091 - 691) });
                     }
                     else {
                         r.analysismenu.hide();
                         r.analysisoffline.hide();
                     }
                 });
+
+                $$($$.deltaperfdom(), function () {
+                    callback();
+                });
             }
+            else callback();
 
             var ref = r.topologyRef[r.index];
             
@@ -945,10 +1030,10 @@
             var pnew = ui.box(r.pinghistory)({ width: "100%", height: 85, top: 0, cursor: "default", button: pbutton });
             pfocusp = pnew;
             ui.text(pnew)({ text: "New Ping Test", top: 12, weight: "300", color: 25, font: 23, left: 20 });
-            $$.for(0, 0, function (i) {
+            $$.for(0, 3, function (i) {
                 var par = ui.box(r.pinghistory)({ width: "100%", height: 85, top: i * 85 + 85, cursor: "pointer", button: pbutton });
                 var tp = ui.text(par)({ text: "Ping Test 5", top: 12, weight: "300", color: 25, font: 23, leftRight: [20, 20], truncate: true });
-                var td = ui.text(par)({ text: "22/12/2015 8:16:32", position: [20, 45], nobreak: true });
+                var td = ui.text(par)({ text: "22/12/2015 8:16:32", position: [20, 45], noBreak: true });
             });
 
             var warned = false;
@@ -995,10 +1080,12 @@
             else
                 r.pingexec.enable();
 
-            if (!f.isNecrowOnline()) r.pingarea({ opacity: 0 });
-            else r.pingarea({ opacity: 1 });
+            //if (!f.isNecrowOnline()) r.pingarea({ opacity: 0 });
+            //else r.pingarea({ opacity: 1 });
 
             r.content.scrollLeft(0);
+
+            //callback();
         };
 
         //-- CHANGE TOPOLOGY
@@ -1087,16 +1174,11 @@
         }
 
         //-- STREAM
-        f.stream("service", "service_" + streamSeID, function (data) {
+        f.stream("service_" + streamSeID, function (data) {
             debug("incoming data: " + data);
         });
 
-        f.stream("necrow", function (data) {
-            //debug("necrow " + data);
-        });
 
-
-        
         r.necrow = function (type, data) {
             
             if (type == "necrow") {
@@ -1245,7 +1327,7 @@
                 });
 
                 r.pingbox = ui.box(r.content)({ height: 42, cursor: "pointer" });
-                r.pingtext = ui.text(r.pingbox)({ font: ["body", 17], text: "ANALYSIS", weight: "600", top: 10, color: 15, nobreak: true });
+                r.pingtext = ui.text(r.pingbox)({ font: ["body", 17], text: "ANALYSIS", weight: "600", top: 10, color: 15, noBreak: true });
                 r.pingbox.width(r.pingtext.width());
                 r.pingbox.button({
                     normal: function () { r.pingtext.color(15); }, over: function () { r.pingtext.color(55); },
@@ -1269,25 +1351,25 @@
                 // -- overviewS
 
                 r.tlu = ui.text(r.overcon)({ position: [20, 20], text: "Last Checked", weight: "600", color: 25, font: 18 });
-                r.tlut = ui.text(r.overcon)({ position: [20, 50], color: 0, nobreak: true });
+                r.tlut = ui.text(r.overcon)({ position: [20, 50], color: 0, noBreak: true });
 
                 r.e1sa = ui.text(r.overcon)({ position: [20, 95], text: "Local Access", weight: "600", color: 25, font: 18 });
                 r.e1sat = ui.text(r.overcon)({ position: [20, 125], spanColor: [[75]], width: 380, text: "SLIPI, WITEL JAKARTA BARAT, DIVISI REGIONAL 2", color: 0 });
 
                 r.ira = ui.text(r.overcon)({ position: [430, 20], weight: "600", color: 25, font: 18 });
-                r.irat = ui.text(r.overcon)({ position: [430, 50], font: 25, color: 40, nobreak: true, spanColor: [[75]] });
+                r.irat = ui.text(r.overcon)({ position: [430, 50], font: 25, color: 40, noBreak: true, spanColor: [[75]] });
                 r.irl = ui.text(r.overcon)({ position: [430, 90], font: 15, color: 60 });
 
                 r.ora = ui.text(r.overcon)({ position: [680, 20], weight: "600", color: 25, font: 18 });
-                r.orat = ui.text(r.overcon)({ position: [680, 50], font: 25, color: 40, nobreak: true, spanColor: [[75]] });
+                r.orat = ui.text(r.overcon)({ position: [680, 50], font: 25, color: 40, noBreak: true, spanColor: [[75]] });
                 r.orl = ui.text(r.overcon)({ position: [680, 90], font: 15, color: 60 });
 
                 r.peir = ui.text(r.overcon)({ position: [430, 135], text: "PE Input Rate", weight: "600", color: 25, font: 18 });
-                r.peirt = ui.text(r.overcon)({ position: [430, 165], color: 0, nobreak: true, spanColor: [[75]] });
+                r.peirt = ui.text(r.overcon)({ position: [430, 165], color: 0, noBreak: true, spanColor: [[75]] });
                 r.peor = ui.text(r.overcon)({ position: [680, 135], text: "PE Output Rate", weight: "600", color: 25, font: 18 });
-                r.peort = ui.text(r.overcon)({ position: [680, 165], color: 0, nobreak: true, spanColor: [[75]] });
+                r.peort = ui.text(r.overcon)({ position: [680, 165], color: 0, noBreak: true, spanColor: [[75]] });
                 r.peox = ui.text(r.overcon)({ position: [430, 210], text: "Service Package", weight: "600", color: 25, font: 18 });
-                r.peoxt = ui.text(r.overcon)({ position: [430, 240], color: 0, nobreak: true });
+                r.peoxt = ui.text(r.overcon)({ position: [430, 240], color: 0, noBreak: true });
 
                 r.pigraphbox = ui.box(r.pingcon)({ position: [0, 20], width: 625, height: 210 });
                 r.pigraph = ui.raphael(r.pigraphbox)({ size: [625, 210] });

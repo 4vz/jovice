@@ -14,6 +14,8 @@
         var b_navigation;
         var b_top;
 
+        var offline;
+
         jovice = function () { };
         jovice.init = function (p) {
             page = p;
@@ -22,13 +24,21 @@
             var top = ui.topContainer();
             ui.marginTop(50 + 50);
 
-            //b_top = ui.box(top)({ left: 0, color: 98, width: "100%", height: 35 });
             b_navigation = ui.box(top)({ color: 90, cursor: "text" });
-            
-            //var topClock = ui.text(b_top)({ font: ["head", 14], color: 45, top: 8, right: 30 });
 
+            offline = ui.box(top)({ width: "100%", height: 50, color: 25, hide: true });
+            var ioffline = ui.icon(offline, "powercut")({ size: 30, color: 90, position: [10, 10] });
+            var toffline = ui.text(offline)({ text: "STREAM UNAVAILABLE", font: ["body", 14], color: 90, position: [50, 14], weight: "600" });
+
+            //b_top = ui.box(top)({ left: 0, color: 98, width: "100%", height: 35 });
+            //var topClock = ui.text(top)({ font: ["head", 14], color: 45, top: 8, right: 30 });
             share.timer(function () {
                 //topClock.text(share.date("{HH}:{mm}"));
+            });
+
+            $$.stream(function (type, data) {
+                if (type == "online") offline.hide();
+                else if (type == "offline") offline.show();
             });
 
             (function (/*search*/) {
@@ -260,7 +270,7 @@
 
             return name;
         };
-
+        
         $$.resize(function (r) {
             if (r.width == null) return;
             if (onmain) {
@@ -286,7 +296,6 @@
         });
 
         window.jovice = jovice;
-
         window.onerror = function (e) {
             
         };

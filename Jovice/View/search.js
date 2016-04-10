@@ -10,6 +10,7 @@
 
     var searchJQXHR;
     var search, columns, results, sortList, sortBy, sortType, page, npage, mpage, count, type, subType, searchid = null, filters;
+    var registerstream = {};
       
     function setQuery(q) {
         q = q.replaceAll(' ', '+');
@@ -108,9 +109,7 @@
                     setResults(null);
                     setFilters(null);
                 }
-
                 setRelated(d.xq, d.xe, d.oq, d.oe, didYouMean, didntUnderstand);
-
             });
         }
     };
@@ -316,7 +315,7 @@
                     }
                 }
             });
-            var title1 = ui.text(titleBox1)({ font: ["head", 17], color: "accent", left: 20, bottom: 18, nobreak: true });
+            var title1 = ui.text(titleBox1)({ font: ["head", 17], color: "accent", left: 20, bottom: 18, noBreak: true });
             var focusBorder = ui.box(titlearea)({ height: 3, width: 176, color: "accent", bottom: 0, left: 20, hide: true });
             var titleBox2 = ui.box(titlearea)({
                 topBottom: [0, 0], left: 0, width: 200, hide: true, cursor: "default", button: {
@@ -351,7 +350,7 @@
                     }
                 }
             });
-            var title2 = ui.text(titleBox2)({ font: ["head", 17], color: 35, left: 20, bottom: 18, nobreak: true });
+            var title2 = ui.text(titleBox2)({ font: ["head", 17], color: 35, left: 20, bottom: 18, noBreak: true });
                 
             var filter = ui.box(p)({ width: "100%", top: 60, height: 45, color: 85, hide: true});                
             var searchresult = ui.box(p)({ width: "100%", topBottom: [60, 0], scroll: { horizontal: false }, hide: true });
@@ -518,7 +517,7 @@
             var lastPage = -1;
             var referenceSpecial = ["resize", "expand", "shrink"];
             
-            var registerstream = {};
+            registerstream = {};
             
             searchresult.resize(function (d) {
                 $.each(resultEntriesReferences, function (entryIndex, entry) {
@@ -539,36 +538,14 @@
             };
 
             uipage.stream(function (type, data) {
-
                 if (registerstream[type] != null) {
-
                     var rs = registerstream[type];
-
                     $.each(rs.callbacks, function (rsi, rsv) {
                         if ($.isFunction(rsv)) {
                             rsv(data);
                         }
                     });
-
                 }
-
-
-
-                /*
-                if (type == "online") {
-                    $$.get(50001, function (d) {
-                        necrowonline = (d.data == "online") ? true : false;
-                        necrowonlinechanged();
-                    });
-                }
-                else if (type == "offline") {
-                    necrowonline = false;
-                    necrowonlinechanged();
-                }
-                else if (type == "necrow") {
-                    necrowonline = (data == "online") ? true : false;
-                    necrowonlinechanged();
-                }*/
             });
                 
             if ($$.isStreamAvailable()) {
@@ -851,10 +828,9 @@
 
                     if (!entersearch) {
                     }
-
                     
                     $.each(registerstream, function (rsi, rsv) {
-                        $$.removeRegister(rsv.register);
+                        $$.removeRegister(rsi);
                         delete registerstream[rsi];
                     });
 
@@ -891,10 +867,7 @@
                             }
                         }
 
-                        
-
                         var f = {};
-
                         f.create = create;
                         f.column = function(name) {
                             if (columns.length > 0) {
@@ -940,6 +913,7 @@
                                     if (ei == focusBox) {
                                     }
                                     else {
+                                        
                                         busy = true;
                                         b.disableButton();
                                         b.cursor(null);
@@ -952,87 +926,74 @@
                                             
                                         if (tr.expand != null) {
                                             if (tr.expandFirstTime == null) tr.expandFirstTime = true;
-
-                                            tr.expand(tr.expandFirstTime);
-                                            tr.expandFirstTime = false;
-                                            b.height(expandHeight, { queue: false, duration: duration, complete: function () { b.color(99); searchresult.scrollCalculate(); busy = false; } });
-                                        }
-
-                                        if (focusBox == -1) {
-                                            for (var i = ei + 1; i < resultBoxes.length; i++) {
-                                                resultBoxes[i].top(i * normalHeight + (expandHeight - normalHeight), { queue: false, duration: duration });
-                                            }
-                                        }
-                                        else {
-                                            var ob = resultBoxes[focusBox];
-                                            var or = resultEntriesReferences[ob.data("index")];
-                                            if (or.shrink != null) or.shrink();
-
-                                            ob({
-                                                height: [normalHeight, { queue: false, duration: duration }],
-                                                cursor: "pointer",
-                                                color: [
-                                                    ob.data("index") % 2 == 0 ? 91 : 93,
-                                                    {
-                                                        duration: 166, step: function () {
-                                                            if (step != undefined) step(ob, or);
-                                                        }, complete: function () {
-                                                            if (complete != undefined) complete(ob, or);
+                                            tr.expand(tr.expandFirstTime, function () {
+                                                //$$(10, function () {
+                                                    b.height(expandHeight, { queue: false, duration: duration, complete: function () { b.color(99); searchresult.scrollCalculate(); busy = false; } });
+                                                    if (focusBox == -1) {
+                                                        for (var i = ei + 1; i < resultBoxes.length; i++) {
+                                                            resultBoxes[i].top(i * normalHeight + (expandHeight - normalHeight), { queue: false, duration: duration });
                                                         }
-                                                    }],
-                                                enableButton: true
+                                                    }
+                                                    else {
+                                                        var ob = resultBoxes[focusBox];
+                                                        var or = resultEntriesReferences[ob.data("index")];
+                                                        if (or.shrink != null) or.shrink();
+
+                                                        ob({
+                                                            height: [normalHeight, { queue: false, duration: duration }],
+                                                            cursor: "pointer",
+                                                            color: [
+                                                                ob.data("index") % 2 == 0 ? 91 : 93,
+                                                                {
+                                                                    duration: 166, step: function () {
+                                                                        if (step != undefined) step(ob, or);
+                                                                    }, complete: function () {
+                                                                        if (complete != undefined) complete(ob, or);
+                                                                    }
+                                                                }],
+                                                            enableButton: true
+                                                        });
+
+                                                        leave(ob, or);
+
+                                                        if (ei < focusBox) {
+                                                            for (var i = ei + 1; i < resultBoxes.length; i++) {
+                                                                resultBoxes[i].top(i * normalHeight + (expandHeight - normalHeight), { queue: false, duration: duration });
+                                                            }
+                                                        }
+                                                        else {
+                                                            for (var i = focusBox + 1; i <= ei; i++) {
+                                                                resultBoxes[i].top(i * normalHeight, { queue: false, duration: duration });
+                                                            }
+                                                            for (var i = ei + 1; i < resultBoxes.length; i++) {
+                                                                resultBoxes[i].top(i * normalHeight + (expandHeight - normalHeight), { queue: false, duration: duration });
+                                                            }
+                                                        }
+                                                    }
+                                                    focusBox = ei;
+                                                    searchresult.scrollTop(focusBox * normalHeight - 25, { queue: false, duration: duration });
+                                                    enter();
+                                                //});
                                             });
-
-                                            leave(ob, or);
-
-                                            if (ei < focusBox) {
-                                                for (var i = ei + 1; i < resultBoxes.length; i++) {
-                                                    resultBoxes[i].top(i * normalHeight + (expandHeight - normalHeight), { queue: false, duration: duration });
-                                                }
-                                            }
-                                            else {
-                                                for (var i = focusBox + 1; i <= ei; i++) {
-                                                    resultBoxes[i].top(i * normalHeight, { queue: false, duration: duration });
-                                                }
-                                                for (var i = ei + 1; i < resultBoxes.length; i++) {
-                                                    resultBoxes[i].top(i * normalHeight + (expandHeight - normalHeight), { queue: false, duration: duration });
-                                                }
-                                            }
+                                            tr.expandFirstTime = false;
                                         }
 
-                                        focusBox = ei;
 
-                                        searchresult.scrollTop(focusBox * normalHeight - 25, { queue: false, duration: duration });
-
-
-                                        enter();
                                     }
                                 }
                             });
                         };
-                        f.stream = function (type, arg2, arg3) {
-
-                            var register;
-                            var callback;
-
-                            if ($.isFunction(arg2)) {
-                                register = type;
-                                callback = arg2;
-                            }
-                            else if ($.isFunction(arg3)) {
-                                register = arg2;
-                                callback = arg3;
-                            }
-
-                            if (registerstream[type] == null) {
-                                registerstream[type] = {
-                                    register: register,
+                        f.stream = function (register, callback) {
+                                                        
+                            if (registerstream[register] == null) {
+                                registerstream[register] = {
                                     callbacks: []
                                 };
                                 $$.register(register);
+                                //debug("add register " + register);
                             }
 
-                            registerstream[type].callbacks.push(callback);
+                            registerstream[register].callbacks.push(callback);
                         };
                                                 
                         f.isNecrowOnline = function () {
@@ -1071,12 +1032,10 @@
                     for (; write < resultBoxes.length; write++) resultBoxes[write].hide();
                     searchresult.scrollCalculate();
                     searchresult.scrollTop(0);
-
-
-
+                    
                     if (!entersearch && page != lastPage) {
 
-                        debug("change page bawah");
+                        //debug("change page bawah");
 
 
                         //
@@ -1164,7 +1123,7 @@
                             r = {};
                             filterEntriesReferences[ei] = r;
                             r.text = ui.text(b)({
-                                font: ["body", 13], left: 10, top: 15, nobreak: true, color: 20
+                                font: ["body", 13], left: 10, top: 15, noBreak: true, color: 20
                             });
                             r.icon1 = ui.icon(b, "arrow2")({
                                 size: [10, 10], top: 16, right: 10, hide: true
@@ -1316,7 +1275,10 @@
             searchDo(p);
         },
         unload: function (p) {
-            
+            $.each(registerstream, function (rsi, rsv) {
+                $$.removeRegister(rsi);
+                delete registerstream[rsi];
+            });
 
 
             p.done();

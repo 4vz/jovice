@@ -2,6 +2,20 @@
 (function () {
     "use strict";
 
+    // .deltaperfdom
+    (function(share) {
+
+        var deltaperfdom = function () {
+            if (Modernizr.performance)
+                return performance.timing.domComplete - performance.timing.domLoading;
+            else
+                return 200;
+        };
+
+        share.deltaperfdom = deltaperfdom;
+
+    })(share);
+
     // .args
     (function (share) {
 
@@ -213,7 +227,7 @@
                         }
 
                         if (o.type == "down") {
-                            if (Modernizr.touch) {
+                            if (Modernizr.touchevents) {
                                 so.on("touchstart." + id + ".event.share", function (event) {
                                     var pev = pointingEvent(true, event, 1);
                                     if (o.once) removeEvent(id);
@@ -231,7 +245,7 @@
                             }
                         }
                         else if (o.type == "up") {
-                            if (Modernizr.touch) {
+                            if (Modernizr.touchevents) {
                                 so.on("touchend." + id + ".event.share", function (event) {
                                     var pev = pointingEvent(true, event, 2);
                                     if (o.once) removeEvent(id);
@@ -249,7 +263,7 @@
                             }
                         }
                         else if (o.type == "move") {
-                            if (Modernizr.touch) {
+                            if (Modernizr.touchevents) {
                                 so.on("touchmove." + id + ".event.share", function (event) {
                                     var pev = pointingEvent(true, event, 3);
                                     if (o.once) removeEvent(id);
@@ -267,7 +281,7 @@
                             }
                         }
                         else if (o.type == "click") {
-                            if (Modernizr.touch) {
+                            if (Modernizr.touchevents) {
                                 so.on("tap." + id + ".event.share", function (event) {
                                     var pev = pointingEvent(true, event, 7);
                                     if (o.once) removeEvent(id);
@@ -1124,7 +1138,8 @@
                     });
                 }
 
-                $$.post(10, { x: modifications.join() });
+                if (modifications.length > 0)
+                    $$.post(10, { x: modifications.join() });
 
                 serverRegisters = registers.slice();
             }
@@ -3662,9 +3677,9 @@
             }
 
             // ELEMENT ---
-            var identifier = $$.identifier(8);
-            var element = $("<div id=\"" + identifier + "\" class=\"_BO\" />");
-            //var element = $("<div class=\"_BO\" />");
+            //var identifier = $$.identifier(8);
+            //var element = $("<div id=\"" + identifier + "\" class=\"_BO\" />");
+            var element = $("<div class=\"_BO\" />");
             var box = function (a) {
                 if ($.isPlainObject(a)) {
                     $.each(a, function (i, v) {
@@ -3683,23 +3698,24 @@
             if (containerType == 1) {
                 if (parentBox.isScroll()) {
                     var el = $(parent.find("._IB")[0]);
-                    //console.debug("ADD CHILD TO");
-                    //console.debug(el);
-
-                    
                     el.append(element);
                     parentBox.scrollCalculate(true);
                 }
-                else
+                else {
                     parent.append(element);
+                    //setTimeout(function () {
+                        
+                    //}, 1);
+                }
             }
-            else
+            else {
                 parent.append(element);
+                //setTimeout(function () {
+                    
+                //}, 1);
+            }
 
             // PUBLIC
-            box.id = function () {
-                return identifier;
-            };
             box.tag = function (n) {
                 this.$.attr("tag", n);
             };
@@ -5009,8 +5025,8 @@
                         }
                         else {
                             var pRight = 0, pBottom = 0;
-                            if (scroll.vertical && !Modernizr.touch) pRight = scrollSize;
-                            if (scroll.horizontal && !Modernizr.touch) pBottom = scrollSize;
+                            if (scroll.vertical && !Modernizr.touchevents) pRight = scrollSize;
+                            if (scroll.horizontal && !Modernizr.touchevents) pBottom = scrollSize;
                             var vc = pRight > 0 ? $("<div class=\"_VB\" />").css({ bottom: pBottom, width: scrollSize }) : null;
                             var hc = pBottom > 0 ? $("<div class=\"_HB\" />").css({ right: pRight, height: scrollSize }) : null;
                             element.prepend(vc, hc);
@@ -5751,7 +5767,7 @@
                 }
                 else return text_;
             };
-            text.nobreak = function (b) {
+            text.noBreak = function (b) {
                 if ($.isBoolean(b)) {
                     if (b) {
                         d.$.css({ whiteSpace: "nowrap" });
@@ -6719,6 +6735,9 @@
             var obj = null;
 
             switch (type) {
+                case "powercut": obj = {
+                    path : "M71.4,25.5L38.25,58.65l127.5,127.5v94.35h76.5V510l91.8-155.55L438.6,459l33.15-33.15L71.4,25.5z M420.75,204h-102	l102-204h-255v56.1L382.5,272.85L420.75,204z"
+                }; break;
                 case "warning": obj = {
                     path: "M15.789,13.982l-6.938-13C8.678,0.657,8.339,0.453,7.97,0.453H7.969c-0.369,0-0.707,0.203-0.881,0.528l-6.969,13c-0.166,0.312-0.157,0.686,0.023,0.986C0.323,15.268,0.649,15.453,1,15.453h13.906c0.352,0,0.677-0.184,0.858-0.486C15.945,14.666,15.954,14.292,15.789,13.982z M7.969,13.453c-0.552,0-1-0.448-1-1s0.448-1,1-1c0.551,0,1,0.448,1,1S8.521,13.453,7.969,13.453z M8.97,9.469c0,0.553-0.449,1-1,1c-0.552,0-1-0.447-1-1v-4c0-0.552,0.448-1,1-1 c0.551,0,1,0.448,1,1V9.469z",
                 }; break;

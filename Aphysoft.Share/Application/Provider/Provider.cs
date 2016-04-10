@@ -280,18 +280,18 @@ namespace Aphysoft.Share
             else return null;
         }
 
-        public static KeyValuePair<string, string>[] GetClientsByRegisterMatch(string registerMatch)
+        public static KeyValuePair<string, string[]>[] GetClientsByRegisterMatch(string registerMatch)
         {
             if (Service.IsServer)
             {
-                List<KeyValuePair<string, string>> clients = new List<KeyValuePair<string, string>>();
+                List<KeyValuePair<string, string[]>> clients = new List<KeyValuePair<string, string[]>>();
 
                 foreach (KeyValuePair<string, StreamClientInstance> pair in clientInstances)
                 {
-                    string matchTo;
+                    string[] matchTo;
                     if (pair.Value.IsRegisteredMatch(registerMatch, out matchTo))
                     {
-                        KeyValuePair<string, string> kvp = new KeyValuePair<string, string>(pair.Key, matchTo);
+                        KeyValuePair<string, string[]> kvp = new KeyValuePair<string, string[]>(pair.Key, matchTo);
                         clients.Add(kvp);
                     }
                 }
@@ -321,13 +321,13 @@ namespace Aphysoft.Share
 
         public static int SetActionByRegisterMatch(string registerMatch, string type, object data)
         {
-            KeyValuePair<string, string>[] clientIDs = GetClientsByRegisterMatch(registerMatch);
+            KeyValuePair<string, string[]>[] clientIDs = GetClientsByRegisterMatch(registerMatch);
 
-            foreach (KeyValuePair<string, string> pair in clientIDs)
+            foreach (KeyValuePair<string, string[]> pair in clientIDs)
             {
                 string clientID = pair.Key;
-                string match = pair.Value;
-
+                string[] matches = pair.Value;
+                
                 StreamClientInstance clientInstance = clientInstances[clientID];
                 clientInstance.SetAction(type, data);
             }
@@ -337,15 +337,19 @@ namespace Aphysoft.Share
 
         public static void SetActionByRegisterMatch(string registerMatch, object data)
         {
-            KeyValuePair<string, string>[] clientIDs = GetClientsByRegisterMatch(registerMatch);
+            KeyValuePair<string, string[]>[] clientIDs = GetClientsByRegisterMatch(registerMatch);
 
-            foreach (KeyValuePair<string, string> pair in clientIDs)
+            foreach (KeyValuePair<string, string[]> pair in clientIDs)
             {
                 string clientID = pair.Key;
-                string match = pair.Value;
-
+                string[] matches = pair.Value;
+                               
                 StreamClientInstance clientInstance = clientInstances[clientID];
-                clientInstance.SetAction(match, data);
+
+                foreach (string match in matches)
+                {
+                    clientInstance.SetAction(match, data);
+                }
             }
         }
 
@@ -813,19 +817,21 @@ namespace Aphysoft.Share
             else return false;
         }
 
-        public bool IsRegisteredMatch(string registerPattern, out string matchTo)
+        public bool IsRegisteredMatch(string registerPattern, out string[] matchTo)
         {
             bool re = false;
-            matchTo = null;
+            List<string> matchTos = new List<string>();
+            
             foreach (string s in registers)
             {
                 if (Regex.IsMatch(s, "^" + registerPattern + "$"))
                 {
                     re = true;
-                    matchTo = s;
-                    break;
+                    matchTos.Add(s);
                 }
             }
+
+            matchTo = matchTos.ToArray();
 
             return re;
         }

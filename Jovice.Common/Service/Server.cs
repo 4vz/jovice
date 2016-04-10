@@ -78,10 +78,10 @@ namespace Jovice
             {
                 necrowConnection = e.Connection;
 
-                Service.Debug("here");
+                Service.Debug("Necrow Connected");
 
-                //Provider.SetActionByRegisterMatch("^service_[ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=]+$", "service", "yayaya");
-                Provider.SetActionByRegisterMatch("service", "service", "yayaya");
+                Provider.SetActionByRegisterMatch("service_[ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=]+", "yayaya");
+                //Provider.SetActionByRegisterMatch("service", "service", "yayaya");
                 //Provider.SetActionByRegister("necrowavailability", "necrow", "online");
             }
         }

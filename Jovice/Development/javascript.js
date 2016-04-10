@@ -4787,7 +4787,7 @@
 
                 if (scroll.horizontalStep != null) {
                     var last = scroll.horizontalStep[scroll.horizontalStep.length - 1];
-                    scrollBeacon.left(last + wwidth + outerRight + outerLeft + innerLeft);
+                    scrollBeacon.left(last + wwidth + outerRight + outerLeft + innerLeft + 29);
                 }
                 
                 var stop = inner.scrollTop();

@@ -112,11 +112,6 @@ namespace Jovice
             return type + port + "" + (IsChannel ? ":" + channel.ToString() : "") + (IsSubInterface ? "." + subInterface.ToString() : "");
         }
 
-        public string GetShortType()
-        {
-            return shortType;
-        }
-
         public string GetFullType()
         {
             return type;
@@ -126,7 +121,8 @@ namespace Jovice
         {
             int typerate = -1;
 
-            if (ShortType == "Te") typerate = 10485760;
+            if (ShortType == "Hu") typerate = 104857600;
+            else if (ShortType == "Te") typerate = 10485760;
             else if (ShortType == "Ge") typerate = 1048576;
             else if (ShortType == "Fa") typerate = 102400;
             else if (ShortType == "Et") typerate = 10240;
@@ -250,6 +246,18 @@ namespace Jovice
                             ci.Type = "TenGigE";
                             ci.ShortType = "Te";
                             ci.CodeType = "T";
+                        }
+                        else if (interfaceType == "h" || interfaceType == "hu" || interfaceType == "hundredgige")
+                        {
+                            ci.Type = "HundredGigE";
+                            ci.ShortType = "Hu";
+                            ci.CodeType = "H";
+                        }
+                        else if (interfaceType == "ag")
+                        {
+                            ci.Type = "AggregatedInterface";
+                            ci.ShortType = "Ag";
+                            ci.CodeType = "A";
                         }
                         else interfaceIdentified = false;
 

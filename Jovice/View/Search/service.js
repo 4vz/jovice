@@ -722,44 +722,43 @@
                 };
 
                 r.content = ui.box(b)({ top: 230, height: 250, leftRight: [20, 20], scroll: { type: "button", horizontal: true, vertical: false, 
-                    horizontalStep: [371, 1091, 2261, 3431, 4671, 6000] } });
+                    horizontalStep: [371, 1091, 2261, 3431, 4671] } });
                 r.overviewtitle = ui.text(b)({ top: 185, left: 20, font: 28, text: "Overview", color: 30, cursor: "default", click: function () { scrollTo(0); } });
                 r.analysistitle = ui.text(b)({ top: 185, left: 145, font: 28, text: "Analysis", color: 70, cursor: "pointer", click: function () { scrollTo(1091); } });
                 r.sharetitle = ui.text(b)({ top: 185, left: 255, font: 28, text: "Share", color: 70, cursor: "pointer", click: function () { scrollTo(4671); } });
 
                 r.contents = [];
 
-                var cr;
-                cr = ui.box(r.content)({ topBottom: [10, 0], width: 380, borderTop: { size: 1, color: 80 } });
-                r.contents[0] = cr;
+                r.overviewarea = ui.box(r.content)({ topBottom: [10, 0], width: 380, borderTop: { size: 1, color: 80 } });
+                r.contents[0] = r.overviewarea;
 
-                ui.text(cr)({ position: [0, 15], text: "Last Checked", weight: "600", color: 25, font: 18, tooltipAreaHeight: 55, tooltip: "This date represents the oldest updated network element in the current topology." });
-                r.lastchecked = ui.text(cr)({ position: [0, 45], color: 0, noBreak: true });
-                ui.text(cr)({ position: [0, 90], text: "Local Access", weight: "600", color: 25, font: 18 });
-                r.localaccess = ui.text(cr)({ position: [0, 120], color: 0, width: 380, lineHeight: 25 });
+                ui.text(r.overviewarea)({ position: [0, 15], text: "Last Checked", weight: "600", color: 25, font: 18, tooltipAreaHeight: 55, tooltip: "This date represents the oldest updated network element in the current topology." });
+                r.lastchecked = ui.text(r.overviewarea)({ position: [0, 45], color: 0, noBreak: true });
+                ui.text(r.overviewarea)({ position: [0, 90], text: "Local Access", weight: "600", color: 25, font: 18 });
+                r.localaccess = ui.text(r.overviewarea)({ position: [0, 120], color: 0, width: 380, lineHeight: 25 });
 
-                cr = ui.box(r.content)({ topBottom: [10, 0], left: 410, width: 690, borderTop: { size: 1, color: 80 } });
-                r.contents[1] = cr;
+                r.overviewdetarea = ui.box(r.content)({ topBottom: [10, 0], left: 410, width: 690, borderTop: { size: 1, color: 80 } });
+                r.contents[1] = r.overviewdetarea;
 
-                r.rateinputtitle = ui.text(cr)({ position: [0, 15], text: "Overall Input Rate", weight: "600", color: 25, font: 18, noBreak: true });
-                r.rateinputicond = ui.icon(cr, jovice.icon("upload"))({ size: [30, 30], position: [-2, 48], color: 40, });
-                r.rateinput = ui.text(cr)({ position: [35, 45], font: 25, noBreak: true });
+                r.rateinputtitle = ui.text(r.overviewdetarea)({ position: [0, 15], text: "Overall Input Rate", weight: "600", color: 25, font: 18, noBreak: true });
+                r.rateinputicond = ui.icon(r.overviewdetarea, jovice.icon("upload"))({ size: [30, 30], position: [-2, 48], color: 40, });
+                r.rateinput = ui.text(r.overviewdetarea)({ position: [35, 45], font: 25, noBreak: true });
 
-                r.rateoutputtitle = ui.text(cr)({ position: [0, 110], text: "Overall Output Rate", weight: "600", color: 25, font: 18, noBreak: true });
-                r.rateoutputicond = ui.icon(cr, jovice.icon("download"))({ size: [30, 30], position: [-2, 143], color: 40, });
-                r.rateoutput = ui.text(cr)({ position: [35, 140], font: 25, noBreak: true });
+                r.rateoutputtitle = ui.text(r.overviewdetarea)({ position: [0, 110], text: "Overall Output Rate", weight: "600", color: 25, font: 18, noBreak: true });
+                r.rateoutputicond = ui.icon(r.overviewdetarea, jovice.icon("download"))({ size: [30, 30], position: [-2, 143], color: 40, });
+                r.rateoutput = ui.text(r.overviewdetarea)({ position: [35, 140], font: 25, noBreak: true });
 
-                r.perateinputtitle = ui.text(cr)({ position: [240, 15], text: "PE Router Input Rate", weight: "600", color: 25, font: 18, noBreak: true });
-                r.perateinputicon = ui.icon(cr, jovice.icon("boxin"))({ size: [30, 30], position: [238, 48], color: 40, });
-                r.perateinput = ui.text(cr)({ position: [275, 45], font: 25, noBreak: true });
+                r.perateinputtitle = ui.text(r.overviewdetarea)({ position: [240, 15], text: "PE Router Input Rate", weight: "600", color: 25, font: 18, noBreak: true });
+                r.perateinputicon = ui.icon(r.overviewdetarea, jovice.icon("boxin"))({ size: [30, 30], position: [238, 48], color: 40, });
+                r.perateinput = ui.text(r.overviewdetarea)({ position: [275, 45], font: 25, noBreak: true });
 
-                r.perateoutputtitle = ui.text(cr)({ position: [240, 110], text: "PE Router Output Rate", weight: "600", color: 25, font: 18, noBreak: true });
-                r.perateoutputicon = ui.icon(cr, jovice.icon("boxout"))({ size: [30, 30], position: [238, 143], color: 40, });
-                r.perateoutput = ui.text(cr)({ position: [275, 140], font: 25, noBreak: true });
+                r.perateoutputtitle = ui.text(r.overviewdetarea)({ position: [240, 110], text: "PE Router Output Rate", weight: "600", color: 25, font: 18, noBreak: true });
+                r.perateoutputicon = ui.icon(r.overviewdetarea, jovice.icon("boxout"))({ size: [30, 30], position: [238, 143], color: 40, });
+                r.perateoutput = ui.text(r.overviewdetarea)({ position: [275, 140], font: 25, noBreak: true });
 
-                r.pepackagetitle = ui.text(cr)({ position: [480, 15], text: "Service Package", weight: "600", color: 25, font: 18, noBreak: true });
-                r.pepackageicon = ui.icon(cr, jovice.icon("boxsel"))({ size: [30, 30], position: [478, 48], color: 40, });
-                r.pepackage = ui.text(cr)({ position: [515, 45], font: 25, noBreak: true });
+                r.pepackagetitle = ui.text(r.overviewdetarea)({ position: [480, 15], text: "Service Package", weight: "600", color: 25, font: 18, noBreak: true });
+                r.pepackageicon = ui.icon(r.overviewdetarea, jovice.icon("boxsel"))({ size: [30, 30], position: [478, 48], color: 40, });
+                r.pepackage = ui.text(r.overviewdetarea)({ position: [515, 45], font: 25, noBreak: true });
 
                 // ping
                 r.pingarea = ui.box(r.content)({ top: 10, left: 1200, width: 1070, height: 240 });
@@ -801,9 +800,10 @@
                 r.contents[4] = r.showconfigarea;
 
                 // share
-                r.sharearea = ui.box(r.content)({ top: 10, left: 4710, width: 1070, height: 100, color: "green" });
+                r.sharearea = ui.box(r.content)({ topBottom: [10, 0], left: 4710, width: 1070, borderTop: { size: 1, color: 80 } });
                 r.contents[5] = r.sharearea;
 
+                ui.text(r.sharearea)({ position: [0, 15], text: "Copy-Friendly Format", weight: "600", color: 25, font: 18 });
 
 
                 r.analysisoffline = ui.box(b)({ top: 240, left: 130, hide: true, width: 700, height: 300 });
@@ -1030,7 +1030,7 @@
             var pnew = ui.box(r.pinghistory)({ width: "100%", height: 85, top: 0, cursor: "default", button: pbutton });
             pfocusp = pnew;
             ui.text(pnew)({ text: "New Ping Test", top: 12, weight: "300", color: 25, font: 23, left: 20 });
-            $$.for(0, 3, function (i) {
+            $$.for(0, 0, function (i) {
                 var par = ui.box(r.pinghistory)({ width: "100%", height: 85, top: i * 85 + 85, cursor: "pointer", button: pbutton });
                 var tp = ui.text(par)({ text: "Ping Test 5", top: 12, weight: "300", color: 25, font: 23, leftRight: [20, 20], truncate: true });
                 var td = ui.text(par)({ text: "22/12/2015 8:16:32", position: [20, 45], noBreak: true });

@@ -172,6 +172,73 @@
 
     })(share);
 
+    // .cookie .removeCookie
+    (function (share) {
+
+        var cookie = function () {
+            var o = share.args(arguments, "string key", "optional string<number<boolean value", "optional string path", "optional date expires");
+
+            if (o) {
+
+                var dc = document.cookie;
+                var cs = dc.split(";");
+                var c = {};
+
+                $.each(cs, function (i, v) {
+                    var iv = v.trim();
+                    var ivfe = iv.indexOf("=");
+                    var key = iv.substr(0, ivfe);
+                    var value = iv.substr(ivfe + 1);
+
+                    if (c[key] != null) {
+                        if (!$.isArray(c[key])) c[key] = [c[key]];
+                        c[key].push(value);
+                    }
+                    else c[key] = value;
+                });
+
+                if (o.value == null) {
+                    return $.isUndefined(c[o.key]) ? null : c[o.key];
+                }
+                else {
+                    var sdom = share.domain();
+                    var s = o.key + "=" + o.value + (sdom != null ? "; domain=" + sdom : "");
+
+                    if (o.path != null)
+                        s += "; path=" + o.path;
+                    if (o.expires != null) {
+                        s += "; expires= " + share.date("{ddd}, {DD}-{MMM}-{YYYY} {HH}:{mm}:{ss} {tz}", o.expires);
+                    }
+
+                    alert(s);
+
+                    document.cookie = s;
+                }
+            }
+        };
+        var removeCookie = function (key, a, b) {
+            if ($.isString(key)) {
+                var sdom = null;
+                var spath = null;
+                if ($.isString(b)) {
+                    if ($.isString(a)) {
+                        spath = b;
+                        sdom = a;
+                    }
+                }
+                else if ($.isString(a)) {
+                    sdom = a;
+                }
+
+                document.cookie = key + "=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT" + (sdom != null ? "; domain=" + sdom : "") + (spath != null ? "; path=" + spath : "");
+            }
+        };
+
+        share.cookie = cookie;
+        share.removeCookie = removeCookie;
+
+    })(share);
+
     // .event .removeEvent .triggerEvent .disableEvent .enableEvent
     // .down .up .move .click .enter .leave .wheel .keydown .keyup .keypress .change .scroll .resize
     (function (share) {
@@ -2808,7 +2875,6 @@
                     noTransition = true;
                 };
                 page.transfer = function (arg1, arg2) {
-
                     if ($.isString(arg1)) {
 
                         if (transferring) return;// transfer busy
@@ -6145,6 +6211,33 @@
 
         ui.textinput = textinput;
         
+    })(ui);
+
+    // .textarea
+    (function (ui) {
+
+        var textarea = function (container) {
+
+            var d = ui.inputbase(container);
+            if (d == null) return null;
+
+            var inputcon = $("<div class=\"_IC\" />");
+            var input = $("<textarea />");
+            inputcon.append(input);
+            d.$.append(inputcon);
+
+            var textarea = d;
+            textarea.readonly = function (s) {
+                if (s == false) input.prop("readonly", false);
+                else input.prop("readonly", true);
+            };
+
+            return d;
+
+        };
+
+        ui.textarea = textarea;
+
     })(ui);
 
     // .button

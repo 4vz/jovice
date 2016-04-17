@@ -57,8 +57,19 @@ namespace Jovice
             set { updateProtocol = value; }
         }
     }
-    
-    internal abstract class ElementToDatabase : StatusToDatabase
+
+    internal abstract class ServiceBaseToDatabase : StatusToDatabase
+    {
+        private string serviceID;
+
+        public string ServiceID
+        {
+            get { return serviceID; }
+            set { serviceID = value; }
+        }
+    }
+
+    internal abstract class ElementToDatabase : ServiceBaseToDatabase
     {
         private string name;
 
@@ -99,12 +110,10 @@ namespace Jovice
         StandBy
     }
 
-    
-    
     internal sealed partial class Probe : SshConnection
     {
         #region Enums
-        
+
         private enum UpdateTypes
         {
             NecrowVersion,
@@ -357,7 +366,7 @@ namespace Jovice
 
             return result;
         }
-        
+
         #endregion
 
         #region Static
@@ -483,7 +492,7 @@ namespace Jovice
                 Restart();
             }
         }
-        
+
         protected override void Connected()
         {
             Event("Connected!");
@@ -518,15 +527,15 @@ namespace Jovice
         {
             if (output != null && output != "")
             {
-                lock (outputs) 
-                { 
-                    outputs.Enqueue(output); 
+                lock (outputs)
+                {
+                    outputs.Enqueue(output);
                 }
             }
         }
 
         #endregion
-        
+
         private void MainLoop()
         {
             Culture.Default();
@@ -619,7 +628,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                         {
                             Event("Failed, not exists in the database.");
                             continue;
-                        }                        
+                        }
                     }
                     else if (index < ids.Count)
                     {
@@ -629,7 +638,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                         node = rnode[0];
                     }
                     else index = -1;
-                    
+
                     if (node != null)
                     {
                         bool continueProcess = false;
@@ -638,7 +647,6 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
                         if (continueProcess)
                         {
-                            Event("Continue process...");
                             if (nodeType == "P") PEProcess();
                             else if (nodeType == "M") MEProcess();
                         }
@@ -677,7 +685,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 #endregion
             }
         }
-        
+
         private static void Shuffle<T>(IList<T> list)
         {
             int n = list.Count;
@@ -769,9 +777,10 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                         continueWait = false;
                         break;
                     }
+                    //Event(LastOutput);
                     Thread.Sleep(100);
                     wait++;
-                } 
+                }
                 if (continueWait == false) break;
 
                 // else continue wait...
@@ -938,7 +947,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             if (greppair.ContainsKey(hostname.ToLower())) cpeip = greppair[hostname.ToLower()].ToUpper();
             return cpeip;
         }
-        
+
         private void Update(UpdateTypes type, object value)
         {
             string key = null;
@@ -1170,15 +1179,14 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
             return lines;
         }
-        
+
         private bool ConnectByTelnet(string host, string manufacture, string user, string pass)
         {
             int expect = -1;
             bool connectSuccess = false;
 
             Event("Connecting with Telnet... (" + user + "@" + host + ")");
-
-            if (WriteLine("telnet " + host)) { requestFailure = true; return false; }
+            SendLine("telnet " + host);
 
             if (manufacture == alu)
             {
@@ -1361,7 +1369,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
         private void Save()
         {
             StringBuilder sb;
-            
+
             sb = new StringBuilder();
             foreach (KeyValuePair<string, object> pair in updates)
             {
@@ -1404,7 +1412,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     else
                     {
                         // insert
-                        sb.Append(j.Format("insert into NodeSummary(NS_ID, NS_NO, NS_Key, NS_Value) values({0}, {1}, {2}, {3});", 
+                        sb.Append(j.Format("insert into NodeSummary(NS_ID, NS_NO, NS_Key, NS_Value) values({0}, {1}, {2}, {3});",
                             Database.ID(), nodeID, pair.Key, pair.Value));
                     }
                 }
@@ -1425,7 +1433,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
         }
 
         private void Enter(Row row, out bool continueProcess, bool forceProcess)
-        {  
+        {
             continueProcess = false;
 
             WaitUntilMCETerminalReady("MCE Waiting I");
@@ -1471,7 +1479,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 Save();
                 return;
             }
-            
+
             #region CHECK IP
 
             Event("Checking host IP");
@@ -1533,7 +1541,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                                 string deletethisnode;
                                 string keepthisnode;
 
-                                int ci = interfaceCount.ToInt();                               
+                                int ci = interfaceCount.ToInt();
 
                                 if (ci > 0)
                                 {
@@ -1751,8 +1759,8 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
                     string testOtherNode;
 
-                    if (nodeName == "PE-D2-TAN") testOtherNode = "PE2-D2-JT2-MGT";
-                    else testOtherNode = "PE-D2-TAN";
+                    if (nodeName == "PE2-D2-CKA-VPN") testOtherNode = "PE-D2-CKA-VPN";
+                    else testOtherNode = "PE2-D2-CKA-VPN";
 
                     Event("Trying to connect to other node...(" + testOtherNode + ")");
 
@@ -1879,7 +1887,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
             if (nodeManufacture == alu)
             {
-                
+
                 SendLine("environment no saved-ind-prompt", true);
                 Read(out timeout);
                 if (timeout) { SaveExit(); return; }
@@ -1915,10 +1923,10 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
             #endregion
 
-            
-            
-            
-            
+
+
+
+
             #region VERSION
 
             bool checkVersion = false;
@@ -1943,7 +1951,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 {
                     #region alu
                     SendLine("show version | match TiMOS");
-                    List<string> lines = Read(out timeout);    
+                    List<string> lines = Read(out timeout);
                     if (timeout) { SaveExit(); return; }
 
                     foreach (string line in lines)
@@ -1962,7 +1970,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 {
                     #region hwe
                     SendLine("display version");
-                    List<string> lines = Read(out timeout);    
+                    List<string> lines = Read(out timeout);
                     if (timeout) { SaveExit(); return; }
 
                     foreach (string line in lines)
@@ -1987,7 +1995,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 {
                     #region cso
                     SendLine("show version | in IOS");
-                    List<string> lines = Read(out timeout);    
+                    List<string> lines = Read(out timeout);
                     if (timeout) { SaveExit(); return; }
 
                     string sl = string.Join("", lines.ToArray());
@@ -2028,7 +2036,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
                         // model
                         SendLine("show version | in bytes of memory");
-                        lines = Read(out timeout);        
+                        lines = Read(out timeout);
                         if (timeout) { SaveExit(); return; }
 
                         sl = string.Join("", lines.ToArray());
@@ -2053,7 +2061,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 else if (nodeManufacture == jun)
                 {
                     SendLine("show version | match \"JUNOS Base OS boot\"");
-                    List<string> lines = Read(out timeout);    
+                    List<string> lines = Read(out timeout);
                     if (timeout) { SaveExit(); return; }
 
                     foreach (string line in lines)
@@ -2099,7 +2107,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             Event("Version: " + nodeVersion + ((nodeSubVersion != null) ? ":" + nodeSubVersion : ""));
 
             #endregion
-            
+
             #region LAST CONFIGURATION
 
             Event("Checking Last Configuration");
@@ -2663,7 +2671,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                         }
                     }
                 }
-                
+
                 SendLine("display memory-usage");
                 lines = Read(out timeout);
 
@@ -2816,12 +2824,17 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
             #endregion
 
-            #endregion            
-            
+            #endregion
+
             if (configurationHasChanged || nodeNVER < Necrow.Version)
             {
                 continueProcess = true;
-                if (nodeNVER < Necrow.Version) Update(UpdateTypes.NecrowVersion, Necrow.Version);
+
+                if (nodeNVER < Necrow.Version)
+                {
+                    Event("Updated to newer Necrow version");
+                    Update(UpdateTypes.NecrowVersion, Necrow.Version);
+                }
             }
             else if (forceProcess)
             {
@@ -2835,6 +2848,1073 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
         }
 
         #endregion
+
+        private void ServiceExecute(ServiceReference reference)
+        {
+            List<string> batchlist1 = new List<string>();
+            StringBuilder batchstring = new StringBuilder();
+            int batchline = 0;
+
+            string customerinsertsql = "insert into ServiceCustomer(SC_ID, SC_CID, SC_Name) values";
+            string serviceinsertsql = "insert into Service(SE_ID, SE_SID, SE_SC, SE_Type, SE_SubType, SE_Raw_Desc) values";
+            List<Tuple<ServiceBaseToDatabase, ServiceMapping>> mappings = reference.Mappings;
+            List<string> customerid = new List<string>();
+            List<string> serviceid = new List<string>();
+            List<string> servicebycustomerid = new List<string>();
+            Dictionary<string, Row> customerdb = new Dictionary<string, Row>();
+            Dictionary<string, Row> servicedb = new Dictionary<string, Row>();
+            Dictionary<string, List<Row>> servicebycustomerdb = new Dictionary<string, List<Row>>();
+            List<CustomerToDatabase> customerinsert = new List<CustomerToDatabase>();
+            List<CustomerToDatabase> customerupdate = new List<CustomerToDatabase>();
+            List<ServiceToDatabase> serviceinsert = new List<ServiceToDatabase>();
+            List<ServiceToDatabase> serviceupdate = new List<ServiceToDatabase>();
+
+            foreach (Tuple<ServiceBaseToDatabase, ServiceMapping> tuple in mappings)
+            {
+                string sid = tuple.Item2.SID;
+                string cid = tuple.Item2.CID;
+                if (serviceid.IndexOf(sid) == -1) serviceid.Add(sid);
+                if (cid != null && customerid.IndexOf(cid) == -1) customerid.Add(cid);
+            }
+
+            Result customerresult = Query("select * from ServiceCustomer where SC_CID in ('" + string.Join("','", customerid.ToArray()) + "')");
+            foreach (Row row in customerresult)
+            {
+                customerdb.Add(row["SC_CID"].ToString(), row);
+                if (!row["SC_Name_Set"].ToBoolean(false)) servicebycustomerid.Add(row["SC_ID"].ToString());
+            }
+            Result serviceresult = Query("select * from Service where SE_SID in ('" + string.Join("','", serviceid.ToArray()) + "') or SE_SC in ('" + string.Join("','", servicebycustomerid.ToArray()) + "')");
+            foreach (Row row in serviceresult)
+            {
+                servicedb.Add(row["SE_SID"].ToString(), row);
+                string c_id = row["SE_SC"].ToString();
+                if (c_id != null)
+                {
+                    if (servicebycustomerdb.ContainsKey(c_id)) servicebycustomerdb[c_id].Add(row);
+                    else
+                    {
+                        List<Row> lrow = new List<Row>();
+                        lrow.Add(row);
+                        servicebycustomerdb.Add(c_id, lrow);
+                    }
+                }
+            }
+            foreach (Tuple<ServiceBaseToDatabase, ServiceMapping> tuple in mappings)
+            {
+                string sid = tuple.Item2.SID;
+                string cid = tuple.Item2.CID;
+                string stype = tuple.Item2.ServiceType;
+                string ssubtype = tuple.Item2.ServiceSubType;
+                string cdesc = tuple.Item2.CleanDescription;
+
+                string s_type = null, s_subtype = null;
+                if (stype == "VPNIP")
+                {
+                    s_type = "VP";
+                    if (ssubtype == "TRANS") s_subtype = "TA";
+                }
+                else if (stype == "ASTINET") s_type = "AS";
+                else if (stype == "ASTINETBB") s_type = "AB";
+                else if (stype == "VPNINSTAN") s_type = "VI";
+
+                string c_id = null, c_name = null, s_id = null;
+
+                #region sc
+                if (cid != null)
+                {
+                    if (customerdb.ContainsKey(cid))
+                    {
+                        c_id = customerdb[cid]["SC_ID"].ToString();
+                        c_name = customerdb[cid]["SC_Name"].ToString();
+                    }
+                    else
+                    {
+                        c_id = Database.ID();
+                        c_name = cdesc;
+
+                        Row ncdb = new Row();
+                        ncdb.Add("SC_ID", new Column("SC_ID", c_id, false));
+                        ncdb.Add("SC_CID", new Column("SC_CID", cid, false));
+                        ncdb.Add("SC_Name", new Column("SC_Name", c_name, false));
+                        ncdb.Add("SC_Name_Set", new Column("SC_Name_Set", null, true));
+                        customerdb.Add(cid, ncdb);
+
+                        Event("Customer ADD: " + c_name + " (" + cid + ")");
+                        CustomerToDatabase c = new CustomerToDatabase();
+                        c.ID = c_id;
+                        c.CID = cid;
+                        c.Name = c_name;
+                        customerinsert.Add(c);
+
+                        servicebycustomerdb.Add(c_id, new List<Row>());
+                    }
+                }
+                #endregion
+
+                #region se
+                if (servicedb.ContainsKey(sid))
+                {
+                    s_id = servicedb[sid]["SE_ID"].ToString();
+
+                    if (servicedb[sid]["SE_Type"].ToString() == null && s_type != null)
+                    {
+                        Event("Service MODIFY: " + sid + " " + s_type + " " + s_subtype);
+                        ServiceToDatabase c = new ServiceToDatabase();
+                        c.ID = s_id;
+                        c.Type = s_type;
+                        c.SubType = s_subtype;
+                        serviceupdate.Add(c);
+                    }
+
+                    tuple.Item1.ServiceID = s_id;
+                }
+                else
+                {
+                    s_id = Database.ID();
+
+                    Row ndb = new Row();
+                    ndb.Add("SE_ID", new Column("SE_ID", s_id, false));
+                    ndb.Add("SE_SID", new Column("SE_SID", sid, false));
+                    ndb.Add("SE_SC", new Column("SE_SC", c_id, false));
+                    ndb.Add("SE_Type", new Column("SE_Type", s_type, s_type == null ? true : false));
+                    ndb.Add("SE_SubType", new Column("SE_SubType", s_subtype, s_subtype == null ? true : false));
+                    ndb.Add("SE_Raw_Desc", new Column("SE_Raw_Desc", cdesc, cdesc == null ? true : false));
+                    servicedb.Add(sid, ndb);
+
+                    Event("Service ADD: " + sid + " (" + cid + ")");
+                    ServiceToDatabase c = new ServiceToDatabase();
+                    c.ID = s_id;
+                    c.SID = sid;
+                    c.CustomerID = c_id;
+                    c.Type = s_type;
+                    c.SubType = s_subtype;
+                    c.RawDesc = cdesc;
+                    serviceinsert.Add(c);
+
+                    //set interface to this service
+                    tuple.Item1.ServiceID = s_id;
+
+                    if (c_id != null)
+                        servicebycustomerdb[c_id].Add(ndb);
+                }
+                #endregion
+
+                #region Name Processing
+
+                if (c_id != null)
+                {
+                    List<Row> rownems = servicebycustomerdb[c_id];
+
+                    if (rownems.Count > 1)
+                    {
+                        List<string> nems = new List<string>();
+
+                        foreach (Row rownem in rownems)
+                        {
+                            string[] rds = rownem["SE_Raw_Desc"].ToString()
+                                .Split(
+                                new string[] { ",", "U/", "JL.", "JL ", "(", "[", "]", ")", "LT.", " LT ", " LT",
+                                            "GD.", " KM", " KOMP.", " BLOK ",
+                                            " SID ", " SID:", " SID-", " SID=",
+                                            " CID ", " CID:", " CID-", " CID=", " CID.", "EXCID", " JL", " EX ",
+                                            " FAA:", " FAI:", " FAA-", " FAI-", " CINTA ",
+                                            " EX-",
+                                            " KK ", "TBK", "BANDWIDTH",  },
+                                StringSplitOptions.RemoveEmptyEntries);
+
+                            if (rds.Length > 0)
+                                nems.Add(rds[0].Trim());
+                        }
+
+                        Dictionary<string, int> lexicals = new Dictionary<string, int>();
+
+                        int totaln = 0;
+                        foreach (string nem in nems)
+                        {
+                            string[] nemp = nem.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                            for (int ni = 0; ni < nemp.Length; ni++)
+                            {
+                                for (int nj = 1; nj <= nemp.Length - ni; nj++)
+                                {
+                                    string[] subn = new string[nj];
+                                    Array.Copy(nemp, ni, subn, 0, nj);
+                                    string sub = string.Join(" ", subn);
+                                    if (lexicals.ContainsKey(sub))
+                                    {
+                                        lexicals[sub] += 1;
+                                        totaln++;
+                                    }
+                                    else
+                                        lexicals.Add(sub, 1);
+                                }
+                            }
+                        }
+
+                        List<KeyValuePair<string, int>> lexicalList = lexicals.ToList();
+
+                        if (lexicalList.Count > 0)
+                        {
+                            lexicalList.Sort((a, b) =>
+                            {
+                                if (a.Value > b.Value) return -1;
+                                else if (a.Value < b.Value) return 1;
+                                else
+                                {
+                                    if (a.Key.Length > b.Key.Length) return -1;
+                                    else if (a.Key.Length < b.Key.Length) return 1;
+                                    else return 0;
+                                }
+                            });
+
+                            string cname = lexicalList[0].Key;
+
+                            if (lexicalList[0].Value > 1)
+                            {
+                                for (int li = 0; li < (lexicalList.Count > 10 ? 10 : lexicalList.Count); li++)
+                                {
+                                    KeyValuePair<string, int> lip = lexicalList[li];
+
+                                    string likey = lip.Key;
+                                    int lival = lip.Value;
+                                    int likeylen = StringHelper.CountWord(likey);
+                                    bool lolos = true;
+                                    for (int ly = li + 1; ly < (lexicalList.Count > 10 ? 10 : lexicalList.Count); ly++)
+                                    {
+                                        KeyValuePair<string, int> lyp = lexicalList[ly];
+
+                                        string lykey = lyp.Key;
+                                        int lyval = lyp.Value;
+                                        int lykeylen = StringHelper.CountWord(lykey);
+
+                                        if (lykey.Length > likey.Length)
+                                        {
+                                            if (likeylen > 1)
+                                            {
+                                                if (lykey.IndexOf(likey) > -1)
+                                                {
+                                                    int distance = lival - lyval;
+
+                                                    double dtotaln = (double)totaln;
+                                                    double minx = Math.Pow((1 / Math.Log(0.08 * dtotaln + 3)), 1.75);
+                                                    if (((double)distance / dtotaln) > minx) { }
+                                                    else lolos = false;
+                                                    break;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                if (lykey.IndexOf(likey) > -1)
+                                                {
+                                                    if ((ly - li) < 4)
+                                                    {
+                                                        int distance = lival - lyval;
+
+                                                        double dtotaln = (double)totaln;
+                                                        double minx = Math.Pow((1 / Math.Log(0.08 * dtotaln + 3)), 1.75);
+                                                        if (((double)distance / dtotaln) > minx) { }
+                                                        else lolos = false;
+                                                        break;
+                                                    }
+                                                    else
+                                                    {
+                                                        lolos = false;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (lykeylen == 1) { }
+                                            else
+                                            {
+                                                if (lykeylen < likeylen) { if (likey.IndexOf(lykey) > -1) break; }
+                                                else break;
+                                            }
+                                        }
+                                    }
+
+                                    if (lolos)
+                                    {
+                                        cname = likey;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (cname != null)
+                            {
+                                cname = cname.Trim(new char[] { ' ', '\"', '\'', '&', '(', ')', '-' });
+                                cname = cname.Replace("PT.", "PT");
+                                cname = cname.Replace(" PT", "");
+                                cname = cname.Replace("PT ", "");
+
+                                if (cname != c_name)
+                                {
+                                    Event("Customer MODIFY: " + cname + " (" + cid + ")");
+
+                                    customerdb.Remove(cid);
+
+                                    Row ncdb = new Row();
+                                    ncdb.Add("SC_ID", new Column("SC_ID", c_id, false));
+                                    ncdb.Add("SC_CID", new Column("SC_CID", cid, false));
+                                    ncdb.Add("SC_Name", new Column("SC_Name", cname, false));
+                                    ncdb.Add("SC_Name_Set", new Column("SC_Name_Set", null, true));
+
+                                    customerdb.Add(cid, ncdb);
+
+                                    CustomerToDatabase c = new CustomerToDatabase();
+                                    c.ID = c_id;
+                                    c.Name = cname;
+                                    customerupdate.Add(c);
+                                }
+                            }
+
+                        }
+                    }
+                }
+                #endregion
+            }
+
+            // CUSTOMER ADD
+            batchline = 0;
+            batchlist1.Clear();
+            batchstring.Clear();
+
+            int newcustomer = 0;
+            foreach (CustomerToDatabase s in customerinsert)
+            {
+                batchlist1.Add(Format("({0}, {1}, {2})", s.ID, s.CID, s.Name));
+                if (batchlist1.Count == batchmax)
+                {
+                    newcustomer += Execute(customerinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                    batchlist1.Clear();
+                }
+            }
+            if (batchlist1.Count > 0)
+                newcustomer += Execute(customerinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+            if (newcustomer > 0)
+                Event(newcustomer + " customer(s) added");
+
+            // CUSTOMER MODIFY
+            batchline = 0;
+            batchlist1.Clear();
+            batchstring.Clear();
+
+            int modifiedcustomer = 0;
+            foreach (CustomerToDatabase s in customerupdate)
+            {
+                string q = Format("update ServiceCustomer set SC_Name = {0} where SC_ID = {1};", s.Name, s.ID);
+                batchline++;
+                batchstring.AppendLine(q);
+                if (batchline == batchmax)
+                {
+                    modifiedcustomer += Execute(batchstring.ToString()).AffectedRows;
+                    batchstring.Clear();
+                    batchline = 0;
+                }
+            }
+            if (batchline > 0)
+                modifiedcustomer += Execute(batchstring.ToString()).AffectedRows;
+            if (modifiedcustomer > 0)
+                Event(modifiedcustomer + " customer(s) modified");
+
+            // SERVICE ADD
+            batchline = 0;
+            batchlist1.Clear();
+            batchstring.Clear();
+
+            int newservice = 0;
+            foreach (ServiceToDatabase s in serviceinsert)
+            {
+                batchlist1.Add(Format("({0}, {1}, {2}, {3}, {4}, {5})", s.ID, s.SID, s.CustomerID, s.Type, s.SubType, s.RawDesc));
+                if (batchlist1.Count == batchmax)
+                {
+                    newservice += Execute(serviceinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                    batchlist1.Clear();
+                }
+            }
+            if (batchlist1.Count > 0)
+                newservice += Execute(serviceinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+            if (newservice > 0)
+                Event(newservice + " service(s) added");
+
+            // SERVICE MODIFY
+            int modifiedservice = 0;
+            foreach (ServiceToDatabase s in serviceupdate)
+            {
+                string q = Format("update Service set SE_Type = {0}, SE_SubType = {1} where SE_ID = {2};", s.Type, s.SubType, s.ID);
+                batchline++;
+                batchstring.AppendLine(q);
+                if (batchline == batchmax)
+                {
+                    modifiedservice += Execute(batchstring.ToString()).AffectedRows;
+                    batchstring.Clear();
+                    batchline = 0;
+                }
+            }
+            if (batchline > 0)
+                modifiedservice += Execute(batchstring.ToString()).AffectedRows;
+            if (modifiedservice > 0)
+                Event(modifiedservice + " service(s) modified");
+        }
+
+        #endregion
+    }
+
+    internal class CustomerToDatabase : ToDatabase
+    {
+        private string name;
+
+        public string Name
+        {
+            get { return name; }
+            set { name = value; }
+        }
+
+        private string cid;
+
+        public string CID
+        {
+            get { return cid; }
+            set { cid = value; }
+        }
+    }
+
+    internal class ServiceToDatabase : ToDatabase
+    {
+        private string sid;
+
+        public string SID
+        {
+            get { return sid; }
+            set { sid = value; }
+        }
+
+        private string type;
+
+        public string Type
+        {
+            get { return type; }
+            set { type = value; }
+        }
+
+        private string subType;
+
+        public string SubType
+        {
+            get { return subType; }
+            set { subType = value; }
+        }
+
+        private string rawDesc;
+
+        public string RawDesc
+        {
+            get { return rawDesc; }
+            set { rawDesc = value; }
+        }
+
+        private string customerID;
+
+        public string CustomerID
+        {
+            get { return customerID; }
+            set { customerID = value; }
+        }
+    }
+
+    internal class ServiceReference
+    {
+        #region Fields
+
+        private List<Tuple<ServiceBaseToDatabase, ServiceMapping>> mappings;
+
+        public List<Tuple<ServiceBaseToDatabase, ServiceMapping>> Mappings
+        {
+            get { return mappings; }
+        }
+
+        #endregion
+
+        #region Constructors
+
+        public ServiceReference()
+        {
+            mappings = new List<Tuple<ServiceBaseToDatabase, ServiceMapping>>();
+        }
+
+        #endregion
+
+        #region Methods
+
+        public void Add(ServiceBaseToDatabase reference, string description)
+        {
+            ServiceMapping servmap = ServiceMapping.Parse(description);
+            if (servmap.SID != null)
+                mappings.Add(new Tuple<ServiceBaseToDatabase, ServiceMapping>(reference, servmap));
+        }
+
+        #endregion
+    }
+
+    internal class ServiceMapping
+    {
+        #region Constants
+
+        private static string[] monthsEnglish = new string[] { "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER" };
+        private static string[] monthsBahasa = new string[] { "JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER" };
+
+        #endregion
+
+        #region Properties
+
+        private string sid;
+
+        public string SID
+        {
+            get { return sid; }
+            private set { sid = value; }
+        }
+
+        private string cid;
+
+        public string CID
+        {
+            get { return cid; }
+            set { cid = value; }
+        }
+
+        private string serviceType;
+
+        public string ServiceType
+        {
+            get { return serviceType; }
+            private set { serviceType = value; }
+        }
+
+        private string serviceSubType;
+
+        public string ServiceSubType
+        {
+            get { return serviceSubType; }
+            set { serviceSubType = value; }
+        }
+
+        private string cleanDescription;
+
+        public string CleanDescription
+        {
+            get { return cleanDescription; }
+            private set { cleanDescription = value; }
+        }
+
+        private string rawDescription;
+
+        public string RawDescription
+        {
+            get { return rawDescription; }
+            private set { rawDescription = value; }
+        }
+
+        #endregion
+
+        #region Methods
+
+        public static ServiceMapping Parse(string desc)
+        {
+            ServiceMapping de = new ServiceMapping();
+            de.RawDescription = desc;
+
+            string[] s = desc.Split(new char[] { '_', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            string d = string.Join(" ", s).ToUpper();
+
+            int rmv = -1;
+            int rle = -1;
+
+            //                         12345678901234567890
+            if ((rmv = d.IndexOf("MM IPVPN INSTAN ")) > -1) { de.ServiceType = "VPNINSTAN"; rle = 15; }
+            else if ((rmv = d.IndexOf("MM VPNIP INSTAN ")) > -1) { de.ServiceType = "VPNINSTAN"; rle = 15; }
+            else if ((rmv = d.IndexOf("VPNIP INSTANT ")) > -1) { de.ServiceType = "VPNINSTAN"; rle = 13; }
+            else if ((rmv = d.IndexOf("IPVPN INSTANT ")) > -1) { de.ServiceType = "VPNINSTAN"; rle = 13; }
+            else if ((rmv = d.IndexOf("VPNIP INSTAN ")) > -1) { de.ServiceType = "VPNINSTAN"; rle = 12; }
+            else if ((rmv = d.IndexOf("IPVPN INSTAN ")) > -1) { de.ServiceType = "VPNINSTAN"; rle = 12; }
+            else if ((rmv = d.IndexOf("VPNIP VPN IP ")) > -1) { de.ServiceType = "VPNIP"; rle = 12; }
+            else if ((rmv = d.IndexOf("VPNIP VPNIP ")) > -1) { de.ServiceType = "VPNIP"; rle = 11; }
+            else if ((rmv = d.IndexOf("VPN INSTAN ")) > -1) { de.ServiceType = "VPNINSTAN"; rle = 10; }
+            else if ((rmv = d.IndexOf("MM IPVPN ")) > -1) { de.ServiceType = "VPNIP"; rle = 8; }
+            else if ((rmv = d.IndexOf("MM VPNIP ")) > -1) { de.ServiceType = "VPNIP"; rle = 8; }
+            else if ((rmv = d.IndexOf("MM VPNIP ")) > -1) { de.ServiceType = "VPNIP"; rle = 8; }
+            else if ((rmv = d.IndexOf("MM VPNIP ")) > -1) { de.ServiceType = "VPNIP"; rle = 8; }
+            else if ((rmv = d.IndexOf("VPN IP ")) > -1) { de.ServiceType = "VPNIP"; rle = 6; }
+            else if ((rmv = d.IndexOf("IP VPN ")) > -1) { de.ServiceType = "VPNIP"; rle = 6; }
+            else if ((rmv = d.IndexOf("VPNIP ")) > -1) { de.ServiceType = "VPNIP"; rle = 5; }
+            else if ((rmv = d.IndexOf("IPVPN ")) > -1) { de.ServiceType = "VPNIP"; rle = 5; }
+            //                         12345678901234567890
+            else if ((rmv = d.IndexOf("MM ASTINET BEDA BW ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 18; }
+            else if ((rmv = d.IndexOf("MM ASTINET BEDABW ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 17; }
+            else if ((rmv = d.IndexOf("ASTINET BEDA BW ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 15; }
+            else if ((rmv = d.IndexOf("ASTINET BEDABW ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 14; }
+            else if ((rmv = d.IndexOf("MM ASTINET BB ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 13; }
+            else if ((rmv = d.IndexOf("ASTINET BB ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 10; }
+            else if ((rmv = d.IndexOf("ASTINETBB ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 9; }
+            else if ((rmv = d.IndexOf("AST BEDA BW ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 11; }
+            else if ((rmv = d.IndexOf("AST BEDABW ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 10; }
+            else if ((rmv = d.IndexOf("AST BB ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 7; }
+            //                         12345678901234567890
+            else if ((rmv = d.IndexOf("MM ASTINET ")) > -1) { de.ServiceType = "ASTINET"; rle = 10; }
+            else if ((rmv = d.IndexOf("ASTINET ")) > -1) { de.ServiceType = "ASTINET"; rle = 7; }
+            //                         12345678901234567890
+            else rmv = -1;
+
+            if (rmv > -1) d = d.Remove(rmv, rle);
+            rmv = -1;
+            rle = -1;
+
+            if (de.ServiceType == null || de.ServiceType == "VPNIP")
+            {
+                //                         12345678901234567890
+                if ((rmv = d.IndexOf("VPNIP TRANS ACCESS ")) > -1) { de.ServiceType = "VPNIP"; rle = 18; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANSACTIONAL ACCESS ")) > -1) { de.ServiceType = "VPNIP"; rle = 20; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("MM TRANS ACCESS ")) > -1) { de.ServiceType = "VPNIP"; rle = 15; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANSS ACCESS ")) > -1) { de.ServiceType = "VPNIP"; rle = 13; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANS ACCESS ")) > -1) { de.ServiceType = "VPNIP"; rle = 12; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANSACCESS ")) > -1) { de.ServiceType = "VPNIP"; rle = 11; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANS ACCES ")) > -1) { de.ServiceType = "VPNIP"; rle = 11; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANSACC ")) > -1) { de.ServiceType = "VPNIP"; rle = 8; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRAN ACC ")) > -1) { de.ServiceType = "VPNIP"; rle = 8; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANS AC ")) > -1) { de.ServiceType = "VPNIP"; rle = 8; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANSAC ")) > -1) { de.ServiceType = "VPNIP"; rle = 7; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANSC ")) > -1) { de.ServiceType = "VPNIP"; rle = 6; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANSS ")) > -1) { de.ServiceType = "VPNIP"; rle = 6; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANS ")) > -1 && de.ServiceType == null) { de.ServiceType = "VPNIP"; rle = 5; de.ServiceSubType = "TRANS"; }
+                else rmv = -1;
+
+                if (rmv > -1) d = d.Remove(rmv, rle);
+                rmv = -1;
+                rle = -1;
+            }
+
+            rmv = -1;
+            rle = -1;
+
+            d = d.Trim();
+
+            //                         12345678901234567890
+            if ((rmv = d.IndexOf("(EX SID FEAS")) > -1) { rle = 12; }
+            else if ((rmv = d.IndexOf("[EX SID FEAS")) > -1) { rle = 12; }
+            else if ((rmv = d.IndexOf("EX SID FEAS")) > -1) { rle = 11; }
+            else if ((rmv = d.IndexOf("EX SID FEAS")) > -1) { rle = 11; }
+            else if ((rmv = d.IndexOf("SID (FEAS)")) > -1) { rle = 10; }
+            else if ((rmv = d.IndexOf("SID [FEAS]")) > -1) { rle = 10; }
+            else if ((rmv = d.IndexOf("SID <FEAS>")) > -1) { rle = 10; }
+            else if ((rmv = d.IndexOf("(SID FEAS")) > -1) { rle = 9; }
+            else if ((rmv = d.IndexOf("[SID FEAS")) > -1) { rle = 9; }
+            else if ((rmv = d.IndexOf("SID FEAS")) > -1) { rle = 8; }
+            else if ((rmv = d.IndexOf("(EX FEAS")) > -1) { rle = 8; }
+            else if ((rmv = d.IndexOf("[EX FEAS")) > -1) { rle = 8; }
+            else if ((rmv = d.IndexOf("(EX SID")) > -1) { rle = 7; }
+            else if ((rmv = d.IndexOf("[EX SID")) > -1) { rle = 7; }
+            else if ((rmv = d.IndexOf("EX FEAS")) > -1) { rle = 7; }
+            else if ((rmv = d.IndexOf("EX-SID")) > -1) { rle = 6; }
+            else if ((rmv = d.IndexOf("EX SID")) > -1) { rle = 6; }
+            else if ((rmv = d.IndexOf("X-SID")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf("X SID")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf("EXSID")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf("XSID3")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf("XSID4")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf("XSID ")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf("FEAS ")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf("VLAN ")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf(" EX3")) > -1) { rle = 3; }
+            else if ((rmv = d.IndexOf(" EX4")) > -1) { rle = 3; }
+            else if ((rmv = d.IndexOf("(EX3")) > -1) { rle = 3; }
+            else if ((rmv = d.IndexOf("(EX4")) > -1) { rle = 3; }
+            else if ((rmv = d.IndexOf("[EX3")) > -1) { rle = 3; }
+            else if ((rmv = d.IndexOf("[EX4")) > -1) { rle = 3; }
+            else if ((rmv = d.IndexOf("<EX3")) > -1) { rle = 3; }
+            else if ((rmv = d.IndexOf("<EX4")) > -1) { rle = 3; }
+
+            if (rmv > -1)
+            {
+                int rmvn = rmv + rle;
+                if (rmvn < d.Length)
+                {
+                    if (d[rmvn] == ' ') rmvn += 1;
+                    else if (d[rmvn] == ':' || d[rmvn] == '-' || d[rmvn] == '=')
+                    {
+                        rmvn += 1;
+                        if (rmvn < d.Length && d[rmvn] == ' ') rmvn += 1;
+                    }
+                }
+                if (rmvn < d.Length)
+                {
+                    int end = d.IndexOfAny(new char[] { ' ', ')', '(', ']', '[', '.', '<', '>' }, rmvn);
+                    if (end > -1) d = d.Remove(rmv, end - rmv);
+                    else d = d.Remove(rmv);
+                }
+            }
+            rmv = -1;
+            rle = -1;
+
+            //                         12345678901234567890
+            if ((rmv = d.IndexOf("SID-TENOSS-")) > -1) { rle = 11; }
+            else if ((rmv = d.IndexOf("SID-TENOSS:")) > -1) { rle = 11; }
+            else if ((rmv = d.IndexOf("SID-TENOSS=")) > -1) { rle = 11; }
+            else if ((rmv = d.IndexOf("SID-TENOSS ")) > -1) { rle = 11; }
+            else if ((rmv = d.IndexOf("SID TENOSS:")) > -1) { rle = 11; }
+            else if ((rmv = d.IndexOf("SID TENOSS=")) > -1) { rle = 11; }
+            else if ((rmv = d.IndexOf("SID TENOSS ")) > -1) { rle = 11; }
+            else if ((rmv = d.IndexOf("TENOSS-SID-")) > -1) { rle = 11; }
+            else if ((rmv = d.IndexOf("TENOSS-SID:")) > -1) { rle = 11; }
+            else if ((rmv = d.IndexOf("TENOSS-SID=")) > -1) { rle = 11; }
+            else if ((rmv = d.IndexOf("TENOSS-SID ")) > -1) { rle = 11; }
+            else if ((rmv = d.IndexOf("TENOSS SID:")) > -1) { rle = 11; }
+            else if ((rmv = d.IndexOf("TENOSS SID=")) > -1) { rle = 11; }
+            else if ((rmv = d.IndexOf("TENOSS SID ")) > -1) { rle = 11; }
+            else if ((rmv = d.IndexOf("SID SID ")) > -1) { rle = 7; }
+            else if ((rmv = d.IndexOf("-SOID-")) > -1) { rle = 6; }
+            else if ((rmv = d.IndexOf("(SID-")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf("(SID:")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf("(SID=")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf("(SID%")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf("(SID ")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf("<SID-")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf("<SID:")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf("<SID=")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf("<SID%")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf("<SID ")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf("[SID-")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf("[SID:")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf("[SID=")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf("[SID%")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf("[SID ")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf(" SID-")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf(" SID:")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf(" SID=")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf(" SID%")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf(" SID ")) > -1) { rle = 5; }
+            else if ((rmv = d.IndexOf(" SIDT")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf(" SID1")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf(" SID2")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf(" SID3")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf(" SID4")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf(" SID5")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf(" SID6")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf(" SID7")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf(" SID8")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf(" SID9")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf("SID-")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf("SID:")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf("SID=")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf("SID%")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf("SID ")) > -1) { rle = 4; }
+            else rmv = -1;
+
+            if (rmv > -1)
+            {
+                int rmvn = rmv + rle;
+                if (rmvn < d.Length)
+                {
+                    if (d[rmvn] == ' ') rmvn += 1;
+                    else if (d[rmvn] == ':' || d[rmvn] == '-' || d[rmvn] == '=' || d[rmvn] == '(' || d[rmvn] == '[')
+                    {
+                        rmvn += 1;
+                        if (rmvn < d.Length && d[rmvn] == ' ') rmvn += 1;
+                    }
+                }
+                if (rmvn < d.Length)
+                {
+                    int end = -1;
+                    int nextend = rmvn;
+
+                    while (true)
+                    {
+
+                        end = d.IndexOfAny(new char[] { ' ', ')', '(', ']', '[', '.', '<', '>' }, nextend);
+                        if (end > -1 && end < d.Length && d[end] == ' ' && end - rmvn <= 8) nextend = end + 1;
+                        else break;
+                    }
+
+                    if (end > -1)
+                    {
+                        de.SID = d.Substring(rmvn, end - rmv - rle).Trim();
+                        d = d.Remove(rmv, end - rmv);
+                    }
+                    else
+                    {
+                        string imx = d.Substring(rmvn).Trim();
+                        imx = imx.Replace(' ', '_');
+
+                        if (imx.Length > 13)
+                        {
+                            StringBuilder nimx = new StringBuilder();
+                            nimx.Append(imx.Substring(0, 13));
+                            for (int imxi = 13; imxi < imx.Length; imxi++)
+                            {
+                                if (char.IsDigit(imx[imxi])) nimx.Append(imx[imxi]);
+                                else break;
+                            }
+
+                            imx = nimx.ToString();
+                        }
+
+                        de.SID = imx;
+                        d = d.Remove(rmv);
+                    }
+                }
+
+                if (de.SID != null)
+                {
+                    int weirdc = de.SID.IndexOfAny(new char[] { ' ' });
+
+                    if (weirdc > -1) de.SID = null;
+
+                }
+            }
+
+            if (de.SID == null)
+            {
+                string[] ss = d.Split(new char[] { ' ', ':', '=' });
+
+                List<string> sidc = new List<string>();
+                foreach (string si in ss)
+                {
+                    int dig = 0;
+
+                    string fsi = si.Trim(new char[] { '-', ')', '(', '[', ']', '>', '<' });
+
+
+                    // count digit in si
+                    foreach (char ci in fsi)
+                        if (char.IsDigit(ci))
+                            dig++;
+
+                    double oc = (double)dig / (double)fsi.Length;
+
+                    if (oc > 0.3 && fsi.Length > 8 &&
+                        !fsi.StartsWith("FAA-") &&
+                        !fsi.StartsWith("FAI-") &&
+                        !fsi.StartsWith("FAD-") &&
+                        !fsi.StartsWith("GI") &&
+                        !fsi.StartsWith("TE") &&
+                        !fsi.StartsWith("FA") &&
+                        fsi.IndexOf("GBPS") == -1 &&
+                        fsi.IndexOf("KBPS") == -1 &&
+                        fsi.IndexOf("MBPS") == -1 &&
+                        fsi.IndexOf("BPS") == -1 &&
+                        fsi.IndexOfAny(new char[] { '/', '.', ';', '\'', '\"', '>', '<', '/' }) == -1)
+                    {
+                        int imin = fsi.LastIndexOf('-');
+
+                        if (imin > -1)
+                        {
+                            string lastport = fsi.Substring(imin + 1);
+
+                            if (lastport.Length < 5) fsi = null;
+                            else
+                            {
+                                bool adadigit = false;
+                                foreach (char lastportc in lastport)
+                                {
+                                    if (char.IsDigit(lastportc))
+                                    {
+                                        adadigit = true;
+                                        break;
+                                    }
+                                }
+
+                                if (adadigit == false)
+                                    fsi = null;
+                            }
+                        }
+
+                        if (fsi != null)
+                        {
+                            if (fsi.Length >= 6 && fsi.Length <= 16)
+                            {
+                                bool isDate = true;
+
+                                string[] fsip = fsi.Split(new char[] { '-' });
+                                if (fsip.Length == 3)
+                                {
+                                    string first = fsip[0];
+                                    if (char.IsDigit(first[0]))
+                                    {
+                                        if (first.Length == 1 || first.Length == 2 && char.IsDigit(first[1])) { }
+                                        else isDate = false;
+                                    }
+                                    if (isDate && !char.IsDigit(first[0]))
+                                    {
+                                        if (first.Length >= 3 && (
+                                            List.StartsWith(monthsEnglish, first) > -1 ||
+                                            List.StartsWith(monthsBahasa, first) > -1
+                                            ))
+                                        { }
+                                        else isDate = false;
+                                    }
+                                    string second = fsip[1];
+                                    if (isDate && char.IsDigit(second[0]))
+                                    {
+                                        if (second.Length == 1 || second.Length == 2 && char.IsDigit(second[1])) { }
+                                        else isDate = false;
+                                    }
+                                    if (isDate && !char.IsDigit(second[0]))
+                                    {
+                                        if (second.Length >= 3 && (
+                                            List.StartsWith(monthsEnglish, second) > -1 ||
+                                            List.StartsWith(monthsBahasa, second) > -1
+                                            ))
+                                        { }
+                                        else isDate = false;
+                                    }
+                                    string third = fsip[2];
+                                    if (isDate && char.IsDigit(second[0]))
+                                    {
+                                        if (third.Length == 2 && char.IsDigit(third[1])) { }
+                                        else if (third.Length == 4 && char.IsDigit(third[1]) && char.IsDigit(third[2]) && char.IsDigit(third[3])) { }
+                                        else isDate = false;
+                                    }
+                                    else isDate = false;
+                                }
+                                else if (fsip.Length == 1)
+                                {
+                                    // 04APR2014
+                                    // APR42014
+                                    // 4APR2014
+                                    // 04042014
+
+                                    if (char.IsDigit(fsi[0]))
+                                    {
+
+                                    }
+                                    else
+                                    {
+                                        int tlen = 1;
+                                        for (int fi = 1; fi < fsi.Length; fi++)
+                                        {
+                                            if (char.IsDigit(fsi[fi])) break;
+                                            else tlen++;
+                                        }
+
+                                        string t = fsi.Substring(0, tlen);
+
+                                        if (List.StartsWith(monthsEnglish, t) > -1 ||
+                                            List.StartsWith(monthsBahasa, t) > -1)
+                                        { }
+                                        else isDate = false;
+
+                                        if (isDate && fsi.Length > tlen)
+                                        {
+                                            int remaining = fsi.Length - tlen;
+                                            if (remaining >= 3 && remaining <= 6)
+                                            {
+                                                for (int ooi = 0; ooi < remaining; ooi++)
+                                                {
+                                                    char cc = fsi[tlen + ooi];
+                                                    if (!char.IsDigit(cc))
+                                                    {
+                                                        isDate = false;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                            else isDate = false;
+                                        }
+                                    }
+                                }
+                                else isDate = false;
+
+                                if (isDate) fsi = null;
+                            }
+                        }
+
+                        if (fsi != null)
+                            sidc.Add(fsi);
+                    }
+                }
+
+                if (sidc.Count > 0)
+                {
+                    sidc.Sort((a, b) => b.Length.CompareTo(a.Length));
+
+                    de.SID = sidc[0];
+                    d = d.Remove(d.IndexOf(de.SID), de.SID.Length);
+                }
+            }
+
+            if (de.SID != null)
+            {
+                if (de.SID.Length <= 8)
+                    de.SID = null;
+                else
+                {
+                    string fixsid = de.SID.Trim(new char[] { '-', ')', '(', '[', ']', '>', '<' });
+                    fixsid = fixsid.Replace("--", "-");
+
+                    string[] sids = fixsid.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (sids.Length > 0)
+                        fixsid = sids[0];
+
+                    de.SID = fixsid;
+
+                    if (StringHelper.Count(de.SID, '-') > 3)
+                    {
+                        de.SID = null;
+                    }
+
+                    if (de.SID != null)
+                    {
+                        int lmin = de.SID.LastIndexOf('-');
+                        if (lmin > -1)
+                            de.CID = de.SID.Substring(0, lmin);
+
+                        if (de.CID == null && lmin == -1)
+                        {
+                            if (de.SID.Length == 12 && de.SID[0] == '4')
+                            {
+                                bool alldigit = true;
+                                foreach (char c in de.SID) { if (!char.IsDigit(c)) { alldigit = false; break; } }
+                                if (alldigit)
+                                {
+                                    de.CID = de.SID.Substring(0, 7);
+                                }
+                            }
+                            if (de.SID.Length == 17 && (de.SID[0] == '4' || de.SID[0] == '3'))
+                            {
+                                bool alldigit = true;
+                                foreach (char c in de.SID) { if (!char.IsDigit(c)) { alldigit = false; break; } }
+                                if (alldigit)
+                                {
+                                    de.CID = de.SID.Substring(0, 7);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            d = d.Trim();
+
+            // if double, singlekan
+            if (d.Length >= 2 && d.Length % 2 == 0)
+            {
+                int halflen = d.Length / 2;
+                string leftside = d.Substring(0, halflen);
+                string rightside = d.Substring(halflen, halflen);
+
+                if (leftside == rightside)
+                    d = leftside;
+            }
+
+            d = d.Replace("()", "");
+            d = d.Replace("[]", "");
+            d = string.Join(" ", d.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries));
+
+            de.CleanDescription = d;
+
+            return de;
+        }
 
         #endregion
     }

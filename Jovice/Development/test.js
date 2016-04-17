@@ -3,11 +3,11 @@
     ui("test", {
         init: function (p) {
             
-            var v = jovice.vselect(p);
+            ui.textarea(p)({
+                size: [200, 200],
+                readonly: true
+            });
 
-            v.add("powercut", "DISCONNECTED");
-            v.add("search", "SEARCH");
-            v.add("refresh", "REFRESH");
 
             p.done();
         },

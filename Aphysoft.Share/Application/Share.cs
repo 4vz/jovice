@@ -327,8 +327,11 @@ namespace Aphysoft.Share
                         if (cp != Settings.UrlPrefix + PathSetup)
                         {
                             string verss = request.Cookies["vers"].Value;
+
+                            Service.Debug("vers:" + verss);
+
                             int vers;
-                            //Service.Debug(verss);
+
                             if (int.TryParse(verss, out vers)) ;
                             else vers = 0;
 

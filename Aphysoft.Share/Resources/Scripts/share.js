@@ -742,62 +742,7 @@
 
     })(share);
 
-    // .cookie .removeCookie
-    (function (share) {
 
-        var cookie = function () {
-            var o = share.args(arguments, "string key", "optional string<number<boolean value", "optional string path", "optional date expires");
-
-            if (o) {
-
-                var dc = document.cookie;
-                var cs = dc.split(";");
-                var c = {};
-
-                $.each(cs, function (i, v) {
-                    var iv = v.trim();
-                    var ivfe = iv.indexOf("=");
-                    var key = iv.substr(0, ivfe);
-                    var value = iv.substr(ivfe + 1);
-
-                    c[key] = value;
-                });
-
-                if (o.value == null) {
-                    return $.isUndefined(c[o.key]) ? null : c[o.key];
-                }
-                else {
-                    var sdom = share.domain();
-                    var s = o.key + "=" + o.value + (sdom != null ? "; domain=" + sdom : "");
-
-                    if (o.path != null)
-                        s += "; path=" + o.path;
-                    if (o.expires != null) {
-                        s += "; expires= " + share.date("{ddd}, {DD}-{MMM}-{YYYY} {HH}:{mm}:{ss} {tz}", o.expires);
-                    }
-
-                    document.cookie = s;
-                }
-            }
-        };
-        var removeCookie = function () {
-            var o = share.args(arguments, "string key", "optional string path");
-
-            if (o) {
-                var sdom = share.domain();
-                var s = o.key + "=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT" + (sdom != null ? "; domain=" + sdom : "");
-
-                if (o.path != null)
-                    s += "; path=" + o.path;
-
-                document.cookie = s;
-            }
-        };
-
-        share.cookie = cookie;
-        share.removeCookie = removeCookie;
-
-    })(share);
 
     // .date .timer .removeTimer .fromNow
     (function (share) {

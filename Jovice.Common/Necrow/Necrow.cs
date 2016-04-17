@@ -17,7 +17,6 @@ namespace Jovice
         Probe           = 0x00001,
         ServiceFinder   = 0x00010,
         TopologyFinder  = 0x00100,
-        Summary         = 0x01000,
         StandbyProbe    = 0x10000,
         All             = 0x11111,
         AllExceptProbe  = 0x01110
@@ -248,10 +247,6 @@ namespace Jovice
                     {
                         Probe.Start(standbyProbeProperties);
                     }
-                    if (services.IsFlagSet(NecrowServices.ServiceFinder))
-                    {
-                        ServiceFinder.Start();
-                    }
                     if (services.IsFlagSet(NecrowServices.TopologyFinder))
                     {
                         TopologyFinder.Start();
@@ -269,10 +264,6 @@ namespace Jovice
 
         public static void Stop()
         {
-            if (services.IsFlagSet(NecrowServices.ServiceFinder))
-            {
-                ServiceFinder.Stop();
-            }
             if (services.IsFlagSet(NecrowServices.TopologyFinder))
             {
                 TopologyFinder.Stop();

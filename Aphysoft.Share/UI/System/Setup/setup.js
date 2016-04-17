@@ -6,9 +6,9 @@
         
         // check cookie
         var cookieStatus = 2;
-        if (share.cookie("shts") == "shts") {
-            share.removeCookie("shts");
-            if (share.cookie("shts") == null) {
+        if ($$.cookie("shts") == "shts") {
+            $$.removeCookie("shts");
+            if ($$.cookie("shts") == null) {
                 cookieStatus = 0
             }
             else cookieStatus = 1;
@@ -21,9 +21,18 @@
         // check version
         var versionStatus = 1;
         var version = 0, serverVersion = p.data("serverVersion");
-        //return;alert(p.data("defaultPage"));
-        if (share.cookie("vers") != null) {
-            version = parseInt(share.cookie("vers"));
+
+
+        var versc = $$.cookie("vers");
+        if (versc != null) {
+            if ($.isArray(versc)) {                
+                //$$.removeCookie("vers");
+                //versionStatus = 0;
+                alert("Problem with vers, we cannot continue.");
+                return;
+            }
+            else
+                version = parseInt(versc);
         }
         if (version == serverVersion) {
             versionStatus = 0;
@@ -40,25 +49,25 @@
                     // update
                     //debug("update");
                 }
-                var expDate = share.date();
+                var expDate = $$.date();
                 expDate.setMonth(expDate.getMonth() + 1);
 
-                share.cookie("vers", serverVersion, expDate);
+                $$.cookie("vers", serverVersion, expDate);
 
-                var whenDone = share.param("done");
+                var whenDone = $$.param("done");
                 
                 if (whenDone != null) {
-                    p.transfer(share.urlDecode(whenDone), { replace: true });
+                    p.transfer($$.urlDecode(whenDone), { replace: true });
                 }
             }
             else {
-                var whenDone = share.param("done");
+                var whenDone = $$.param("done");
                 
                 if (whenDone == null) {
                     p.transfer(p.data("defaultPage"), { replace: true });
                 }
                 else {
-                    p.transfer(share.urlDecode(whenDone), { replace: true });
+                    p.transfer($$.urlDecode(whenDone), { replace: true });
                 }
             }
         }

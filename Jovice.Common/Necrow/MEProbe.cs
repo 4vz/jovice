@@ -1155,9 +1155,7 @@ MC_NO = {0} and MC_VCID = {1}
                         Result rex = Execute(dsql);
                         Event("" + rex.AffectedRows + " entries deleted.");
                     }
-
-
-
+                    
                     Result vdbcr = Query("select * from MECustomer where MU_NO = {0}", nodeID);
                     Dictionary<string, string> vdbc = new Dictionary<string, string>();
                     foreach (Row vdbco in vdbcr) { vdbc.Add(vdbco["MU_UID"].ToString(), vdbco["MU_ID"].ToString()); }
@@ -2941,7 +2939,7 @@ MC_NO = {0} and MC_VCID = {1}
                 {
                     string miid = Database.ID();
 
-                    batchlist1.Add(Format("({0}, {1}, {2}, {3}, {4}, " + (s.Aggr == -1 ? "null" : s.Aggr + "") + ", {5}, {6}, {7}, {8}, {9}, " + ((s.RateLimitInput == -1) ? "null" : (s.RateLimitInput + "")) + ", " + ((s.RateLimitOutput == -1) ? "null" : (s.RateLimitOutput + "")) + "," + ((s.Used == -1) ? "null" : (s.Used + "")) + ", {10}, {11})",
+                    batchlist1.Add(Format("({0}, {1}, {2}, {3}, {4}, " + (s.Aggr == -1 ? "NULL" : s.Aggr + "") + ", {5}, {6}, {7}, {8}, {9}, " + ((s.RateLimitInput == -1) ? "NULL" : (s.RateLimitInput + "")) + ", " + ((s.RateLimitOutput == -1) ? "NULL" : (s.RateLimitOutput + "")) + ", " + ((s.Used == -1) ? "NULL" : (s.Used + "")) + ", {10}, {11})",
                         miid, nodeID, s.Name, s.Status, s.Protocol, s.Description, s.CircuitID, s.InterfaceType, s.IngressID, s.EgressID, s.Info, s.ServiceID));
 
                     if (batchlist1.Count >= batchmax)
@@ -3110,23 +3108,23 @@ MC_NO = {0} and MC_VCID = {1}
             #region Late Execute
 
             // DELETE PEER
-            if (feature == null && feature == "peer")
+            if (feature == null || feature == "peer")
             {
                 batchline = 0;
                 batchlist1.Clear();
                 batchstring.Clear();
             }
 
-            // DELETE SERVICE
-            if (feature == null && feature == "service" && feature == "interface")
+            // DELETE CIRCUIT
+            if (feature == null || feature == "circuit" || feature == "interface")
             {
                 batchline = 0;
                 batchlist1.Clear();
                 batchlist2.Clear();
                 batchstring.Clear();
 
-                int deletedservice = 0;
-                int removedrefservice = 0;
+                int deletedcircuit = 0;
+                int removedrefcircuit = 0;
 
                 foreach (KeyValuePair<string, Row> pair in circuitdb)
                 {
@@ -3135,7 +3133,7 @@ MC_NO = {0} and MC_VCID = {1}
                         string mcid = pair.Value["MC_ID"].ToString();
                         batchlist1.Add(Format("MC_ID = {0}", mcid));
                         batchlist2.Add(Format("MP_TO_MC = {0}", mcid));
-                        Event("Service DELETE: " + pair.Key);
+                        Event("Circuit DELETE: " + pair.Key);
                     }
                 }
 
@@ -3145,7 +3143,7 @@ MC_NO = {0} and MC_VCID = {1}
                     {
                         if (batchstring.Length > 0)
                         {
-                            removedrefservice += Execute(circuitremoverefsql + batchstring.ToString()).AffectedRows;
+                            removedrefcircuit += Execute(circuitremoverefsql + batchstring.ToString()).AffectedRows;
                             batchstring.Clear();
                         }
                         batchstring.Append(s);
@@ -3154,7 +3152,7 @@ MC_NO = {0} and MC_VCID = {1}
                     batchline++;
                 }
                 if (batchstring.Length > 0)
-                    removedrefservice += Execute(circuitremoverefsql + batchstring.ToString()).AffectedRows;
+                    removedrefcircuit += Execute(circuitremoverefsql + batchstring.ToString()).AffectedRows;
 
                 batchline = 0;
                 batchstring.Clear();
@@ -3165,7 +3163,7 @@ MC_NO = {0} and MC_VCID = {1}
                     {
                         if (batchstring.Length > 0)
                         {
-                            deletedservice += Execute(circuitdeletesql + batchstring.ToString()).AffectedRows;
+                            deletedcircuit += Execute(circuitdeletesql + batchstring.ToString()).AffectedRows;
                             batchstring.Clear();
                         }
                         batchstring.Append(s);
@@ -3174,16 +3172,16 @@ MC_NO = {0} and MC_VCID = {1}
                     batchline++;
                 }
                 if (batchstring.Length > 0)
-                    deletedservice += Execute(circuitdeletesql + batchstring.ToString()).AffectedRows;
+                    deletedcircuit += Execute(circuitdeletesql + batchstring.ToString()).AffectedRows;
 
-                if (deletedservice > 0)
-                    Event(deletedservice + " service(s) deleted");
-                if (removedrefservice > 0)
-                    Event(removedrefservice + " service(s) reference updated");
+                if (deletedcircuit > 0)
+                    Event(deletedcircuit + " circuit(s) deleted");
+                if (removedrefcircuit > 0)
+                    Event(removedrefcircuit + " circuit(s) reference updated");
             }
 
             // DELETE CUSTOMER
-            if (feature == null || feature == "customer")
+            if (feature == null || feature == "alu-customer")
             {
                 if (nodeManufacture == alu)
                 {
@@ -3197,7 +3195,7 @@ MC_NO = {0} and MC_VCID = {1}
                         if (!custlive.ContainsKey(pair.Key))
                         {
                             batchlist1.Add(Format("MU_ID = {0}", pair.Value));
-                            Event("Customer DELETE: " + pair.Key);
+                            Event("ALU-Customer DELETE: " + pair.Key);
                         }
                     }
                     if (batchlist1.Count > 0)
@@ -3220,7 +3218,7 @@ MC_NO = {0} and MC_VCID = {1}
                             deletedcustomer += Execute(custdeletesql + batchstring.ToString()).AffectedRows;
                     }
                     if (deletedcustomer > 0)
-                        Event(deletedcustomer + " customer(s) deleted");
+                        Event(deletedcustomer + " alu-customer(s) deleted");
                 }
             }
             #endregion

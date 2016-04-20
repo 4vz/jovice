@@ -154,12 +154,20 @@ namespace Jovice
             set { updateInfo = value; }
         }
 
-        private string serviceID = null;
+        private string parentID = null;
 
-        public string ServiceID
+        public string ParentID
         {
-            get { return serviceID; }
-            set { serviceID = value; }
+            get { return parentID; }
+            set { ParentID = value; }
+        }
+
+        private bool updateParentID = false;
+
+        public bool UpdateParentID
+        {
+            get { return updateParentID; }
+            set { updateParentID = value; }
         }
     }
 
@@ -1609,18 +1617,18 @@ MC_NO = {0} and MC_VCID = {1}
 
             #region CIRCUIT PEER
 
-            string servpeerinsertsql = "insert into MEPeer(MP_ID, MP_MC, MP_MS, MP_VCID, MP_Protocol, MP_Type) values";
-            string servpeerdeletesql = "delete from MEPeer where ";
-            Result servpeerdbresult = Query("select * from MEPeer, MECircuit, MESDP where MP_MC = MC_ID and MP_MS = MS_ID and MC_NO = {0}", nodeID);
-            Dictionary<string, Row> servpeerdb = new Dictionary<string, Row>();
+            string circpeerinsertsql = "insert into MEPeer(MP_ID, MP_MC, MP_MS, MP_VCID, MP_Protocol, MP_Type) values";
+            string circpeerdeletesql = "delete from MEPeer where ";
+            Result circpeerdbresult = Query("select * from MEPeer, MECircuit, MESDP where MP_MC = MC_ID and MP_MS = MS_ID and MC_NO = {0}", nodeID);
+            Dictionary<string, Row> circpeerdb = new Dictionary<string, Row>();
 
             List<string> sdpvcidduplicate = new List<string>();
-            foreach (Row row in servpeerdbresult) 
+            foreach (Row row in circpeerdbresult) 
             { 
                 string sdpvcid = row["MS_SDP"].ToString() + ":" + row["MP_VCID"].ToString();
-                if (servpeerdb.ContainsKey(sdpvcid))
+                if (circpeerdb.ContainsKey(sdpvcid))
                     sdpvcidduplicate.Add(row["MP_ID"].ToString());
-                else servpeerdb.Add(sdpvcid, row);
+                else circpeerdb.Add(sdpvcid, row);
             }
 
             if (sdpvcidduplicate.Count > 0)
@@ -1646,11 +1654,11 @@ MC_NO = {0} and MC_VCID = {1}
                 Event(sdpvcidduplicatedeleted + " entries deleted.");
             }
 
-            Dictionary<string, MECircuitPeerToDatabase> servpeerlive = new Dictionary<string, MECircuitPeerToDatabase>();
-            List<MECircuitPeerToDatabase> servpeerinsert = new List<MECircuitPeerToDatabase>();
-            List<MECircuitPeerToDatabase> servpeerupdate = new List<MECircuitPeerToDatabase>();
+            Dictionary<string, MECircuitPeerToDatabase> circpeerlive = new Dictionary<string, MECircuitPeerToDatabase>();
+            List<MECircuitPeerToDatabase> circpeerinsert = new List<MECircuitPeerToDatabase>();
+            List<MECircuitPeerToDatabase> circpeerupdate = new List<MECircuitPeerToDatabase>();
 
-            if (feature == null || feature == "servicepeer")
+            if (feature == null || feature == "circuitpeer")
             {
                 Event("Checking Circuit Peer");
 
@@ -1696,7 +1704,7 @@ MC_NO = {0} and MC_VCID = {1}
                                             c.Protocol = linex[4] == "Up" ? 1 : 0;
 
                                             if (c.CircuitID != null && c.SDPID != null)
-                                                servpeerlive.Add(c.SDP + ":" + c.VCID, c);
+                                                circpeerlive.Add(c.SDP + ":" + c.VCID, c);
                                         }
                                     }
                                 }
@@ -1749,8 +1757,8 @@ MC_NO = {0} and MC_VCID = {1}
                                     if (c.CircuitID != null && c.SDPID != null)
                                     {
                                         string comb = c.SDP + ":" + c.VCID;
-                                        if (!servpeerlive.ContainsKey(comb))
-                                            servpeerlive.Add(comb, c);
+                                        if (!circpeerlive.ContainsKey(comb))
+                                            circpeerlive.Add(comb, c);
                                     }
                                 }
                             }
@@ -1787,8 +1795,8 @@ MC_NO = {0} and MC_VCID = {1}
                             if (c.CircuitID != null && c.SDPID != null)
                             {
                                 string comb = c.SDP + ":" + c.VCID;
-                                if (!servpeerlive.ContainsKey(comb))
-                                    servpeerlive.Add(comb, c);
+                                if (!circpeerlive.ContainsKey(comb))
+                                    circpeerlive.Add(comb, c);
                             }
                         }
                     }
@@ -1800,18 +1808,18 @@ MC_NO = {0} and MC_VCID = {1}
 
                 #region Check
 
-                foreach (KeyValuePair<string, MECircuitPeerToDatabase> pair in servpeerlive)
+                foreach (KeyValuePair<string, MECircuitPeerToDatabase> pair in circpeerlive)
                 {
-                    if (!servpeerdb.ContainsKey(pair.Key))
+                    if (!circpeerdb.ContainsKey(pair.Key))
                     {
                         // ADD
-                        servpeerinsert.Add(pair.Value);
+                        circpeerinsert.Add(pair.Value);
                         Event("Circuit Peer ADD: " + pair.Key);
                     }
                     else
                     {
                         // MODIFY
-                        Row db = servpeerdb[pair.Key];
+                        Row db = circpeerdb[pair.Key];
 
                         MECircuitPeerToDatabase u = new MECircuitPeerToDatabase();
                         u.ID = db["MP_ID"].ToString();
@@ -1838,7 +1846,7 @@ MC_NO = {0} and MC_VCID = {1}
                         if (update)
                         {
                             Event("Circuit Peer MODIFY: " + pair.Key + " " + updateinfo.ToString());
-                            servpeerupdate.Add(u);
+                            circpeerupdate.Add(u);
                         }
                     }
                 }
@@ -1853,7 +1861,7 @@ MC_NO = {0} and MC_VCID = {1}
                 batchstring.Clear();
 
                 int newservpeer = 0;
-                foreach (MECircuitPeerToDatabase s in servpeerinsert)
+                foreach (MECircuitPeerToDatabase s in circpeerinsert)
                 {
                     string id = Database.ID();
 
@@ -1864,12 +1872,12 @@ MC_NO = {0} and MC_VCID = {1}
 
                     if (batchlist1.Count == batchmax)
                     {
-                        newservpeer += Execute(servpeerinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                        newservpeer += Execute(circpeerinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
                         batchlist1.Clear();
                     }
                 }
                 if (batchlist1.Count > 0)
-                    newservpeer += Execute(servpeerinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
+                    newservpeer += Execute(circpeerinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
                 if (newservpeer > 0)
                     Event(newservpeer + " circuit peer(s) added");
 
@@ -1879,7 +1887,7 @@ MC_NO = {0} and MC_VCID = {1}
                 batchstring.Clear();
 
                 int modifiedservpeer = 0;
-                foreach (MECircuitPeerToDatabase s in servpeerupdate)
+                foreach (MECircuitPeerToDatabase s in circpeerupdate)
                 {
                     List<string> v = new List<string>();
                     if (s.UpdateProtocol) v.Add("MP_Protocol = " + s.Protocol);
@@ -1909,15 +1917,15 @@ MC_NO = {0} and MC_VCID = {1}
                 batchlist1.Clear();
                 batchstring.Clear();
 
-                int deletedservpeer = 0;
-                foreach (KeyValuePair<string, Row> pair in servpeerdb)
+                int deletedcircpeer = 0;
+                foreach (KeyValuePair<string, Row> pair in circpeerdb)
                 {
                     bool delete = false;
 
-                    if (!servpeerlive.ContainsKey(pair.Key)) delete = true;
+                    if (!circpeerlive.ContainsKey(pair.Key)) delete = true;
                     else
                     {
-                        string livecid = servpeerlive[pair.Key].CircuitID;
+                        string livecid = circpeerlive[pair.Key].CircuitID;
                         string dbcid = pair.Value["MP_MC"].ToString();
 
                         if (livecid != dbcid) delete = true;
@@ -1930,6 +1938,7 @@ MC_NO = {0} and MC_VCID = {1}
                         Event("Circuit Peer DELETE: " + pair.Key);
                     }
                 }
+
                 if (batchlist1.Count > 0)
                 {
                     foreach (string s in batchlist1)
@@ -1938,7 +1947,7 @@ MC_NO = {0} and MC_VCID = {1}
                         {
                             if (batchstring.Length > 0)
                             {
-                                deletedservpeer += Execute(servpeerdeletesql + batchstring.ToString()).AffectedRows;
+                                deletedcircpeer += Execute(circpeerdeletesql + batchstring.ToString()).AffectedRows;
                                 batchstring.Clear();
                             }
                             batchstring.Append(s);
@@ -1947,10 +1956,10 @@ MC_NO = {0} and MC_VCID = {1}
                         batchline++;
                     }
                     if (batchstring.Length > 0)
-                        deletedservpeer += Execute(servpeerdeletesql + batchstring.ToString()).AffectedRows;
+                        deletedcircpeer += Execute(circpeerdeletesql + batchstring.ToString()).AffectedRows;
                 }
-                if (deletedservpeer > 0)
-                    Event(deletedservpeer + " circuit peer(s) deleted");
+                if (deletedcircpeer > 0)
+                    Event(deletedcircpeer + " circuit peer(s) deleted");
 
                 #endregion
             }
@@ -2040,7 +2049,7 @@ MC_NO = {0} and MC_VCID = {1}
                 Event(interfaceduplicatedeleted + " entries deleted.");
             }
             Dictionary<string, MEInterfaceToDatabase> interfacelive = new Dictionary<string, MEInterfaceToDatabase>();
-            List<MEInterfaceToDatabase> interfaceinsert = new List<MEInterfaceToDatabase>();
+            Dictionary<string, MEInterfaceToDatabase> interfaceinsert = new Dictionary<string, MEInterfaceToDatabase>();
             List<MEInterfaceToDatabase> interfaceupdate = new List<MEInterfaceToDatabase>();
 
             ServiceReference interfaceservicereference = new ServiceReference();
@@ -2765,26 +2774,71 @@ MC_NO = {0} and MC_VCID = {1}
                 foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
                 {
                     MEInterfaceToDatabase li = pair.Value;
+                    NodeInterface inf = NodeInterface.Parse(li.Name);
 
                     if (!interfacedb.ContainsKey(pair.Key))
                     {
-                        // ADD
-                        interfaceinsert.Add(li);
                         Event("Interface ADD: " + pair.Key);
 
+                        // Service
                         if (li.Description != null) interfaceservicereference.Add(li, li.Description);
+
+                        // TOPOLOGY
+                        if (inf != null)
+                        {
+                            string parentPort = null;
+                            string parentID = null;
+                            if (inf.IsSubInterface) parentPort = inf.GetBase();
+                            else if (li.Aggr != -1) parentPort = "Ag" + li.Aggr;
+
+                            if (parentPort != null)
+                            {
+                                if (interfacedb.ContainsKey(parentPort)) // cek di existing db
+                                    parentID = interfacedb[parentPort]["PI_ID"].ToString();
+                                else if (interfaceinsert.ContainsKey(parentPort)) // cek di interface yg baru
+                                    parentID = interfaceinsert[parentPort].ID;
+                                li.ParentID = parentID;
+                            }
+                        }
+
+                        // ADD
+                        li.ID = Database.ID();
+                        interfaceinsert.Add(li.Name, li);                        
                     }
                     else
                     {
+                        // MODIFY
                         Row db = interfacedb[pair.Key];
 
                         MEInterfaceToDatabase u = new MEInterfaceToDatabase();
                         u.ID = db["MI_ID"].ToString();
 
                         bool update = false;
-
                         StringBuilder updateinfo = new StringBuilder();
 
+                        if (inf != null)
+                        {
+                            string parentPort = null;
+                            string parentID = null;
+                            if (inf.IsSubInterface) parentPort = inf.GetBase();
+                            else if (li.Aggr != -1) parentPort = "Ag" + li.Aggr;
+
+                            if (parentPort != null)
+                            {
+                                if (interfacedb.ContainsKey(parentPort)) // cek di existing db
+                                    parentID = interfacedb[parentPort]["MI_ID"].ToString();
+                                else if (interfaceinsert.ContainsKey(parentPort)) // cek di interface yg baru
+                                    parentID = interfaceinsert[parentPort].ID;
+                            }
+
+                            if (db["MI_MI"].ToString() != parentID)
+                            {
+                                update = true;
+                                u.UpdateParentID = true;
+                                u.ParentID = parentID;
+                                updateinfo.Append("parent:" + parentPort == null ? "-" : parentPort + " ");
+                            }
+                        }
                         if (db["MI_Description"].ToString() != li.Description)
                         {
                             update = true;
@@ -2935,12 +2989,11 @@ MC_NO = {0} and MC_VCID = {1}
                 batchstring.Clear();
 
                 int newinterface = 0;
-                foreach (MEInterfaceToDatabase s in interfaceinsert)
+                foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfaceinsert)
                 {
-                    string miid = Database.ID();
-
+                    MEInterfaceToDatabase s = pair.Value;
                     batchlist1.Add(Format("({0}, {1}, {2}, {3}, {4}, " + (s.Aggr == -1 ? "NULL" : s.Aggr + "") + ", {5}, {6}, {7}, {8}, {9}, " + ((s.RateLimitInput == -1) ? "NULL" : (s.RateLimitInput + "")) + ", " + ((s.RateLimitOutput == -1) ? "NULL" : (s.RateLimitOutput + "")) + ", " + ((s.Used == -1) ? "NULL" : (s.Used + "")) + ", {10}, {11})",
-                        miid, nodeID, s.Name, s.Status, s.Protocol, s.Description, s.CircuitID, s.InterfaceType, s.IngressID, s.EgressID, s.Info, s.ServiceID));
+                        s.ID, nodeID, s.Name, s.Status, s.Protocol, s.Description, s.CircuitID, s.InterfaceType, s.IngressID, s.EgressID, s.Info, s.ServiceID));
 
                     if (batchlist1.Count >= batchmax)
                     {
@@ -2962,6 +3015,7 @@ MC_NO = {0} and MC_VCID = {1}
                 foreach (MEInterfaceToDatabase s in interfaceupdate)
                 {
                     List<string> v = new List<string>();
+                    if (s.UpdateParentID) v.Add(Format("MI_MI = {0}", s.ParentID));
                     if (s.UpdateDescription)
                     {
                         v.Add(Format("MI_Description = {0}", s.Description));
@@ -2996,6 +3050,7 @@ MC_NO = {0} and MC_VCID = {1}
                         else v.Add("MI_Used = null");
                     }
                     if (s.UpdateInfo) v.Add(Format("MI_Info = {0}", s.Info));
+                    
 
                     if (v.Count > 0)
                     {

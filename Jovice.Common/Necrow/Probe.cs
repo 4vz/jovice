@@ -67,6 +67,14 @@ namespace Jovice
             get { return serviceID; }
             set { serviceID = value; }
         }
+
+        private bool updateServiceID = false;
+
+        public bool UpdateServiceID
+        {
+            get { return updateServiceID; }
+            set { updateServiceID = value; }
+        }
     }
 
     internal abstract class ElementToDatabase : ServiceBaseToDatabase
@@ -143,8 +151,7 @@ namespace Jovice
         #region Fields
 
         private Thread mainLoop = null;
-
-        private StopState stop;
+        private Thread idleThread = null;
 
         private ProbeMode mode;
 
@@ -182,11 +189,7 @@ namespace Jovice
         private readonly string hwe = "HUAWEI";
         private readonly string cso = "CISCO";
         private readonly string jun = "JUNIPER";
-        private readonly int batchmax = 20;
-
-        private string xr = "XR";
-
-        private string feature = null;//"interface";
+        private readonly string xr = "XR";
 
         private char[] newline = new char[] { (char)13, (char)10 };
 
@@ -222,6 +225,11 @@ namespace Jovice
 
         #region Database
 
+        public Batch Batch()
+        {
+            return j.Batch();
+        }
+
         public Result Query(string sql)
         {
             Result result = null;
@@ -229,6 +237,55 @@ namespace Jovice
             {
                 result = j.Query(sql);
                 if (result.OK) break;
+                else
+                {
+                    Event("Exception while executing query, retrying...");
+                    Thread.Sleep(5000);
+                }
+            }
+
+            return result;
+        }
+
+        public Dictionary<string, Row> QueryDictionary(string sql, string key)
+        {
+            return QueryDictionary(sql, key, delegate (Row row) { }, null);
+        }
+
+        public Dictionary<string, Row> QueryDictionary(string sql, string key, params object[] args)
+        {
+            return QueryDictionary(sql, key, delegate(Row row) { }, args);
+        }
+
+        public Dictionary<string, Row> QueryDictionary(string sql, string key, QueryDictionaryDuplicateCallback duplicate, params object[] args)
+        {
+            Dictionary<string, Row> result = null;
+            while (true)
+            {
+                result = j.QueryDictionary(sql, key, duplicate, args);
+                if (result != null) break;
+                else
+                {
+                    Event("Exception while executing query, retrying...");
+                    Thread.Sleep(5000);
+                }
+            }
+
+            return result;
+        }
+
+        public Dictionary<string, Row> QueryDictionary(string sql, QueryDictionaryKeyCallback callback, params object[] args)
+        {
+            return QueryDictionary(sql, callback, delegate (Row row) { }, args);
+        }
+
+        public Dictionary<string, Row> QueryDictionary(string sql, QueryDictionaryKeyCallback callback, QueryDictionaryDuplicateCallback duplicate, params object[] args)
+        {
+            Dictionary<string, Row> result = null;
+            while (true)
+            {
+                result = j.QueryDictionary(sql, callback, duplicate, args);
+                if (result != null) break;
                 else
                 {
                     Event("Exception while executing query, retrying...");
@@ -368,7 +425,7 @@ namespace Jovice
         }
 
         #endregion
-
+        
         #region Static
 
         private static Probe probeInstance = null;
@@ -434,8 +491,22 @@ namespace Jovice
         {
             this.mode = mode;
 
-            Event("Connecting... (" + sshUser + "@" + sshServer + ")");
+            //Event("Connecting... (" + sshUser + "@" + sshServer + ")");
             Start(sshServer, sshUser, sshPassword);
+
+            // TEST GOES HERE
+            //MEInterfaceToDatabase li = new MEInterfaceToDatabase();
+            //li.Description = "TRUNK_ME-D7-PTR/Gi6/0/19_No8_1G_To_PE-D7-PTR-VPN Gi0/7/0/12_EX_PE-D2-PTK";
+            //li.Name = "Gi6/0/19";
+            //nodeName = "ME-D7-PTR";
+
+            //SortedDictionary<string, MEInterfaceToDatabase> interfacelive = new SortedDictionary<string, MEInterfaceToDatabase>();
+            //MEInterfaceToDatabase mi = new MEInterfaceToDatabase();
+            //interfacelive.Add("Gi6/0/19", mi);
+
+            //FindPhysicalAdjacent(li);
+
+            //Event("li:" + li.AdjacentID);
         }
 
         private void Restart()
@@ -444,34 +515,34 @@ namespace Jovice
             Start(sshServer, sshUser, sshPassword);
         }
 
-        private new void Stop()
+        private void End()
         {
-            Event("Stop requested");
-
             outputIdentifier = null;
-            Event("Disconnecting...");
 
-            stop = StopState.Stop;
+            Event("Disconnecting...");
 
             mainLoop.Abort();
             mainLoop = null;
 
+            if (idleThread != null)
+            {
+                idleThread.Abort();
+                mainLoop = null;
+            }
+
             base.Stop();
+        }
+
+        private new void Stop()
+        {
+            Event("Stop requested");
+            End();
         }
 
         private void Failure()
         {
             Event("Connection failure has occured");
-
-            outputIdentifier = null;
-            Event("Disconnecting...");
-
-            stop = StopState.Failure;
-
-            mainLoop.Abort();
-            mainLoop = null;
-
-            base.Stop();
+            End();
         }
 
         #region SSHConnection
@@ -605,7 +676,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     }
 
                     Row node = null;
-                    bool forceProcess = false;
+                    bool prioritizeProcess = false;
 
                     if (prioritize.Count > 0)
                     {
@@ -614,7 +685,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                         if (nodeName.EndsWith("*"))
                         {
                             nodeName = nodeName.TrimEnd(new char[] { '*' });
-                            forceProcess = true;
+                            prioritizeProcess = true;
                         }
 
                         Event("Prioritizing Probe: " + nodeName);
@@ -643,12 +714,33 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     {
                         bool continueProcess = false;
 
-                        Enter(node, out continueProcess, forceProcess);
+                        Enter(node, out continueProcess, prioritizeProcess);
 
                         if (continueProcess)
                         {
-                            if (nodeType == "P") PEProcess();
-                            else if (nodeType == "M") MEProcess();
+                            idleThread = new Thread(new ThreadStart(delegate ()
+                            {
+                                while (true)
+                                {
+                                    Thread.Sleep(30000);
+                                    if (nodeManufacture == alu || nodeManufacture == cso || nodeManufacture == hwe) SendCharacter((char)27);
+
+                                }
+                            }));
+                            idleThread.Start();
+
+                            if (nodeType == "P")
+                            {
+                                PEProcess();
+                                findMEPhysicalAdjacentLoaded = false;
+                            }
+                            else if (nodeType == "M")
+                            {
+                                MEProcess();
+                            }
+
+                            idleThread.Abort();
+                            idleThread = null;
                         }
 
                         // delay after probing finished
@@ -789,6 +881,14 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
                 // print message where we are waiting (or why)
                 Event(waitMessage + "... (" + loop + ")");
+
+                Event("Last Reading Output: ");
+                int lp = LastOutput.Length - 200;
+                if (lp < 0) lp = 0;
+                string lop = LastOutput.Substring(lp);
+                lop = lop.Replace("\r", "<CR>");
+                lop = lop.Replace("\n", "<NL>");
+                Event(lop);
 
                 // try sending exit characters
                 SendCharacter((char)13);
@@ -1043,8 +1143,15 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
         private void Exit(string manufacture)
         {
-            Thread.Sleep(100);
+            if (idleThread != null)
+            {
+                idleThread.Abort();
+                idleThread = null;
+            }
 
+            Thread.Sleep(200);
+            SendLine("");
+            Thread.Sleep(200);
             if (manufacture == alu) SendLine("logout");
             else if (manufacture == hwe) SendLine("quit");
             else if (manufacture == cso) SendLine("exit");
@@ -1059,14 +1166,10 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             Exit();
         }
 
-        private List<string> Read()
-        {
-            bool timeout;
-            return Read(out timeout);
-        }
-
         private List<string> Read(out bool timeout)
         {
+            Event("Reading...");
+
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
 
@@ -1154,28 +1257,44 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 {
                     wait++;
 
-                    if (wait % 50 == 0)
+                    if (wait % 50 == 0 && wait < 400)
                     {
                         Event("Waiting...");
+
+                        SendLine("");
+
+                        Event("Last Reading Output: ");
+                        int lp = LastOutput.Length - 200;
+                        if (lp < 0) lp = 0;
+                        string lop = LastOutput.Substring(lp);
+                        lop = lop.Replace("\r", "<CR>");
+                        lop = lop.Replace("\n", "<NL>");
+                        Event(lop);
                     }
 
                     Thread.Sleep(100);
                     if (wait == 400)
                     {
                         timeout = true;
-                        Event("Reading timeout");
+                        Event("Reading timeout, cancel the reading...");
+                    }
 
-                        Thread.Sleep(1000);
+                    if (wait >= 400 && wait % 50 == 0)
+                    {
                         SendControlC();
-                        break;
+                    }
+                    if (wait == 800)
+                    {
+                        Event("Cancel has failed, restarting the probe...");
+                        Failure();
                     }
                 }
             }
             if (lineBuilder.Length > 0) lines.Add(lineBuilder.ToString().Trim());
-
             stopwatch.Stop();
 
-            //Event("Reading completed in " + stopwatch.ElapsedMilliseconds + " ms");
+            if (!timeout)
+                Event("Reading completed (" + stopwatch.Elapsed + ")");
 
             return lines;
         }
@@ -1386,6 +1505,8 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 Result r = j.Execute(sql, nodeID);
             }
 
+            sb = new StringBuilder();
+
             Result nsr = Query("select * from NodeSummary where NS_NO = {0}", nodeID);
             Dictionary<string, string[]> nsd = new Dictionary<string, string[]>();
             foreach (Row ns in nsr)
@@ -1394,10 +1515,15 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 string nsid = ns["NS_ID"].ToString();
                 string nsv = ns["NS_Value"].ToString();
 
-                nsd.Add(nsk, new string[] { nsid, nsv });
+                if (nsd.ContainsKey(nsk))
+                {
+                    // Duplicated summary key, remove this
+                    sb.Append(j.Format("delete from NodeSummary where NS_ID = {0};", nsid));
+                }
+                else
+                    nsd.Add(nsk, new string[] { nsid, nsv });
             }
-
-            sb = new StringBuilder();
+                        
             foreach (KeyValuePair<string, string> pair in summaries)
             {
                 string[] db = null;
@@ -1432,7 +1558,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             }
         }
 
-        private void Enter(Row row, out bool continueProcess, bool forceProcess)
+        private void Enter(Row row, out bool continueProcess, bool prioritizeProcess)
         {
             continueProcess = false;
 
@@ -1769,12 +1895,14 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     if (testConnected)
                     {
                         Exit(cso);
+                        outputIdentifier = null;
                         Event("Connected! TACAC server is OK.");
                         break;
                     }
                     else
                     {
                         tacacError = true;
+                        outputIdentifier = null;
                         Event("Connection failed, TACAC server is possible overloaded/error/not responding.");
 
                         int time = 1;
@@ -1922,11 +2050,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             }
 
             #endregion
-
-
-
-
-
+            
             #region VERSION
 
             bool checkVersion = false;
@@ -2427,7 +2551,8 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
             if (lastconfliveisnull == false)
             {
-                Event("Last configuration on " + lastconflive.ToString("yy/MM/dd HH:mm:ss.fff"));
+                Event("Saved last configuration on " + lastconfdb.ToString("yy/MM/dd HH:mm:ss.fff"));
+                Event("Actual last configuration on " + lastconflive.ToString("yy/MM/dd HH:mm:ss.fff"));
             }
 
             if (lastconfliveisnull == false && lastconflive != lastconfdb)
@@ -2829,16 +2954,15 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             if (configurationHasChanged || nodeNVER < Necrow.Version)
             {
                 continueProcess = true;
-
                 if (nodeNVER < Necrow.Version)
                 {
                     Event("Updated to newer Necrow version");
                     Update(UpdateTypes.NecrowVersion, Necrow.Version);
                 }
             }
-            else if (forceProcess)
+            else if (prioritizeProcess)
             {
-                Event("Process forced to continue");
+                Event("Prioritized node, continuing process");
                 continueProcess = true;
             }
             else
@@ -2851,12 +2975,9 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
         private void ServiceExecute(ServiceReference reference)
         {
-            List<string> batchlist1 = new List<string>();
-            StringBuilder batchstring = new StringBuilder();
-            int batchline = 0;
+            Batch batch = Batch();
+            Result result;
 
-            string customerinsertsql = "insert into ServiceCustomer(SC_ID, SC_CID, SC_Name) values";
-            string serviceinsertsql = "insert into Service(SE_ID, SE_SID, SE_SC, SE_Type, SE_SubType, SE_Raw_Desc) values";
             List<Tuple<ServiceBaseToDatabase, ServiceMapping>> mappings = reference.Mappings;
             List<string> customerid = new List<string>();
             List<string> serviceid = new List<string>();
@@ -2958,7 +3079,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
                     if (servicedb[sid]["SE_Type"].ToString() == null && s_type != null)
                     {
-                        Event("Service MODIFY: " + sid + " " + s_type + " " + s_subtype);
+                        Event("Service UPDATE: " + sid + " " + s_type + " " + s_subtype);
                         ServiceToDatabase c = new ServiceToDatabase();
                         c.ID = s_id;
                         c.Type = s_type;
@@ -3151,7 +3272,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
                                 if (cname != c_name)
                                 {
-                                    Event("Customer MODIFY: " + cname + " (" + cid + ")");
+                                    Event("Customer UPDATE: " + cname + " (" + cid + ")");
 
                                     customerdb.Remove(cid);
 
@@ -3177,86 +3298,347 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             }
 
             // CUSTOMER ADD
-            batchline = 0;
-            batchlist1.Clear();
-            batchstring.Clear();
-
-            int newcustomer = 0;
+            batch.Begin();
             foreach (CustomerToDatabase s in customerinsert)
             {
-                batchlist1.Add(Format("({0}, {1}, {2})", s.ID, s.CID, s.Name));
-                if (batchlist1.Count == batchmax)
-                {
-                    newcustomer += Execute(customerinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
-                    batchlist1.Clear();
-                }
+                batch.Execute("insert into ServiceCustomer(SC_ID, SC_CID, SC_Name) values({0}, {1}, {2})", s.ID, s.CID, s.Name);
             }
-            if (batchlist1.Count > 0)
-                newcustomer += Execute(customerinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
-            if (newcustomer > 0)
-                Event(newcustomer + " customer(s) added");
+            result = batch.Commit();
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " customer(s) have been added");
 
-            // CUSTOMER MODIFY
-            batchline = 0;
-            batchlist1.Clear();
-            batchstring.Clear();
-
-            int modifiedcustomer = 0;
+            // CUSTOMER UPDATE
+            batch.Begin();
             foreach (CustomerToDatabase s in customerupdate)
             {
-                string q = Format("update ServiceCustomer set SC_Name = {0} where SC_ID = {1};", s.Name, s.ID);
-                batchline++;
-                batchstring.AppendLine(q);
-                if (batchline == batchmax)
-                {
-                    modifiedcustomer += Execute(batchstring.ToString()).AffectedRows;
-                    batchstring.Clear();
-                    batchline = 0;
-                }
+                batch.Execute("update ServiceCustomer set SC_Name = {0} where SC_ID = {1}", s.Name, s.ID);
             }
-            if (batchline > 0)
-                modifiedcustomer += Execute(batchstring.ToString()).AffectedRows;
-            if (modifiedcustomer > 0)
-                Event(modifiedcustomer + " customer(s) modified");
+            result = batch.Commit();
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " customer(s) have been updated");
 
             // SERVICE ADD
-            batchline = 0;
-            batchlist1.Clear();
-            batchstring.Clear();
-
-            int newservice = 0;
+            batch.Begin();
             foreach (ServiceToDatabase s in serviceinsert)
             {
-                batchlist1.Add(Format("({0}, {1}, {2}, {3}, {4}, {5})", s.ID, s.SID, s.CustomerID, s.Type, s.SubType, s.RawDesc));
-                if (batchlist1.Count == batchmax)
-                {
-                    newservice += Execute(serviceinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
-                    batchlist1.Clear();
-                }
+                batch.Execute("insert into Service(SE_ID, SE_SID, SE_SC, SE_Type, SE_SubType, SE_Raw_Desc) values({0}, {1}, {2}, {3}, {4}, {5})", s.ID, s.SID, s.CustomerID, s.Type, s.SubType, s.RawDesc);
             }
-            if (batchlist1.Count > 0)
-                newservice += Execute(serviceinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
-            if (newservice > 0)
-                Event(newservice + " service(s) added");
+            result = batch.Commit();
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " service(s) have been added");
 
-            // SERVICE MODIFY
-            int modifiedservice = 0;
+            // SERVICE UPDATE
+            batch.Begin();
             foreach (ServiceToDatabase s in serviceupdate)
             {
-                string q = Format("update Service set SE_Type = {0}, SE_SubType = {1} where SE_ID = {2};", s.Type, s.SubType, s.ID);
-                batchline++;
-                batchstring.AppendLine(q);
-                if (batchline == batchmax)
+                batch.Execute("update Service set SE_Type = {0}, SE_SubType = {1} where SE_ID = {2}", s.Type, s.SubType, s.ID);
+            }
+            result = batch.Commit();
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " service(s) have been updated");
+        }
+
+        private bool findMEPhysicalAdjacentLoaded = false;
+        private List<Tuple<string, List<Tuple<string, string, string>>>> MEPEAdjacent = null;
+        private Dictionary<string, List<string>> meAlias = null;
+        private Dictionary<string, string[]> MEInterfaceTestPrefix = null;
+
+        private void FindMEPhysicalAdjacent(MEInterfaceToDatabase li)
+        {
+            int exid;
+            string description = li.Description;
+            if (description == null) return;
+            description = description.ToUpper().Replace('_', ' ');
+
+            #region Loader
+
+            if (!findMEPhysicalAdjacentLoaded)
+            {
+                Result result = Query(@"
+select NO_Name, LEN(NO_Name) as NO_LEN, PI_Name, LEN(PI_Name) as PI_LEN, PI_ID, PI_Description from (
+select NO_Name, NO_ID from Node where NO_Type = 'P'
+union
+select NA_Name, NA_NO from NodeAlias, Node where NA_NO = NO_ID and NO_Type = 'P'
+) n, PEInterface
+where NO_ID = PI_NO and PI_Description is not null and ltrim(rtrim(PI_Description)) <> '' and PI_Name not like '%.%' and
+(PI_Name like 'Te%' or PI_Name like 'Gi%' or PI_Name like 'Fa%' or PI_Name like 'Et%')
+order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
+");
+
+                MEPEAdjacent = new List<Tuple<string, List<Tuple<string, string, string>>>>();
+                List<Tuple<string, string, string>> curlist = new List<Tuple<string, string, string>>();
+                string curnoname = null;
+                foreach (Row row in result)
                 {
-                    modifiedservice += Execute(batchstring.ToString()).AffectedRows;
-                    batchstring.Clear();
-                    batchline = 0;
+                    string noname = row["NO_Name"].ToString();
+                    string piname = row["PI_Name"].ToString();
+                    string pidesc = row["PI_Description"].ToString();
+                    string piid = row["PI_ID"].ToString();
+
+                    if (curnoname != noname)
+                    {
+                        if (curnoname != null)
+                        {
+                            MEPEAdjacent.Add(new Tuple<string, List<Tuple<string, string, string>>>(curnoname, new List<Tuple<string, string, string>>(curlist)));
+                            curlist.Clear();
+                        }
+                        curnoname = noname;                  
+                    }
+
+                    curlist.Add(new Tuple<string, string, string>(piname, pidesc, piid));
+                }
+                MEPEAdjacent.Add(new Tuple<string, List<Tuple<string, string, string>>>(curnoname, curlist));
+
+                result = Query(@"
+select NO_ID, NA_Name from Node, NodeAlias where NA_NO = NO_ID and NO_Type = 'M'
+order by NO_ID asc
+");
+                meAlias = new Dictionary<string, List<string>>();
+
+                foreach (Row row in result)
+                {
+                    string noid = row["NO_ID"].ToString();
+                    if (!meAlias.ContainsKey(noid)) meAlias.Add(noid, new List<string>());
+                    meAlias[noid].Add(row["NA_Name"].ToString());
+                }
+
+                MEInterfaceTestPrefix = new Dictionary<string, string[]>();
+                MEInterfaceTestPrefix.Add("Hu", new string[] { "H", "HU" });
+                MEInterfaceTestPrefix.Add("Te", new string[] { "T", "TE", "TENGIGE" });
+                MEInterfaceTestPrefix.Add("Gi", new string[] { "G", "GI", "GE", "GIGAE", "GIGABITETHERNET" });
+                MEInterfaceTestPrefix.Add("Fa", new string[] { "F", "FA", "FE", "FASTE" });
+                MEInterfaceTestPrefix.Add("Et", new string[] { "E", "ET", "ETH" });
+
+                findMEPhysicalAdjacentLoaded = true;
+            }
+
+            #endregion
+            
+            #region Bekas/Ex/X dsb, remove hingga akhir
+
+            exid = description.IndexOf(" EX ", " EKS ", "(EX", "(EKS", "[EX", "[EKS", " EX-", " EKS-", " BEKAS ");
+            if (exid > -1) description = description.Remove(exid);
+
+            #endregion
+
+            bool foundnode = false;
+
+            foreach (Tuple<string, List<Tuple<string, string, string>>> pe in MEPEAdjacent)
+            {
+                string peName = pe.Item1;
+                List<Tuple<string, string, string>> pis = pe.Item2;
+
+                int peNamePart = description.IndexOf(peName);
+                if (peNamePart > -1)
+                {
+                    foundnode = true;
+                    string descPEPart = description.Substring(peNamePart);
+                    Tuple<string, string, string> matchedPI = null;
+
+                    #region Find in currently available PI
+
+                    int locPI = descPEPart.Length;
+                    foreach (Tuple<string, string, string> pi in pis)
+                    {
+                        string piName = pi.Item1;
+                        string piType = piName.Substring(0, 2);
+                        string piDetail = piName.Substring(2);
+
+                        List<string> testIf = new List<string>();
+                        string[] prefixs = MEInterfaceTestPrefix[piType];
+
+                        foreach (string prefix in prefixs)
+                        {
+                            testIf.Add(prefix + piDetail);
+                            testIf.Add(prefix + "-" + piDetail);
+                            testIf.Add(prefix + " " + piDetail);
+                            testIf.Add(prefix + "/" + piDetail);
+                        }
+
+                        testIf = List.Sort(testIf, SortMethods.LengthDescending);
+
+                        foreach (string test in testIf)
+                        {
+                            int pos = descPEPart.IndexOf(test);
+                            if (pos > -1 && pos < locPI)
+                            {
+                                locPI = pos;
+                                matchedPI = pi;
+                            }
+                        }
+                    }
+
+                    #endregion
+
+                    if (matchedPI != null)
+                    {
+                        #region Crosscheck matched PI description
+
+                        string piDesc = matchedPI.Item2.ToUpper();
+                        string miName = li.Name;
+                        string miType = miName.Substring(0, 2);
+                        if (miType == "Ex") miType = li.InterfaceType;
+                        string miDetail = miName.Substring(2);
+
+                        #region Bekas/Ex/X dsb, remove hingga akhir
+                        exid = piDesc.IndexOf(" EX ", " EKS ", "(EX", "(EKS", "[EX", "[EKS", " EX-", " EKS-", " BEKAS ");
+                        if (exid > -1) piDesc = piDesc.Remove(exid);
+                        #endregion
+
+                        int meNamePart = piDesc.IndexOf(nodeName);
+
+                        if (meNamePart == -1)
+                        {
+                            // if -1, test with alias
+                            if (meAlias.ContainsKey(nodeID))
+                            {
+                                List<string> aliases = meAlias[nodeID];
+                                foreach (string alias in aliases)
+                                {
+                                    meNamePart = piDesc.IndexOf(alias);
+                                    if (meNamePart > -1) break;
+                                }
+                            }
+                        }
+
+                        if (meNamePart > -1) // at least we can find me name or the alias in pi description
+                        {
+                            string descMEPart = piDesc.Substring(meNamePart);
+
+                            List<string> testIf = new List<string>();
+                            string[] prefixs = MEInterfaceTestPrefix[miType];
+
+                            foreach (string prefix in prefixs)
+                            {
+                                testIf.Add(miDetail);
+                                testIf.Add(prefix + miDetail);
+                                testIf.Add(prefix + "-" + miDetail);
+                                testIf.Add(prefix + " " + miDetail);
+                                testIf.Add(prefix + "/" + miDetail);
+                            }
+                            testIf = List.Sort(testIf, SortMethods.LengthDescending);
+
+                            bool foundinterface = false;
+                            foreach (string test in testIf)
+                            {
+                                if (descMEPart.IndexOf(test) > -1)
+                                {
+                                    foundinterface = true;
+                                    break;
+                                }
+                            }
+
+                            if (foundinterface)
+                            {
+                                li.AdjacentID = matchedPI.Item3;
+
+                                li.AdjacentSubifID = new Dictionary<string, string>();
+
+                                // find pi child
+                                Result result = Query("select PI_ID, PI_Name from PEInterface where PI_PI = {0}", li.AdjacentID);
+                                foreach (Row row in result)
+                                {
+                                    string spiid = row["PI_ID"].ToString();
+                                    string spiname = row["PI_Name"].ToString();
+
+                                    int dot = spiname.IndexOf('.');
+                                    if (dot > -1 && spiname.Length > (dot + 1))
+                                    {
+                                        string sifname = spiname.Substring(dot + 1);
+                                        if (!li.AdjacentSubifID.ContainsKey(sifname))
+                                        {
+                                            li.AdjacentSubifID.Add(sifname, spiid);
+                                        }
+                                    }
+                                }
+
+                            }
+                        }
+
+                        #endregion
+
+                        break;
+                    }
                 }
             }
-            if (batchline > 0)
-                modifiedservice += Execute(batchstring.ToString()).AffectedRows;
-            if (modifiedservice > 0)
-                Event(modifiedservice + " service(s) modified");
+
+            if (foundnode == false)
+            {
+                FindNodeCandidate(description);
+            }
+        }
+
+        private Dictionary<string, string> nodeCandidates = null;
+        private List<string> nodes = null;
+
+        private void FindNodeCandidate(string description)
+        {
+            if (description == null) return;
+
+            if (nodeCandidates == null)
+            {
+                nodeCandidates = new Dictionary<string, string>();
+
+                Result result = Query("select * from NodeCandidate");
+                foreach (Row row in result)
+                {
+                    string ncid = row["NC_ID"].ToString();
+                    string ncname = row["NC_Name"].ToString();
+                    if (!nodeCandidates.ContainsKey(ncname)) nodeCandidates.Add(ncname, ncid);
+                }
+
+                nodes = new List<string>();
+
+                result = Query("select NO_Name from Node");
+                foreach (Row row in result)
+                {
+                    string noname = row["NO_Name"].ToString();
+                    nodes.Add(noname);
+                }
+            }
+
+            // lets find some new node here
+            string[] descs = description.Split(new char[] { ' ', '(', ')', '_', '[', ']', ';', '.', '=', ':', '@', '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (string des in descs)
+            {
+                if (des.Length >= 8 && des.IndexOf('-') > -1 && (des.StartsWith("PE") || des.StartsWith("ME") || des.StartsWith("CES")) && !des.EndsWith("-"))
+                {
+                    string[] dess = des.Split(new char[] { '-' });
+                    if (dess.Length >= 3)
+                    {
+                        if (dess[0].StartsWith("ME") && dess[0].Length > 2 && !char.IsDigit(dess[0][2])) continue;
+                        else if (dess[0].StartsWith("PE") && dess[0].Length > 2 && !char.IsDigit(dess[0][2])) continue;
+                        else if (dess[0].StartsWith("CES") && dess[0].Length > 3 && !char.IsDigit(dess[0][3])) continue;
+
+                        bool illegal = false;
+                        foreach (char c in des)
+                        {
+                            if (c == '-' || char.IsDigit(c) || (char.IsLetter(c) && char.IsUpper(c))) { }
+                            else { illegal = true; break; }
+                        }
+
+                        if (illegal == false)
+                        {
+                            string thisdes = des.ToUpper();
+
+                            // last check if ending with -<numeric> its fail
+                            string[] lxcp = thisdes.Split('-');
+                            if (!char.IsDigit(lxcp[lxcp.Length - 1][0]))
+                            {
+                                if (!nodes.Contains(thisdes))
+                                {
+                                    if (!nodeCandidates.ContainsKey(thisdes))
+                                    {
+                                        Event("Node Candidate: " + thisdes);
+
+                                        string ncid = Database.ID();
+                                        nodeCandidates.Add(thisdes, ncid);
+                                        Execute("insert into NodeCandidate values({0}, {1})", ncid, thisdes);
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         #endregion

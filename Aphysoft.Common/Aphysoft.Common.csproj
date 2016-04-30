@@ -92,6 +92,7 @@
     <Compile Include="Core\Marshaling.cs" />
     <Compile Include="Core\Culture.cs" />
     <Compile Include="Database\Database.cs" />
+    <Compile Include="Extensions\String.cs" />
     <Compile Include="Helpers\Configuration.cs" />
     <Compile Include="Helpers\Cryptography\Ascii85.cs" />
     <Compile Include="Helpers\Cryptography\Base64.cs" />

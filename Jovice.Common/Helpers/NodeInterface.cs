@@ -74,6 +74,10 @@ namespace Jovice
         {
             get { return subInterface != -1 ? true : false; }
         }
+        public bool IsDirect
+        {
+            get { return subInterface == 0 ? true : false; }
+        }
 
         /// <summary>
         /// For ethernet interface, 3456, 4094, etc...
@@ -175,7 +179,8 @@ namespace Jovice
                         if (restbydot.Length == 2)
                         {
                             rest = restbydot[0];
-                            if (!int.TryParse(restbydot[1], out subif)) { subif = -1; }
+                            if (restbydot[1] == "DIRECT") subif = 0;
+                            else if (!int.TryParse(restbydot[1], out subif)) subif = -1;
                         }
 
                         // cek channel
@@ -184,7 +189,7 @@ namespace Jovice
 
                         if (restbycha.Length == 2)
                         {
-                            if (!int.TryParse(restbycha[1], out channel)) { channel = -1; }
+                            if (!int.TryParse(restbycha[1], out channel)) channel = -1;
                         }
 
                         // fix port
@@ -258,6 +263,12 @@ namespace Jovice
                             ci.Type = "AggregatedInterface";
                             ci.ShortType = "Ag";
                             ci.CodeType = "A";
+                        }
+                        else if (interfaceType == "ex")
+                        {
+                            ci.Type = "UnspecifiedInterface";
+                            ci.ShortType = "Ex";
+                            ci.CodeType = "X";
                         }
                         else interfaceIdentified = false;
 

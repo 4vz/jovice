@@ -126,7 +126,7 @@ namespace Jovice
     {
         #region Fields
 
-        internal readonly static int Version = 5;
+        internal readonly static int Version = 6;
 
         private static Database joviceDatabase = null;
 
@@ -247,10 +247,6 @@ namespace Jovice
                     {
                         Probe.Start(standbyProbeProperties);
                     }
-                    if (services.IsFlagSet(NecrowServices.TopologyFinder))
-                    {
-                        TopologyFinder.Start();
-                    }
                 }
             }));
 
@@ -264,10 +260,6 @@ namespace Jovice
 
         public static void Stop()
         {
-            if (services.IsFlagSet(NecrowServices.TopologyFinder))
-            {
-                TopologyFinder.Stop();
-            }
             if (services.IsFlagSet(NecrowServices.Probe))
             {
                 Probe.Stop(ProbeMode.Default);

@@ -64,7 +64,6 @@
     <Compile Include="Necrow\MEProbe.cs" />
     <Compile Include="Necrow\PEProbe.cs" />
     <Compile Include="Library\SshConnection\SshConnection.cs" />
-    <Compile Include="Necrow\TopologyFinder.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Library\SharpSSH\ITransferProtocol.cs" />
     <Compile Include="Library\SharpSSH\java\Exception.cs" />

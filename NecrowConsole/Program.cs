@@ -44,15 +44,10 @@ namespace NecrowConsole
                     properties.TacacPassword != null && properties.TacacPassword != null)
                 {
 #if DEBUG
-                    //properties.TestProbeNode = "ME5-D5-KBL";
+                    //properties.TestProbeNode = "ME-D7-JAP";
 #endif
                     Necrow.Set(properties);
-
-#if DEBUG
                     Necrow.Start(NecrowServices.Probe);
-#else
-                    Necrow.Start(NecrowServices.Probe | NecrowServices.ServiceFinder | NecrowServices.TopologyFinder | NecrowServices.Summary);
-#endif
 
                     Necrow.Console();
                 }

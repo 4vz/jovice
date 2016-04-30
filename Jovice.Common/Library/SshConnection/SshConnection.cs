@@ -70,6 +70,9 @@ namespace Jovice
 
                 if (started)
                 {
+                    lastOutputs.Clear();
+                    lastOutput = null;
+
                     listenerThread = new Thread(new ThreadStart(Response_WaitCallback));
                     listenerThread.IsBackground = false;
                     listenerThread.Start();
@@ -174,8 +177,12 @@ namespace Jovice
 
         protected void Stop()
         {
+            listenerThread.Abort();
             shell.Close();
-            shell = null;
+            haveConnected = false;
+            started = false;
+
+            Disconnected();
         }
 
         protected bool WriteLine(string data)

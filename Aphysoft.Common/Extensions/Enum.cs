@@ -12,18 +12,8 @@ namespace Aphysoft.Common
     /// </summary>
     public enum DefaultBool
     {
-        /// <summary>
-        /// The value is determined by a control's current setting. The default value is set if the application
-        /// doesn't specify a value.
-        /// </summary>
         Default,
-        /// <summary>
-        /// Corresponds to a Boolean value of true.
-        /// </summary>
         True,
-        /// <summary>
-        /// Corresponds to a Boolean value of false.
-        /// </summary>
         False
     }
     

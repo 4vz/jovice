@@ -219,7 +219,7 @@ left join PEInterface b on a.PI_PI = b.PI_ID
 left join MEInterface c on b.PI_TO_MI = c.MI_ID
 left join Node d on c.MI_NO = d.NO_ID
 left join PEInterfaceIP e on a.PI_ID = e.PP_PI and e.PP_Type = '1'
-where a.PI_SE = {0} and a.PI_SE_Check = 1 and a.PI_NO = n.NO_ID 
+where a.PI_SE = {0} and a.PI_NO = n.NO_ID 
 order by a.PI_Status desc, a.PI_Protocol desc", seID);
 
             if (r.Count > 0 || serviceType == "VP" || serviceType == "AS" || serviceType == "AB")
@@ -251,7 +251,7 @@ left join MEInterface mc on c.MI_MI = mc.MI_ID
 left join PEInterface xpi on xpi.PI_ID = mc.MI_TO_PI
 left join Node xpino on xpino.NO_ID = xpi.PI_NO
 left join MECircuit cmc on c.MI_MC = cmc.MC_ID
-where c.MI_SE = {0} and c.MI_SE_Check = 1 and c.MI_NO = d.NO_ID
+where c.MI_SE = {0} and c.MI_NO = d.NO_ID
 order by XPI_Name desc, c.MI_Status desc, c.MI_Protocol desc
 ", seID);
 
@@ -280,7 +280,7 @@ left join PEInterfaceIP e on a.PI_ID = e.PP_PI and e.PP_Type = '1'
 left join MEInterface mc on c.MI_MI = mc.MI_ID
 left join PEInterface xpi on xpi.PI_ID = mc.MI_TO_PI
 left join Node xpino on xpino.NO_ID = xpi.PI_NO
-where cmc.MC_SE = {0} and cmc.MC_SE_Check = 1 and cmc.MC_NO = d.NO_ID
+where cmc.MC_SE = {0} and cmc.MC_NO = d.NO_ID
 order by XPI_Name desc, cmc.MC_Status desc, cmc.MC_Protocol desc
 ", seID);
 
@@ -612,14 +612,14 @@ where a.MI_ID = {0} and a.MI_NO = NO_ID
                         if (miMC != null)
                         {
                             r2 = jovice.Query(@"
-select a.MP_TO_MC, a.MP_TO_Check, a.MP_VCID, a.MP_Protocol, a.MP_Type,
+select a.MP_TO_MC, a.MP_VCID, a.MP_Protocol, a.MP_Type,
 NO_Name, NO_Manufacture, NO_Model, NO_Version, NO_TimeStamp, NO_AR, MC_ID, MC_VCID, MC_Description, MC_MTU, MC_Status, MC_Protocol, MC_Type,
 b.MP_VCID as MP2_VCID, b.MP_Protocol as MP2_Protocol, b.MP_Type as MP2_Type, a.MP_MS
 from MEPeer a
 left join MECircuit on a.MP_TO_MC = MC_ID
 left join Node on MC_NO = NO_ID
 left join MEPeer b on MC_ID = b.MP_MC and b.MP_TO_MC = a.MP_MC
-where a.MP_MC = {0} order by a.MP_TO_MC desc, a.MP_TO_Check desc
+where a.MP_MC = {0} order by a.MP_TO_MC desc
 ", miMC);
                             if (r2.Count > 0)
                             {
@@ -627,7 +627,7 @@ where a.MP_MC = {0} order by a.MP_TO_MC desc, a.MP_TO_Check desc
 
                                 string mpToMC = row2["MP_TO_MC"].ToString();                                
 
-                                if (mpToMC != null && row2["MP_TO_Check"].ToBoolean())
+                                if (mpToMC != null)
                                 {
                                     topologyElementCurrent = new List<object>();
                                     topologyElementCurrent.Add("MC"); //0
@@ -973,8 +973,7 @@ left join MEInterface i2 on i.MI_MI = i2.MI_ID
 left join MEInterface ci on ci.MI_MC = c.MC_ID
 left join MEPeer cp on cp.MP_MC = c.MC_ID
 where
-i.MI_SE = {0} and 
-i.MI_SE_Check = 1 and i.MI_TO_PI is null and i.MI_NO = n.NO_ID and
+i.MI_SE = {0} and i.MI_TO_PI is null and i.MI_NO = n.NO_ID and
 n.NO_AR = ar.AR_ID and ar.AR_AW = aw.AW_ID
 order by c.MC_ID desc
 ", seID);
@@ -998,8 +997,7 @@ left join MEQOS qosa on i.MI_MQ_Input = qosa.MQ_ID
 left join MEQOS qosb on i.MI_MQ_Output = qosb.MQ_ID
 left join MEInterface i2 on i.MI_MI = i2.MI_ID
 where 
-c.MC_SE = {0} and 
-c.MC_SE_Check = 1 and c.MC_NO = n.NO_ID and
+c.MC_SE = {0} and c.MC_NO = n.NO_ID and
 n.NO_AR = ar.AR_ID and ar.AR_AW = aw.AW_ID
 ", seID);
                     
@@ -1156,12 +1154,12 @@ n.NO_AR = ar.AR_ID and ar.AR_AW = aw.AW_ID
                             #region MC
 
                             r2 = jovice.Query(@"
-select p.MP_TO_MC, p.MP_TO_Check, p.MP_VCID, p.MP_Protocol, p.MP_Type,
+select p.MP_TO_MC, p.MP_VCID, p.MP_Protocol, p.MP_Type,
 n.NO_Name, n.NO_Manufacture, n.NO_Model, n.NO_Version, n.NO_TimeStamp, c.MC_ID, c.MC_VCID, c.MC_Description, c.MC_MTU, c.MC_Status, c.MC_Protocol, c.MC_Type,
 p2.MP_VCID as MP2_VCID, p2.MP_Protocol as MP2_Protocol, p2.MP_Type as MP2_Type, aw.AW_AG, se.SE_SID, p.MP_MS
 from MEPeer p
 left join MECircuit c on p.MP_TO_MC = c.MC_ID
-left join Service se on c.MC_SE = se.SE_ID and c.MC_SE_Check = 1
+left join Service se on c.MC_SE = se.SE_ID
 left join Node n on c.MC_NO = n.NO_ID
 left join Area ar on n.NO_AR = ar.AR_ID
 left join AreaWitel aw on ar.AR_AW = aw.AW_ID
@@ -1179,7 +1177,7 @@ order by p2.MP_TO_MC desc
                             string mpToMC = row2["MP_TO_MC"].ToString();
                             remoteMC = null;
 
-                            if (mpToMC != null && row2["MP_TO_Check"].ToBoolean())
+                            if (mpToMC != null)
                             {
 
                                 topologyElementCurrent = new List<object>();

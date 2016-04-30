@@ -55,6 +55,10 @@ namespace Aphysoft.Common
     
     public delegate void DatabaseExceptionEventHandler(object sender, DatabaseExceptionEventArgs eventArgs);
 
+    public delegate string QueryDictionaryKeyCallback(Row row);
+
+    public delegate void QueryDictionaryDuplicateCallback(Row row);
+
     public class Batch
     {
         private List<string> lines = new List<string>();
@@ -68,7 +72,7 @@ namespace Aphysoft.Common
 
         #region Methods
 
-        public void Clear()
+        public void Begin()
         {
             lines.Clear();
         }
@@ -83,34 +87,39 @@ namespace Aphysoft.Common
         public Result Commit()
         {
             int count = lines.Count;
-
             Result result = new Result(null);
 
-            int index = 0;
-
-            StringBuilder batch = new StringBuilder();
-
-            while (index < count)
+            if (count > 0)
             {
-                string line = lines[index];
-                batch.Append(line + ";");
-                index++;
+                int index = 0;
+                StringBuilder batch = new StringBuilder();
+                while (index < count)
+                {
+                    string line = lines[index];
+                    batch.Append(line + ";\r\n");
+                    index++;
 
-                if (index % 50 == 0)
+                    if (index % 50 == 0)
+                    {
+                        Result currentResult = database.Execute(batch.ToString());
+                        if (!currentResult.OK)
+                        {
+                            result.ThrowException();
+                            break;
+                        }
+                        batch.Clear();
+
+                        result.AffectedRows = result.AffectedRows + currentResult.AffectedRows;
+                    }
+                }
+
+                if (batch.Length > 0)
                 {
                     Result currentResult = database.Execute(batch.ToString());
-                    batch.Clear();
-
+                    if (!currentResult.OK) result.ThrowException();
                     result.AffectedRows = result.AffectedRows + currentResult.AffectedRows;
-                }                
+                }
             }
-
-            if (batch.Length > 0)
-            {
-                Result currentResult = database.Execute(batch.ToString());
-                result.AffectedRows = result.AffectedRows + currentResult.AffectedRows;
-            }
-
 
             return result;
         }
@@ -301,30 +310,68 @@ namespace Aphysoft.Common
 
         public Dictionary<string, Row> QueryDictionary(string sql, string key, params object[] args)
         {
+            return QueryDictionary(sql, key, delegate (Row row) { }, args);
+        }
+        
+        public Dictionary<string, Row> QueryDictionary(string sql, string key, QueryDictionaryDuplicateCallback duplicate, params object[] args)
+        {
             Result result = Query(sql, args);
 
-            Dictionary<string, Row> dictionary = new Dictionary<string, Row>();
-
-            foreach (Row row in result)
+            if (result.OK)
             {
-                dictionary.Add(row[key].ToString(), row);
+                Dictionary<string, Row> dictionary = new Dictionary<string, Row>();
+                foreach (Row row in result)
+                {
+                    string dictkey = row[key].ToString();
+                    if (!dictionary.ContainsKey(dictkey))
+                        dictionary.Add(dictkey, row);
+                    else
+                        duplicate(row);
+                }
+                return dictionary;
             }
+            else
+                return null;
+        }
 
-            return dictionary;
+        public Dictionary<string, Row> QueryDictionary(string sql, QueryDictionaryKeyCallback keyCreate, params object[] args)
+        {
+            return QueryDictionary(sql, keyCreate, delegate (Row row) { }, args);
+        }
+
+        public Dictionary<string, Row> QueryDictionary(string sql, QueryDictionaryKeyCallback keyCreate, QueryDictionaryDuplicateCallback duplicate, params object[] args)
+        {
+            Result result = Query(sql, args);
+
+            if (result.OK)
+            {
+                Dictionary<string, Row> dictionary = new Dictionary<string, Row>();
+                foreach (Row row in result)
+                {
+                    string key = keyCreate(row);
+                    if (!dictionary.ContainsKey(key))
+                        dictionary.Add(key, row);
+                    else
+                        duplicate(row);
+                }
+                return dictionary;
+            }
+            else
+                return null;
         }
 
         public List<string> QueryList(string sql, string key, params object[] args)
         {
             Result result = Query(sql, args);
 
-            List<string> list = new List<string>();
-
-            foreach (Row row in result)
+            if (result.OK)
             {
-                list.Add(row[key].ToString());
+                List<string> list = new List<string>();
+                foreach (Row row in result) list.Add(row[key].ToString());
+                return list;
             }
-
-            return list;
+            else
+                return null;
         }
 
         public Column Scalar(string sql, params object[] args)
@@ -508,7 +555,7 @@ namespace Aphysoft.Common
                         }
                         result.Add(row);
 
-                        if (result.Count >= 50000) break;
+                        if (result.Count >= 200000) break;
                     }
                 }
                 catch (Exception e)
@@ -1055,6 +1102,11 @@ namespace Aphysoft.Common
         IEnumerator IEnumerable.GetEnumerator()
         {
             return (IEnumerator)rows.GetEnumerator();
+        }
+
+        internal void ThrowException()
+        {
+            isExceptionThrown = true;
         }
 
         #endregion

@@ -288,6 +288,46 @@ namespace Jovice
             get { return updateSubInterfaceCount; }
             set { updateSubInterfaceCount = value; }
         }
+
+        private string parentID = null;
+
+        public string ParentID
+        {
+            get { return parentID; }
+            set { parentID = value; }
+        }
+
+        private bool updateParentID = false;
+
+        public bool UpdateParentID
+        {
+            get { return updateParentID; }
+            set { updateParentID = value; }
+        }
+
+        private string adjacentID = null;
+
+        public string AdjacentID
+        {
+            get { return adjacentID; }
+            set { adjacentID = value; }
+        }
+
+        private bool updateAdjacentID = false;
+
+        public bool UpdateAdjacentID
+        {
+            get { return updateAdjacentID; }
+            set { updateAdjacentID = value; }
+        }
+
+        private Dictionary<string, string> adjacentSubifID = null;
+
+        public Dictionary<string, string> AdjacentSubifID
+        {
+            get { return adjacentSubifID; }
+            set { adjacentSubifID = value; }
+        }
     }
 
     internal sealed partial class Probe
@@ -296,51 +336,39 @@ namespace Jovice
 
         private void PEProcess()
         {
-            #region Variables
+            Batch batch = Batch();
+            Result result;
 
-            List<string> batchlist1 = new List<string>();
-            List<string> batchlist2 = new List<string>();
-            List<string> batchlist3 = new List<string>();
-            List<string> batchlist4 = new List<string>();
-            List<string> batchlist5 = new List<string>();
-            StringBuilder batchstring = new StringBuilder();
-            int batchline = 0;
-
-            #endregion
-
-            #region ROUTE
-
-            Event("Checking Route");
-
-            string routeinsertsql = "insert into PERoute(PR_ID) values";
-            string routetargetinsertsql = "insert into PERouteTarget(PT_ID, PT_PR, PT_Type, PT_Community, PT_IPv6) values";
-            string routenameinsertsql = "insert into PERouteName(PN_ID, PN_PR, PN_NO, PN_Name, PN_RD, PN_RDv6) values";
-            Result routenamedbresult = Query("select * from PERouteName where PN_NO = {0} order by PN_Name asc", nodeID);
-            Dictionary<string, Row> routenamedb = new Dictionary<string, Row>();
-            foreach (Row row in routenamedbresult) { routenamedb.Add(row["PN_Name"].ToString(), row); }
-            Result routetargetdbresult = Query("select * from PERouteName, PERouteTarget where PN_PR = PT_PR and PN_NO = {0}", nodeID);
+            #region VRF
+            
+            Dictionary<string, PERouteNameToDatabase> routelive = new Dictionary<string, PERouteNameToDatabase>();
+            Dictionary<string, Row> routenamedb = QueryDictionary("select * from PERouteName where PN_NO = {0}", "PN_Name", nodeID);
             Dictionary<string, List<string>> routetargetlocaldb = new Dictionary<string, List<string>>();
-            foreach (Row row in routetargetdbresult)
+
+            result = Query("select * from PERouteName, PERouteTarget where PN_PR = PT_PR and PN_NO = {0}", nodeID);
+            foreach (Row row in result)
             {
                 string name = row["PN_Name"].ToString();
                 List<string> routeTargets;
-
                 if (!routetargetlocaldb.ContainsKey(name))
                 {
                     routeTargets = new List<string>();
                     routetargetlocaldb.Add(name, routeTargets);
                 }
                 else routeTargets = routetargetlocaldb[name];
-
                 string ipv6 = row["PT_IPv6"].ToBoolean() == false ? "0" : "1";
                 string type = row["PT_Type"].ToBoolean() == false ? "0" : "1";
                 string routeTarget = row["PT_Community"].ToString();
-
                 routeTargets.Add(ipv6 + type + routeTarget);
             }
-            Dictionary<string, PERouteNameToDatabase> routelive = new Dictionary<string, PERouteNameToDatabase>();
+
+            Dictionary<string, string[]> routetargetinsert = new Dictionary<string, string[]>();
             List<PERouteNameToDatabase> routenameinsert = new List<PERouteNameToDatabase>();
             List<PERouteNameToDatabase> routenameupdate = new List<PERouteNameToDatabase>();
+
+            
+
+            Event("Checking VRF");
 
             #region Live
 
@@ -575,28 +603,28 @@ namespace Jovice
 
             #endregion
 
+            
+
             #region Check
 
             foreach (KeyValuePair<string, PERouteNameToDatabase> pair in routelive)
             {
+                PERouteNameToDatabase li = pair.Value;
                 if (!routenamedb.ContainsKey(pair.Key))
                 {
-                    // ADD
-                    routenameinsert.Add(pair.Value);
-                    Event("Route Name ADD: " + pair.Key);
+                    Event("VRF Name ADD: " + pair.Key);
+                    li.ID = Database.ID();
+                    routenameinsert.Add(li);
                 }
                 else
                 {
-                    // MODIFY
                     Row db = routenamedb[pair.Key];
-
                     List<string> routeTargets = null;
                     if (routetargetlocaldb.ContainsKey(pair.Key)) routeTargets = routetargetlocaldb[pair.Key];
 
                     PERouteNameToDatabase u = new PERouteNameToDatabase();
-                    PERouteNameToDatabase li = pair.Value;
-                    bool update = false;
 
+                    bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
 
                     if (db["PN_RD"].ToString() != li.RD)
@@ -616,20 +644,9 @@ namespace Jovice
                     if (routeTargets != null)
                     {
                         List<string> temp = new List<string>(routeTargets);
-
-                        foreach (string routeTarget in li.RouteTargets)
-                        {
-                            if (temp.Contains(routeTarget))
-                                temp.Remove(routeTarget);
-                        }
-
+                        foreach (string routeTarget in li.RouteTargets) { if (temp.Contains(routeTarget)) temp.Remove(routeTarget); }
                         List<string> temp2 = new List<string>(li.RouteTargets);
-
-                        foreach (string routeTarget in routeTargets)
-                        {
-                            if (temp2.Contains(routeTarget))
-                                temp2.Remove(routeTarget);
-                        }
+                        foreach (string routeTarget in routeTargets) { if (temp2.Contains(routeTarget)) temp2.Remove(routeTarget); }
 
                         if (temp.Count != 0 || temp2.Count != 0)
                         {
@@ -645,22 +662,16 @@ namespace Jovice
                         u.ID = db["PN_ID"].ToString();
                         u.Name = pair.Key;
                         routenameupdate.Add(u);
-                        Event("Route Name MODIFY: " + pair.Key + " " + updateinfo.ToString());
+                        Event("VRF Name UPDATE: " + pair.Key + " " + updateinfo.ToString());
                     }
                 }
             }
 
             Summary("VRF_COUNT", routelive.Count);
 
-            #endregion
-
-            #region Execute
-
-            // search/set route targets
+            // Search/set route targets
             List<PERouteNameToDatabase> routetargetsearch = new List<PERouteNameToDatabase>(routenameinsert);
-            foreach (PERouteNameToDatabase u in routenameupdate) { if (u.UpdateRouteTargets) routetargetsearch.Add(u); }
-
-            Dictionary<string, string[]> routetargetinsert = new Dictionary<string, string[]>();
+            foreach (PERouteNameToDatabase u in routenameupdate) { if (u.UpdateRouteTargets) routetargetsearch.Add(u); }            
             Dictionary<int, Result> routesearch = new Dictionary<int, Result>();
 
             foreach (PERouteNameToDatabase s in routetargetsearch)
@@ -702,80 +713,56 @@ namespace Jovice
 
                 if (routeID == null)
                 {
-                    Event("Route Targets ADD: " + s.Name);
+                    Event("VRF Route Targets ADD: " + s.Name);
                     routeID = Database.ID();
                     routetargetinsert.Add(routeID, routeTargets);
                 }
                 s.RouteID = routeID;
             }
 
-            // Route Target
-            batchline = 0;
-            batchlist1.Clear();
-            batchlist2.Clear();
-            batchstring.Clear();
+            #endregion
 
-            int newroute = 0, newroutetarget = 0;
+            #region Execute
+
+            // ADD
+            
+            // Route
+            batch.Begin();
             foreach (KeyValuePair<string, string[]> pair in routetargetinsert)
             {
-                batchlist1.Add(Format("({0})", pair.Key));
+                batch.Execute("insert into PERoute(PR_ID) values({0})", pair.Key);
+            }
+            result = batch.Commit();
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " VRF(s) have been added");
+            
+            // Route Target
+            batch.Begin();
+            foreach (KeyValuePair<string, string[]> pair in routetargetinsert)
+            {
                 foreach (string routeTarget in pair.Value)
                 {
                     int ipv6 = routeTarget[0] == '1' ? 1 : 0;
                     int type = routeTarget[1] == '1' ? 1 : 0;
                     string community = routeTarget.Substring(2);
-                    batchlist2.Add(Format("({0}, {1}, {2}, {3}, {4})", Database.ID(), pair.Key, type, community, ipv6));
-                }
-                if (batchlist1.Count == batchmax || batchlist2.Count >= batchmax)
-                {
-                    newroute += Execute(routeinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
-                    batchlist1.Clear();
-                    if (batchlist2.Count > 0)
-                    {
-                        newroutetarget += Execute(routetargetinsertsql + string.Join(",", batchlist2.ToArray())).AffectedRows;
-                        batchlist2.Clear();
-                    }
+                    batch.Execute("insert into PERouteTarget(PT_ID, PT_PR, PT_Type, PT_Community, PT_IPv6) values({0}, {1}, {2}, {3}, {4})", Database.ID(), pair.Key, type, community, ipv6);
                 }
             }
-            if (batchlist1.Count > 0)
-                newroute += Execute(routeinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
-            if (batchlist2.Count > 0)
-                newroutetarget += Execute(routetargetinsertsql + string.Join(",", batchlist2.ToArray())).AffectedRows;
-            if (newroute > 0)
-                Event(newroute + " route(s) added");
-            if (newroutetarget > 0)
-                Event(newroutetarget + " route target(s) added");
-
-            // ADD
-            batchline = 0;
-            batchlist1.Clear();
-            batchlist2.Clear();
-            batchstring.Clear();
-
-            int newroutename = 0;
+            result = batch.Commit();
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " VRF route target(s) have been added");
+            
+            // Route Name
+            batch.Begin();
             foreach (PERouteNameToDatabase s in routenameinsert)
             {
-                batchlist1.Add(Format("({0}, {1}, {2}, {3}, {4}, {5})",
-                    Database.ID(), s.RouteID, nodeID, s.Name, s.RD, s.RDIPv6
-                    ));
-                if (batchlist1.Count == batchmax)
-                {
-                    newroutename += Execute(routenameinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
-                    batchlist1.Clear();
-                }
+                batch.Execute("insert into PERouteName(PN_ID, PN_PR, PN_NO, PN_Name, PN_RD, PN_RDv6) values({0}, {1}, {2}, {3}, {4}, {5})",
+                    s.ID, s.RouteID, nodeID, s.Name, s.RD, s.RDIPv6
+                    );
             }
-            if (batchlist1.Count > 0)
-                newroutename += Execute(routenameinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
-            if (newroutename > 0)
-                Event(newroutename + " route name(s) added");
+            result = batch.Commit();
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " VRF name(s) have been added");
 
-            // MODIFY
-            batchline = 0;
-            batchlist1.Clear();
-            batchlist2.Clear();
-            batchstring.Clear();
-
-            int modifiedroutename = 0;
+            // UPDATE
+            batch.Begin();
             foreach (PERouteNameToDatabase s in routenameupdate)
             {
                 List<string> v = new List<string>();
@@ -783,44 +770,24 @@ namespace Jovice
                 if (s.UpdateRDIPv6) v.Add(Format("PN_RDv6 = {0}", s.RDIPv6));
                 if (s.UpdateRouteTargets) v.Add(Format("PN_PR = {0}", s.RouteID));
 
-                if (v.Count > 0)
-                {
-                    string q = Format("update PERouteName set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where PN_ID = {0};", s.ID);
-                    batchline++;
-                    batchstring.AppendLine(q);
-
-                    if (batchline == batchmax)
-                    {
-                        modifiedroutename += Execute(batchstring.ToString()).AffectedRows;
-                        batchstring.Clear();
-                        batchline = 0;
-                    }
-                }
+                if (v.Count > 0) batch.Execute("update PERouteName set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where PN_ID = {0}", s.ID);
             }
-            if (batchline > 0)
-                modifiedroutename += Execute(batchstring.ToString()).AffectedRows;
-            if (modifiedroutename > 0)
-                Event(modifiedroutename + " route name(s) modified");
+            result = batch.Commit();
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " VRF name(s) have been updated");
 
             #endregion
 
-            routenamedbresult = Query("select * from PERouteName where PN_NO = {0} order by PN_Name asc", nodeID);
-            routenamedb = new Dictionary<string, Row>();
-            foreach (Row row in routenamedbresult) { routenamedb.Add(row["PN_Name"].ToString(), row); }
-
+            routenamedb = QueryDictionary("select * from PERouteName where PN_NO = {0}", "PN_Name", nodeID);
+            
             #endregion
 
             #region QOS
-
-            Event("Checking QOS");
-
-            string qosinsertsql = "insert into PEQOS(PQ_ID, PQ_NO, PQ_Name, PQ_Bandwidth, PQ_Package) values";
-            string qosdeletesql = "delete from PEQOS where ";
-            Result qosdbresult = Query("select * from PEQOS where PQ_NO = {0}", nodeID);
-            Dictionary<string, Row> qosdb = new Dictionary<string, Row>();
-            foreach (Row row in qosdbresult) { qosdb.Add(row["PQ_Name"].ToString(), row); }
+            
             Dictionary<string, PEQOSToDatabase> qoslive = new Dictionary<string, PEQOSToDatabase>();
+            Dictionary<string, Row> qosdb = QueryDictionary("select * from PEQOS where PQ_NO = {0}", "PQ_Name", nodeID);
             List<PEQOSToDatabase> qosinsert = new List<PEQOSToDatabase>();
+                      
+            Event("Checking QOS");
 
             #region Live
 
@@ -889,22 +856,23 @@ namespace Jovice
             }
 
             #endregion
-
+                     
             #region Check
 
             foreach (KeyValuePair<string, PEQOSToDatabase> pair in qoslive)
             {
+                PEQOSToDatabase li = pair.Value;
+
                 if (!qosdb.ContainsKey(pair.Key))
-                {
-                    PEQOSToDatabase i = pair.Value;
-
-                    NodeQOSPE qos = NodeQOSPE.Parse(i.Name);
-                    i.Package = qos.Package;
-                    i.Bandwidth = qos.Bandwidth;
-
+                { 
+                    NodeQOSPE qos = NodeQOSPE.Parse(li.Name);
+                    li.Package = qos.Package;
+                    li.Bandwidth = qos.Bandwidth;
+                    
+                    Event("QOS ADD: " + li.Name + " (" + (li.Package == null ? "-" : li.Package) + ", " +
+                        (li.Bandwidth == -1 ? "-" : (li.Bandwidth + "K")) + ")");
+                    li.ID = Database.ID();
                     qosinsert.Add(pair.Value);
-                    Event("QOS ADD: " + i.Name + " (" + (i.Package == null ? "-" : i.Package) + ", " +
-                        (i.Bandwidth == -1 ? "-" : (i.Bandwidth + "K")) + ")");
                 }
             }
 
@@ -915,81 +883,50 @@ namespace Jovice
             #region Execute
 
             // ADD
-            batchline = 0;
-            batchlist1.Clear();
-            batchlist2.Clear();
-            batchstring.Clear();
-
-            int newqos = 0;
+            batch.Begin();
             foreach (PEQOSToDatabase s in qosinsert)
             {
-                string id = Database.ID();
-
                 // PQ_ID, PQ_NO, PQ_Name, PQ_Bandwidth, PQ_Package
-                if (s.Bandwidth == -1) batchlist1.Add(Format("({0}, {1}, {2}, null, {3})", id, nodeID, s.Name, s.Package));
-                else batchlist1.Add(Format("({0}, {1}, {2}, {3}, {4})", id, nodeID, s.Name, s.Bandwidth, s.Package));
-
-                if (batchlist1.Count == batchmax)
-                {
-                    newqos += Execute(qosinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
-                    batchlist1.Clear();
-                }
+                if (s.Bandwidth == -1) batch.Execute("insert into PEQOS(PQ_ID, PQ_NO, PQ_Name, PQ_Bandwidth, PQ_Package) values({0}, {1}, {2}, null, {3})", s.ID, nodeID, s.Name, s.Package);
+                else batch.Execute("insert into PEQOS(PQ_ID, PQ_NO, PQ_Name, PQ_Bandwidth, PQ_Package) values({0}, {1}, {2}, {3}, {4})", s.ID, nodeID, s.Name, s.Bandwidth, s.Package);
             }
-            if (batchlist1.Count > 0)
-                newqos += Execute(qosinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
-            if (newqos > 0)
-                Event(newqos + " QOS(s) added");
+            result = batch.Commit();
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " QOS(s) have been added");
 
             #endregion
 
-            qosdbresult = Query("select * from PEQOS where PQ_NO = {0}", nodeID);
-            qosdb = new Dictionary<string, Row>();
-            foreach (Row row in qosdbresult) { qosdb.Add(row["PQ_Name"].ToString(), row); }
-
+            qosdb = QueryDictionary("select * from PEQOS where PQ_NO = {0}", "PQ_Name", nodeID);
+            
             #endregion
 
             #region INTERFACE
-
-            Event("Checking Interface");
-
-            string interfaceinsertsql = "insert into PEInterface(PI_ID, PI_NO, PI_Name, PI_Status, PI_Protocol, PI_Description, PI_PN, PI_PQ_Input, PI_PQ_Output, PI_SE, PI_Rate_Input, PI_Rate_Output, PI_Summary_CIRConfigTotalInput, PI_Summary_CIRConfigTotalOutput, PI_Summary_CIRTotalInput, PI_Summary_CIRTotalOutput, PI_Summary_SubInterfaceCount) values";
-            string interfacedeletesql = "delete from PEInterface where ";
-            string interfaceremoveref1sql = "update PEInterface set PI_PI = null where ";
-            string interfaceremoveref2sql = "update MEInterface set MI_TO_PI = null where ";
-            string ipinsertsql = "insert into PEInterfaceIP(PP_ID, PP_PI, PP_Type, PP_IP) values";
-            string ipdeletesql = "delete from PEInterfaceIP where ";
-            Result interfacedbresult = Query("select * from PEInterface where PI_NO = {0}", nodeID);
-            Dictionary<string, Row> interfacedb = new Dictionary<string, Row>();
-            foreach (Row row in interfacedbresult) { interfacedb.Add(row["PI_Name"].ToString(), row); }
-            Dictionary<string, PEInterfaceToDatabase> interfacelive = new Dictionary<string, PEInterfaceToDatabase>();
-            Result ipdbresult = Query("select PI_Name, PP_ID, PP_Type + ':' + PP_IP as IP from PEInterface, PEInterfaceIP where PP_PI = PI_ID and PI_NO = {0} order by PI_Name asc", nodeID);
+            
+            SortedDictionary<string, PEInterfaceToDatabase> interfacelive = new SortedDictionary<string, PEInterfaceToDatabase>();
+            Dictionary<string, Row> interfacedb = QueryDictionary("select * from PEInterface where PI_NO = {0}", "PI_Name", nodeID);
             Dictionary<string, List<string[]>> ipdb = new Dictionary<string, List<string[]>>();
-            foreach (Row row in ipdbresult)
+
+            result = Query("select PI_Name, PP_ID, PP_Type + ':' + PP_IP as IP from PEInterface, PEInterfaceIP where PP_PI = PI_ID and PI_NO = {0} order by PI_Name asc", nodeID);
+            foreach (Row row in result)
             {
                 string name = row["PI_Name"].ToString();
-                string ppid = row["PP_ID"].ToString();
-                string thip = row["IP"].ToString();
-
                 List<string[]> ip = null;
-                if (ipdb.ContainsKey(name))
-                {
-                    ip = ipdb[name];
-                }
+                if (ipdb.ContainsKey(name)) ip = ipdb[name];
                 else
                 {
                     ip = new List<string[]>();
-                    ipdb[name] = ip;
+                    ipdb.Add(name, ip);
                 }
-
-                ip.Add(new string[] { thip, ppid });
-
+                ip.Add(new string[] { row["IP"].ToString(), row["PP_ID"].ToString() });
             }
-            List<PEInterfaceToDatabase> interfaceinsert = new List<PEInterfaceToDatabase>();
+
+            SortedDictionary<string, PEInterfaceToDatabase> interfaceinsert = new SortedDictionary<string, PEInterfaceToDatabase>();
             List<PEInterfaceToDatabase> interfaceupdate = new List<PEInterfaceToDatabase>();
             Dictionary<string, List<string>> ipinsert = new Dictionary<string, List<string>>();
             Dictionary<string, List<string>> ipdelete = new Dictionary<string, List<string>>();
 
             ServiceReference interfaceservicereference = new ServiceReference();
+            
+            Event("Checking Interface");
 
             #region Live
 
@@ -1277,9 +1214,26 @@ namespace Jovice
                     }
 
                     // policy map
-                    if (nodeSubVersion.StartsWith("12.4"))
+                    SendLine("show policy-map interface input brief");
+                    lines = Read(out timeout);
+                    if (timeout) { SaveExit(); return; }
+
+                    bool policyMapUsingBrief = true;
+                    foreach (string line in lines)
                     {
-                        #region 12.4
+                        if (line != null)
+                        {
+                            if (line.ToUpper().Contains("INVALID INPUT"))
+                            {
+                                policyMapUsingBrief = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!policyMapUsingBrief)
+                    {
+                        #region !Brief
                         SendLine("show policy-map interface | in Service-policy_input|Service-policy_output|Ethernet|Serial");
                         lines = Read(out timeout);
                         if (timeout) { SaveExit(); return; }
@@ -1408,11 +1362,7 @@ namespace Jovice
                     }
                     else
                     {
-                        #region !12.4
-                        SendLine("show policy-map interface input brief");
-                        lines = Read(out timeout);
-                        if (timeout) { SaveExit(); return; }
-
+                        #region Brief
                         SendLine("show policy-map interface output brief");
                         List<string> tlines = Read(out timeout);
                         if (tlines != null) lines.AddRange(tlines);
@@ -1776,11 +1726,8 @@ namespace Jovice
             }
 
             #endregion
-
+                   
             #region Check
-
-            int sinf = 0, sinfup = 0, sinfhu = 0, sinfhuup = 0, sinfte = 0, sinfteup = 0, sinfgi = 0, sinfgiup = 0, sinffa = 0, sinffaup = 0, sinfet = 0, sinfetup = 0, sinfse = 0, sinfseup = 0,
-                ssubinf = 0, ssubinfup = 0, ssubinfupup = 0, ssubinfhu = 0, ssubinfhuup = 0, ssubinfhuupup = 0, ssubinfte = 0, ssubinfteup = 0, ssubinfteupup = 0, ssubinfgi = 0, ssubinfgiup = 0, ssubinfgiupup = 0, ssubinffa = 0, ssubinffaup = 0, ssubinffaupup = 0, ssubinfet = 0, ssubinfetup = 0, ssubinfetupup = 0;
 
             foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
             {
@@ -1789,17 +1736,41 @@ namespace Jovice
 
                 if (inf != null)
                 {
+                    if (inf.IsSubInterface)
+                    {
+                        string parent = inf.GetBase();
+                        if (interfacelive.ContainsKey(parent))
+                        {
+                            int count = interfacelive[parent].SubInterfaceCount;
+                            if (count == -1) count = 0;
+                            interfacelive[parent].SubInterfaceCount = count + 1;
+                        }
+                    }
+                    else
+                    {
+                        li.SubInterfaceCount = 0;
+                    }
+                }
+            }
+
+
+            int sinf = 0, sinfup = 0, sinfhu = 0, sinfhuup = 0, sinfte = 0, sinfteup = 0, sinfgi = 0, sinfgiup = 0, sinffa = 0, sinffaup = 0, sinfet = 0, sinfetup = 0, sinfse = 0, sinfseup = 0,
+                ssubinf = 0, ssubinfup = 0, ssubinfupup = 0, ssubinfhu = 0, ssubinfhuup = 0, ssubinfhuupup = 0, ssubinfte = 0, ssubinfteup = 0, ssubinfteupup = 0, ssubinfgi = 0, ssubinfgiup = 0, ssubinfgiupup = 0, ssubinffa = 0, ssubinffaup = 0, ssubinffaupup = 0, ssubinfet = 0, ssubinfetup = 0, ssubinfetupup = 0;
+
+            foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
+            {
+                PEInterfaceToDatabase li = pair.Value;
+                NodeInterface inf = NodeInterface.Parse(li.Name);
+                string parentPort = null;
+
+                // TOPOLOGY
+                if (inf != null)
+                {
                     string inftype = inf.ShortType;
 
                     if (inf.IsSubInterface)
                     {
-                        string bport = inf.GetBase();
-                        if (interfacelive.ContainsKey(bport))
-                        {
-                            int cur = interfacelive[bport].SubInterfaceCount;
-                            if (cur == -1) cur = 0;
-                            interfacelive[bport].SubInterfaceCount = cur + 1;
-                        }
+                        parentPort = inf.GetBase();
 
                         ssubinf++;
                         if (li.Status == 1)
@@ -1815,8 +1786,6 @@ namespace Jovice
                     }
                     else
                     {
-                        li.SubInterfaceCount = 0;
-
                         sinf++;
                         if (li.Status == 1) sinfup++;
                         if (inftype == "Hu") { sinfhu++; if (li.Status == 1) sinfhuup++; }
@@ -1826,31 +1795,101 @@ namespace Jovice
                         if (inftype == "Et") { sinfet++; if (li.Status == 1) sinfetup++; }
                         if (inftype == "Se") { sinfse++; if (li.Status == 1) sinfseup++; }
                     }
+
+                    if (parentPort != null)
+                    {
+                        if (interfacedb.ContainsKey(parentPort)) // cek di existing db
+                        {
+                            li.ParentID = interfacedb[parentPort]["PI_ID"].ToString();
+                            int dot = li.Name.IndexOf('.');
+                            if (dot > -1 && li.Name.Length > (dot + 1))
+                            {
+                                string sifname = li.Name.Substring(dot + 1);
+
+                                if (interfacelive.ContainsKey(parentPort))
+                                {
+                                    PEInterfaceToDatabase parent = interfacelive[parentPort];
+                                    if (parent.AdjacentSubifID != null)
+                                    {
+                                        if (parent.AdjacentSubifID.ContainsKey(sifname))
+                                        {
+                                            li.AdjacentID = parent.AdjacentSubifID[sifname];
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        else if (interfaceinsert.ContainsKey(parentPort)) // cek di interface yg baru
+                            li.ParentID = interfaceinsert[parentPort].ID;                        
+                    }
                 }
+
 
                 if (!interfacedb.ContainsKey(pair.Key))
                 {
-                    // ADD
-                    interfaceinsert.Add(li);
                     Event("Interface ADD: " + pair.Key);
 
+                    // IP
                     if (li.IP != null)
                         Event("       IP ADD: " + string.Join(",", li.IP.ToArray()));
 
+                    // Service
                     if (li.Description != null) interfaceservicereference.Add(li, li.Description);
+                    
+                    li.ID = Database.ID();
+                    interfaceinsert.Add(li.Name, li);
                 }
                 else
                 {
-                    // MODIFY
                     Row db = interfacedb[pair.Key];
 
                     PEInterfaceToDatabase u = new PEInterfaceToDatabase();
                     u.ID = db["PI_ID"].ToString();
 
                     bool update = false;
-
                     StringBuilder updateinfo = new StringBuilder();
 
+                    if (li.ParentID == null)
+                    {
+                        string adjID = db["PI_TO_MI"].ToString();
+                        if (adjID != null)
+                        {
+                            li.AdjacentSubifID = new Dictionary<string, string>();
+
+                            result = Query("select MI_Name, MI_ID from MEInterface where MI_MI = {0}", adjID);
+
+                            foreach (Row row in result)
+                            {
+                                string spiid = row["MI_ID"].ToString();
+                                string spiname = row["MI_Name"].ToString();
+
+                                int dot = spiname.IndexOf('.');
+                                if (dot > -1 && spiname.Length > (dot + 1))
+                                {
+                                    string sifname = spiname.Substring(dot + 1);
+                                    if (!li.AdjacentSubifID.ContainsKey(sifname))
+                                    {
+                                        li.AdjacentSubifID.Add(sifname, spiid);
+                                    }
+                                }
+                            }
+                        }
+                        else FindNodeCandidate(li.Description);
+                    }
+                    if (db["PI_PI"].ToString() != li.ParentID)
+                    {
+                        update = true;
+                        u.UpdateParentID = true;
+                        u.ParentID = li.ParentID;
+                        updateinfo.Append(li.ParentID == null ? "parent " : "child ");
+                    }
+                    if (db["PI_TO_MI"].ToString() != li.AdjacentID)
+                    {
+                        update = true;
+                        u.UpdateAdjacentID = true;
+                        u.AdjacentID = li.AdjacentID;
+                        updateinfo.Append("adj ");
+                    }
                     if (db["PI_Description"].ToString() != li.Description)
                     {
                         update = true;
@@ -1910,35 +1949,35 @@ namespace Jovice
                         u.RateLimitOutput = li.RateLimitOutput;
                         updateinfo.Append("rout ");
                     }
-                    if (li.CirConfigTotalInput != db["PI_Summary_CIRConfigTotalInput"].ToInt(-1))
+                    if (db["PI_Summary_CIRConfigTotalInput"].ToInt(-1) != li.CirConfigTotalInput)
                     {
                         update = true;
                         u.UpdateCirConfigTotalInput = true;
                         u.CirConfigTotalInput = li.CirConfigTotalInput;
                         updateinfo.Append("circonfin ");
                     }
-                    if (li.CirConfigTotalOutput != db["PI_Summary_CIRConfigTotalOutput"].ToInt(-1))
+                    if (db["PI_Summary_CIRConfigTotalOutput"].ToInt(-1) != li.CirConfigTotalOutput)
                     {
                         update = true;
                         u.UpdateCirConfigTotalOutput = true;
                         u.CirConfigTotalOutput = li.CirConfigTotalOutput;
                         updateinfo.Append("circonfout ");
                     }
-                    if (li.CirTotalInput != db["PI_Summary_CIRTotalInput"].ToInt(-1))
+                    if (db["PI_Summary_CIRTotalInput"].ToInt(-1) != li.CirTotalInput)
                     {
                         update = true;
                         u.UpdateCirTotalInput = true;
                         u.CirTotalInput = li.CirTotalInput;
                         updateinfo.Append("cirin ");
                     }
-                    if (li.CirTotalOutput != db["PI_Summary_CIRTotalOutput"].ToInt(-1))
+                    if (db["PI_Summary_CIRTotalOutput"].ToInt(-1) != li.CirTotalOutput)
                     {
                         update = true;
                         u.UpdateCirTotalOutput = true;
                         u.CirTotalOutput = li.CirTotalOutput;
                         updateinfo.Append("cirout ");
                     }
-                    if (li.SubInterfaceCount != db["PI_Summary_SubInterfaceCount"].ToInt(-1))
+                    if (db["PI_Summary_SubInterfaceCount"].ToInt(-1) != li.SubInterfaceCount)
                     {
                         update = true;
                         u.UpdateSubInterfaceCount = true;
@@ -2008,7 +2047,7 @@ namespace Jovice
                     if (update)
                     {
                         interfaceupdate.Add(u);
-                        Event("Interface MODIFY: " + pair.Key + " " + updateinfo.ToString());
+                        Event("Interface UPDATE: " + pair.Key + " " + updateinfo.ToString());
                         if (u.IP != null) Event("          IP ADD: " + string.Join(",", u.IP.ToArray()));
                         if (u.DeleteIP != null) Event("       IP DELETE: " + string.Join(",", u.DeleteIP.ToArray()));
                     }
@@ -2051,46 +2090,34 @@ namespace Jovice
             ServiceExecute(interfaceservicereference);
 
             // ADD
-            batchline = 0;
-            batchlist1.Clear();
-            batchlist2.Clear();
-            batchstring.Clear();
-
-            int newinterface = 0;
-            foreach (PEInterfaceToDatabase s in interfaceinsert)
+            batch.Begin();
+            List<Tuple<string, string>> interfacereferenceupdate = new List<Tuple<string, string>>();
+            foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfaceinsert)
             {
-                string id = Database.ID();
-                batchlist1.Add(Format("({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, " + ((s.RateLimitInput == -1) ? "null" : (s.RateLimitInput + "")) + ", " + ((s.RateLimitOutput == -1) ? "null" : (s.RateLimitOutput + "")) +
-                    "," + (s.CirConfigTotalInput == -1 ? "null" : (s.CirConfigTotalInput + "")) + "," + (s.CirConfigTotalOutput == -1 ? "null" : (s.CirConfigTotalOutput + "")) + "," + (s.CirTotalInput == -1 ? "null" : (s.CirTotalInput + "")) + "," + (s.CirTotalOutput == -1 ? "null" : (s.CirTotalOutput + "")) + 
-                    "," + (s.SubInterfaceCount == -1 ? "null" : (s.SubInterfaceCount + "")) +                    
+                PEInterfaceToDatabase s = pair.Value;
+                batch.Execute("insert into PEInterface(PI_ID, PI_NO, PI_Name, PI_Status, PI_Protocol, PI_Description, PI_PN, PI_PQ_Input, PI_PQ_Output, PI_SE, PI_PI, PI_TO_MI, PI_Rate_Input, PI_Rate_Output, PI_Summary_CIRConfigTotalInput, PI_Summary_CIRConfigTotalOutput, PI_Summary_CIRTotalInput, PI_Summary_CIRTotalOutput, PI_Summary_SubInterfaceCount) values({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, " + ((s.RateLimitInput == -1) ? "NULL" : (s.RateLimitInput + "")) + ", " + ((s.RateLimitOutput == -1) ? "NULL" : (s.RateLimitOutput + "")) +
+                    ", " + (s.CirConfigTotalInput == -1 ? "NULL" : (s.CirConfigTotalInput + "")) + ", " + (s.CirConfigTotalOutput == -1 ? "NULL" : (s.CirConfigTotalOutput + "")) + ", " + (s.CirTotalInput == -1 ? "NULL" : (s.CirTotalInput + "")) + ", " + (s.CirTotalOutput == -1 ? "NULL" : (s.CirTotalOutput + "")) +
+                    ", " + (s.SubInterfaceCount == -1 ? "NULL" : (s.SubInterfaceCount + "")) +
                     ")",
-                    id, nodeID, s.Name, s.Status, s.Protocol, s.Description, s.RouteID, s.InputQOSID, s.OutputQOSID, s.ServiceID
-                    ));
-
-                if (s.IP != null)
-                    ipinsert.Add(id, s.IP);
-
-                if (batchlist1.Count == batchmax)
-                {
-                    newinterface += Execute(interfaceinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
-                    batchlist1.Clear();
-                }
+                    s.ID, nodeID, s.Name, s.Status, s.Protocol, s.Description, s.RouteID, s.InputQOSID, s.OutputQOSID, s.ServiceID, s.ParentID, s.AdjacentID
+                    );
+                interfacereferenceupdate.Add(new Tuple<string, string>(s.AdjacentID, s.ID));
+                if (s.IP != null) ipinsert.Add(s.ID, s.IP);
             }
-            if (batchlist1.Count > 0)
-                newinterface += Execute(interfaceinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
-            if (newinterface > 0)
-                Event(newinterface + " interface(s) added");
+            result = batch.Commit();
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " interface(s) have been added");
 
-            // MODIFY
-            batchline = 0;
-            batchlist1.Clear();
-            batchlist2.Clear();
-            batchstring.Clear();
-
-            int modifiedinterface = 0;
+            // UPDATE
+            batch.Begin();
             foreach (PEInterfaceToDatabase s in interfaceupdate)
             {
                 List<string> v = new List<string>();
+                if (s.UpdateParentID) v.Add(Format("PI_PI = {0}", s.ParentID));
+                if (s.UpdateAdjacentID)
+                {
+                    v.Add(Format("PI_TO_MI = {0}", s.AdjacentID));
+                    interfacereferenceupdate.Add(new Tuple<string, string>(s.AdjacentID, s.ID));
+                }
                 if (s.UpdateDescription)
                 {
                     v.Add(Format("PI_Description = {0}", s.Description));
@@ -2104,37 +2131,37 @@ namespace Jovice
                 if (s.UpdateRateLimitInput)
                 {
                     if (s.RateLimitInput > -1) v.Add("PI_Rate_Input = " + s.RateLimitInput);
-                    else v.Add("PI_Rate_Input = null");
+                    else v.Add("PI_Rate_Input = NULL");
                 }
                 if (s.UpdateRateLimitOutput)
                 {
                     if (s.RateLimitOutput > -1) v.Add("PI_Rate_Output = " + s.RateLimitOutput);
-                    else v.Add("PI_Rate_Output = null");
+                    else v.Add("PI_Rate_Output = NULL");
                 }
                 if (s.UpdateCirConfigTotalInput)
                 {
                     if (s.CirConfigTotalInput > -1) v.Add("PI_Summary_CIRConfigTotalInput = " + s.CirConfigTotalInput);
-                    else v.Add("PI_Summary_CIRConfigTotalInput = null");
+                    else v.Add("PI_Summary_CIRConfigTotalInput = NULL");
                 }
                 if (s.UpdateCirConfigTotalOutput)
                 {
                     if (s.CirConfigTotalOutput > -1) v.Add("PI_Summary_CIRConfigTotalOutput = " + s.CirConfigTotalOutput);
-                    else v.Add("PI_Summary_CIRConfigTotalOutput = null");
+                    else v.Add("PI_Summary_CIRConfigTotalOutput = NULL");
                 }
                 if (s.UpdateCirTotalInput)
                 {
                     if (s.CirTotalInput > -1) v.Add("PI_Summary_CIRTotalInput = " + s.CirTotalInput);
-                    else v.Add("PI_Summary_CIRTotalInput = null");
+                    else v.Add("PI_Summary_CIRTotalInput = NULL");
                 }
                 if (s.UpdateCirTotalOutput)
                 {
                     if (s.CirTotalOutput > -1) v.Add("PI_Summary_CIRTotalOutput = " + s.CirTotalOutput);
-                    else v.Add("PI_Summary_CIRTotalOutput = null");
+                    else v.Add("PI_Summary_CIRTotalOutput = NULL");
                 }
                 if (s.UpdateSubInterfaceCount)
                 {
                     if (s.SubInterfaceCount > -1) v.Add("PI_Summary_SubInterfaceCount = " + s.SubInterfaceCount);
-                    else v.Add("PI_Summary_SubInterfaceCount = null");
+                    else v.Add("PI_Summary_SubInterfaceCount = NULL");
                 }
 
                 if (s.IP != null)
@@ -2142,288 +2169,109 @@ namespace Jovice
                 if (s.DeleteIP != null)
                     ipdelete.Add(s.ID, s.DeleteIPID);
 
-                if (v.Count > 0)
-                {
-                    string q = Format("update PEInterface set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where PI_ID = {0};", s.ID);
-                    batchline++;
-                    batchstring.AppendLine(q);
-
-                    if (batchline == batchmax)
-                    {
-                        modifiedinterface += Execute(batchstring.ToString()).AffectedRows;
-                        batchstring.Clear();
-                        batchline = 0;
-                    }
-                }
+                if (v.Count > 0) batch.Execute("update PEInterface set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where PI_ID = {0}", s.ID);
             }
-            if (batchline > 0)
-                modifiedinterface += Execute(batchstring.ToString()).AffectedRows;
-            if (modifiedinterface > 0)
-                Event(modifiedinterface + " interface(s) modified");
+            result = batch.Commit();
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " interface(s) have been updated");
+
+            batch.Begin();
+            foreach (Tuple<string, string> tuple in interfacereferenceupdate)
+            {
+                if (tuple.Item1 != null)
+                    batch.Execute("update MEInterface set MI_TO_PI = {0} where MI_ID = {1}", tuple.Item2, tuple.Item1);
+                else
+                    batch.Execute("update MEInterface set MI_TO_PI = NULL where MI_TO_PI = {0}", tuple.Item2);
+            }
+            result = batch.Commit();
 
             // IP ADD
-            batchline = 0;
-            batchlist1.Clear();
-            batchlist2.Clear();
-            batchstring.Clear();
-
-            int newip = 0;
+            batch.Begin();
             foreach (KeyValuePair<string, List<string>> pair in ipinsert)
             {
                 List<string> ips = pair.Value;
-
                 foreach (string ip in ips)
                 {
-                    string id = Database.ID();
-
-                    string type = ip.Substring(0, 1);
-                    string oip = ip.Substring(2);
-
-                    batchlist1.Add(Format("({0}, {1}, {2}, {3})",
-                        id, pair.Key, type, oip
-                        ));
-
-                    if (batchlist1.Count == batchmax)
-                    {
-                        newip += Execute(ipinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
-                        batchlist1.Clear();
-                    }
+                    batch.Execute("insert into PEInterfaceIP(PP_ID, PP_PI, PP_Type, PP_IP) values({0}, {1}, {2}, {3})", Database.ID(), pair.Key, ip.Substring(0, 1), ip.Substring(2));
                 }               
             }
-            if (batchlist1.Count > 0)
-                newip += Execute(ipinsertsql + string.Join(",", batchlist1.ToArray())).AffectedRows;
-            if (newip > 0)
-                Event(newip + " interface IP(s) added");
+            result = batch.Commit();
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " interface IP(s) have been added");
 
             // DELETE
-            batchline = 0;
-            batchlist1.Clear();
-            batchlist2.Clear();
-            batchlist3.Clear();
-            batchlist4.Clear();
-            batchlist5.Clear();
-            batchstring.Clear();
-
-            int deletedinterface = 0, deletedip = 0;
-            int removedrefinterface = 0;
-
+            batch.Begin();
+            List<string> interfacedelete = new List<string>();
             foreach (KeyValuePair<string, Row> pair in interfacedb)
             {
                 if (!interfacelive.ContainsKey(pair.Key))
                 {
-                    string piid = pair.Value["PI_ID"].ToString();
-                    batchlist1.Add(Format("PI_ID = {0}", piid));
-                    batchlist2.Add(Format("PP_PI = {0}", piid));
-                    batchlist3.Add(Format("PI_PI = {0}", piid));
-                    batchlist4.Add(Format("MI_TO_PI = {0}", piid));
                     Event("Interface DELETE: " + pair.Key);
+                    string id = pair.Value["PI_ID"].ToString();
+                    batch.Execute("update MEInterface set MI_TO_PI = NULL where MI_TO_PI = {0}", id);
+                    batch.Execute("update PEInterface set PI_PI = NULL where PI_PI = {0}", id);
+                    interfacedelete.Add(id);
                 }
             }
-            foreach (KeyValuePair<string, List<string>> pair in ipdelete)
+            batch.Commit();
+            batch.Begin();
+            foreach (string id in interfacedelete)
             {
-                List<string> ips = pair.Value;
-                foreach (string ppid in ips) { batchlist2.Add(Format("PP_ID = {0}", ppid)); }            
+                batch.Execute("delete from PEInterfaceIP where PP_PI = {0}", id);
             }
-
-            batchline = 0;
-            batchstring.Clear();
-
-            foreach (string s in batchlist4)
+            result = batch.Commit();
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " interface IP(s) have been deleted");
+            batch.Begin();
+            foreach (string id in interfacedelete)
             {
-                if (batchline % 20 == 0)
-                {
-                    if (batchstring.Length > 0)
-                    {
-                        removedrefinterface += Execute(interfaceremoveref2sql + batchstring.ToString()).AffectedRows;
-                        batchstring.Clear();
-                    }
-                    batchstring.Append(s);
-                }
-                else batchstring.Append(" or " + s);
-                batchline++;
+                batch.Execute("delete from PEInterface where PI_ID = {0}", id);
             }
-            if (batchstring.Length > 0)
-                removedrefinterface += Execute(interfaceremoveref2sql + batchstring.ToString()).AffectedRows;
+            result = batch.Commit();
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " interface(s) have been deleted");
 
-            batchline = 0;
-            batchstring.Clear();
-
-            foreach (string s in batchlist3)
-            {
-                if (batchline % 20 == 0)
-                {
-                    if (batchstring.Length > 0)
-                    {
-                        removedrefinterface += Execute(interfaceremoveref1sql + batchstring.ToString()).AffectedRows;
-                        batchstring.Clear();
-                    }
-                    batchstring.Append(s);
-                }
-                else batchstring.Append(" or " + s);
-                batchline++;
-            }
-            if (batchstring.Length > 0)
-                removedrefinterface += Execute(interfaceremoveref1sql + batchstring.ToString()).AffectedRows;
-
-            batchline = 0;
-            batchstring.Clear();
-            
-            foreach (string s in batchlist2)
-            {
-                if (batchline % 20 == 0)
-                {
-                    if (batchstring.Length > 0)
-                    {
-                        deletedip += Execute(ipdeletesql + batchstring.ToString()).AffectedRows;
-                        batchstring.Clear();
-                    }
-                    batchstring.Append(s);
-                }
-                else batchstring.Append(" or " + s);
-                batchline++;
-            }
-            if (batchstring.Length > 0)
-                deletedip += Execute(ipdeletesql + batchstring.ToString()).AffectedRows;
-                
-            batchline = 0;
-            batchstring.Clear();
-                
-            foreach (string s in batchlist1)
-            {
-                if (batchline % 20 == 0)
-                {
-                    if (batchstring.Length > 0)
-                    {
-                        deletedinterface += Execute(interfacedeletesql + batchstring.ToString()).AffectedRows;
-                        batchstring.Clear();
-                    }
-                    batchstring.Append(s);
-                }
-                else batchstring.Append(" or " + s);
-                batchline++;
-            }
-            if (batchstring.Length > 0)
-                deletedinterface += Execute(interfacedeletesql + batchstring.ToString()).AffectedRows;
-
-            if (deletedinterface > 0)
-                Event(deletedinterface + " interface(s) deleted");
-            if (deletedip > 0)
-                Event(deletedip + " interface IP(s) deleted");
-            if (removedrefinterface > 0)
-                Event(removedrefinterface + " interface(s) reference updated");
+            #endregion
             
             #endregion
 
-            #region Late Execute
+            #region LATE DELETE
 
             // DELETE QOS
-            batchline = 0;
-            batchlist1.Clear();
-            batchlist2.Clear();
-            batchstring.Clear();
-
-            int deletedqos = 0;
+            batch.Begin();
             foreach (KeyValuePair<string, Row> pair in qosdb)
             {
                 if (!qoslive.ContainsKey(pair.Key))
                 {
-                    batchlist1.Add(Format("PQ_ID = {0}", pair.Value["PQ_ID"].ToString()));
                     Event("QOS DELETE: " + pair.Key);
+                    batch.Execute("delete from PEQOS where PQ_ID = {0}", pair.Value["PQ_ID"].ToString());                    
                 }
             }
-            if (batchlist1.Count > 0)
-            {
-                foreach (string s in batchlist1)
-                {
-                    if (batchline % 20 == 0)
-                    {
-                        if (batchstring.Length > 0)
-                        {
-                            deletedqos += Execute(qosdeletesql + batchstring.ToString()).AffectedRows;
-                            batchstring.Clear();
-                        }
-                        batchstring.Append(s);
-                    }
-                    else batchstring.Append(" or " + s);
-                    batchline++;
-                }
-                if (batchstring.Length > 0)
-                    deletedqos += Execute(qosdeletesql + batchstring.ToString()).AffectedRows;
-            }
-            if (deletedqos > 0)
-                Event(deletedqos + " QOS(s) deleted");
+            result = batch.Commit();
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " QOS(s) have been deleted");
 
             // DELETE ROUTE
-            batchline = 0;
-            batchlist1.Clear();
-            batchlist2.Clear();
-            batchstring.Clear();
-
-            string routeinterfaceupdatesql = "update PEInterface set PI_PN = NULL where PI_PN in ";
-            string routenamedeletesql = "delete from PERouteName where ";
-            int deletedroutename = 0;
+            batch.Begin();
+            List<string> routenamedelete = new List<string>();
             foreach (KeyValuePair<string, Row> pair in routenamedb)
             {
                 if (!routelive.ContainsKey(pair.Key))
                 {
-                    string id = pair.Value["PN_ID"].ToString();
-                    batchlist1.Add(Format("PN_ID = {0}", id));
-                    batchlist2.Add(id);
-                    if (batchlist2.Count == batchmax)
-                    {
-                        Execute(routeinterfaceupdatesql + " ('" + string.Join("','", batchlist2.ToArray()) + "')");
-                        batchlist2.Clear();
-                    }
                     Event("Route Name DELETE: " + pair.Key);
+                    string id = pair.Value["PN_ID"].ToString();
+                    batch.Execute("update PEInterface set PI_PN = NULL where PI_PN = {0}", id);
+                    routenamedelete.Add(id);
                 }
             }
-            if (batchlist2.Count > 0)
-                Execute(routeinterfaceupdatesql + " ('" + string.Join("','", batchlist2.ToArray()) + "')");
-            if (batchlist1.Count > 0)
+            batch.Commit();
+            batch.Begin();
+            foreach (string id in routenamedelete)
             {
-                foreach (string s in batchlist1)
-                {
-                    if (batchline % 20 == 0)
-                    {
-                        if (batchstring.Length > 0)
-                        {
-                            deletedroutename += Execute(routenamedeletesql + batchstring.ToString()).AffectedRows;
-                            batchstring.Clear();
-                        }
-                        batchstring.Append(s);
-                    }
-                    else batchstring.Append(" or " + s);
-                    batchline++;
-                }
-                if (batchstring.Length > 0)
-                    deletedroutename += Execute(routenamedeletesql + batchstring.ToString()).AffectedRows;
+                batch.Execute("delete from PERouteName where PN_ID = {0}", id);
             }
-            if (deletedroutename > 0)
-                Event(deletedroutename + " route name(s) deleted");
+            result = batch.Commit();
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " VRF name(s) have been deleted");
 
-            int deletedroutetarget = 0, deletedroute = 0;
-            deletedroutetarget = Execute("delete from PERouteTarget where PT_PR in (select PR_ID from PERoute left join PERouteName on PN_PR = PR_ID where PN_ID is null)").AffectedRows;
-            deletedroute = Execute("delete from PERoute where PR_ID in (select PR_ID from PERoute left join PERouteName on PN_PR = PR_ID where PN_ID is null)").AffectedRows;
-
-            if (deletedroutetarget > 0)
-                Event(deletedroutetarget + " route target(s) deleted");
-            if (deletedroute > 0)
-                Event(deletedroute + " route(s) deleted");
-
-            #endregion
-
-            interfacedbresult = Query("select * from PEInterface where PI_NO = {0}", nodeID);
-            interfacedb = new Dictionary<string, Row>();
-            foreach (Row row in interfacedbresult) { interfacedb.Add(row["PI_Name"].ToString(), row); }
-
-            #endregion
-
-            #region ROUTING PROTOCOL
-
-            batchlist1.Clear();
-            batchlist2.Clear();
-            batchstring.Clear();
-            batchline = 0;
+            result = Execute("delete from PERouteTarget where PT_PR in (select PR_ID from PERoute left join PERouteName on PN_PR = PR_ID where PN_ID is null)");
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " VRF route target(s) have been deleted");
+            result = Execute("delete from PERoute where PR_ID in (select PR_ID from PERoute left join PERouteName on PN_PR = PR_ID where PN_ID is null)");
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " VRF(s) have been deleted");
             
             #endregion
 

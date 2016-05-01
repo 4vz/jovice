@@ -126,7 +126,7 @@ namespace Jovice
     {
         #region Fields
 
-        internal readonly static int Version = 6;
+        internal readonly static int Version = 7;
 
         private static Database joviceDatabase = null;
 
@@ -191,9 +191,7 @@ namespace Jovice
         public static void Start(NecrowServices services)
         {
             Culture.Default();
-
             Necrow.services = services;
-
             Thread start = new Thread(new ThreadStart(delegate()
             {
                 Culture.Default();
@@ -249,7 +247,6 @@ namespace Jovice
                     }
                 }
             }));
-
             start.Start();
         }
 

@@ -103,7 +103,6 @@
                 }
                 else {
                     //didYouMean = $$.random(2) == 0 ? true : false;
-
                     mpage = 0;
                     enterSearchResult(0, didYouMean, didntUnderstand);
                     setResults(null);
@@ -309,8 +308,9 @@
                         if (isnomatchexists) {
                             nomatch.show();
                         }
-                        searchresult.show();
-                            
+                        
+                        if (results.length > 0)
+                            searchresult.show();                            
                         related.hide();
                     }
                 }
@@ -509,6 +509,7 @@
                 }
 
             };
+
             var currentResultType = null, currentFilterType = null;
             var resultBoxes = [], resultEntriesReferences = [];
             var focusBox = -1, filterBoxes = [], filterEntriesReferences = [];
@@ -556,378 +557,386 @@
             }                
                 
             setResults = function (entries) {
-                ui.script("search_" + type, function (proc) {
 
-                    if (title2.text() == "DID YOU MEAN") {
-                        searchresult.hide();
-                        related.show();
+                if (entries == null) {
+                    searchresult.hide();
+                    related.hide();
+                    if (pagingarea.isShown()) {
+                        $$(50, function () {
+                            var wir = pagingarea.width();
+                            pagingarea.fadeOut(50);
+                            backbutton.$.css({ x: 0, opacity: 1 }).transition({ x: wir / 2, opacity: 0, duration: 166, complete: function () { backbutton({ opacity: 1, hide: true }); } });
+                            nextbutton.$.css({ x: 0, opacity: 1 }).transition({ x: -wir / 2, opacity: 0, duration: 166, complete: function () { nextbutton({ opacity: 1, hide: true }); } });
+                        });
                     }
-                    else {
+                }
+                else {
+                    
+                    ui.script("search_" + type, function (proc) {
+
                         searchresult.show();
                         related.hide();
-                    }
 
-                    if (ispagingexists) {
-                        pagingarea.show();
-                        backbutton.show();
-                        nextbutton.show();
-                    }
-                    ispagingexists = false;
+                        if (ispagingexists) {
+                            pagingarea.show();
+                            backbutton.show();
+                            nextbutton.show();
+                        }
+                        ispagingexists = false;
 
-                    var create = false, hidePaging = false, showPaging = false;
-                    if (entries == null) {
-                        $.each(resultBoxes, function (resultBoxIndex, resultBox) {
-                            resultBox.hide();
-                            resultBox.button(null);
-                            resultBox.removeChildren();
-                        });
-                        resultEntriesReferences = [];
-                        currentResultType = null;
-                        searchresult.scrollCalculate();
-                        if (pagingarea.isShown()) hidePaging = true;
-                    }
-                    else {
-                        if (currentResultType != type) {
-                            create = true;
-                            currentResultType = type;
+                        var create = false, hidePaging = false, showPaging = false;
+                        if (entries == null) {
                             $.each(resultBoxes, function (resultBoxIndex, resultBox) {
-                                resultBox({ size: ["100%", 1], top: resultBoxIndex * 1, hide: true, button: null, cursor: null, removeChildren: true });
+                                resultBox.hide();
+                                resultBox.button(null);
+                                resultBox.removeChildren();
                             });
                             resultEntriesReferences = [];
-                        }
-
-                        if (pagingarea.isShown()) {
-                            if (mpage == 1) hidePaging = true;
+                            currentResultType = null;
+                            searchresult.scrollCalculate();
+                            if (pagingarea.isShown()) hidePaging = true;
                         }
                         else {
-                            if (mpage > 1) showPaging = true;
-                        }
-                    }
+                            if (currentResultType != type) {
+                                create = true;
+                                currentResultType = type;
+                                $.each(resultBoxes, function (resultBoxIndex, resultBox) {
+                                    resultBox({ size: ["100%", 1], top: resultBoxIndex * 1, hide: true, button: null, cursor: null, removeChildren: true });
+                                });
+                                resultEntriesReferences = [];
+                            }
 
-                    if (boxswapper == null) {
-                        boxswapper = ui.box(searchresult)({ z: 2 });
-                        boxswapper2 = ui.box(searchresult)({ z: 2, hide: true });
-                    }
-                    boxswapper.removeChildren();
-                    boxswapper2.removeChildren();
-
-                    if (!pagingarea.isShown()) boxswapper({ left: 0, opacity: 1, hide: true });
-                    else boxswapper({ left: 0, opacity: 1, show: true });
-
-                    (function (/*paging*/) {
-                        // todo, move from here
-                        for (var i = 0; i <= 8; i++) {
-                            pagebox[i]({ hide: true, cursor: "pointer" });
-                            pagetext[i]({ text: "", color: "accent" });
+                            if (pagingarea.isShown()) {
+                                if (mpage == 1) hidePaging = true;
+                            }
+                            else {
+                                if (mpage > 1) showPaging = true;
+                            }
                         }
 
-                        if (mpage >= 2) {
-                            pagetext[0].text("1");
-                            pagetext[1].text(mpage + "");
+                        if (boxswapper == null) {
+                            boxswapper = ui.box(searchresult)({ z: 2 });
+                            boxswapper2 = ui.box(searchresult)({ z: 2, hide: true });
+                        }
+                        boxswapper.removeChildren();
+                        boxswapper2.removeChildren();
 
-                            // 0 1 2 3 4 5 6 7 8 9
-                            // F 3 2 1 P 1 2 3 L
-                            var lastTrim = false;
-                            var nextTrim = false;
+                        if (!pagingarea.isShown()) boxswapper({ left: 0, opacity: 1, hide: true });
+                        else boxswapper({ left: 0, opacity: 1, show: true });
 
-                            var oi = 2;
-                            var opage = page + 1;
-
-                            if (opage > 1 && opage < mpage) {
-                                pagebox[oi].cursor("default");
-                                pagetext[oi++]({ text: opage + "", color: 35 }); // current page
-
-                                var inc = 1;
-                                while (true) {
-                                    var nextpage = opage + inc;
-                                    if (nextpage < mpage) pagetext[oi++].text(nextpage + "");
-                                    else if (oi == mpage) break;
-                                    if (oi == 9) break;
-                                    var ppage = opage - inc;
-                                    if (ppage > 1) pagetext[oi++].text(ppage + "");
-                                    if (oi == 9) break;
-                                    inc++;
-                                }
-
-                                if (opage + inc < mpage - 1) nextTrim = true;
-                                if (opage - inc > 2) lastTrim = true;
-                            }
-                            else if (opage == 1) {
-                                pagebox[0].cursor("default");
-                                pagetext[0].color(35);
-
-                                var inc = 1;
-                                while (true) {
-                                    if (1 + inc >= mpage) break;
-                                    pagetext[oi++].text((1 + inc) + "");
-                                    if (oi == 9) break;
-                                    inc++;
-                                }
-                                if (1 + inc < mpage - 1) nextTrim = true;
-                            }
-                            else if (opage == mpage) {
-                                pagebox[1].cursor("default");
-                                pagetext[1].color(35);
-
-                                var inc = 1;
-                                while (true) {
-                                    if (mpage - inc <= 1) break;
-                                    pagetext[oi++].text((mpage - inc) + "");
-                                    if (oi == 9) break;
-                                    inc++;
-                                }
-                                if (opage - inc > 2) lastTrim = true;
-                            }
-
-                            var availableSize = 240;
-                            var totalSize = 0;
-                            var oneisvisible = false;
-
-                            var ptext = [];
+                        (function (/*paging*/) {
+                            // todo, move from here
                             for (var i = 0; i <= 8; i++) {
-                                if (availableSize > 0 && pagetext[i].text() != "") {
-                                    var os = pagetext[i].textSize().width + 8;
-                                    if (availableSize - os > 0) {
-                                        availableSize -= os;
-                                        totalSize += os;
-                                        oneisvisible = true;
-                                        if (!pagingarea.isShown()) pagingarea.show();
-                                        pagebox[i]({ width: os, show: true });
-                                        ptext.push(parseInt(pagetext[i].text()));
+                                pagebox[i]({ hide: true, cursor: "pointer" });
+                                pagetext[i]({ text: "", color: "accent" });
+                            }
+
+                            if (mpage >= 2) {
+                                pagetext[0].text("1");
+                                pagetext[1].text(mpage + "");
+
+                                // 0 1 2 3 4 5 6 7 8 9
+                                // F 3 2 1 P 1 2 3 L
+                                var lastTrim = false;
+                                var nextTrim = false;
+
+                                var oi = 2;
+                                var opage = page + 1;
+
+                                if (opage > 1 && opage < mpage) {
+                                    pagebox[oi].cursor("default");
+                                    pagetext[oi++]({ text: opage + "", color: 35 }); // current page
+
+                                    var inc = 1;
+                                    while (true) {
+                                        var nextpage = opage + inc;
+                                        if (nextpage < mpage) pagetext[oi++].text(nextpage + "");
+                                        else if (oi == mpage) break;
+                                        if (oi == 9) break;
+                                        var ppage = opage - inc;
+                                        if (ppage > 1) pagetext[oi++].text(ppage + "");
+                                        if (oi == 9) break;
+                                        inc++;
+                                    }
+
+                                    if (opage + inc < mpage - 1) nextTrim = true;
+                                    if (opage - inc > 2) lastTrim = true;
+                                }
+                                else if (opage == 1) {
+                                    pagebox[0].cursor("default");
+                                    pagetext[0].color(35);
+
+                                    var inc = 1;
+                                    while (true) {
+                                        if (1 + inc >= mpage) break;
+                                        pagetext[oi++].text((1 + inc) + "");
+                                        if (oi == 9) break;
+                                        inc++;
+                                    }
+                                    if (1 + inc < mpage - 1) nextTrim = true;
+                                }
+                                else if (opage == mpage) {
+                                    pagebox[1].cursor("default");
+                                    pagetext[1].color(35);
+
+                                    var inc = 1;
+                                    while (true) {
+                                        if (mpage - inc <= 1) break;
+                                        pagetext[oi++].text((mpage - inc) + "");
+                                        if (oi == 9) break;
+                                        inc++;
+                                    }
+                                    if (opage - inc > 2) lastTrim = true;
+                                }
+
+                                var availableSize = 240;
+                                var totalSize = 0;
+                                var oneisvisible = false;
+
+                                var ptext = [];
+                                for (var i = 0; i <= 8; i++) {
+                                    if (availableSize > 0 && pagetext[i].text() != "") {
+                                        var os = pagetext[i].textSize().width + 8;
+                                        if (availableSize - os > 0) {
+                                            availableSize -= os;
+                                            totalSize += os;
+                                            oneisvisible = true;
+                                            if (!pagingarea.isShown()) pagingarea.show();
+                                            pagebox[i]({ width: os, show: true });
+                                            ptext.push(parseInt(pagetext[i].text()));
+                                        }
                                     }
                                 }
-                            }
-                            ptext.sort(function (a, b) { return a - b; });
+                                ptext.sort(function (a, b) { return a - b; });
 
-                            var pf = null, pc;
-                            var olind = getSortListIndex();
-                            $.each(ptext, function (pi, pv) {
+                                var pf = null, pc;
+                                var olind = getSortListIndex();
+                                $.each(ptext, function (pi, pv) {
 
-                                var pvv = pv - 1;
+                                    var pvv = pv - 1;
 
-                                var r0 = results[olind][pvv * npage];
-                                var rn = results[olind][pvv * npage + (npage - 1)];
+                                    var r0 = results[olind][pvv * npage];
+                                    var rn = results[olind][pvv * npage + (npage - 1)];
 
-                                if (pvv == page || r0 != null) {
-                                    if (pf != null) preloadSearchResult(pf, pc);
-                                    pf = null;
-                                }
-                                else if (pf == null) { pf = pvv; pc = 1; }
-                                else if (pvv == pf + pc) pc++;
-                                else {
+                                    if (pvv == page || r0 != null) {
+                                        if (pf != null) preloadSearchResult(pf, pc);
+                                        pf = null;
+                                    }
+                                    else if (pf == null) { pf = pvv; pc = 1; }
+                                    else if (pvv == pf + pc) pc++;
+                                    else {
+                                        preloadSearchResult(pf, pc);
+                                        pf = pvv;
+                                        pc = 1;
+                                    }
+                                });
+                                if (pf != null) {
                                     preloadSearchResult(pf, pc);
-                                    pf = pvv;
-                                    pc = 1;
                                 }
-                            });
-                            if (pf != null) {
-                                preloadSearchResult(pf, pc);
-                            }
 
-                            if (lastTrim) {
-                                trimLastBox({ show: true, left: pagebox[0].width() });
-                            }
-                            else {
-                                if (trimLastBox.isShown()) trimLastBox.fadeOut(166);
-                            }
+                                if (lastTrim) {
+                                    trimLastBox({ show: true, left: pagebox[0].width() });
+                                }
+                                else {
+                                    if (trimLastBox.isShown()) trimLastBox.fadeOut(166);
+                                }
 
-                            if (lastTrim) totalSize += 20;
-                            if (nextTrim) totalSize += 20;
+                                if (lastTrim) totalSize += 20;
+                                if (nextTrim) totalSize += 20;
 
-                            pagingarea.width(totalSize);
-                            pagebox[1].left(totalSize - pagebox[1].width());
+                                pagingarea.width(totalSize);
+                                pagebox[1].left(totalSize - pagebox[1].width());
 
-                            if (nextTrim) {
-                                trimNextBox({ show: true, left: pagebox[1].left() - 20 });
-                            }
-                            else {
-                                if (trimNextBox.isShown()) trimNextBox.fadeOut(166);
-                            }
+                                if (nextTrim) {
+                                    trimNextBox({ show: true, left: pagebox[1].left() - 20 });
+                                }
+                                else {
+                                    if (trimNextBox.isShown()) trimNextBox.fadeOut(166);
+                                }
 
-                            /////
-                            var oref = [];
-                            var lt = parseInt(pagetext[2].text());
-                            oref.push(pagebox[2]);
-                            for (var i = 3; i <= 8; i++) {
-                                if (pagebox[i].isShown()) {
-                                    var tt = parseInt(pagetext[i].text());
-                                    if (tt < lt) oref.splice(0, 0, pagebox[i]);
-                                    else oref.push(pagebox[i]);
+                                /////
+                                var oref = [];
+                                var lt = parseInt(pagetext[2].text());
+                                oref.push(pagebox[2]);
+                                for (var i = 3; i <= 8; i++) {
+                                    if (pagebox[i].isShown()) {
+                                        var tt = parseInt(pagetext[i].text());
+                                        if (tt < lt) oref.splice(0, 0, pagebox[i]);
+                                        else oref.push(pagebox[i]);
+                                    }
+                                }
+
+                                var ls;
+                                if (lastTrim) ls = trimLastBox.leftWidth();
+                                else ls = pagebox[0].leftWidth();
+
+                                $.each(oref, function (orefi, orefv) {
+                                    orefv.left(ls);
+                                    ls += orefv.width();
+                                });
+                                /////
+
+
+                                if (oneisvisible == false && pagingarea.isShown()) pagingarea.hide();
+
+                                var nbright = pagingarea.width() + 40;
+                                if (backbutton.isShown()) {
+                                    backbutton.animate({ right: nbright }, { duration: 166 });
+                                }
+                                else {
+                                    backbutton.right(nbright);
                                 }
                             }
 
-                            var ls;
-                            if (lastTrim) ls = trimLastBox.leftWidth();
-                            else ls = pagebox[0].leftWidth();
-
-                            $.each(oref, function (orefi, orefv) {
-                                orefv.left(ls);
-                                ls += orefv.width();
-                            });
-                            /////
-
-
-                            if (oneisvisible == false && pagingarea.isShown()) pagingarea.hide();
-
-                            var nbright = pagingarea.width() + 40;
-                            if (backbutton.isShown()) {
-                                backbutton.animate({ right: nbright }, { duration: 166 });
+                            if (mpage > 0) {
+                                if (page == 0) {
+                                    backbutton.cursor("default");
+                                    backicon.color(75);
+                                }
+                                else {
+                                    backbutton.cursor("pointer");
+                                    backicon.color("accent");
+                                }
+                                if (page == mpage - 1) {
+                                    nextbutton.cursor("default");
+                                    nexticon.color(75);
+                                }
+                                else {
+                                    nextbutton.cursor("pointer");
+                                    nexticon.color("accent");
+                                }
                             }
-                            else {
-                                backbutton.right(nbright);
+
+
+                            if (showPaging) {
+                                pagingarea.hide();
+                                $$(500, function () {
+                                    pagingarea.fadeIn(100);
+                                    nextbutton.show();
+                                    backbutton.show();
+                                    var wir = pagingarea.width();
+                                    backbutton.$.css({ x: wir / 2, opacity: 0 }).transition({ x: 0, opacity: 1, duration: 166 });
+                                    nextbutton.$.css({ x: -wir / 2, opacity: 0 }).transition({ x: 0, opacity: 1, duration: 166 });
+                                });
                             }
-                        }
-
-                        if (mpage > 0) {
-                            if (page == 0) {
-                                backbutton.cursor("default");
-                                backicon.color(75);
+                            else if (hidePaging) {
+                                $$(50, function () {
+                                    var wir = pagingarea.width();
+                                    pagingarea.fadeOut(50);
+                                    backbutton.$.css({ x: 0, opacity: 1 }).transition({ x: wir / 2, opacity: 0, duration: 166, complete: function () { backbutton.hide(); } });
+                                    nextbutton.$.css({ x: 0, opacity: 1 }).transition({ x: -wir / 2, opacity: 0, duration: 166, complete: function () { nextbutton.hide(); } });
+                                });
                             }
-                            else {
-                                backbutton.cursor("pointer");
-                                backicon.color("accent");
-                            }
-                            if (page == mpage - 1) {
-                                nextbutton.cursor("default");
-                                nexticon.color(75);
-                            }
-                            else {
-                                nextbutton.cursor("pointer");
-                                nexticon.color("accent");
-                            }
-                        }
+                        })();
 
+                        if (mpage == 0) return;
+                        focusBox = -1;
 
-                        if (showPaging) {
-                            pagingarea.hide();
-                            $$(500, function () {
-                                pagingarea.fadeIn(100);
-                                nextbutton.show();
-                                backbutton.show();
-                                var wir = pagingarea.width();
-                                backbutton.$.css({ x: wir / 2, opacity: 0 }).transition({ x: 0, opacity: 1, duration: 166 });
-                                nextbutton.$.css({ x: -wir / 2, opacity: 0 }).transition({ x: 0, opacity: 1, duration: 166 });
-                            });
-                        }
-                        else if (hidePaging) {
-                            $$(50, function () {
-
-                                var wir = pagingarea.width();
-                                pagingarea.fadeOut(50);
-                                backbutton.$.css({ x: 0, opacity: 1 }).transition({ x: wir / 2, opacity: 0, duration: 166, complete: function () { backbutton.hide(); } });
-                                nextbutton.$.css({ x: 0, opacity: 1 }).transition({ x: -wir / 2, opacity: 0, duration: 166, complete: function () { nextbutton.hide(); } });
-                            });
-                        }
-                    })();
-
-                    if (mpage == 0) return;
-                    focusBox = -1;
-
-                    var write = 0;
-                    var boxswapperToHide = [];
-
-                    if (!entersearch) {
-                    }
-                    
-                    $.each(registerstream, function (rsi, rsv) {
-                        $$.removeRegister(rsi);
-                        delete registerstream[rsi];
-                    });
-
-                    $.each(entries, function (ei, ev) {
-
-                        busy = false;
-                        var r = resultEntriesReferences[ei];
-                        if (r == null) {
-                            create = true;
-                            r = {};
-                            resultEntriesReferences[ei] = r;
-                        }
-
-                        var b = resultBoxes[ei];
-                        if (b == null) {
-                            b = ui.box(searchresult)({
-                                size: ["100%", 1], top: ei * 1, z: 1
-                            });
-                            resultBoxes[ei] = b;
-                            b.data("index", ei);
-                        }
-
-                        var index = b.data("index");
-                        b.color(index % 2 == 0 ? 91 : 93);
-                        b.show();
+                        var write = 0;
+                        var boxswapperToHide = [];
 
                         if (!entersearch) {
-                            if (page != lastPage) {
-                                if (b.isVisibleInside(searchresult)) {
-                                    //var jqClone = b.clone();
-                                    //jqClone.css({ top: b.top() - searchresult.scrollTop() });
-                                    //boxswapper.$.append(jqClone);
-                                }
+                        }
+
+                        $.each(registerstream, function (rsi, rsv) {
+                            $$.removeRegister(rsi);
+                            delete registerstream[rsi];
+                        });
+
+                        $.each(entries, function (ei, ev) {
+
+                            busy = false;
+                            var r = resultEntriesReferences[ei];
+                            if (r == null) {
+                                create = true;
+                                r = {};
+                                resultEntriesReferences[ei] = r;
                             }
-                        }
 
-                        var f = {};
-                        f.create = create;
-                        f.column = function(name) {
-                            if (columns.length > 0) {
-                                var ic = columns.indexOf(name);
-                                if (ic > -1) return ev[ic];
+                            var b = resultBoxes[ei];
+                            if (b == null) {
+                                b = ui.box(searchresult)({
+                                    size: ["100%", 1], top: ei * 1, z: 1
+                                });
+                                resultBoxes[ei] = b;
+                                b.data("index", ei);
                             }
-                            return null;
-                        }
-                        f.setButton = function() {
-                            b({
-                                cursor: "pointer",
-                                button: {
-                                    normal: function () {
-                                        b.color(index % 2 == 0 ? 91 : 93, { duration: 100 });
-                                    },
-                                    over: function () {
-                                        b.color(97);
-                                    },
-                                }
-                            });
-                        };
-                        f.clearButton = function() {
-                            b({ cursor: null, button: null });
-                        };
-                        f.setNormal = function (s) {
-                            b({ height: s, top: ei * s });
-                        }
-                        f.setExpand = function(normalHeight, expandHeight, enter, leave, step, complete) {
-                            b.enableButton();
-                            b.cursor("pointer");
-                            b({ height: normalHeight, top: ei * normalHeight });
 
-                            if (enter == null) enter = function () { };
-                            if (leave == null) leave = function () { };
-                            if (step == null) step = function () { };
-                            if (complete == null) complete = function () { };
+                            var index = b.data("index");
+                            b.color(index % 2 == 0 ? 91 : 93);
+                            b.show();
 
-                            b.button({
-                                click: function (e) {
-
-                                    if (busy) return;
-
-                                    if (ei == focusBox) {
+                            if (!entersearch) {
+                                if (page != lastPage) {
+                                    if (b.isVisibleInside(searchresult)) {
+                                        //var jqClone = b.clone();
+                                        //jqClone.css({ top: b.top() - searchresult.scrollTop() });
+                                        //boxswapper.$.append(jqClone);
                                     }
-                                    else {
-                                        
-                                        busy = true;
-                                        b.disableButton();
-                                        b.cursor(null);
+                                }
+                            }
 
-                                        b.color(99);
+                            var f = {};
+                            f.create = create;
+                            f.column = function (name) {
+                                if (columns.length > 0) {
+                                    var ic = columns.indexOf(name);
+                                    if (ic > -1) return ev[ic];
+                                }
+                                return null;
+                            }
+                            f.setButton = function () {
+                                b({
+                                    cursor: "pointer",
+                                    button: {
+                                        normal: function () {
+                                            b.color(index % 2 == 0 ? 91 : 93, { duration: 100 });
+                                        },
+                                        over: function () {
+                                            b.color(97);
+                                        },
+                                    }
+                                });
+                            };
+                            f.clearButton = function () {
+                                b({ cursor: null, button: null });
+                            };
+                            f.setNormal = function (s) {
+                                b({ height: s, top: ei * s });
+                            }
+                            f.setExpand = function (normalHeight, expandHeight, enter, leave, step, complete) {
+                                b.enableButton();
+                                b.cursor("pointer");
+                                b({ height: normalHeight, top: ei * normalHeight });
 
-                                        var duration = 166;
+                                if (enter == null) enter = function () { };
+                                if (leave == null) leave = function () { };
+                                if (step == null) step = function () { };
+                                if (complete == null) complete = function () { };
 
-                                        var tr = resultEntriesReferences[b.data("index")];
-                                            
-                                        if (tr.expand != null) {
-                                            if (tr.expandFirstTime == null) tr.expandFirstTime = true;
-                                            tr.expand(tr.expandFirstTime, function () {
-                                                //$$(10, function () {
+                                b.button({
+                                    click: function (e) {
+
+                                        if (busy) return;
+
+                                        if (ei == focusBox) {
+                                        }
+                                        else {
+
+                                            busy = true;
+                                            b.disableButton();
+                                            b.cursor(null);
+
+                                            b.color(99);
+
+                                            var duration = 166;
+
+                                            var tr = resultEntriesReferences[b.data("index")];
+
+                                            if (tr.expand != null) {
+                                                if (tr.expandFirstTime == null) tr.expandFirstTime = true;
+                                                tr.expand(tr.expandFirstTime, function () {
+                                                    //$$(10, function () {
                                                     b.height(expandHeight, { queue: false, duration: duration, complete: function () { b.color(99); searchresult.scrollCalculate(); busy = false; } });
                                                     if (focusBox == -1) {
                                                         for (var i = ei + 1; i < resultBoxes.length; i++) {
@@ -973,111 +982,112 @@
                                                     focusBox = ei;
                                                     searchresult.scrollTop(focusBox * normalHeight - 25, { queue: false, duration: duration });
                                                     enter();
-                                                //});
-                                            });
-                                            tr.expandFirstTime = false;
+                                                    //});
+                                                });
+                                                tr.expandFirstTime = false;
+                                            }
+
+
                                         }
-
-
                                     }
+                                });
+                            };
+                            f.stream = function (register, callback) {
+
+                                if (registerstream[register] == null) {
+                                    registerstream[register] = {
+                                        callbacks: []
+                                    };
+                                    $$.register(register);
+                                    //debug("add register " + register);
                                 }
-                            });
-                        };
-                        f.stream = function (register, callback) {
-                                                        
-                            if (registerstream[register] == null) {
-                                registerstream[register] = {
-                                    callbacks: []
-                                };
-                                $$.register(register);
-                                //debug("add register " + register);
-                            }
 
-                            registerstream[register].callbacks.push(callback);
-                        };
-                                                
-                        f.isNecrowOnline = function () {
-                            //return true;
-                            return necrowonline;
-                        };
-                        
-                        proc(b, r, f);
+                                registerstream[register].callbacks.push(callback);
+                            };
 
-                        if (entersearch) {
-                            var bhe = b.height();
+                            f.isNecrowOnline = function () {
+                                //return true;
+                                return necrowonline;
+                            };
 
-                            if (b.top() < searchresult.height()) {
-                                //b.$.css({ y: bhe, opacity: 0 });
-                                //setTimeout(function () {
-                                //    b.$.transition({ y: 0, opacity: 1, duration: 150 + bhe, queue: false });
-                                //}, 200 /*ei * bhe*/);
-                            }
-                        }
-                        if (!entersearch) {
-                            if (page != lastPage) {
+                            proc(b, r, f);
+
+                            if (entersearch) {
+                                var bhe = b.height();
+
                                 if (b.top() < searchresult.height()) {
-                                    //debug(ei);
-                                    //var jqClone = b.clone();
-                                    //jqClone.css({ top: b.top() });
-                                    //boxswapper2.$.append(jqClone);
-                                    //b.hide();
-                                    //boxswapperToHide.push(b);
+                                    //b.$.css({ y: bhe, opacity: 0 });
+                                    //setTimeout(function () {
+                                    //    b.$.transition({ y: 0, opacity: 1, duration: 150 + bhe, queue: false });
+                                    //}, 200 /*ei * bhe*/);
                                 }
                             }
+                            if (!entersearch) {
+                                if (page != lastPage) {
+                                    if (b.top() < searchresult.height()) {
+                                        //debug(ei);
+                                        //var jqClone = b.clone();
+                                        //jqClone.css({ top: b.top() });
+                                        //boxswapper2.$.append(jqClone);
+                                        //b.hide();
+                                        //boxswapperToHide.push(b);
+                                    }
+                                }
+                            }
+
+                            write++;
+                        });
+
+                        for (; write < resultBoxes.length; write++) resultBoxes[write].hide();
+                        searchresult.scrollCalculate();
+                        searchresult.scrollTop(0);
+
+                        if (!entersearch && page != lastPage) {
+
+                            //debug("change page bawah");
+
+
+                            //
+                            /*boxswapper.size(searchresult.size());
+                            boxswapper2.size(searchresult.size());
+                            setTimeout(function () {
+                                var swapduration = 100;
+                                var swapdistance = 50;
+                                if (lastPage < page) {
+                                    boxswapper.$.css({ zIndex: 21, left: 0, opacity: 1 }).animate({ left: -swapdistance, opacity: 0 }, { duration: swapduration, queue: false });
+                                    boxswapper2.$.show().css({ zIndex: 20, left: swapdistance, opacity: 0 }).animate({ left: 0, opacity: 1 }, {
+                                        duration: swapduration, queue: false, complete: function () {
+                                            boxswapper.$.hide();
+                                            boxswapper2.$.hide();
+                                            $.each(boxswapperToHide, function (bii, biv) {
+                                                biv.show();
+                                            });
+                                            lastPage = page;
+                                        }
+                                    });
+                                }
+                                else {
+                                    boxswapper.$.css({ zIndex: 21, left: 0, opacity: 1 }).animate({ left: swapdistance, opacity: 0 }, { duration: swapduration, queue: false });
+                                    boxswapper2.$.show().css({ zIndex: 20, left: -swapdistance, opacity: 0 }).animate({ left: 0, opacity: 1 }, {
+                                        duration: swapduration, queue: false, complete: function () {
+                                            boxswapper.$.hide();
+                                            boxswapper2.$.hide();
+                                            $.each(boxswapperToHide, function (bii, biv) {
+                                                biv.show();
+                                            });
+                                            lastPage = page;
+                                        }
+                                    });
+                                }
+                            }, 1);*/
+                        }
+                        else {
                         }
 
-                        write++;
+                        entersearch = false;
+                        lastPage = page;
                     });
-
-                    for (; write < resultBoxes.length; write++) resultBoxes[write].hide();
-                    searchresult.scrollCalculate();
-                    searchresult.scrollTop(0);
-                    
-                    if (!entersearch && page != lastPage) {
-
-                        //debug("change page bawah");
-
-
-                        //
-                        /*boxswapper.size(searchresult.size());
-                        boxswapper2.size(searchresult.size());
-                        setTimeout(function () {
-                            var swapduration = 100;
-                            var swapdistance = 50;
-                            if (lastPage < page) {
-                                boxswapper.$.css({ zIndex: 21, left: 0, opacity: 1 }).animate({ left: -swapdistance, opacity: 0 }, { duration: swapduration, queue: false });
-                                boxswapper2.$.show().css({ zIndex: 20, left: swapdistance, opacity: 0 }).animate({ left: 0, opacity: 1 }, {
-                                    duration: swapduration, queue: false, complete: function () {
-                                        boxswapper.$.hide();
-                                        boxswapper2.$.hide();
-                                        $.each(boxswapperToHide, function (bii, biv) {
-                                            biv.show();
-                                        });
-                                        lastPage = page;
-                                    }
-                                });
-                            }
-                            else {
-                                boxswapper.$.css({ zIndex: 21, left: 0, opacity: 1 }).animate({ left: swapdistance, opacity: 0 }, { duration: swapduration, queue: false });
-                                boxswapper2.$.show().css({ zIndex: 20, left: -swapdistance, opacity: 0 }).animate({ left: 0, opacity: 1 }, {
-                                    duration: swapduration, queue: false, complete: function () {
-                                        boxswapper.$.hide();
-                                        boxswapper2.$.hide();
-                                        $.each(boxswapperToHide, function (bii, biv) {
-                                            biv.show();
-                                        });
-                                        lastPage = page;
-                                    }
-                                });
-                            }
-                        }, 1);*/
-                    }
-                    else {                        
-                    }
-
-                    entersearch = false;
-                    lastPage = page;
-                });
+                }
             };
             setFilters = function (entries) {
 
@@ -1260,6 +1270,10 @@
                 }
                 else {
                     otherTitleBox.hide();
+                }
+
+                if (didYouMean) {
+                    related.show();
                 }
             };
 

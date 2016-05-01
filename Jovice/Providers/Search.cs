@@ -697,8 +697,6 @@ values(GETDATE(), {0}, {1}, {2}, {3})
 
             return descriptors;
         }        
-
-        
     }
 
     public class SearchDescriptor

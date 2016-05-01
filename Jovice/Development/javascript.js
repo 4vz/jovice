@@ -4436,8 +4436,9 @@
             var border = null, borderLeft = null, borderTop = null, borderRight = null, borderBottom = null;
 
             function borderSet(d, c) {
-                if (c == null) box.$.css({ d: "" });
+                if (c == null) box.$.css(d, "");
                 else box.$.css(d, c.size + "px solid " + ui.color(c.color));
+
                 if (border == null && borderLeft == null && borderTop == null && borderRight == null && borderBottom == null) box.$.css({ boxSizing: "" });
                 else box.$.css({ boxSizing: c.outside == true ? "" : "border-box" });
             };

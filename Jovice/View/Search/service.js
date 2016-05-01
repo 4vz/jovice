@@ -792,18 +792,18 @@
                 });
 
                 // routing
-                r.routearea = ui.box(r.content)({ top: 10, left: 2370, width: 1070, height: 100, color: "red" });
+                r.routearea = ui.box(r.content)({ top: 10, left: 2370, width: 1070, height: 100 });
                 r.contents[3] = r.routearea;
 
                 // routing
-                r.showconfigarea = ui.box(r.content)({ top: 10, left: 3540, width: 1070, height: 100, color: "blue" });
+                r.showconfigarea = ui.box(r.content)({ top: 10, left: 3540, width: 1070, height: 100 });
                 r.contents[4] = r.showconfigarea;
 
                 // share
                 r.sharearea = ui.box(r.content)({ topBottom: [10, 0], left: 4710, width: 1070, borderTop: { size: 1, color: 80 } });
                 r.contents[5] = r.sharearea;
 
-                ui.text(r.sharearea)({ position: [0, 15], text: "Copy-Friendly Format", weight: "600", color: 25, font: 18 });
+                ui.text(r.sharearea)({ position: [0, 15], text: "", weight: "600", color: 25, font: 18 });
 
 
                 r.analysisoffline = ui.box(b)({ top: 240, left: 130, hide: true, width: 700, height: 300 });
@@ -1082,6 +1082,8 @@
 
             //if (!f.isNecrowOnline()) r.pingarea({ opacity: 0 });
             //else r.pingarea({ opacity: 1 });
+
+            r.pingarea.hide();
 
             r.content.scrollLeft(0);
 

@@ -53,7 +53,7 @@
                     if ($$.once("activateSearch")) return;
                     t_start.fadeOut(50);
                     v_search.show();
-                    b_navigation.color(100, { duration: 50 });
+                    b_navigation.color(100, { duration: 166 });
 
                     var dur = 166;
                     i_arrow({ rotation: [-135, 0, { duration: dur }], fadeIn: dur });
@@ -64,10 +64,11 @@
                     t_start.fadeIn(50);
                     v_search.hide();
                     v_search.value("");
+
                     if (onmain)
-                        b_navigation.color("transparent", { duration: 50 });
+                        b_navigation.color(null, { duration: 166 });
                     else
-                        b_navigation.color(90, { duration: 50 });
+                        b_navigation.color(90, { duration: 166 });
 
                     var dur = 166;
                     i_arrow({ rotation: [0, -135, { duration: dur }], fadeOut: dur });
@@ -100,7 +101,7 @@
 
                     if (s != null) {
                         onmain = false;
-
+                       
                         b_navigation({
                             leftRight: [0, 0], height: 50, top: 50, left: 0, border: null
                         });
@@ -139,7 +140,7 @@
                             if (onmain) {
                                 onmain = false;
                                 b_navigation({
-                                    size: ["100%", 50], top: 35, left: 0, border: null
+                                    size: ["100%", 50], top: 50, left: 0, border: null
                                 });
                                 mainonclose();
                             }
@@ -152,11 +153,6 @@
             })();
 
             
-
-
-
-
-
             // -- COLLABORATION
             (function () {
 
@@ -176,11 +172,7 @@
                 //$$(2000, function () {
                 //    sidebarActivate();
                 //});
-
-
-
-
-
+                
             })();
 
 
@@ -218,7 +210,7 @@
             b_navigation({                
                 color: null,                
                 top: 215 + 50,
-                border: "1px solid " + ui.color(80)
+                border: { size: 1, color: 80 }
             });
 
         };
@@ -289,7 +281,7 @@
 
                 if (true) {
                     b_navigation({
-                        top: 250,
+                        top: 265,
                     });
                 }
             }

@@ -689,7 +689,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                         }
 
                         Event("Prioritizing Probe: " + nodeName);
-                        Result rnode = Query("select * from Node where lower(NO_Name) = {0}", nodeName.ToLower());
+                        Result rnode = Query("select * from Node where upper(NO_Name) = {0}", nodeName);
 
                         if (rnode.Count == 1)
                         {
@@ -796,7 +796,10 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
         private void PrioritizeQueue(string nodeName)
         {
-            prioritize.Enqueue(nodeName);
+            string nn = nodeName.ToUpper();
+
+            if (!prioritize.Contains(nn))
+                prioritize.Enqueue(nn);
         }
 
         #region Methods
@@ -1679,9 +1682,14 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                                     deletethisnode = nodeID;
                                     keepthisnode = existingnodeid;
 
-                                    Event("Creating alias");
-                                    Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})",
-                                        Database.ID(), existingnodeid, nodeName);
+                                    // create alias if none found
+                                    result = Query("select * from NodeAlias where NA_Name = {0}", nodeName);
+                                    if (result.Count == 0)
+                                    {
+                                        Event("Creating alias");
+                                        Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})",
+                                            Database.ID(), existingnodeid, nodeName);
+                                    }
                                 }
                                 else
                                 {

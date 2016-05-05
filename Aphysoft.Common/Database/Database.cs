@@ -52,8 +52,25 @@ namespace Aphysoft.Common
 
         #endregion
     }
+
+    public class QueryFailedEventArgs : EventArgs
+    {
+        #region Fields
+
+        private int attemptNumber = 0;
+
+        public int AttemptNumber
+        {
+            get { return attemptNumber; }
+            internal set { attemptNumber = value; }
+        }
+
+        #endregion
+    }
     
     public delegate void DatabaseExceptionEventHandler(object sender, DatabaseExceptionEventArgs eventArgs);
+
+    public delegate void QueryFailedEventHandler(object sender, QueryFailedEventArgs eventArgs);
 
     public delegate string QueryDictionaryKeyCallback(Row row);
 
@@ -193,12 +210,33 @@ namespace Aphysoft.Common
         {
             get { return connectionString; }
         }
+
+        private int attempts = 1;
+
+        /// <summary>
+        /// Gets or sets how many query attempts shall be done until the current execution throws exception if none success.
+        /// </summary>
+        public int Attempts
+        {
+            get { return attempts; }
+            set { attempts = value; }
+        }
+
+        private int timeout = 0;
+
+        public int Timeout
+        {
+            get { return timeout; }
+            set { timeout = value; }
+        }
        
         #endregion
 
         #region Events
 
         public event DatabaseExceptionEventHandler Exception;
+
+        public event QueryFailedEventHandler QueryFailed;
 
         #endregion
 
@@ -221,11 +259,6 @@ namespace Aphysoft.Common
 
         #region Methods
 
-        public Batch Batch()
-        {
-            return new Batch(this);
-        }
-
         internal void OnException(Exception e, DatabaseException exception, string sql)
         {
             if (Exception != null)
@@ -239,6 +272,21 @@ namespace Aphysoft.Common
                 Exception(this, eventArgs);
             }
         }
+
+        internal void OnQueryFailed(Exception e, int attemptNumber)
+        {
+            if (QueryFailed != null)
+            {
+                QueryFailedEventArgs eventArgs = new QueryFailedEventArgs();
+                eventArgs.AttemptNumber = attemptNumber;
+                QueryFailed(this, eventArgs);
+            }
+        }
+
+        public Batch Batch()
+        {
+            return new Batch(this);
+        }        
 
         public static bool IsNumber(object value)
         {
@@ -272,14 +320,8 @@ namespace Aphysoft.Common
 
         public string Format(string sql, params object[] args)
         {
-            if (sql == null)
-            {
-                return null;
-            }
-            if (args == null)
-            {
-                return string.Format(sql, "NULL");
-            }
+            if (sql == null) return null;
+            if (args == null) return string.Format(sql, "NULL");
             else if (args.Length > 0)
             {
                 List<string> nargs = new List<string>();
@@ -392,6 +434,11 @@ namespace Aphysoft.Common
             return connection.ExecuteIdentity(fsql);
         }
 
+        public bool Exists(string table, string key, object value)
+        {
+            return connection.Exists(table, key, Format("{0}", value));
+        }
+
         private const string idChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz`1234567890~!@#$^*()_+-=[]{}|;:,./<>?";
         private const int idCharsLen = 89;
 
@@ -457,16 +504,14 @@ namespace Aphysoft.Common
 
         public virtual Result Query(string sql) { return new Result(sql); }
 
-        public virtual Result Query(string sql, int timeout) { return new Result(sql); }
-
         public virtual Column Scalar(string sql) { return null; }
 
         public virtual Result Execute(string sql) { return new Result(sql); }
 
         public virtual Result ExecuteIdentity(string sql) { return new Result(sql); }
 
-        public virtual void Persist() { }
-                
+        public virtual bool Exists(string table, string key, object value) { return false; }
+
         #endregion
     }
 
@@ -514,138 +559,151 @@ namespace Aphysoft.Common
             return dateTime.ToString("yyyy-MM-dd HH:mm:ss.fff");
         }
 
+        private SqlCommand Begin(string sql, SqlConnection connection)
+        {
+            connection.Open();
+
+            SqlCommand command = new SqlCommand(sql, connection);
+            if (database.Timeout > 0)
+                command.CommandTimeout = database.Timeout;
+
+            return command;
+        }
+
+        private void End(SqlConnection connection, SqlCommand command)
+        {
+            connection.Close();
+            connection.Dispose();
+            command.Dispose();
+        }
+
         public override Result Query(string sql)
         {
-            Result result = new Result(sql);            
+            Result result = new Result(sql);
+            int attempts = database.Attempts;
 
             using (SqlConnection connection = new SqlConnection(database.ConnectionString))
             {
-                SqlCommand command = null;
-                SqlDataReader reader = null;
-
-                try
+                SqlCommand command = Begin(sql, connection);
+                bool ok = false;
+                for (int attempt = 0; attempt < attempts; attempt++)
                 {
-                    stopwatch.Restart();
-
-                    connection.Open(); 
-                    command = new SqlCommand(sql, connection);
-                    reader = command.ExecuteReader();
-
-                    stopwatch.Stop();
-
-                    result.ExecutionTime = stopwatch.Elapsed;                    
-
-                    List<string> names = new List<string>();
-                    for (int i = 0; i < reader.FieldCount; i++)
+                    SqlDataReader reader = null;
+                    try
                     {
-                        names.Add(reader.GetName(i));
-                    }
+                        stopwatch.Restart();
+                        reader = command.ExecuteReader();
+                        stopwatch.Stop();
+                        result.ExecutionTime = stopwatch.Elapsed;
 
-                    result.ColumnNames = names.ToArray();
-                    
-                    while (reader.Read())
-                    {
-                        Row row = new Row();
-                        for (int i = 0; i < reader.FieldCount; i++)
+                        List<string> names = new List<string>();
+                        for (int i = 0; i < reader.FieldCount; i++) names.Add(reader.GetName(i));
+                        result.ColumnNames = names.ToArray();
+
+                        result.Clear();
+                        while (reader.Read())
                         {
-                            string name = names[i];
-                            bool isNull = reader.IsDBNull(i);
-                            object value = reader.GetValue(i);
-                            row.Add(name, new Column(name, value, isNull));
+                            Row row = new Row();
+                            for (int i = 0; i < reader.FieldCount; i++)
+                            {
+                                string name = names[i];
+                                bool isNull = reader.IsDBNull(i);
+                                object value = reader.GetValue(i);
+                                row.Add(name, new Column(name, value, isNull));
+                            }
+                            result.Add(row);
+                            if (result.Count >= 200000) break;
                         }
-                        result.Add(row);
 
-                        if (result.Count >= 200000) break;
+                        ok = true;
                     }
+                    catch (Exception e)
+                    {
+                        database.OnQueryFailed(e, attempt);
+                        if (attempt == attempts - 1)
+                        {
+                            result.isExceptionThrown = true;
+                            Exception(e, sql);
+                        }
+                    }
+                    finally { if (reader != null) reader.Close(); }
+                    if (ok) break;
                 }
-                catch (Exception e)
-                {
-                    result.isExceptionThrown = true;
-                    Exception(e, sql);
-                }
-                finally
-                {
-                    if (command != null) command.Dispose();
-                    if (reader != null) reader.Close();
-                    connection.Close();
-                    connection.Dispose();
-                }
+                End(connection, command);
             }
-
             return result;
         }
 
         public override Column Scalar(string sql)
         {
             Column column = null;
-                    
+            int attempts = database.Attempts;
+
             using (SqlConnection connection = new SqlConnection(database.ConnectionString))
             {
-                SqlCommand command = null;
-
-                try
+                SqlCommand command = Begin(sql, connection);
+                bool ok = false;
+                for (int attempt = 0; attempt < attempts; attempt++)
                 {
-                    connection.Open();
-                    command = new SqlCommand(sql, connection);
-                    object data = command.ExecuteScalar();
-                    if (data != null)
-                        column = new Column(null, data, false);
+                    try
+                    {
+                        object data = command.ExecuteScalar();
+                        if (data != null) column = new Column(null, data, false);
+                        ok = true;
+                    }
+                    catch (Exception e)
+                    {
+                        database.OnQueryFailed(e, attempt);
+                        if (attempt == attempts - 1) Exception(e, sql);
+                    }
+                    if (ok) break;
                 }
-                catch (Exception e)
-                {
-                    column = null;
-                    Exception(e, sql);
-                }
-                finally
-                {
-                    if (command != null) command.Dispose();                    
-                    connection.Close();
-                    connection.Dispose();
-                }
+                End(connection, command);
             }
-
             return column;
         }
 
         private Result Execute(string sql, bool returnIdentity)
         {
             Result result = new Result(sql);
+            int attempts = database.Attempts;
 
             using (SqlConnection connection = new SqlConnection(database.ConnectionString))
             {
-                SqlCommand command = null;
+                SqlCommand command = Begin(sql, connection);
 
-                try
+                bool ok = false;
+                for (int attempt = 0; attempt < attempts; attempt++)
                 {
-                    stopwatch.Restart();
-
-                    connection.Open();
-                    command = new SqlCommand(sql, connection);
-                    result.AffectedRows = command.ExecuteNonQuery();
-
-                    command.CommandTimeout = 3600;
-
-                    stopwatch.Stop();
-
-                    result.ExecutionTime = stopwatch.Elapsed;
-
-                    if (returnIdentity)
+                    SqlCommand identityCommand = null;
+                    try
                     {
-                        command = new SqlCommand("select cast(SCOPE_IDENTITY() as bigint)", connection);
-                        result.Identity = (Int64)command.ExecuteScalar();
+                        stopwatch.Restart();
+                        result.AffectedRows = command.ExecuteNonQuery();
+                        stopwatch.Stop();
+                        result.ExecutionTime = stopwatch.Elapsed;
+
+                        if (returnIdentity)
+                        {
+                            identityCommand = new SqlCommand("select cast(SCOPE_IDENTITY() as bigint)", connection);
+                            result.Identity = (Int64)identityCommand.ExecuteScalar();
+                        }
+                        ok = true;
                     }
+                    catch (Exception e)
+                    {
+                        database.OnQueryFailed(e, attempt);
+                        if (attempt == attempts - 1)
+                        {
+                            result.isExceptionThrown = true;
+                            Exception(e, sql);
+                        }
+                    }
+                    finally { if (identityCommand != null) identityCommand.Dispose(); }
+                    if (ok) break;
                 }
-                catch (Exception e)
-                {
-                    result.isExceptionThrown = true;
-                    Exception(e, sql);
-                }
-                finally
-                {
-                    if (command != null) command.Dispose();
-                    connection.Close();
-                    connection.Dispose();
-                }
+
+                End(connection, command);
             }
 
             return result;
@@ -659,6 +717,13 @@ namespace Aphysoft.Common
         public override Result ExecuteIdentity(string sql)
         {
             return Execute(sql, true);
+        }
+
+        public override bool Exists(string table, string key, object value)
+        {
+            Result result = Query("select top 1 * from " + table + " where " + key + " = " + value);
+            if (result.Count == 1) return true;
+            else return false;
         }
 
         #endregion

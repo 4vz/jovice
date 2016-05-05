@@ -494,7 +494,9 @@ namespace Aphysoft.Common
             Type type = message.GetType();
 
             if (IsServer)
-            {  
+            {
+                OnReceived(new MessageEventArgs(connection, messageID, messageReplyID, message));
+
                 if (type == typeof(EventServiceMessage))
                 {
                     EventServiceMessage eventServiceMessage = (EventServiceMessage)message;
@@ -1066,7 +1068,7 @@ namespace Aphysoft.Common
                                 Debug("Message finished");
 
                                 service.ConnectionMessageReceived(this, messageID, messageReplyID, BaseServiceMessage.Deserialize(message));
-
+                                
                                 headerSeek = 0;
                             }
                         }

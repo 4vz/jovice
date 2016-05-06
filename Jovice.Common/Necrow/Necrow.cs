@@ -15,8 +15,6 @@ namespace Jovice
     {
         None            = 0x00000,
         Probe           = 0x00001,
-        ServiceFinder   = 0x00010,
-        TopologyFinder  = 0x00100,
         StandbyProbe    = 0x10000,
         All             = 0x11111,
         AllExceptProbe  = 0x01110
@@ -230,8 +228,10 @@ namespace Jovice
                 jovice.Exception -= checkingDatabaseException;
 
                 joviceDatabase = jovice;
-
+                
                 jovice.Exception += Jovice_Exception;
+                jovice.QueryFailed += Jovice_QueryFailed;
+                jovice.Attempts = 3;
 
                 if (joviceDatabaseConnected)
                 {
@@ -248,6 +248,12 @@ namespace Jovice
                 }
             }));
             start.Start();
+        }
+
+        private static void Jovice_QueryFailed(object sender, EventArgs e)
+        {
+            Event("Query failed, retrying...");
+            Thread.Sleep(2000);
         }
 
         private static void Jovice_Exception(object sender, DatabaseExceptionEventArgs eventArgs)

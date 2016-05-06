@@ -602,9 +602,7 @@ namespace Jovice
             }
 
             #endregion
-
-            
-
+                       
             #region Check
 
             foreach (KeyValuePair<string, PERouteNameToDatabase> pair in routelive)
@@ -733,7 +731,7 @@ namespace Jovice
                 batch.Execute("insert into PERoute(PR_ID) values({0})", pair.Key);
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " VRF(s) have been added");
+            Event(result, EventActions.Add, EventElements.VRF, false);
             
             // Route Target
             batch.Begin();
@@ -748,8 +746,8 @@ namespace Jovice
                 }
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " VRF route target(s) have been added");
-            
+            Event(result, EventActions.Add, EventElements.VRFRouteTarget, false);
+
             // Route Name
             batch.Begin();
             foreach (PERouteNameToDatabase s in routenameinsert)
@@ -759,7 +757,7 @@ namespace Jovice
                     );
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " VRF name(s) have been added");
+            Event(result, EventActions.Add, EventElements.VRFReference, false);
 
             // UPDATE
             batch.Begin();
@@ -773,7 +771,7 @@ namespace Jovice
                 if (v.Count > 0) batch.Execute("update PERouteName set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where PN_ID = {0}", s.ID);
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " VRF name(s) have been updated");
+            Event(result, EventActions.Update, EventElements.VRFReference, false);
 
             #endregion
 
@@ -891,7 +889,7 @@ namespace Jovice
                 else batch.Execute("insert into PEQOS(PQ_ID, PQ_NO, PQ_Name, PQ_Bandwidth, PQ_Package) values({0}, {1}, {2}, {3}, {4})", s.ID, nodeID, s.Name, s.Bandwidth, s.Package);
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " QOS(s) have been added");
+            Event(result, EventActions.Add, EventElements.QOS, false);
 
             #endregion
 
@@ -2105,7 +2103,7 @@ namespace Jovice
                 if (s.IP != null) ipinsert.Add(s.ID, s.IP);
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " interface(s) have been added");
+            Event(result, EventActions.Add, EventElements.Interface, false);
 
             // UPDATE
             batch.Begin();
@@ -2172,7 +2170,7 @@ namespace Jovice
                 if (v.Count > 0) batch.Execute("update PEInterface set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where PI_ID = {0}", s.ID);
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " interface(s) have been updated");
+            Event(result, EventActions.Update, EventElements.Interface, false);
 
             batch.Begin();
             foreach (Tuple<string, string> tuple in interfacereferenceupdate)
@@ -2195,7 +2193,7 @@ namespace Jovice
                 }               
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " interface IP(s) have been added");
+            Event(result, EventActions.Add, EventElements.InterfaceIP, false);
 
             // DELETE
             batch.Begin();
@@ -2218,17 +2216,18 @@ namespace Jovice
                 batch.Execute("delete from PEInterfaceIP where PP_PI = {0}", id);
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " interface IP(s) have been deleted");
+            Event(result, EventActions.Delete, EventElements.InterfaceIP, false);
+
             batch.Begin();
             foreach (string id in interfacedelete)
             {
                 batch.Execute("delete from PEInterface where PI_ID = {0}", id);
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " interface(s) have been deleted");
+            Event(result, EventActions.Delete, EventElements.Interface, false);
 
             #endregion
-            
+
             #endregion
 
             #region LATE DELETE
@@ -2244,7 +2243,7 @@ namespace Jovice
                 }
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " QOS(s) have been deleted");
+            Event(result, EventActions.Delete, EventElements.QOS, false);
 
             // DELETE ROUTE
             batch.Begin();
@@ -2266,13 +2265,14 @@ namespace Jovice
                 batch.Execute("delete from PERouteName where PN_ID = {0}", id);
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " VRF name(s) have been deleted");
+            Event(result, EventActions.Delete, EventElements.VRFReference, false);
 
             result = Execute("delete from PERouteTarget where PT_PR in (select PR_ID from PERoute left join PERouteName on PN_PR = PR_ID where PN_ID is null)");
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " VRF route target(s) have been deleted");
+            Event(result, EventActions.Delete, EventElements.VRFRouteTarget, false);
+
             result = Execute("delete from PERoute where PR_ID in (select PR_ID from PERoute left join PERouteName on PN_PR = PR_ID where PN_ID is null)");
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " VRF(s) have been deleted");
-            
+            Event(result, EventActions.Delete, EventElements.VRF, false);
+
             #endregion
 
             SaveExit();

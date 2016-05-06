@@ -645,16 +645,18 @@ namespace Jovice
                     batch.Execute("insert into MECustomer(MU_ID, MU_NO, MU_UID) values({0}, {1}, {2})", s.ID, nodeID, s.CustomerID);
                 }
                 result = batch.Commit();
-                if (result.AffectedRows > 0) Event(result.AffectedRows + " alu-customer(s) have been added");
+                Event(result, EventActions.Add, EventElements.ALUCustomer, false);
 
                 // UPDATE
                 batch.Begin();
                 foreach (MECustomerToDatabase s in alucustinsert)
                 {
                     List<string> v = new List<string>();
-
+                    // ...
                     if (v.Count > 0) batch.Execute("update MECustomer set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MU_ID = {0}", s.ID);
                 }
+                result = batch.Commit();
+                Event(result, EventActions.Update, EventElements.ALUCustomer, false);
 
                 #endregion
 
@@ -828,7 +830,7 @@ namespace Jovice
                 }
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " QOS(s) have been added");
+            Event(result, EventActions.Add, EventElements.QOS, false);
 
             // UPDATE
             batch.Begin();
@@ -840,7 +842,7 @@ namespace Jovice
                 if (v.Count > 0) batch.Execute("update MEQOS set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MQ_ID = {0}", s.ID);                    
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " QOS(s) have been updated");
+            Event(result, EventActions.Update, EventElements.QOS, false);
 
             #endregion
 
@@ -1136,7 +1138,7 @@ namespace Jovice
                     );
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " SDP(s) have been added");
+            Event(result, EventActions.Add, EventElements.SDP, false);
 
             // UPDATE
             batch.Begin();
@@ -1154,7 +1156,7 @@ namespace Jovice
                 if (v.Count > 0) batch.Execute("update MESDP set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MS_ID = {0}", s.ID);
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " SDP(s) have been updated");
+            Event(result, EventActions.Update, EventElements.SDP, false);
 
             #endregion
 
@@ -1612,7 +1614,7 @@ namespace Jovice
                 
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " circuit(s) have been added");
+            Event(result, EventActions.Add, EventElements.Circuit, false);
 
             batch.Begin();
             foreach (MECircuitToDatabase s in circuitinsert)
@@ -1624,7 +1626,7 @@ namespace Jovice
                 }
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " remote peer(s) reference have been updated");
+            Event(result, EventActions.Update, EventElements.RemotePeerReference, false);
 
             // UPDATE
             batch.Begin();
@@ -1645,7 +1647,7 @@ namespace Jovice
                 if (v.Count > 0) batch.Execute("update MECircuit set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MC_ID = {0}", s.ID);
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " circuit(s) have been updated");
+            Event(result, EventActions.Update, EventElements.Circuit, false);
 
             #endregion
 
@@ -1669,7 +1671,7 @@ namespace Jovice
                 Event(duplicatedpeers.Count + " peer-per-circuit(s) are found duplicated, began deleting...");
                 string duplicatedpeerstr = "'" + string.Join("', '", duplicatedpeers.ToArray()) + "'";
                 result = Execute("delete from MEPeer where MP_ID in (" + duplicatedpeerstr + ")");
-                Event(result.AffectedRows + " peer(s) have been deleted");
+                Event(result, EventActions.Delete, EventElements.RemotePeerReference, true);
             }
             
             #region Live
@@ -1888,7 +1890,7 @@ namespace Jovice
                     ); 
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " peer(s) have been added");
+            Event(result, EventActions.Add, EventElements.Peer, false);
 
             // UPDATE
             batch.Begin();
@@ -1902,7 +1904,7 @@ namespace Jovice
                 if (v.Count > 0) batch.Execute("update MEPeer set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MP_ID = {0}", s.ID);
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " peer(s) have been updated");
+            Event(result, EventActions.Update, EventElements.Peer, false);
 
             // DELETE
             batch.Begin();
@@ -1915,10 +1917,10 @@ namespace Jovice
                 }
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " peer(s) have been deleted");
+            Event(result, EventActions.Delete, EventElements.Peer, false);
 
             #endregion
-            
+
             #endregion
 
             #region INTERFACE
@@ -1938,7 +1940,7 @@ namespace Jovice
                 Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI in (" + duplicatedinterfacestr + ")");
                 Execute("update MEInterface set MI_MI = NULL where MI_MI in (" + duplicatedinterfacestr + ")");
                 result = Execute("delete from MEInterface where MI_ID in (" + duplicatedinterfacestr + ")");
-                Event(result.AffectedRows + " interface(s) have been deleted");
+                Event(result, EventActions.Delete, EventElements.Interface, true);
             }
 
             ServiceReference interfaceservicereference = new ServiceReference();
@@ -2986,7 +2988,7 @@ namespace Jovice
                 interfacereferenceupdate.Add(new Tuple<string, string>(s.AdjacentID, s.ID));
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " interface(s) have been added");
+            Event(result, EventActions.Add, EventElements.Interface, false);
 
             // UPDATE       
             batch.Begin();
@@ -3042,7 +3044,7 @@ namespace Jovice
                 if (v.Count > 0) batch.Execute("update MEInterface set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MI_ID = {0}", s.ID);
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " interface(s) have been updated");
+            Event(result, EventActions.Update, EventElements.Interface, false);
 
             batch.Begin();
             foreach (Tuple<string, string> tuple in interfacereferenceupdate)
@@ -3075,7 +3077,7 @@ namespace Jovice
                 batch.Execute("delete from MEInterface where MI_ID = {0}", id);
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " interface(s) have been deleted");
+            Event(result, EventActions.Delete, EventElements.Interface, false);
 
             #endregion
             
@@ -3104,7 +3106,7 @@ namespace Jovice
                 batch.Execute("delete from MECircuit where MC_ID = {0}", id);
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " circuit(s) have been deleted");
+            Event(result, EventActions.Delete, EventElements.Circuit, false);
 
             // SDP DELETE
             batch.Begin();
@@ -3117,7 +3119,7 @@ namespace Jovice
                 }
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " SDP(s) have been deleted");
+            Event(result, EventActions.Delete, EventElements.SDP, false);
 
             // ALU CUSTOMER DELETE            
             if (nodeManufacture == alu)
@@ -3133,7 +3135,7 @@ namespace Jovice
                     }
                 }
                 result = batch.Commit();
-                if (result.OK && result.AffectedRows > 0) Event(result.AffectedRows + " alu-customer(s) have been deleted");
+                Event(result, EventActions.Delete, EventElements.ALUCustomer, false);
             }
 
             // QOS DELETE
@@ -3148,8 +3150,8 @@ namespace Jovice
                 }
             }
             result = batch.Commit();
-            if (result.OK && result.AffectedRows > 0) Event(result.AffectedRows + " QOS(s) have been deleted");
-            
+            Event(result, EventActions.Delete, EventElements.QOS, false);
+
             #endregion
 
             SaveExit();            

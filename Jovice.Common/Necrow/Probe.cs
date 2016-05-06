@@ -140,10 +140,9 @@ namespace Jovice
             LastConfiguration
         }
 
-        private enum StopState
-        {
-            Stop,
-            Failure
+        private enum EventActions { Add, Remove, Delete, Update }
+        private enum EventElements { ALUCustomer, QOS, SDP, Circuit, Interface, Peer, RemotePeerReference,
+            VRFReference, VRF, VRFRouteTarget, InterfaceIP
         }
 
         #endregion
@@ -230,70 +229,24 @@ namespace Jovice
             return j.Batch();
         }
 
-        public Result Query(string sql)
-        {
-            Result result = null;
-            while (true)
-            {
-                result = j.Query(sql);
-                if (result.OK) break;
-                else
-                {
-                    Event("Exception while executing query, retrying...");
-                    Thread.Sleep(5000);
-                }
-            }
-
-            return result;
-        }
-
-        public Dictionary<string, Row> QueryDictionary(string sql, string key)
-        {
-            return QueryDictionary(sql, key, delegate (Row row) { }, null);
-        }
-
         public Dictionary<string, Row> QueryDictionary(string sql, string key, params object[] args)
         {
-            return QueryDictionary(sql, key, delegate(Row row) { }, args);
+            return j.QueryDictionary(sql, key, args);
         }
 
         public Dictionary<string, Row> QueryDictionary(string sql, string key, QueryDictionaryDuplicateCallback duplicate, params object[] args)
         {
-            Dictionary<string, Row> result = null;
-            while (true)
-            {
-                result = j.QueryDictionary(sql, key, duplicate, args);
-                if (result != null) break;
-                else
-                {
-                    Event("Exception while executing query, retrying...");
-                    Thread.Sleep(5000);
-                }
-            }
-
-            return result;
+            return j.QueryDictionary(sql, key, duplicate, args);
         }
 
         public Dictionary<string, Row> QueryDictionary(string sql, QueryDictionaryKeyCallback callback, params object[] args)
         {
-            return QueryDictionary(sql, callback, delegate (Row row) { }, args);
+            return j.QueryDictionary(sql, callback, args);
         }
 
         public Dictionary<string, Row> QueryDictionary(string sql, QueryDictionaryKeyCallback callback, QueryDictionaryDuplicateCallback duplicate, params object[] args)
-        {
-            Dictionary<string, Row> result = null;
-            while (true)
-            {
-                result = j.QueryDictionary(sql, callback, duplicate, args);
-                if (result != null) break;
-                else
-                {
-                    Event("Exception while executing query, retrying...");
-                    Thread.Sleep(5000);
-                }
-            }
-
-            return result;
+        {            
+            return j.QueryDictionary(sql, callback, duplicate, args);
         }
 
         public string Format(string sql, params object[] args)
@@ -303,125 +256,27 @@ namespace Jovice
 
         public Result Query(string sql, params object[] args)
         {
-            Result result = null;
-            while (true)
-            {
-                result = j.Query(sql, args);
-                if (result.OK) break;
-                else
-                {
-                    Event("Exception while executing query, retrying...");
-                    Thread.Sleep(5000);
-                }
-            }
-
-            return result;
-        }
-
-        public Column Scalar(string sql)
-        {
-            Column result = null;
-            while (true)
-            {
-                Column c = j.Scalar(sql);
-                if (c != null) break;
-                else
-                {
-                    Event("Exception while executing scalar, retrying...");
-                    Thread.Sleep(5000);
-                }
-            }
-
-            return result;
+            return j.Query(sql, args);
         }
 
         public Column Scalar(string sql, params object[] args)
         {
-            Column result = null;
-            while (true)
-            {
-                Column c = j.Scalar(sql, args);
-                if (c != null) break;
-                else
-                {
-                    Event("Exception while executing scalar, retrying...");
-                    Thread.Sleep(5000);
-                }
-            }
-
-            return result;
-        }
-
-        public Result Execute(string sql)
-        {
-            Result result = null;
-            while (true)
-            {
-                result = j.Execute(sql);
-                if (result.OK) break;
-                else
-                {
-                    Event("Exception while executing execute, retrying...");
-                    Thread.Sleep(5000);
-                }
-            }
-
-            return result;
+            return j.Scalar(sql, args);
         }
 
         public Result Execute(string sql, params object[] args)
         {
-            Result result = null;
-            while (true)
-            {
-                result = j.Execute(sql, args);
-                if (result.OK) break;
-                else
-                {
-                    if (result.AffectedRows > 0) break; // if there are affected rows, break anyway
-                    else
-                    {
-                        Event("Exception while executing execute, retrying...");
-                        Thread.Sleep(5000);
-                    }
-                }
-            }
-
-            return result;
-        }
-
-        public Result ExecuteIdentity(string sql)
-        {
-            Result result = null;
-            while (true)
-            {
-                result = j.ExecuteIdentity(sql);
-                if (result.OK) break;
-                else
-                {
-                    Event("Exception while executing execute identity, retrying...");
-                    Thread.Sleep(5000);
-                }
-            }
-
-            return result;
+            return j.Execute(sql, args);
         }
 
         public Result ExecuteIdentity(string sql, params object[] args)
         {
-            Result result = null;
-            while (true)
-            {
-                result = j.ExecuteIdentity(sql, args);
-                if (result.OK) break;
-                else
-                {
-                    Event("Exception while executing execute identity, retrying...");
-                    Thread.Sleep(5000);
-                }
-            }
+            return j.ExecuteIdentity(sql, args);
+        }
 
-            return result;
+        public bool Exists(string table, string key, string id)
+        {
+            return j.Exists(table, key, id);
         }
 
         #endregion
@@ -487,6 +342,60 @@ namespace Jovice
             Necrow.Event(message, oi);
         }
 
+        private void Event(Result result, EventActions action, EventElements element, bool reportzero)
+        {
+            int row = result.AffectedRows;
+            if (row > 0 || (row >= 0 && reportzero))
+            {
+                StringBuilder sb = new StringBuilder();
+                sb.Append(row);
+                sb.Append(' ');
+                if (row > 1)
+                {
+                    switch (element)
+                    {
+                        case EventElements.ALUCustomer: sb.Append("alu-customer"); break;
+                        case EventElements.Circuit: sb.Append("circuit"); break;
+                        case EventElements.Interface: sb.Append("interface"); break;
+                        case EventElements.QOS: sb.Append("QOS"); break;
+                        case EventElements.SDP: sb.Append("SDP"); break;
+                        case EventElements.Peer: sb.Append("peer"); break;
+                        case EventElements.RemotePeerReference: sb.Append("remote peer reference"); break;
+                        case EventElements.InterfaceIP: sb.Append("interface IP"); break;
+                        case EventElements.VRF: sb.Append("VRF"); break;
+                        case EventElements.VRFReference: sb.Append("VRF reference"); break;
+                        case EventElements.VRFRouteTarget: sb.Append("VRF route target"); break;
+                    }
+                }
+                else
+                {
+                    switch (element)
+                    {
+                        case EventElements.ALUCustomer: sb.Append("alu-customers"); break;
+                        case EventElements.Circuit: sb.Append("circuits"); break;
+                        case EventElements.Interface: sb.Append("interfaces"); break;
+                        case EventElements.QOS: sb.Append("QOSes"); break;
+                        case EventElements.SDP: sb.Append("SDPs"); break;
+                        case EventElements.Peer: sb.Append("peers"); break;
+                        case EventElements.RemotePeerReference: sb.Append("remote peer references"); break;
+                        case EventElements.InterfaceIP: sb.Append("interface IPs"); break;
+                        case EventElements.VRF: sb.Append("VRFs"); break;
+                        case EventElements.VRFReference: sb.Append("VRF references"); break;
+                        case EventElements.VRFRouteTarget: sb.Append("VRF route targets"); break;
+                    }
+                }
+                if (row > 1) sb.Append(" have been ");
+                else sb.Append(" has been ");
+                if (action == EventActions.Add) sb.Append("added (");
+                else if (action == EventActions.Delete) sb.Append("deleted (");
+                else if (action == EventActions.Remove) sb.Append("removed (");
+                else if (action == EventActions.Update) sb.Append("updated (");
+                else sb.Append("affected (");
+                sb.Append(result.ExecutionTime);
+                sb.Append(")");
+            }
+        }
+
         private void Start(ProbeMode mode)
         {
             this.mode = mode;
@@ -529,6 +438,8 @@ namespace Jovice
                 idleThread.Abort();
                 mainLoop = null;
             }
+
+            Thread.Sleep(5000);
 
             base.Stop();
         }
@@ -703,10 +614,10 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     }
                     else if (index < ids.Count)
                     {
-                        index++;
-                        string id = ids[index];
+                        string id = ids[index]; 
                         Result rnode = Query("select * from Node where NO_ID = {0}", id);
                         node = rnode[0];
+                        index++;
                     }
                     else index = -1;
 
@@ -906,8 +817,10 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
         }
 
-        private List<string> MCESendLine(string command)
+        private List<string> MCESendLine(string command, out bool timeout)
         {
+            timeout = false;
+
             SendLine(command);
             SendLine("echo end\\ request");
 
@@ -951,12 +864,16 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     if (wait == 200)
                     {
                         SendControlC();
+                        Thread.Sleep(1000);
+                        timeout = true;
                         break;
                     }
                 }
             }
             if (lineBuilder.Length > 0) lines.Add(lineBuilder.ToString().Trim());
-            return lines;
+
+            if (timeout == true) return null;
+            else return lines;
         }
 
         private int MCEExpect(params string[] args)
@@ -1024,8 +941,9 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
         {
             string cpeip = null;
 
-            List<string> lines = MCESendLine("cat /etc/hosts | grep -i " + hostname);
-            if (lines == null) return null;
+            bool timeout;
+            List<string> lines = MCESendLine("cat /etc/hosts | grep -i " + hostname, out timeout);
+            if (timeout) Failure();
 
             Dictionary<string, string> greppair = new Dictionary<string, string>();
             foreach (string line in lines)
@@ -1564,6 +1482,31 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             }
         }
 
+        private void FlushNode(string id)
+        {
+            Result result = Query("select * from Node where NO_ID = {0}", id);
+            if (result.Count > 0)
+            {
+                Event("Flushing " + result[0]["NO_Name"].ToString() + "...");
+
+                string type = result[0]["NO_Type"].ToString();
+
+                if (type == "P")
+                {
+                    Event("Removing Node reference from POP...");
+                    result = Execute("update PEPOP set PO_NO = NULL where PO_NO = {0}", id);
+                    Event(result.AffectedRows + " reference(s) have been removed");
+                    result = Execute("update PEPOPExt set PX_NO = NULL where PX_NO = {0}", id);
+                    result = Execute("update PEPOP set PO_PI = NULL where PO_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
+                    result = Execute("update PEPOPExt set PX_PI = NULL where PX_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
+                    result = Execute("delete from PEInterfacePI where PP_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
+                    result = Execute("update MEInterface set MI_TO_PI = NULL where MI_TO_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
+                    
+
+                }
+            }
+        }
+
         private void Enter(Row row, out bool continueProcess, bool prioritizeProcess)
         {
             continueProcess = false;
@@ -1593,7 +1536,6 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             string nodePass = tacacPassword;
 
             Event("Begin probing into " + nodeName);
-            if (nodeIP != null) Event("Host IP: " + nodeIP);
             Event("Manufacture: " + nodeManufacture + "");
             if (nodeModel != null) Event("Model: " + nodeModel);
 
@@ -1614,38 +1556,40 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
             #region CHECK IP
 
+            if (nodeIP != null) Event("Host IP: " + nodeIP);
+
             Event("Checking host IP");
             string resolvedIP = MCECheckNodeIP(nodeName);
 
-            if (resolvedIP == null) Event("Hostname is unresolved");
             if (nodeIP == null)
             {
                 if (resolvedIP == null)
                 {
-                    #region null, null
+                    Event("Hostname is unresolved");
+
                     if (previousRemark == "UNRESOLVED")
+                    {
+                        Event("Mark this node as inactive");
                         Update(UpdateTypes.Active, 0);
+                    }
                     else
                         Update(UpdateTypes.Remark, "UNRESOLVED");
 
                     Save();
                     return;
-                    #endregion
                 }
                 else
                 {
-                    #region null, RESOLVED!
-                    Event("Host IP Resolved: " + resolvedIP);
+                    Event("Resolved Host IP: " + resolvedIP);
                     nodeIP = resolvedIP;
                     Update(UpdateTypes.IP, nodeIP);
-                    #endregion
                 }
             }
             else
-            {
+            {   
                 if (resolvedIP == null)
                 {
-                    #region RESOLVED!, null
+                    Event("Hostname is unresolved");
 
                     // reverse ip?
                     Event("Resolving by reverse host name");
@@ -1653,178 +1597,88 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
                     if (hostName != null)
                     {
-                        #region RESOLVED!, null, RESOLVED!
                         Event("Hostname has probably changed to: " + hostName);
 
                         Result result = Query("select * from Node where NO_Name = {0}", hostName);
 
                         if (result.Count == 1)
                         {
-                            #region CHANGED to existing???
+                            Event(hostName + " is already exists, checking for potential conflicts");
 
-                            string existingtype = result[0]["NO_Type"].ToString();
-                            string existingnodeid = result[0]["NO_ID"].ToString();
+                            string existingType = result[0]["NO_Type"].ToString();
+                            string existingNodeID = result[0]["NO_ID"].ToString();
+                            bool existingActive = result[0]["NO_Active"].ToBoolean();
+                            bool existinghasentries = false;
 
-                            if (existingtype == "P")
+                            if (existingType == "P")
                             {
-                                // cek interface count
-                                Column interfaceCount = j.Scalar("select count(PI_ID) from PEInterface where PI_NO = {0}", existingnodeid);
-
-                                string deletethisnode;
-                                string keepthisnode;
-
-                                int ci = interfaceCount.ToInt();
-
-                                if (ci > 0)
-                                {
-                                    Event("Existing node has found, delete this node");
-                                    // yg existing sudah punya interface, yg ini dihapus aja
-                                    deletethisnode = nodeID;
-                                    keepthisnode = existingnodeid;
-
-                                    // create alias if none found
-                                    result = Query("select * from NodeAlias where NA_Name = {0}", nodeName);
-                                    if (result.Count == 0)
-                                    {
-                                        Event("Creating alias");
-                                        Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})",
-                                            Database.ID(), existingnodeid, nodeName);
-                                    }
-                                }
-                                else
-                                {
-                                    Event("Delete/update existing node properties");
-                                    // yg existing kosong, pake yg ini, rename ini jadi existing, hapus existing
-                                    deletethisnode = existingnodeid;
-                                    keepthisnode = nodeID;
-
-                                    Update(UpdateTypes.Name, hostName);
-                                }
-
-                                int n;
-                                // update POP
-                                n = Execute("update PEPOP set PO_NO = {0} where PO_NO = {1}", keepthisnode, deletethisnode).AffectedRows;
-                                if (n == 1) Event("Update PoP OK");
-                                // update ME_TO_PI
-                                n = Execute("update MEInterface set MI_TO_PI = null where MI_TO_PI in (select PI_ID from PEInterface where PI_NO = {0})", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Update ME interface to PI: " + n + " entries");
-                                // hapus interface IP
-                                n = Execute("delete from PEInterfaceIP where PP_PI in (select PI_ID from PEInterface where PI_NO = {0})", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Delete interface IP: " + n + " entries");
-                                // hapus interface
-                                n = Execute("delete from PEInterface where PI_NO = {0}", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Delete interface: " + n + " entries");
-                                // hapus QOS
-                                n = Execute("delete from PEQOS where PQ_NO = {0}", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Delete QOS: " + n + " entries");
-                                // hapus Route Name
-                                n = Execute("delete from PERouteName where PN_NO = {0}", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Delete route name: " + n + " entries");
-                                // hapus Node
-                                n = Execute("delete from Node where NO_ID = {0}", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Node deleted");
+                                int existinginterfacecount = Scalar("select count(PI_ID) from PEInterface where PI_NO = {0}", existingNodeID).ToInt();
+                                existinghasentries = existinginterfacecount > 0;
                             }
-                            else if (existingnodeid == "M")
+                            else if (existingType == "M")
                             {
-                                // cek interface
-                                Column interfaceCount = Scalar("select count(MI_ID) from MEInterface where MI_NO = {0}", existingnodeid);
-
-                                string deletethisnode;
-                                string keepthisnode;
-
-                                int ci = interfaceCount.ToInt();
-
-                                if (ci > 0)
-                                {
-                                    Event("Existing node has found, delete this node");
-                                    // yg existing sudah punya interface, yg ini dihapus aja
-                                    deletethisnode = nodeID;
-                                    keepthisnode = existingnodeid;
-
-                                    Event("Creating alias");
-                                    Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})",
-                                        Database.ID(), existingnodeid, nodeName);
-                                }
-                                else
-                                {
-                                    Event("Delete/update existing node properties");
-                                    // yg existing kosong, pake yg ini, rename ini jadi existing, hapus existing
-                                    deletethisnode = existingnodeid;
-                                    keepthisnode = nodeID;
-
-                                    Update(UpdateTypes.Name, hostName);
-                                }
-
-                                int n;
-                                // hapus customer
-                                n = Execute("delete from MECustomer where MU_NO = {0}", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Delete customer: " + n + " entries");
-                                // hapus service peer
-                                n = Execute("delete from MEPeer where MP_MC in (select MC_ID from MECircuit where MC_NO = {0})", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Delete service peer: " + n + " entries");
-                                // hapus interface
-                                n = Execute("delete from MEInterface where MI_NO = {0}", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Delete interface: " + n + " entries");
-                                // hapus circuit
-                                n = Execute("delete from MECircuit where MC_NO = {0}", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Delete service: " + n + " entries");
-                                // hapus sdp
-                                n = Execute("delete from MESDP where MS_NO = {0}", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Delete peer: " + n + " entries");
-                                // hapus Node
-                                n = Execute("delete from Node where NO_ID = {0}", deletethisnode).AffectedRows;
-                                if (n > 0) Event("Node deleted");
+                                int existinginterfacecount = Scalar("select count(MI_ID) from MEInterface where MI_NO = {0}", existingNodeID).ToInt();   
+                                existinghasentries = existinginterfacecount > 0;
                             }
 
-                            #endregion
+                            if (existingActive && existinghasentries)
+                            {
+                                Event("Keep " + hostName + ", delete " + nodeName);
+                                Execute("update NodeAlias set NA_NO = {0} where NA_NO = {1}", existingNodeID, nodeID); // move alias to existing
+                                Execute("update PEPOP set PO_NO = {0} where PO_NO = {1}", existingNodeID, nodeID); // move pop to existing
+                                Execute("update PEPOPExt set PX_NO = {0} where PX_NO = {1}", existingNodeID, nodeID); // move popext to existing
+                                FlushNode(nodeID); // flush current node                                    
+                                Execute("delete from Node where NO_ID = {0}", nodeID); // delete node
+                                if (!Exists("NodeAlias", "NA_Name", nodeName))
+                                    Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})", Database.ID(), existingNodeID, nodeName); // new alias to existing node
+                                return;
+                            }
+                            else
+                            {
+                                Event("Keep " + nodeName + ", delete " + hostName);
+                                Execute("update NodeAlias set NA_NO = {0} where NA_NO = {1}", nodeID, existingNodeID); // move existing alias to current
+                                Execute("update PEPOP set PO_NO = {0} where PO_NO = {1}", nodeID, existingNodeID); // move existing pop to current
+                                Execute("update PEPOPExt set PX_NO = {0} where PX_NO = {1}", nodeID, existingNodeID); // move existing popext to current
+                                FlushNode(existingNodeID);
+                                Execute("delete from Node where NO_ID = {0}", existingNodeID); // delete existing node
+                                Update(UpdateTypes.Name, hostName); // update current name to the existing
+                                nodeName = hostName;
+                            }
                         }
                         else
                         {
-                            #region NO PROBLEM
-
-                            // simply change to the new one
+                            Event("Change " + nodeName + " to " + hostName);  
+                            if (!Exists("NodeAlias", "NA_Name", nodeName)) Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})", Database.ID(), nodeID, nodeName);
                             Update(UpdateTypes.Name, hostName);
-
-                            // insert old name alias
-                            Event("Creating alias");
-                            Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})",
-                                Database.ID(), nodeID, nodeName);
-
-                            #endregion
+                            nodeName = hostName;
                         }
-
-                        Save();
-                        return;
-                        #endregion
                     }
                     else
                     {
-                        #region RESOLVED!, null, null
+                        Event("Hostname has become unresolved");
 
                         if (previousRemark == "UNRESOLVED")
+                        {
+                            Event("Mark this node as inactive");
                             Update(UpdateTypes.Active, 0);
+                        }
                         else
                             Update(UpdateTypes.Remark, "UNRESOLVED");
 
                         Save();
-                        return;
-                        #endregion                            
+                        return;                      
                     }
-                    #endregion
                 }
                 else if (nodeIP != resolvedIP)
                 {
-                    #region IP HAS CHANGED
-
-                    Event("IP has changed to: " + resolvedIP + "");
-
+                    Event("Host IP has changed to: " + resolvedIP + "");
                     Update(UpdateTypes.Remark, "IPHASCHANGED");
+
+                    Event("Mark this node as inactive");
                     Update(UpdateTypes.Active, 0);
 
                     Save();
                     return;
-
-                    #endregion
                 }
             }
 

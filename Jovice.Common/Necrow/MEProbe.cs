@@ -2730,11 +2730,6 @@ namespace Jovice
                         if (inftype == "Et") { ssubinfet++; if (li.Status == 1) { ssubinfetup++; if (li.Protocol == 1) ssubinfetupup++; } }
                         if (inftype == "Ag") { ssubinfag++; if (li.Status == 1) { ssubinfagup++; if (li.Protocol == 1) ssubinfagupup++; } }
                     }
-                    else if (li.Aggr != -1)
-                    {
-                        parentPort = "Ag" + li.Aggr;
-                        sinfag++;
-                    }
                     else
                     {
                         sinf++;
@@ -2744,6 +2739,8 @@ namespace Jovice
                         if (inftype == "Gi") { sinfgi++; if (li.Status == 1) sinfgiup++; }
                         if (inftype == "Fa") { sinffa++; if (li.Status == 1) sinffaup++; }
                         if (inftype == "Et") { sinfet++; if (li.Status == 1) sinfetup++; }
+                        if (inftype == "Ag") { sinfag++; }
+                        if (li.Aggr != -1) parentPort = "Ag" + li.Aggr;    
                     }
 
                     if (parentPort != null)

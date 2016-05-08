@@ -37,6 +37,22 @@ namespace Jovice
             set { updateAggr = value; }
         }
 
+        private MEInterfaceToDatabase[] aggrChilds = null;
+
+        public MEInterfaceToDatabase[] AggrChilds
+        {
+            get { return aggrChilds; }
+            set { aggrChilds = value; }
+        }
+
+        private string aggrAdjacentParentID = null;
+
+        public string AggrAdjacentParentID
+        {
+            get { return aggrAdjacentParentID; }
+            set { aggrAdjacentParentID = value; }
+        }
+
         private string circuitID;
 
         public string CircuitID
@@ -275,6 +291,14 @@ namespace Jovice
         {
             get { return updateAdjacentID; }
             set { updateAdjacentID = value; }
+        }
+
+        private bool adjacentIDChecked = false;
+
+        public bool AdjacentIDChecked
+        {
+            get { return adjacentIDChecked; }
+            set { adjacentIDChecked = value; }
         }
 
         private Dictionary<string, string> adjacentSubifID = null;
@@ -720,7 +744,7 @@ namespace Jovice
                 foreach (KeyValuePair<string, MEQOSToDatabase> pair in qoslive)
                 {
                     MEQOSToDatabase li = pair.Value;
-                    NodeQOSMEALU ni = NodeQOSMEALU.Parse(li.Name);
+                    NodeQOSALU ni = NodeQOSALU.Parse(li.Name);
                     li.Bandwidth = ni.Bandwidth;
                 }
 
@@ -764,7 +788,7 @@ namespace Jovice
                 foreach (KeyValuePair<string, MEQOSToDatabase> pair in qoslive)
                 {
                     MEQOSToDatabase li = pair.Value;
-                    NodeQOSMEHWE ni = NodeQOSMEHWE.Parse(li.Name);
+                    NodeQOSHWE ni = NodeQOSHWE.Parse(li.Name);
                     li.Bandwidth = ni.Bandwidth;
                 }
 
@@ -1626,7 +1650,7 @@ namespace Jovice
                 }
             }
             result = batch.Commit();
-            Event(result, EventActions.Update, EventElements.RemotePeerReference, false);
+            Event(result, EventActions.Update, EventElements.CircuitReference, false);
 
             // UPDATE
             batch.Begin();
@@ -1671,7 +1695,7 @@ namespace Jovice
                 Event(duplicatedpeers.Count + " peer-per-circuit(s) are found duplicated, began deleting...");
                 string duplicatedpeerstr = "'" + string.Join("', '", duplicatedpeers.ToArray()) + "'";
                 result = Execute("delete from MEPeer where MP_ID in (" + duplicatedpeerstr + ")");
-                Event(result, EventActions.Delete, EventElements.RemotePeerReference, true);
+                Event(result, EventActions.Delete, EventElements.Peer, true);
             }
             
             #region Live
@@ -2729,10 +2753,84 @@ namespace Jovice
                         else if (interfaceinsert.ContainsKey(parentPort)) // cek di interface yg baru
                             li.ParentID = interfaceinsert[parentPort].ID;
                     }
-                    else
+
+                    if (!inf.IsSubInterface)
                     {
+                        if (inftype == "Ag")
+                        {
+                            // we need support with child
+                            int myaggr;
+                            if (int.TryParse(inf.Port, out myaggr))
+                            {
+                                // cari child di interfacelive yg aggr-nya myaggr
+                                List<MEInterfaceToDatabase> agPhysicals = new List<MEInterfaceToDatabase>();
+                                foreach (KeyValuePair<string, MEInterfaceToDatabase> spair in interfacelive) { if (spair.Value.Aggr == myaggr) agPhysicals.Add(spair.Value); }
+                                li.AggrChilds = agPhysicals.ToArray();
+
+                                // anaknya duluan ya
+                                foreach (MEInterfaceToDatabase mi in li.AggrChilds)
+                                    FindMEPhysicalAdjacent(mi);
+                            }
+                        }
                         FindMEPhysicalAdjacent(li);
+
+                        if (inftype == "Ag" && li.AdjacentID == null) // jika ini ag, dan ga punya adjacent id, maka...
+                        {
+                            string adjacentParentID = null; // cek apakah setiap anak punya adjacentParentID jika tidak = null
+                            foreach (MEInterfaceToDatabase mi in li.AggrChilds)
+                            {
+                                if (mi.AggrAdjacentParentID == null)
+                                {
+                                    adjacentParentID = null;
+                                    break;
+                                }
+                                else if (adjacentParentID == null) adjacentParentID = mi.AggrAdjacentParentID;
+                                else if (adjacentParentID != mi.AggrAdjacentParentID)
+                                {
+                                    adjacentParentID = null;
+                                    break;
+                                }
+                            }
+
+                            // adjacentParentID adalah parentID (aggr) dari lawannya interface aggr ini di PE.
+                            if (adjacentParentID != null)
+                            {
+                                li.AdjacentID = adjacentParentID;
+
+                                // query lawan
+                                li.AdjacentSubifID = new Dictionary<string, string>();
+                                result = Query("select PI_ID, PI_Name from PEInterface where PI_PI = {0}", li.AdjacentID);
+                                foreach (Row row in result)
+                                {
+                                    string spiname = row["PI_Name"].ToString();
+                                    int dot = spiname.IndexOf('.');
+                                    if (dot > -1 && spiname.Length > (dot + 1))
+                                    {
+                                        string sifname = spiname.Substring(dot + 1);
+                                        if (!li.AdjacentSubifID.ContainsKey(sifname)) li.AdjacentSubifID.Add(sifname, row["PI_ID"].ToString());
+                                    }
+                                }
+                            }                            
+                        }
                     }
+                    else if (li.ParentID != null)
+                    {
+                        int dot = li.Name.IndexOf('.');
+                        if (dot > -1 && li.Name.Length > (dot + 1))
+                        {
+                            string sifname = li.Name.Substring(dot + 1);
+                            if (sifname != "DIRECT")
+                            {
+                                MEInterfaceToDatabase parent = interfacelive[parentPort];
+                                if (parent.AdjacentSubifID != null)
+                                {
+                                    if (parent.AdjacentSubifID.ContainsKey(sifname))
+                                        li.AdjacentID = parent.AdjacentSubifID[sifname];
+                                }
+                            }
+                        }
+                    }
+
                 }
 
 
@@ -2762,28 +2860,6 @@ namespace Jovice
                         u.UpdateParentID = true;
                         u.ParentID = li.ParentID;
                         updateinfo.Append(li.ParentID == null ? "parent " : "child ");
-                    }
-                    if (li.ParentID != null)
-                    {
-                        int dot = li.Name.IndexOf('.');
-                        if (dot > -1 && li.Name.Length > (dot + 1))
-                        {
-                            string sifname = li.Name.Substring(dot + 1);
-                            if (sifname != "DIRECT")
-                            {
-                                if (interfacelive.ContainsKey(parentPort))
-                                {
-                                    MEInterfaceToDatabase parent = interfacelive[parentPort];
-                                    if (parent.AdjacentSubifID != null)
-                                    {
-                                        if (parent.AdjacentSubifID.ContainsKey(sifname))
-                                        {
-                                            li.AdjacentID = parent.AdjacentSubifID[sifname];
-                                        }
-                                    }
-                                }
-                            }
-                        }
                     }
                     if (db["MI_TO_PI"].ToString() != li.AdjacentID)
                     {
@@ -2816,7 +2892,7 @@ namespace Jovice
                         u.Protocol = li.Protocol;
                         updateinfo.Append("prot ");
                     }
-                    if ((db["MI_Aggregator"].IsNull ? -1 : db["MI_Aggregator"].ToInt()) != li.Aggr)
+                    if (db["MI_Aggregator"].ToInt(-1) != li.Aggr)
                     {
                         update = true;
                         u.UpdateAggr = true;
@@ -2920,7 +2996,7 @@ namespace Jovice
                         u.Info = li.Info;
                         updateinfo.Append("info ");
                     }
-                    if (db["MI_Summary_SubInterfaceCount"].ToInt(-1) != li.SubInterfaceCount)
+                    if (db["MI_Summary_SubInterfaceCount"].ToSmall(-1) != li.SubInterfaceCount)
                     {
                         update = true;
                         u.UpdateSubInterfaceCount = true;

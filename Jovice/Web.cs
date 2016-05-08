@@ -19,7 +19,9 @@ namespace Jovice
         protected override void OnResourceLoad()
         {
             #region Jovice
+
             Resource.Common(Resource.Register("jovice", ResourceType.JavaScript, "~/View/jovice.js"));
+
             #endregion
 
             #region Views
@@ -56,7 +58,6 @@ namespace Jovice
                 50001, // Is Necrow Available
                 50005  // Ping
             }, Providers.NecrowClient.ProviderRequest); // Necrow
-
             Provider.Register(new int[] {
                 5001, // Main Statistics
             }, Providers.Statistics.ProviderRequest);

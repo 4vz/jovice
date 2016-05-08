@@ -39,7 +39,6 @@ namespace Jovice
         }
 
         #endregion
-
     }
 
     public class Center

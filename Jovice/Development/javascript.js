@@ -210,7 +210,7 @@
                         s += "; expires= " + share.date("{ddd}, {DD}-{MMM}-{YYYY} {HH}:{mm}:{ss} {tz}", o.expires);
                     }
 
-                    alert(s);
+                    //alert(s);
 
                     document.cookie = s;
                 }

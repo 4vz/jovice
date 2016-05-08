@@ -117,6 +117,10 @@ namespace Jovice
     [Serializable]
     public enum ClientNecrowMessageTypes
     {
+        Probe,
+
+
+
         IsNecrowAvailable,
         Ping
     }

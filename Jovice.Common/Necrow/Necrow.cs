@@ -124,7 +124,7 @@ namespace Jovice
     {
         #region Fields
 
-        internal readonly static int Version = 7;
+        internal readonly static int Version = 8;
 
         private static Database joviceDatabase = null;
 
@@ -160,9 +160,9 @@ namespace Jovice
             if (console)
             {
                 if (subsystem == null)
-                    System.Console.WriteLine(DateTime.Now.ToString("yy/MM/dd HH:mm:ss.fff") + "|" + message);
+                    System.Console.WriteLine(DateTime.UtcNow.ToString("yyyy/MM/dd HH:mm:ss.fff") + "|" + message);
                 else
-                    System.Console.WriteLine(DateTime.Now.ToString("yy/MM/dd HH:mm:ss.fff") + "|" + subsystem + "|" + message);
+                    System.Console.WriteLine(DateTime.UtcNow.ToString("yyyy/MM/dd HH:mm:ss.fff") + "|" + subsystem + "|" + message);
             }
         }
 

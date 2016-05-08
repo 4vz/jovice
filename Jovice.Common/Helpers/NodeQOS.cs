@@ -224,7 +224,7 @@ namespace Jovice
         #endregion
     }
     
-    internal class NodeQOSPE : NodeQOS
+    internal class NodeQOSCSO : NodeQOS
     {
         #region Fields
 
@@ -240,7 +240,7 @@ namespace Jovice
 
         #region Constructors
 
-        public NodeQOSPE()
+        public NodeQOSCSO()
         {
 
         }
@@ -249,7 +249,7 @@ namespace Jovice
 
         #region Methods
 
-        public static NodeQOSPE Parse(string input)
+        public static NodeQOSCSO Parse(string input)
         {
             string pmpack = null;
             int pmspeed = -1;
@@ -285,7 +285,7 @@ namespace Jovice
 
             if (pmspeed < 8) pmspeed = -1; // below 8kbps is not applicable
 
-            NodeQOSPE qos = new NodeQOSPE();
+            NodeQOSCSO qos = new NodeQOSCSO();
             qos.Name = input;
             qos.Package = pmpack;
             qos.Bandwidth = pmspeed;
@@ -296,13 +296,13 @@ namespace Jovice
         #endregion
     }
 
-    internal class NodeQOSMEALU : NodeQOS
+    internal class NodeQOSALU : NodeQOS
     {
         #region Methods
 
-        public static NodeQOSMEALU Parse(string input)
+        public static NodeQOSALU Parse(string input)
         {
-            NodeQOSMEALU q = new NodeQOSMEALU();
+            NodeQOSALU q = new NodeQOSALU();
             q.Name = input;
 
             if (input.Length == 5)
@@ -332,15 +332,15 @@ namespace Jovice
         #endregion
     }
 
-    internal class NodeQOSMEHWE : NodeQOS
+    internal class NodeQOSHWE : NodeQOS
     {
         #region Methods
 
-        public static NodeQOSMEHWE Parse(string input)
+        public static NodeQOSHWE Parse(string input)
         {
             int pmspeed = -1;
 
-            NodeQOSMEHWE q = new NodeQOSMEHWE();
+            NodeQOSHWE q = new NodeQOSHWE();
             q.Name = input;
 
             string[] pnmes = input.Split(new char[] { '-', '_' }, StringSplitOptions.RemoveEmptyEntries);

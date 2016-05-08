@@ -126,6 +126,7 @@ namespace Jovice
         {
             NecrowVersion,
             TimeStamp,
+            TimeOffset,
             Remark,
             RemarkUser,
             IP,
@@ -141,8 +142,9 @@ namespace Jovice
         }
 
         private enum EventActions { Add, Remove, Delete, Update }
-        private enum EventElements { ALUCustomer, QOS, SDP, Circuit, Interface, Peer, RemotePeerReference,
-            VRFReference, VRF, VRFRouteTarget, InterfaceIP
+        private enum EventElements { ALUCustomer, QOS, SDP, Circuit, Interface, Peer, CircuitReference,
+            VRFReference, VRF, VRFRouteTarget, InterfaceIP, Service, Customer, NodeReference, InterfaceReference,
+            NodeAlias, NodeSummary
         }
 
         #endregion
@@ -181,6 +183,7 @@ namespace Jovice
         private string nodeAreaID;
         private string nodeType;
         private int nodeNVER;
+        private TimeSpan nodeTimeOffset;
 
         private bool noMore = false;
 
@@ -350,7 +353,7 @@ namespace Jovice
                 StringBuilder sb = new StringBuilder();
                 sb.Append(row);
                 sb.Append(' ');
-                if (row > 1)
+                if (row == 1)
                 {
                     switch (element)
                     {
@@ -360,11 +363,17 @@ namespace Jovice
                         case EventElements.QOS: sb.Append("QOS"); break;
                         case EventElements.SDP: sb.Append("SDP"); break;
                         case EventElements.Peer: sb.Append("peer"); break;
-                        case EventElements.RemotePeerReference: sb.Append("remote peer reference"); break;
+                        case EventElements.CircuitReference: sb.Append("circuit reference"); break;
                         case EventElements.InterfaceIP: sb.Append("interface IP"); break;
                         case EventElements.VRF: sb.Append("VRF"); break;
                         case EventElements.VRFReference: sb.Append("VRF reference"); break;
                         case EventElements.VRFRouteTarget: sb.Append("VRF route target"); break;
+                        case EventElements.Customer: sb.Append("customer"); break;
+                        case EventElements.Service: sb.Append("service"); break;
+                        case EventElements.NodeReference: sb.Append("node reference"); break;
+                        case EventElements.InterfaceReference: sb.Append("interface reference"); break;
+                        case EventElements.NodeAlias: sb.Append("node alias"); break;
+                        case EventElements.NodeSummary: sb.Append("node summary"); break;
                     }
                 }
                 else
@@ -377,11 +386,17 @@ namespace Jovice
                         case EventElements.QOS: sb.Append("QOSes"); break;
                         case EventElements.SDP: sb.Append("SDPs"); break;
                         case EventElements.Peer: sb.Append("peers"); break;
-                        case EventElements.RemotePeerReference: sb.Append("remote peer references"); break;
+                        case EventElements.CircuitReference: sb.Append("circuit references"); break;
                         case EventElements.InterfaceIP: sb.Append("interface IPs"); break;
                         case EventElements.VRF: sb.Append("VRFs"); break;
                         case EventElements.VRFReference: sb.Append("VRF references"); break;
                         case EventElements.VRFRouteTarget: sb.Append("VRF route targets"); break;
+                        case EventElements.Customer: sb.Append("customers"); break;
+                        case EventElements.Service: sb.Append("services"); break;
+                        case EventElements.NodeReference: sb.Append("node references"); break;
+                        case EventElements.InterfaceReference: sb.Append("interface references"); break;
+                        case EventElements.NodeAlias: sb.Append("node aliases"); break;
+                        case EventElements.NodeSummary: sb.Append("node summaries"); break;
                     }
                 }
                 if (row > 1) sb.Append(" have been ");
@@ -391,8 +406,10 @@ namespace Jovice
                 else if (action == EventActions.Remove) sb.Append("removed (");
                 else if (action == EventActions.Update) sb.Append("updated (");
                 else sb.Append("affected (");
-                sb.Append(result.ExecutionTime);
-                sb.Append(")");
+                sb.Append(string.Format("{0:0.###}", result.ExecutionTime.TotalSeconds));
+                sb.Append("s)");
+
+                Event(sb.ToString());
             }
         }
 
@@ -400,8 +417,20 @@ namespace Jovice
         {
             this.mode = mode;
 
-            //Event("Connecting... (" + sshUser + "@" + sshServer + ")");
+            Event("Connecting... (" + sshUser + "@" + sshServer + ")");
             Start(sshServer, sshUser, sshPassword);
+
+//            Result result = j.Query(@"select MI_Name, MI_Summary_SubInterfaceCount from MEInterface, Node where MI_NO = NO_ID and NO_NAME = 'ME3-D1-PBRC' and (MI_MI is null or MI_Aggregator is not null)
+//order by MI_Name asc");
+
+//            foreach (Row row in result)
+//            {
+//                Event(row["MI_Name"].ToString() + ": " + row["MI_Summary_SubInterfaceCount"].ToInt());
+//            }
+
+
+            //TimeZoneInfo a = TimeZoneInfo.Local;
+            //Event("offset:" + TimeZoneInfo.Local.GetUtcOffset(DateTime.UtcNow));
 
             // TEST GOES HERE
             //MEInterfaceToDatabase li = new MEInterfaceToDatabase();
@@ -978,51 +1007,23 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
             switch (type)
             {
-                case UpdateTypes.NecrowVersion:
-                    key = "NO_NVER";
-                    break;
-                case UpdateTypes.TimeStamp:
-                    key = "NO_TimeStamp";
-                    break;
-                case UpdateTypes.Remark:
-                    key = "NO_Remark";
-                    break;
-                case UpdateTypes.RemarkUser:
-                    key = "NO_RemarkUser";
-                    break;
-                case UpdateTypes.IP:
-                    key = "NO_IP";
-                    break;
-                case UpdateTypes.Name:
-                    key = "NO_Name";
-                    break;
-                case UpdateTypes.Active:
-                    key = "NO_Active";
-                    break;
-                case UpdateTypes.Terminal:
-                    key = "NO_Terminal";
-                    break;
-                case UpdateTypes.ConnectType:
-                    key = "NO_ConnectType";
-                    break;
-                case UpdateTypes.Model:
-                    key = "NO_Model";
-                    break;
-                case UpdateTypes.Version:
-                    key = "NO_Version";
-                    break;
-                case UpdateTypes.SubVersion:
-                    key = "NO_SubVersion";
-                    break;
-                case UpdateTypes.VersionTime:
-                    key = "NO_VersionTime";
-                    break;
-                case UpdateTypes.LastConfiguration:
-                    key = "NO_LastConfiguration";
-                    break;
+                case UpdateTypes.NecrowVersion: key = "NO_NVER"; break;
+                case UpdateTypes.TimeStamp: key = "NO_TimeStamp"; break;
+                case UpdateTypes.TimeOffset: key = "NO_TimeOffset"; break;
+                case UpdateTypes.Remark:key = "NO_Remark"; break;
+                case UpdateTypes.RemarkUser: key = "NO_RemarkUser"; break;
+                case UpdateTypes.IP: key = "NO_IP"; break;
+                case UpdateTypes.Name: key = "NO_Name"; break;
+                case UpdateTypes.Active: key = "NO_Active"; break;
+                case UpdateTypes.Terminal: key = "NO_Terminal"; break;
+                case UpdateTypes.ConnectType: key = "NO_ConnectType"; break;
+                case UpdateTypes.Model: key = "NO_Model"; break;
+                case UpdateTypes.Version: key = "NO_Version"; break;
+                case UpdateTypes.SubVersion: key = "NO_SubVersion"; break;
+                case UpdateTypes.VersionTime: key = "NO_VersionTime"; break;
+                case UpdateTypes.LastConfiguration: key = "NO_LastConfiguration"; break;
             }
-
-
+            
             if (key != null)
             {
                 if (updates.ContainsKey(key)) updates[key] = value;
@@ -1218,7 +1219,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             stopwatch.Stop();
 
             if (!timeout)
-                Event("Reading completed (" + stopwatch.Elapsed + ")");
+                Event("Reading completed (" + string.Format("{0:0.###}", stopwatch.Elapsed.TotalSeconds) + "s)");
 
             return lines;
         }
@@ -1491,18 +1492,58 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
                 string type = result[0]["NO_Type"].ToString();
 
+                result = Execute("delete from NodeAlias where NA_NO = {0}", id);
+                Event(result, EventActions.Delete, EventElements.NodeAlias, false);
+                result = Execute("delete from NodeSummary where NS_NO = {0}", id);
+                Event(result, EventActions.Delete, EventElements.NodeSummary, false);
+                
                 if (type == "P")
-                {
-                    Event("Removing Node reference from POP...");
+                {                    
                     result = Execute("update PEPOP set PO_NO = NULL where PO_NO = {0}", id);
-                    Event(result.AffectedRows + " reference(s) have been removed");
+                    Event(result, EventActions.Remove, EventElements.NodeReference, false);
                     result = Execute("update PEPOPExt set PX_NO = NULL where PX_NO = {0}", id);
+                    Event(result, EventActions.Remove, EventElements.NodeReference, false);
                     result = Execute("update PEPOP set PO_PI = NULL where PO_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
+                    Event(result, EventActions.Remove, EventElements.InterfaceReference, false);
                     result = Execute("update PEPOPExt set PX_PI = NULL where PX_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
+                    Event(result, EventActions.Remove, EventElements.InterfaceReference, false);
                     result = Execute("delete from PEInterfacePI where PP_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
+                    Event(result, EventActions.Delete, EventElements.InterfaceIP, false);
                     result = Execute("update MEInterface set MI_TO_PI = NULL where MI_TO_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
-                    
-
+                    Event(result, EventActions.Remove, EventElements.InterfaceReference, false);
+                    result = Execute("update PEInterface set PI_PI = NULL where PI_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
+                    Event(result, EventActions.Remove, EventElements.InterfaceReference, false);
+                    result = Execute("update PERoute set PR_PI = NULL where PR_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
+                    Event(result, EventActions.Remove, EventElements.InterfaceReference, false);
+                    result = Execute("delete from PEInterface where PI_NO = {0}", id);
+                    Event(result, EventActions.Delete, EventElements.Interface, false);
+                    result = Execute("delete from PERouteName where PN_NO = {0}", id);
+                    Event(result, EventActions.Delete, EventElements.VRFReference, false);
+                    result = Execute("delete from PEQOS where PQ_NO = {0}", id);
+                    Event(result, EventActions.Delete, EventElements.QOS, false);
+                }
+                else if (type == "M")
+                {                    
+                    result = Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI in (select MI_ID from MEInterface where MI_NO = {0})", id);
+                    Event(result, EventActions.Remove, EventElements.InterfaceReference, false);
+                    result = Execute("update MEInterface set MI_MI = NULL where MI_MI in (select MI_ID from MEInterface where MI_NO = {0})", id);
+                    Event(result, EventActions.Remove, EventElements.InterfaceReference, false);
+                    result = Execute("update MESDP set MS_TO_NO = NULL where MS_TO_NO = {0}", id);
+                    Event(result, EventActions.Remove, EventElements.NodeReference, false);
+                    result = Execute("delete from MEInterface where MI_NO = {0}", id);
+                    Event(result, EventActions.Delete, EventElements.Interface, false);
+                    result = Execute("delete from MEQOS where MQ_NO = {0}", id);
+                    Event(result, EventActions.Delete, EventElements.QOS, false);
+                    result = Execute("update MEPeer set MP_TO_MC = NULL where MP_TO_MC in (select MC_ID from MECircuit where MC_NO = {0})", id);
+                    Event(result, EventActions.Remove, EventElements.CircuitReference, false);
+                    result = Execute("delete from MEPeer where MP_MC in (select MC_ID from MECircuit where MC_NO = {0})", id);
+                    Event(result, EventActions.Delete, EventElements.Peer, false);
+                    result = Execute("delete from MESDP where MS_NO = {0}", id);
+                    Event(result, EventActions.Delete, EventElements.SDP, false);
+                    result = Execute("delete from MECircuit where MC_NO = {0}", id);
+                    Event(result, EventActions.Delete, EventElements.Circuit, false);
+                    result = Execute("delete from MECustomer where MU_NO = {0}", id);
+                    Event(result, EventActions.Delete, EventElements.ALUCustomer, false);
                 }
             }
         }
@@ -1539,11 +1580,9 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             Event("Manufacture: " + nodeManufacture + "");
             if (nodeModel != null) Event("Model: " + nodeModel);
 
-            DateTime now = DateTime.Now;
-
             Update(UpdateTypes.Remark, null);
             Update(UpdateTypes.RemarkUser, null);
-            Update(UpdateTypes.TimeStamp, now);
+            Update(UpdateTypes.TimeStamp, DateTime.UtcNow);
 
             // check node manufacture
             if (nodeManufacture == alu || nodeManufacture == cso || nodeManufacture == hwe || nodeManufacture == jun) ;
@@ -1625,23 +1664,35 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                             {
                                 Event("Keep " + hostName + ", delete " + nodeName);
                                 Execute("update NodeAlias set NA_NO = {0} where NA_NO = {1}", existingNodeID, nodeID); // move alias to existing
-                                Execute("update PEPOP set PO_NO = {0} where PO_NO = {1}", existingNodeID, nodeID); // move pop to existing
-                                Execute("update PEPOPExt set PX_NO = {0} where PX_NO = {1}", existingNodeID, nodeID); // move popext to existing
+
+                                if (existingType == "P")
+                                {
+                                    Execute("update PEPOP set PO_NO = {0} where PO_NO = {1}", existingNodeID, nodeID); // move pop to existing
+                                    Execute("update PEPOPExt set PX_NO = {0} where PX_NO = {1}", existingNodeID, nodeID); // move popext to existing
+                                }
+
                                 FlushNode(nodeID); // flush current node                                    
                                 Execute("delete from Node where NO_ID = {0}", nodeID); // delete node
                                 if (!Exists("NodeAlias", "NA_Name", nodeName))
                                     Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})", Database.ID(), existingNodeID, nodeName); // new alias to existing node
+
                                 return;
                             }
                             else
                             {
                                 Event("Keep " + nodeName + ", delete " + hostName);
                                 Execute("update NodeAlias set NA_NO = {0} where NA_NO = {1}", nodeID, existingNodeID); // move existing alias to current
-                                Execute("update PEPOP set PO_NO = {0} where PO_NO = {1}", nodeID, existingNodeID); // move existing pop to current
-                                Execute("update PEPOPExt set PX_NO = {0} where PX_NO = {1}", nodeID, existingNodeID); // move existing popext to current
+
+                                if (existingType == "P")
+                                {
+                                    Execute("update PEPOP set PO_NO = {0} where PO_NO = {1}", nodeID, existingNodeID); // move existing pop to current
+                                    Execute("update PEPOPExt set PX_NO = {0} where PX_NO = {1}", nodeID, existingNodeID); // move existing popext to current
+                                }
+
                                 FlushNode(existingNodeID);
                                 Execute("delete from Node where NO_ID = {0}", existingNodeID); // delete existing node
                                 Update(UpdateTypes.Name, hostName); // update current name to the existing
+
                                 nodeName = hostName;
                             }
                         }
@@ -1872,6 +1923,124 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
             #endregion
 
+            #region TIME
+
+            Event("Checking Time");
+
+            bool nodeTimeRetrieved = false;
+            DateTime utcTime = DateTime.UtcNow;
+            DateTime nodeTime = DateTime.MinValue;
+
+            List<string> junShowSystemUptimeLines = null;
+            
+            if (nodeManufacture == alu)
+            {
+                #region alu
+
+                SendLine("show system time");
+                List<string> lines = Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+                
+                foreach (string line in lines)
+                {
+                    if (line.StartsWith("Current Date"))
+                    {
+                        //Current Date & Time : 2016/05/06 23:38:39
+                        //01234567890123456789012345678901234567890
+                        string ps = line.Substring(22, 19);
+                        if (DateTime.TryParseExact(ps, "yyyy/MM/dd HH:mm:ss", null, DateTimeStyles.None, out nodeTime)) { nodeTimeRetrieved = true; }
+                        break;
+                    }
+                }
+
+                #endregion
+            }
+            else if (nodeManufacture == cso)
+            {
+                #region cso
+
+                SendLine("show clock");
+                List<string> lines = Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+
+                foreach (string line in lines)
+                {
+                    if (line.Length > 0 && char.IsDigit(line[0]))
+                    {
+                        string[] ps = line.Split('.');
+                        //00:26:20.139 WIB Sat May 7 2016
+                        string[] pt = ps[1].Split(' ');
+                        if (DateTime.TryParseExact(string.Format("{0} {1} {2} {3}", ps[0], pt[3], pt[4], pt[5]), "HH:mm:ss MMM d yyyy", null, DateTimeStyles.None, out nodeTime)) { nodeTimeRetrieved = true; }
+                        break;
+                    }
+                }
+
+                #endregion
+            }
+            else if (nodeManufacture == hwe)
+            {
+                #region hwe
+
+                SendLine("display clock");
+                List<string> lines = Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+
+                foreach (string line in lines)
+                {
+                    if (line.Length > 0 && line[0] == '2')
+                    {
+                        //2016-05-06 16:52:51+08:00
+                        //0123456789012345678901234
+                        string[] ps = line.Split('+');
+                        if (DateTime.TryParseExact(ps[0], "yyyy-MM-dd HH:mm:ss", null, DateTimeStyles.None, out nodeTime)) { nodeTimeRetrieved = true; }
+                        break;
+                    }
+                }
+
+                #endregion
+            }
+            else if (nodeManufacture == jun)
+            {
+                #region jun
+
+                SendLine("show system uptime");
+                junShowSystemUptimeLines = Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+
+                foreach (string line in junShowSystemUptimeLines)
+                {
+                    if (line.StartsWith("Current time: "))
+                    {
+                        //Current time: 2016-05-07 00:02:48
+                        //0123456789012345678901234567890123456789
+                        string ps = line.Substring(14, 19);
+                        if (DateTime.TryParseExact(ps, "yyyy-MM-dd HH:mm:ss", null, DateTimeStyles.None, out nodeTime)) { nodeTimeRetrieved = true; }
+                        break;
+                    }
+                }
+
+                #endregion
+            }
+
+            if (!nodeTimeRetrieved)
+            {
+                Event("Failure on node time retrieval");
+                SaveExit();
+                return;
+            }
+
+            utcTime = new DateTime(
+                utcTime.Ticks - (utcTime.Ticks % TimeSpan.TicksPerSecond),
+                utcTime.Kind
+                ); // cut millisecond section
+
+            nodeTimeOffset = nodeTime - utcTime;
+            Event("Local time: " + nodeTime.ToString("yyyy/MM/dd HH:mm:ss"));
+            Event("UTC offset: " + nodeTimeOffset.TotalHours + "h");
+            Update(UpdateTypes.TimeOffset, nodeTimeOffset.TotalHours);
+            
+            #endregion
+
             #region TERMINAL SETUP
 
             Event("Setup terminal");
@@ -1880,7 +2049,6 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
             if (nodeManufacture == alu)
             {
-
                 SendLine("environment no saved-ind-prompt", true);
                 Read(out timeout);
                 if (timeout) { SaveExit(); return; }
@@ -1924,7 +2092,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             else
             {
                 DateTime versionTime = row["NO_VersionTime"].ToDateTime();
-                TimeSpan span = now - versionTime;
+                TimeSpan span = utcTime - versionTime;
                 if (span.TotalDays >= 7) checkVersion = true;
             }
 
@@ -2049,6 +2217,8 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 }
                 else if (nodeManufacture == jun)
                 {
+                    #region jun
+
                     SendLine("show version | match \"JUNOS Base OS boot\"");
                     List<string> lines = Read(out timeout);
                     if (timeout) { SaveExit(); return; }
@@ -2062,6 +2232,8 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                             break;
                         }
                     }
+
+                    #endregion
                 }
 
                 if (model != nodeModel)
@@ -2083,7 +2255,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     Event("SubVersion updated: " + subVersion);
                 }
 
-                Update(UpdateTypes.VersionTime, now);
+                Update(UpdateTypes.VersionTime, DateTime.UtcNow);
             }
 
             if (nodeVersion == null)
@@ -2102,9 +2274,8 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             Event("Checking Last Configuration");
 
             bool configurationHasChanged = false;
-            bool lastconfliveisnull = true;
-
-            DateTime lastconflive = DateTime.MinValue;
+            bool lastConfLiveRetrieved = false;
+            DateTime lastConfLive = DateTime.MinValue;
 
             if (nodeManufacture == alu)
             {
@@ -2123,12 +2294,13 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                         //Time Last Modified     : 2
                         //01234567890123456789012345
                         string datetime = line.Substring(25).Trim();
-                        lastconflive = DateTime.Parse(datetime);
-                        lastconflive = new DateTime(
-                            lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
-                            lastconflive.Kind
+                        lastConfLive = DateTime.Parse(datetime);
+                        lastConfLive = new DateTime(
+                            lastConfLive.Ticks - (lastConfLive.Ticks % TimeSpan.TicksPerSecond),
+                            lastConfLive.Kind
                             );
-                        lastconfliveisnull = false;
+                        lastConfLiveRetrieved = true;
+                        break;
                     }
                 }
 
@@ -2146,13 +2318,14 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                             //Time Last Saved        : 2015/01/13 01:13:56
                             //01234567890123456789012345
                             string datetime = line.Substring(25).Trim();
-                            if (DateTime.TryParse(datetime, out lastconflive))
+                            if (DateTime.TryParse(datetime, out lastConfLive))
                             {
-                                lastconflive = new DateTime(
-                                    lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
-                                    lastconflive.Kind
+                                lastConfLive = new DateTime(
+                                    lastConfLive.Ticks - (lastConfLive.Ticks % TimeSpan.TicksPerSecond),
+                                    lastConfLive.Kind
                                     );
-                                lastconfliveisnull = false;
+                                lastConfLiveRetrieved = true;
+                                break;
                             }
                         }
                     }
@@ -2162,27 +2335,55 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             else if (nodeManufacture == hwe)
             {
                 #region hwe
-                SendLine("display changed-configuration time");
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
 
-                foreach (string line in lines)
+                if (nodeVersion == "8.80")
                 {
-                    if (line.StartsWith("The time"))
-                    {
-                        string dateparts = line.Substring(line.IndexOf(':') + 1);
+                    SendLine("display configuration commit list 1");
+                    List<string> lines = Read(out timeout);
+                    if (timeout) { SaveExit(); return; }
 
-                        if (dateparts != null)
+                    foreach (string line in lines)
+                    {
+                        if (line.Length > 0 && char.IsDigit(line[0]))
                         {
-                            if (DateTime.TryParse(dateparts, out lastconflive))
+                            //1    1000000583    -                    850106          2016-05-04 16:32:38+07:00
+                            //0123456789012345678901234567890123456789012345678901234567890123456789
+                            //          1         2         3         4         5         6
+                            string ps = line.Substring(56, 19);
+                            if (DateTime.TryParseExact(ps, "yyyy-MM-dd HH:mm:ss", null, DateTimeStyles.None, out lastConfLive)) lastConfLiveRetrieved = true;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    SendLine("display changed-configuration time");
+                    List<string> lines = Read(out timeout);
+                    if (timeout) { SaveExit(); return; }
+
+                    StringBuilder datesection = null;
+                    foreach (string line in lines)
+                    {
+                        //The time when system configuration has been changed lastly is:May 06 2016 03:28:39
+                        if (line.StartsWith("The time"))
+                        {
+                            int colon = line.IndexOf(':');
+                            if (colon < line.Length - 1)
                             {
-                                lastconflive = new DateTime(
-                                    lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
-                                    lastconflive.Kind
-                                    );
-                                lastconfliveisnull = false;
+                                datesection = new StringBuilder();
+                                datesection.Append(line.Substring(colon + 1));
                             }
                         }
+                        else if (datesection != null)
+                        {
+                            if (!line.StartsWith(terminal))
+                                datesection.Append(line);
+                        }
+                    }
+
+                    if (datesection != null)
+                    {
+                        if (DateTime.TryParseExact(datesection.ToString(), "MMM dd yyyy HH:mm:ss", null, DateTimeStyles.None, out lastConfLive)) lastConfLiveRetrieved = true;
                     }
                 }
                 #endregion
@@ -2210,13 +2411,14 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                                 //Fri Jan 16 11:18:46 2015
                                 string[] dates = dateparts.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
 
-                                if (DateTime.TryParse(dates[1] + " " + dates[2] + " " + dates[4] + " " + dates[3], out lastconflive))
+                                if (DateTime.TryParse(dates[1] + " " + dates[2] + " " + dates[4] + " " + dates[3], out lastConfLive))
                                 {
-                                    lastconflive = new DateTime(
-                                        lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
-                                        lastconflive.Kind
+                                    lastConfLive = new DateTime(
+                                        lastConfLive.Ticks - (lastConfLive.Ticks % TimeSpan.TicksPerSecond),
+                                        lastConfLive.Kind
                                         );
-                                    lastconfliveisnull = false;
+                                    lastConfLiveRetrieved = true;
+                                    break;
                                 }
                             }
                         }
@@ -2245,15 +2447,16 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                             string dateparts = line.Substring(31).Trim();
                             if (dateparts != null)
                             {
-                                if (DateTime.TryParse(dateparts, out lastconflive))
+                                if (DateTime.TryParse(dateparts, out lastConfLive))
                                 {
                                     Event("Using configuration id");
                                     passed = true;
-                                    lastconflive = new DateTime(
-                                        lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
-                                        lastconflive.Kind
+                                    lastConfLive = new DateTime(
+                                        lastConfLive.Ticks - (lastConfLive.Ticks % TimeSpan.TicksPerSecond),
+                                        lastConfLive.Kind
                                         );
-                                    lastconfliveisnull = false;
+                                    lastConfLiveRetrieved = true;
+                                    break;
                                 }
                             }
                             break;
@@ -2293,8 +2496,8 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                             {
                                 Event("Using configuration history");
                                 passed = true;
-                                lastconflive = parsedDT;
-                                lastconfliveisnull = false;
+                                lastConfLive = parsedDT;
+                                lastConfLiveRetrieved = true;
                             }
                         }
                     }
@@ -2335,8 +2538,8 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                                     parsedDT = DateTime.Parse(datestrrev);
                                 }
 
-                                lastconflive = parsedDT;
-                                lastconfliveisnull = false;
+                                lastConfLive = parsedDT;
+                                lastConfLiveRetrieved = true;
                             }
                         }
                     }
@@ -2370,8 +2573,8 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                                 {
                                     Event("Using running configuration");
                                     passed = true;
-                                    lastconflive = parsedDT;
-                                    lastconfliveisnull = false;
+                                    lastConfLive = parsedDT;
+                                    lastConfLiveRetrieved = true;
                                 }
                                 break;
                             }
@@ -2385,47 +2588,37 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             else if (nodeManufacture == jun)
             {
                 #region jun
-                SendLine("show system uptime | match \"Last configured\"");
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
-
-                foreach (string line in lines)
+                foreach (string line in junShowSystemUptimeLines)
                 {
                     if (line.StartsWith("Last configured: "))
                     {
                         //Last configured: 2015-01-20 09:53:54
                         //0123456789012345678901234567890123456789
-                        string lineTrim = line.Substring(17).Trim();
-                        string[] linex = lineTrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-
-                        if (DateTime.TryParse(linex[0] + " " + linex[1], out lastconflive))
-                        {
-                            lastconflive = new DateTime(
-                                lastconflive.Ticks - (lastconflive.Ticks % TimeSpan.TicksPerSecond),
-                                lastconflive.Kind
-                                );
-                            lastconfliveisnull = false;
-                        }
+                        string ps = line.Substring(17, 19);
+                        if (DateTime.TryParseExact(ps, "yyyy-MM-dd HH:mm:ss", null, DateTimeStyles.None, out lastConfLive)) { lastConfLiveRetrieved = true; }
                         break;
                     }
                 }
                 #endregion
             }
 
-            DateTime lastconfdb = row["NO_LastConfiguration"].ToDateTime();
+            DateTime lastConfDB = row["NO_LastConfiguration"].ToDateTime();
 
-            if (lastconfliveisnull == false)
+            if (!lastConfLiveRetrieved)
             {
-                Event("Saved last configuration on " + lastconfdb.ToString("yy/MM/dd HH:mm:ss.fff"));
-                Event("Actual last configuration on " + lastconflive.ToString("yy/MM/dd HH:mm:ss.fff"));
+                Event("Failure on last configuration retrieval");
+                SaveExit();
+                return;
             }
 
-            if (lastconfliveisnull == false && lastconflive != lastconfdb)
+            lastConfLive = lastConfLive - nodeTimeOffset;
+            Event("Saved: " + lastConfDB.ToString("yyyy/MM/dd HH:mm:ss") + " UTC");
+            Event("Actual: " + lastConfLive.ToString("yyyy/MM/dd HH:mm:ss") + " UTC");
+
+            if (lastConfLive != lastConfDB)
             {
                 Event("Configuration has changed!");
-                Update(UpdateTypes.LastConfiguration, lastconflive);
-
-                //continueProcess = true;
+                Update(UpdateTypes.LastConfiguration, lastConfLive);
                 configurationHasChanged = true;
             }
             else
@@ -3169,7 +3362,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 batch.Execute("insert into ServiceCustomer(SC_ID, SC_CID, SC_Name) values({0}, {1}, {2})", s.ID, s.CID, s.Name);
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " customer(s) have been added");
+            Event(result, EventActions.Add, EventElements.Customer, false);
 
             // CUSTOMER UPDATE
             batch.Begin();
@@ -3178,7 +3371,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 batch.Execute("update ServiceCustomer set SC_Name = {0} where SC_ID = {1}", s.Name, s.ID);
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " customer(s) have been updated");
+            Event(result, EventActions.Update, EventElements.Customer, false);
 
             // SERVICE ADD
             batch.Begin();
@@ -3187,7 +3380,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 batch.Execute("insert into Service(SE_ID, SE_SID, SE_SC, SE_Type, SE_SubType, SE_Raw_Desc) values({0}, {1}, {2}, {3}, {4}, {5})", s.ID, s.SID, s.CustomerID, s.Type, s.SubType, s.RawDesc);
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " service(s) have been added");
+            Event(result, EventActions.Add, EventElements.Service, false);
 
             // SERVICE UPDATE
             batch.Begin();
@@ -3196,38 +3389,43 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 batch.Execute("update Service set SE_Type = {0}, SE_SubType = {1} where SE_ID = {2}", s.Type, s.SubType, s.ID);
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " service(s) have been updated");
+            Event(result, EventActions.Update, EventElements.Service, false);
         }
 
         private bool findMEPhysicalAdjacentLoaded = false;
-        private List<Tuple<string, List<Tuple<string, string, string>>>> MEPEAdjacent = null;
+        private List<Tuple<string, List<Tuple<string, string, string, string>>>> MEPEAdjacent = null;
         private Dictionary<string, List<string>> meAlias = null;
         private Dictionary<string, string[]> MEInterfaceTestPrefix = null;
 
         private void FindMEPhysicalAdjacent(MEInterfaceToDatabase li)
         {
             int exid;
+
+            if (li.AdjacentIDChecked == true) return;
+
             string description = li.Description;
             if (description == null) return;
-            description = description.ToUpper().Replace('_', ' ');
+            else description = description.ToUpper().Replace('_', ' ');
+
+            li.AdjacentIDChecked = true;
 
             #region Loader
 
             if (!findMEPhysicalAdjacentLoaded)
             {
                 Result result = Query(@"
-select NO_Name, LEN(NO_Name) as NO_LEN, PI_Name, LEN(PI_Name) as PI_LEN, PI_ID, PI_Description from (
+select NO_Name, LEN(NO_Name) as NO_LEN, PI_Name, LEN(PI_Name) as PI_LEN, PI_ID, PI_Description, PI_PI from (
 select NO_Name, NO_ID from Node where NO_Type = 'P'
 union
 select NA_Name, NA_NO from NodeAlias, Node where NA_NO = NO_ID and NO_Type = 'P'
 ) n, PEInterface
 where NO_ID = PI_NO and PI_Description is not null and ltrim(rtrim(PI_Description)) <> '' and PI_Name not like '%.%' and
-(PI_Name like 'Te%' or PI_Name like 'Gi%' or PI_Name like 'Fa%' or PI_Name like 'Et%')
+(PI_Name like 'Te%' or PI_Name like 'Gi%' or PI_Name like 'Fa%' or PI_Name like 'Et%' or PI_Name like 'Ag%')
 order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
 ");
 
-                MEPEAdjacent = new List<Tuple<string, List<Tuple<string, string, string>>>>();
-                List<Tuple<string, string, string>> curlist = new List<Tuple<string, string, string>>();
+                MEPEAdjacent = new List<Tuple<string, List<Tuple<string, string, string, string>>>>();
+                List<Tuple<string, string, string, string>> curlist = new List<Tuple<string, string, string, string>>();
                 string curnoname = null;
                 foreach (Row row in result)
                 {
@@ -3235,20 +3433,21 @@ order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
                     string piname = row["PI_Name"].ToString();
                     string pidesc = row["PI_Description"].ToString();
                     string piid = row["PI_ID"].ToString();
+                    string pipi = row["PI_PI"].ToString();
 
                     if (curnoname != noname)
                     {
                         if (curnoname != null)
                         {
-                            MEPEAdjacent.Add(new Tuple<string, List<Tuple<string, string, string>>>(curnoname, new List<Tuple<string, string, string>>(curlist)));
+                            MEPEAdjacent.Add(new Tuple<string, List<Tuple<string, string, string, string>>>(curnoname, new List<Tuple<string, string, string, string>>(curlist)));
                             curlist.Clear();
                         }
                         curnoname = noname;                  
                     }
 
-                    curlist.Add(new Tuple<string, string, string>(piname, pidesc, piid));
+                    curlist.Add(new Tuple<string, string, string, string>(piname, pidesc, piid, pipi));
                 }
-                MEPEAdjacent.Add(new Tuple<string, List<Tuple<string, string, string>>>(curnoname, curlist));
+                MEPEAdjacent.Add(new Tuple<string, List<Tuple<string, string, string, string>>>(curnoname, curlist));
 
                 result = Query(@"
 select NO_ID, NA_Name from Node, NodeAlias where NA_NO = NO_ID and NO_Type = 'M'
@@ -3265,10 +3464,11 @@ order by NO_ID asc
 
                 MEInterfaceTestPrefix = new Dictionary<string, string[]>();
                 MEInterfaceTestPrefix.Add("Hu", new string[] { "H", "HU" });
-                MEInterfaceTestPrefix.Add("Te", new string[] { "T", "TE", "TENGIGE" });
-                MEInterfaceTestPrefix.Add("Gi", new string[] { "G", "GI", "GE", "GIGAE", "GIGABITETHERNET" });
+                MEInterfaceTestPrefix.Add("Te", new string[] { "T", "TE", "TENGIGE", "GI" }); // kadang Te-gig direfer sebagai Gi dammit people
+                MEInterfaceTestPrefix.Add("Gi", new string[] { "G", "GI", "GE", "GIGAE", "GIGABITETHERNET", "TE" }); // kadang Te-gig direfer sebagai Gi dammit people
                 MEInterfaceTestPrefix.Add("Fa", new string[] { "F", "FA", "FE", "FASTE" });
                 MEInterfaceTestPrefix.Add("Et", new string[] { "E", "ET", "ETH" });
+                MEInterfaceTestPrefix.Add("Ag", new string[] { "LAG", "ETH-TRUNK", "BE" });
 
                 findMEPhysicalAdjacentLoaded = true;
             }
@@ -3284,26 +3484,29 @@ order by NO_ID asc
 
             bool foundnode = false;
 
-            foreach (Tuple<string, List<Tuple<string, string, string>>> pe in MEPEAdjacent)
+            foreach (Tuple<string, List<Tuple<string, string, string, string>>> pe in MEPEAdjacent)
             {
                 string peName = pe.Item1;
-                List<Tuple<string, string, string>> pis = pe.Item2;
+                
+                List<Tuple<string, string, string, string>> pis = pe.Item2;
 
                 int peNamePart = description.IndexOf(peName);
+
                 if (peNamePart > -1)
                 {
                     foundnode = true;
                     string descPEPart = description.Substring(peNamePart);
-                    Tuple<string, string, string> matchedPI = null;
+                    Tuple<string, string, string, string> matchedPI = null;
 
                     #region Find in currently available PI
 
                     int locPI = descPEPart.Length;
-                    foreach (Tuple<string, string, string> pi in pis)
+                    foreach (Tuple<string, string, string, string> pi in pis)
                     {
                         string piName = pi.Item1;
                         string piType = piName.Substring(0, 2);
                         string piDetail = piName.Substring(2);
+                        string pipi = pi.Item4;
 
                         List<string> testIf = new List<string>();
                         string[] prefixs = MEInterfaceTestPrefix[piType];
@@ -3390,29 +3593,30 @@ order by NO_ID asc
                             }
 
                             if (foundinterface)
-                            {
+                            {                                
                                 li.AdjacentID = matchedPI.Item3;
 
-                                li.AdjacentSubifID = new Dictionary<string, string>();
-
-                                // find pi child
-                                Result result = Query("select PI_ID, PI_Name from PEInterface where PI_PI = {0}", li.AdjacentID);
-                                foreach (Row row in result)
+                                if (li.Aggr != -1) // anak agregator ga mgkn punya anak sendiri
                                 {
-                                    string spiid = row["PI_ID"].ToString();
-                                    string spiname = row["PI_Name"].ToString();
-
-                                    int dot = spiname.IndexOf('.');
-                                    if (dot > -1 && spiname.Length > (dot + 1))
+                                    // daftar parentnya juga untuk ditangkap di aggr pencari anak
+                                    li.AggrAdjacentParentID = matchedPI.Item4;
+                                }
+                                else
+                                {
+                                    // find pi child
+                                    li.AdjacentSubifID = new Dictionary<string, string>();
+                                    Result result = Query("select PI_ID, PI_Name from PEInterface where PI_PI = {0}", li.AdjacentID);
+                                    foreach (Row row in result)
                                     {
-                                        string sifname = spiname.Substring(dot + 1);
-                                        if (!li.AdjacentSubifID.ContainsKey(sifname))
+                                        string spiname = row["PI_Name"].ToString();
+                                        int dot = spiname.IndexOf('.');
+                                        if (dot > -1 && spiname.Length > (dot + 1))
                                         {
-                                            li.AdjacentSubifID.Add(sifname, spiid);
+                                            string sifname = spiname.Substring(dot + 1);
+                                            if (!li.AdjacentSubifID.ContainsKey(sifname)) li.AdjacentSubifID.Add(sifname, row["PI_ID"].ToString());
                                         }
                                     }
                                 }
-
                             }
                         }
 

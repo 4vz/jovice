@@ -105,6 +105,22 @@ namespace Jovice
 
     class PEInterfaceToDatabase : ElementToDatabase
     {
+        private int aggr = -1;
+
+        public int Aggr
+        {
+            get { return aggr; }
+            set { aggr = value; }
+        }
+
+        private bool updateAggr = false;
+
+        public bool UpdateAggr
+        {
+            get { return updateAggr; }
+            set { updateAggr = value; }
+        }
+
         private string routeID;
 
         public string RouteID
@@ -366,8 +382,8 @@ namespace Jovice
             List<PERouteNameToDatabase> routenameinsert = new List<PERouteNameToDatabase>();
             List<PERouteNameToDatabase> routenameupdate = new List<PERouteNameToDatabase>();
 
-            
-
+            List<string> hweDisplayIPVPNInstanceVerboseLines = null;
+                   
             Event("Checking VRF");
 
             #region Live
@@ -527,12 +543,13 @@ namespace Jovice
                 string RDIPv6 = null;
                 List<string> routeTargets = new List<string>();
 
-                SendLine("display ip vpn-instance verbose | include VPN-Instance Name and ID|Address family|Export VPN Targets|Import VPN Targets|Route Distinguisher");
+                // | include VPN-Instance Name and ID|Address family|Export VPN Targets|Import VPN Targets|Route Distinguisher
+                SendLine("display ip vpn-instance verbose");
                 bool timeout;
-                List<string> lines = Read(out timeout);
+                hweDisplayIPVPNInstanceVerboseLines = Read(out timeout);
                 if (timeout) { SaveExit(); return; }
 
-                foreach (string line in lines)
+                foreach (string line in hweDisplayIPVPNInstanceVerboseLines)
                 {
                     string linetrim = line.Trim();
 
@@ -795,7 +812,7 @@ namespace Jovice
 
                 if (nodeVersion == xr)
                 {
-                    #region asr
+                    #region xr
 
                     SendLine("show policy-map list | in PolicyMap");
                     bool timeout;
@@ -811,9 +828,12 @@ namespace Jovice
                             int spaceAfterName = line.IndexOf(' ', sta);
                             string name = line.Substring(sta, spaceAfterName - sta);
 
-                            PEQOSToDatabase i = new PEQOSToDatabase();
-                            i.Name = name;
-                            qoslive.Add(name, i);
+                            PEQOSToDatabase li = new PEQOSToDatabase();
+                            li.Name = name;
+                            NodeQOSCSO qos = NodeQOSCSO.Parse(li.Name);
+                            li.Package = qos.Package;
+                            li.Bandwidth = qos.Bandwidth;
+                            qoslive.Add(name, li);
                         }
                     }
 
@@ -821,7 +841,7 @@ namespace Jovice
                 }
                 else
                 {
-                    #region !asr
+                    #region !xr
 
                     SendLine("show policy-map | in Policy Map");
                     bool timeout;
@@ -836,9 +856,12 @@ namespace Jovice
                         {
                             string name = lineTrim.Substring(11);
 
-                            PEQOSToDatabase i = new PEQOSToDatabase();
-                            i.Name = name;
-                            qoslive.Add(name, i);
+                            PEQOSToDatabase li = new PEQOSToDatabase();
+                            li.Name = name;
+                            NodeQOSCSO qos = NodeQOSCSO.Parse(li.Name);
+                            li.Package = qos.Package;
+                            li.Bandwidth = qos.Bandwidth;
+                            qoslive.Add(name, li);
                         }
                     }
                     #endregion
@@ -850,6 +873,38 @@ namespace Jovice
             {
                 #region hwe
 
+                // not tested, pe hwe still dont use this
+                SendLine("display qos-profile configuration");
+                bool timeout;
+                List<string> lines = Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+
+                bool qosCollect = false;
+                foreach (string line in lines)
+                {
+                    string lineTrim = line.Trim();
+
+                    if (qosCollect == false)
+                    {
+                        if (lineTrim.StartsWith("qos-profile-name")) qosCollect = true;
+                    }
+                    else
+                    {
+                        string[] linex = lineTrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                        if (linex.Length == 2)
+                        {
+                            string name = linex[0];
+                            string used = linex[1];
+
+                            PEQOSToDatabase li = new PEQOSToDatabase();
+                            li.Name = name;
+                            NodeQOSHWE qos = NodeQOSHWE.Parse(li.Name);
+                            li.Bandwidth = qos.Bandwidth;
+                            qoslive.Add(name, li);
+                        }
+                    }
+                }
                 #endregion
             }
 
@@ -862,15 +917,12 @@ namespace Jovice
                 PEQOSToDatabase li = pair.Value;
 
                 if (!qosdb.ContainsKey(pair.Key))
-                { 
-                    NodeQOSPE qos = NodeQOSPE.Parse(li.Name);
-                    li.Package = qos.Package;
-                    li.Bandwidth = qos.Bandwidth;
-                    
+                {
                     Event("QOS ADD: " + li.Name + " (" + (li.Package == null ? "-" : li.Package) + ", " +
                         (li.Bandwidth == -1 ? "-" : (li.Bandwidth + "K")) + ")");
+
                     li.ID = Database.ID();
-                    qosinsert.Add(pair.Value);
+                    qosinsert.Add(li);
                 }
             }
 
@@ -1709,15 +1761,49 @@ namespace Jovice
                 {
                     if (!interfacelive.ContainsKey(port))
                     {
-                        //MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
-                        //mid.Name = port;
-                        //mid.Description = description.ToString();
-
-                        //interfacelive.Add(port, mid);
+                        PEInterfaceToDatabase pid = new PEInterfaceToDatabase();
+                        pid.Name = port;
+                        pid.Description = description.ToString();
+                        pid.Status = (status == "up" || status == "up(s)") ? 1 : 0;
+                        pid.Protocol = (status == "up" || status == "up(s)") ? 1 : 0;
+                        interfacelive.Add(port, pid);
                     }
+                }
 
-                    description = new StringBuilder();
-                    port = null;
+                SendLine("display interface brief");
+                lines = Read(out timeout);
+                if (timeout) { SaveExit(); return; }
+
+                begin = false;
+                int aggr = -1;
+
+                foreach (string line in lines)
+                {
+                    if (begin)
+                    {
+                        string poe = line.Trim().Split(StringSplitTypes.Space)[0].Trim();
+
+                        if (aggr > -1 && line.StartsWith(" "))
+                        {
+                            if (!poe.StartsWith("Eth-Trunk"))
+                            {
+                                NodeInterface inf = NodeInterface.Parse(poe);
+                                if (inf != null) interfacelive[inf.GetShort()].Aggr = aggr;
+                            }
+                        }
+                        else
+                        {
+                            aggr = -1;
+                            if (poe.StartsWith("Eth-Trunk") && poe.IndexOf('.') == -1)
+                            {
+                                if (!int.TryParse(poe.Substring(9), out aggr)) aggr = -1;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (line.StartsWith("Interface")) begin = true;
+                    }
                 }
 
                 #endregion
@@ -1751,9 +1837,8 @@ namespace Jovice
                 }
             }
 
-
-            int sinf = 0, sinfup = 0, sinfhu = 0, sinfhuup = 0, sinfte = 0, sinfteup = 0, sinfgi = 0, sinfgiup = 0, sinffa = 0, sinffaup = 0, sinfet = 0, sinfetup = 0, sinfse = 0, sinfseup = 0,
-                ssubinf = 0, ssubinfup = 0, ssubinfupup = 0, ssubinfhu = 0, ssubinfhuup = 0, ssubinfhuupup = 0, ssubinfte = 0, ssubinfteup = 0, ssubinfteupup = 0, ssubinfgi = 0, ssubinfgiup = 0, ssubinfgiupup = 0, ssubinffa = 0, ssubinffaup = 0, ssubinffaupup = 0, ssubinfet = 0, ssubinfetup = 0, ssubinfetupup = 0;
+            int sinf = 0, sinfup = 0, sinfhu = 0, sinfag = 0, sinfhuup = 0, sinfte = 0, sinfteup = 0, sinfgi = 0, sinfgiup = 0, sinffa = 0, sinffaup = 0, sinfet = 0, sinfetup = 0, sinfse = 0, sinfseup = 0,
+                ssubinf = 0, ssubinfup = 0, ssubinfupup = 0, ssubinfag = 0, ssubinfagup = 0, ssubinfagupup = 0, ssubinfhu = 0, ssubinfhuup = 0, ssubinfhuupup = 0, ssubinfte = 0, ssubinfteup = 0, ssubinfteupup = 0, ssubinfgi = 0, ssubinfgiup = 0, ssubinfgiupup = 0, ssubinffa = 0, ssubinffaup = 0, ssubinffaupup = 0, ssubinfet = 0, ssubinfetup = 0, ssubinfetupup = 0;
 
             foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
             {
@@ -1781,6 +1866,12 @@ namespace Jovice
                         if (inftype == "Gi") { ssubinfgi++; if (li.Status == 1) { ssubinfgiup++; if (li.Protocol == 1) ssubinfgiupup++; } }
                         if (inftype == "Fa") { ssubinffa++; if (li.Status == 1) { ssubinffaup++; if (li.Protocol == 1) ssubinffaupup++; } }
                         if (inftype == "Et") { ssubinfet++; if (li.Status == 1) { ssubinfetup++; if (li.Protocol == 1) ssubinfetupup++; } }
+                        if (inftype == "Ag") { ssubinfag++; if (li.Status == 1) { ssubinfagup++; if (li.Protocol == 1) ssubinfagupup++; } }
+                    }
+                    else if (li.Aggr != -1)
+                    {
+                        parentPort = "Ag" + li.Aggr;
+                        sinfag++;
                     }
                     else
                     {
@@ -1912,6 +2003,13 @@ namespace Jovice
                         u.Protocol = li.Protocol;
                         updateinfo.Append("prot ");
                     }
+                    if (db["PI_Aggregator"].ToInt(-1) != li.Aggr)
+                    {
+                        update = true;
+                        u.UpdateAggr = true;
+                        u.Aggr = li.Aggr;
+                        updateinfo.Append("aggr ");
+                    }
                     if (db["PI_PN"].ToString() != li.RouteID)
                     {
                         update = true;
@@ -1933,14 +2031,14 @@ namespace Jovice
                         u.OutputQOSID = li.OutputQOSID;
                         updateinfo.Append("qout ");
                     }
-                    if (li.RateLimitInput != db["PI_Rate_Input"].ToInt(-1))
+                    if (db["PI_Rate_Input"].ToInt(-1) != li.RateLimitInput)
                     {
                         update = true;
                         u.UpdateRateLimitInput = true;
                         u.RateLimitInput = li.RateLimitInput;
                         updateinfo.Append("rin ");
                     }
-                    if (li.RateLimitOutput != db["PI_Rate_Output"].ToInt(-1))
+                    if (db["PI_Rate_Output"].ToInt(-1) != li.RateLimitOutput)
                     {
                         update = true;
                         u.UpdateRateLimitOutput = true;
@@ -1975,7 +2073,7 @@ namespace Jovice
                         u.CirTotalOutput = li.CirTotalOutput;
                         updateinfo.Append("cirout ");
                     }
-                    if (db["PI_Summary_SubInterfaceCount"].ToInt(-1) != li.SubInterfaceCount)
+                    if (db["PI_Summary_SubInterfaceCount"].ToSmall(-1) != li.SubInterfaceCount)
                     {
                         update = true;
                         u.UpdateSubInterfaceCount = true;
@@ -2064,9 +2162,13 @@ namespace Jovice
             Summary("INTERFACE_COUNT_FA_UP", sinffaup);
             Summary("INTERFACE_COUNT_SE", sinfse);
             Summary("INTERFACE_COUNT_SE_UP", sinfseup);
+            Summary("INTERFACE_COUNT_AG", sinfag);
             Summary("SUBINTERFACE_COUNT", ssubinf);
             Summary("SUBINTERFACE_COUNT_UP", ssubinfup);
             Summary("SUBINTERFACE_COUNT_UP_UP", ssubinfupup);
+            Summary("SUBINTERFACE_COUNT_AG", ssubinfag);
+            Summary("SUBINTERFACE_COUNT_AG_UP", ssubinfagup);
+            Summary("SUBINTERFACE_COUNT_AG_UP_UP", ssubinfagupup);
             Summary("SUBINTERFACE_COUNT_HU", ssubinfhu);
             Summary("SUBINTERFACE_COUNT_HU_UP", ssubinfhuup);
             Summary("SUBINTERFACE_COUNT_HU_UP_UP", ssubinfhuupup);
@@ -2093,7 +2195,7 @@ namespace Jovice
             foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfaceinsert)
             {
                 PEInterfaceToDatabase s = pair.Value;
-                batch.Execute("insert into PEInterface(PI_ID, PI_NO, PI_Name, PI_Status, PI_Protocol, PI_Description, PI_PN, PI_PQ_Input, PI_PQ_Output, PI_SE, PI_PI, PI_TO_MI, PI_Rate_Input, PI_Rate_Output, PI_Summary_CIRConfigTotalInput, PI_Summary_CIRConfigTotalOutput, PI_Summary_CIRTotalInput, PI_Summary_CIRTotalOutput, PI_Summary_SubInterfaceCount) values({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, " + ((s.RateLimitInput == -1) ? "NULL" : (s.RateLimitInput + "")) + ", " + ((s.RateLimitOutput == -1) ? "NULL" : (s.RateLimitOutput + "")) +
+                batch.Execute("insert into PEInterface(PI_ID, PI_NO, PI_Name, PI_Status, PI_Protocol, PI_Aggregator, PI_Description, PI_PN, PI_PQ_Input, PI_PQ_Output, PI_SE, PI_PI, PI_TO_MI, PI_Rate_Input, PI_Rate_Output, PI_Summary_CIRConfigTotalInput, PI_Summary_CIRConfigTotalOutput, PI_Summary_CIRTotalInput, PI_Summary_CIRTotalOutput, PI_Summary_SubInterfaceCount) values({0}, {1}, {2}, {3}, {4}, " + (s.Aggr == -1 ? "NULL" : s.Aggr + "") + ", {5}, {6}, {7}, {8}, {9}, {10}, {11}, " + ((s.RateLimitInput == -1) ? "NULL" : (s.RateLimitInput + "")) + ", " + ((s.RateLimitOutput == -1) ? "NULL" : (s.RateLimitOutput + "")) +
                     ", " + (s.CirConfigTotalInput == -1 ? "NULL" : (s.CirConfigTotalInput + "")) + ", " + (s.CirConfigTotalOutput == -1 ? "NULL" : (s.CirConfigTotalOutput + "")) + ", " + (s.CirTotalInput == -1 ? "NULL" : (s.CirTotalInput + "")) + ", " + (s.CirTotalOutput == -1 ? "NULL" : (s.CirTotalOutput + "")) +
                     ", " + (s.SubInterfaceCount == -1 ? "NULL" : (s.SubInterfaceCount + "")) +
                     ")",
@@ -2123,6 +2225,13 @@ namespace Jovice
                 }
                 if (s.UpdateStatus) v.Add("PI_Status = " + s.Status);
                 if (s.UpdateProtocol) v.Add("PI_Protocol = " + s.Protocol);
+                if (s.UpdateAggr)
+                {
+                    if (s.Aggr == -1)
+                        v.Add("PI_Aggregator = NULL");
+                    else
+                        v.Add("PI_Aggregator = " + s.Aggr);
+                }
                 if (s.UpdateRouteID) v.Add(Format("PI_PN = {0}", s.RouteID));
                 if (s.UpdateInputQOSID) v.Add(Format("PI_PQ_Input = {0}", s.InputQOSID));
                 if (s.UpdateOutputQOSID) v.Add(Format("PI_PQ_Output = {0}", s.OutputQOSID));
@@ -2205,6 +2314,7 @@ namespace Jovice
                     Event("Interface DELETE: " + pair.Key);
                     string id = pair.Value["PI_ID"].ToString();
                     batch.Execute("update MEInterface set MI_TO_PI = NULL where MI_TO_PI = {0}", id);
+                    batch.Execute("update PERoute set PR_PI = NULL where PR_PI = {0}", id);
                     batch.Execute("update PEInterface set PI_PI = NULL where PI_PI = {0}", id);
                     interfacedelete.Add(id);
                 }

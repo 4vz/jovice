@@ -41,9 +41,6 @@
     <Reference Include="AjaxMin">
       <HintPath>..\_External\AjaxMin.dll</HintPath>
     </Reference>
-    <Reference Include="Oracle.DataAccess">
-      <HintPath>..\_External\Oracle.DataAccess.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.configuration" />
     <Reference Include="System.Core" />

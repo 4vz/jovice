@@ -106,6 +106,9 @@ namespace Aphysoft.Common
             int count = lines.Count;
             Result result = new Result(null);
 
+            Stopwatch elapsed = new Stopwatch();
+            elapsed.Restart();
+
             if (count > 0)
             {
                 int index = 0;
@@ -125,7 +128,6 @@ namespace Aphysoft.Common
                             break;
                         }
                         batch.Clear();
-
                         result.AffectedRows = result.AffectedRows + currentResult.AffectedRows;
                     }
                 }
@@ -137,6 +139,8 @@ namespace Aphysoft.Common
                     result.AffectedRows = result.AffectedRows + currentResult.AffectedRows;
                 }
             }
+
+            result.ExecutionTime = elapsed.Elapsed;
 
             return result;
         }
@@ -1378,6 +1382,10 @@ namespace Aphysoft.Common
         {
             if (value.GetType() == typeof(Int64))
                 return GetValue<Int64>();
+            else if (value.GetType() == typeof(int))
+                return GetValue<int>();
+            else if (value.GetType() == typeof(Int16))
+                return GetValue<Int16>();
             else if (value.GetType() == typeof(decimal))
                 return (int)GetValue<decimal>();
             else
@@ -1394,6 +1402,8 @@ namespace Aphysoft.Common
         {
             if (value.GetType() == typeof(int))
                 return GetValue<int>();
+            else if (value.GetType() == typeof(Int16))
+                return GetValue<Int16>();
             else if (value.GetType() == typeof(decimal))
                 return (int)GetValue<decimal>();
             else

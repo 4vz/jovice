@@ -88,6 +88,14 @@ namespace Jovice
             set { subInterface = value; }
         }
 
+        private int subSubInterface = -1;
+
+        public int SubSubInterface
+        {
+            get { return subSubInterface; }
+            set { subSubInterface = value; }
+        }
+
         #endregion
 
         #region Constructors
@@ -164,6 +172,7 @@ namespace Jovice
                         string port = null;
                         int channel = -1;
                         int subif = -1;
+                        int subsubif = -1;
                         string rest = input.Substring(portIndexOf);
 
                         // cek huawei weirdness to define TenGig, it used GE and ends with (10G).
@@ -176,10 +185,15 @@ namespace Jovice
                         // cek subinterface
                         string[] restbydot = rest.Split(new char[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
 
-                        if (restbydot.Length == 2)
+                        if (restbydot.Length >= 2)
                         {
                             rest = restbydot[0];
                             if (restbydot[1] == "DIRECT") subif = 0;
+                            else if (restbydot.Length > 2)
+                            {
+                                if (!int.TryParse(restbydot[1], out subif)) subif = -1;
+                                if (!int.TryParse(restbydot[2], out subsubif)) subsubif = -1;
+                            }
                             else if (!int.TryParse(restbydot[1], out subif)) subif = -1;
                         }
 
@@ -246,7 +260,7 @@ namespace Jovice
                             ci.ShortType = "Lo";
                             ci.CodeType = "L";
                         }
-                        else if (interfaceType == "t" || interfaceType == "te" || interfaceType == "tengige")
+                        else if (interfaceType == "t" || interfaceType == "te" || interfaceType == "tengige" || interfaceType == "xe")
                         {
                             ci.Type = "TenGigE";
                             ci.ShortType = "Te";
@@ -268,7 +282,7 @@ namespace Jovice
                         {
                             ci.Type = "UnspecifiedInterface";
                             ci.ShortType = "Ex";
-                            ci.CodeType = "X";
+                            ci.CodeType = "U";
                         }
                         else interfaceIdentified = false;
 
@@ -277,6 +291,7 @@ namespace Jovice
                             ci.Port = port;
                             ci.Channel = channel;
                             ci.SubInterface = subif;
+                            ci.SubSubInterface = subsubif;
 
                             return ci;
                         }

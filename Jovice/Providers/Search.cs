@@ -321,7 +321,7 @@ namespace Jovice.Providers
                 {
                     r = center.ExecuteIdentity(@"
 insert into SearchResult(SR_Created, SR_Address, SR_Query, SR_Match, SR_Count)
-values(GETDATE(), {0}, {1}, {2}, {3})
+values(GETUTCDATE(), {0}, {1}, {2}, {3})
 ", result.Context.Request.UserHostAddress, search, searchResult.Type, searchResult.ResultCount);
                     searchResult.SearchID = r.Identity.ToString();
                 }

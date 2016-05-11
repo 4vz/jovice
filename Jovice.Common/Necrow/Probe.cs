@@ -112,6 +112,189 @@ namespace Jovice
         }
     }
 
+    internal abstract class InterfaceToDatabase : ElementToDatabase
+    {
+        private int aggr = -1;
+
+        public int Aggr
+        {
+            get { return aggr; }
+            set { aggr = value; }
+        }
+
+        private bool updateAggr = false;
+
+        public bool UpdateAggr
+        {
+            get { return updateAggr; }
+            set { updateAggr = value; }
+        }
+
+        #region QOS
+
+        private int rateLimitInput = -1;
+
+        public int RateLimitInput
+        {
+            get { return rateLimitInput; }
+            set { rateLimitInput = value; }
+        }
+
+        private int rateLimitOutput = -1;
+
+        public int RateLimitOutput
+        {
+            get { return rateLimitOutput; }
+            set { rateLimitOutput = value; }
+        }
+
+        private bool updateRateLimitInput = false;
+
+        public bool UpdateRateLimitInput
+        {
+            get { return updateRateLimitInput; }
+            set { updateRateLimitInput = value; }
+        }
+
+        private bool updateRateLimitOutput = false;
+
+        public bool UpdateRateLimitOutput
+        {
+            get { return updateRateLimitOutput; }
+            set { updateRateLimitOutput = value; }
+        }
+
+        #endregion
+
+        #region Topology
+
+        private string parentID = null;
+
+        public string ParentID
+        {
+            get { return parentID; }
+            set { parentID = value; }
+        }
+
+        private bool updateParentID = false;
+
+        public bool UpdateParentID
+        {
+            get { return updateParentID; }
+            set { updateParentID = value; }
+        }
+
+        private string adjacentID = null;
+
+        public string AdjacentID
+        {
+            get { return adjacentID; }
+            set { adjacentID = value; }
+        }
+
+        private bool updateAdjacentID = false;
+
+        public bool UpdateAdjacentID
+        {
+            get { return updateAdjacentID; }
+            set { updateAdjacentID = value; }
+        }
+
+        private Dictionary<string, string> adjacentSubifID = null;
+
+        public Dictionary<string, string> AdjacentSubifID
+        {
+            get { return adjacentSubifID; }
+            set { adjacentSubifID = value; }
+        }
+
+        #endregion
+
+        #region Summary
+
+        private long cirTotalInput = -1;
+
+        public long CirTotalInput
+        {
+            get { return cirTotalInput; }
+            set { cirTotalInput = value; }
+        }
+
+        private bool updateCirTotalInput = false;
+
+        public bool UpdateCirTotalInput
+        {
+            get { return updateCirTotalInput; }
+            set { updateCirTotalInput = value; }
+        }
+
+        private long cirTotalOutput = -1;
+
+        public long CirTotalOutput
+        {
+            get { return cirTotalOutput; }
+            set { cirTotalOutput = value; }
+        }
+
+        private bool updateCirTotalOutput = false;
+
+        public bool UpdateCirTotalOutput
+        {
+            get { return updateCirTotalOutput; }
+            set { updateCirTotalOutput = value; }
+        }
+
+        private int cirConfigTotalInput = -1;
+
+        public int CirConfigTotalInput
+        {
+            get { return cirConfigTotalInput; }
+            set { cirConfigTotalInput = value; }
+        }
+
+        private bool updateCirConfigTotalInput = false;
+
+        public bool UpdateCirConfigTotalInput
+        {
+            get { return updateCirConfigTotalInput; }
+            set { updateCirConfigTotalInput = value; }
+        }
+
+        private int cirConfigTotalOutput = -1;
+
+        public int CirConfigTotalOutput
+        {
+            get { return cirConfigTotalOutput; }
+            set { cirConfigTotalOutput = value; }
+        }
+
+        private bool updateCirConfigTotalOutput = false;
+
+        public bool UpdateCirConfigTotalOutput
+        {
+            get { return updateCirConfigTotalOutput; }
+            set { updateCirConfigTotalOutput = value; }
+        }
+
+        private int subInterfaceCount = -1;
+
+        public int SubInterfaceCount
+        {
+            get { return subInterfaceCount; }
+            set { subInterfaceCount = value; }
+        }
+
+        private bool updateSubInterfaceCount = false;
+
+        public bool UpdateSubInterfaceCount
+        {
+            get { return updateSubInterfaceCount; }
+            set { updateSubInterfaceCount = value; }
+        }
+
+        #endregion
+    }
+
     internal enum ProbeMode
     {
         Default,

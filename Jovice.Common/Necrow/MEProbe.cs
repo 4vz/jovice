@@ -19,24 +19,8 @@ namespace Jovice
         }
     }
 
-    class MEInterfaceToDatabase : ElementToDatabase
+    class MEInterfaceToDatabase : InterfaceToDatabase
     {
-        private int aggr = -1;
-
-        public int Aggr
-        {
-            get { return aggr; }
-            set { aggr = value; }
-        }
-
-        private bool updateAggr = false;
-
-        public bool UpdateAggr
-        {
-            get { return updateAggr; }
-            set { updateAggr = value; }
-        }
-
         private MEInterfaceToDatabase[] aggrChilds = null;
 
         public MEInterfaceToDatabase[] AggrChilds
@@ -117,38 +101,6 @@ namespace Jovice
             set { updateEgressID = value; }
         }
 
-        private int rateLimitInput = -1;
-
-        public int RateLimitInput
-        {
-            get { return rateLimitInput; }
-            set { rateLimitInput = value; }
-        }
-
-        private int rateLimitOutput = -1;
-
-        public int RateLimitOutput
-        {
-            get { return rateLimitOutput; }
-            set { rateLimitOutput = value; }
-        }
-
-        private bool updateRateLimitInput = false;
-
-        public bool UpdateRateLimitInput
-        {
-            get { return updateRateLimitInput; }
-            set { updateRateLimitInput = value; }
-        }
-
-        private bool updateRateLimitOutput = false;
-
-        public bool UpdateRateLimitOutput
-        {
-            get { return updateRateLimitOutput; }
-            set { updateRateLimitOutput = value; }
-        }
-
         private int used = -1;
 
         public int Used
@@ -181,132 +133,12 @@ namespace Jovice
             set { updateInfo = value; }
         }
 
-        private long cirTotalInput = -1;
-
-        public long CirTotalInput
-        {
-            get { return cirTotalInput; }
-            set { cirTotalInput = value; }
-        }
-
-        private bool updateCirTotalInput = false;
-
-        public bool UpdateCirTotalInput
-        {
-            get { return updateCirTotalInput; }
-            set { updateCirTotalInput = value; }
-        }
-
-        private long cirTotalOutput = -1;
-
-        public long CirTotalOutput
-        {
-            get { return cirTotalOutput; }
-            set { cirTotalOutput = value; }
-        }
-
-        private bool updateCirTotalOutput = false;
-
-        public bool UpdateCirTotalOutput
-        {
-            get { return updateCirTotalOutput; }
-            set { updateCirTotalOutput = value; }
-        }
-
-        private int cirConfigTotalInput = -1;
-
-        public int CirConfigTotalInput
-        {
-            get { return cirConfigTotalInput; }
-            set { cirConfigTotalInput = value; }
-        }
-
-        private bool updateCirConfigTotalInput = false;
-
-        public bool UpdateCirConfigTotalInput
-        {
-            get { return updateCirConfigTotalInput; }
-            set { updateCirConfigTotalInput = value; }
-        }
-
-        private int cirConfigTotalOutput = -1;
-
-        public int CirConfigTotalOutput
-        {
-            get { return cirConfigTotalOutput; }
-            set { cirConfigTotalOutput = value; }
-        }
-
-        private bool updateCirConfigTotalOutput = false;
-
-        public bool UpdateCirConfigTotalOutput
-        {
-            get { return updateCirConfigTotalOutput; }
-            set { updateCirConfigTotalOutput = value; }
-        }
-
-        private int subInterfaceCount = -1;
-
-        public int SubInterfaceCount
-        {
-            get { return subInterfaceCount; }
-            set { subInterfaceCount = value; }
-        }
-
-        private bool updateSubInterfaceCount = false;
-
-        public bool UpdateSubInterfaceCount
-        {
-            get { return updateSubInterfaceCount; }
-            set { updateSubInterfaceCount = value; }
-        }
-
-        private string parentID = null;
-
-        public string ParentID
-        {
-            get { return parentID; }
-            set { parentID = value; }
-        }
-
-        private bool updateParentID = false;
-
-        public bool UpdateParentID
-        {
-            get { return updateParentID; }
-            set { updateParentID = value; }
-        }
-
-        private string adjacentID = null;
-
-        public string AdjacentID
-        {
-            get { return adjacentID; }
-            set { adjacentID = value; }
-        }
-
-        private bool updateAdjacentID = false;
-
-        public bool UpdateAdjacentID
-        {
-            get { return updateAdjacentID; }
-            set { updateAdjacentID = value; }
-        }
-
         private bool adjacentIDChecked = false;
 
         public bool AdjacentIDChecked
         {
             get { return adjacentIDChecked; }
             set { adjacentIDChecked = value; }
-        }
-
-        private Dictionary<string, string> adjacentSubifID = null;
-
-        public Dictionary<string, string> AdjacentSubifID
-        {
-            get { return adjacentSubifID; }
-            set { adjacentSubifID = value; }
         }
     }
 
@@ -2889,7 +2721,7 @@ namespace Jovice
                         u.Protocol = li.Protocol;
                         updateinfo.Append("prot ");
                     }
-                    if (db["MI_Aggregator"].ToInt(-1) != li.Aggr)
+                    if (db["MI_Aggregator"].ToSmall(-1) != li.Aggr)
                     {
                         update = true;
                         u.UpdateAggr = true;

@@ -77,8 +77,10 @@ namespace Jovice
         }
     }
 
-    internal abstract class ElementToDatabase : ServiceBaseToDatabase
+    internal abstract class InterfaceToDatabase : ServiceBaseToDatabase
     {
+        #region Basic
+
         private string name;
 
         public string Name
@@ -110,25 +112,8 @@ namespace Jovice
             get { return updateDescription; }
             set { updateDescription = value; }
         }
-    }
 
-    internal abstract class InterfaceToDatabase : ElementToDatabase
-    {
-        private int aggr = -1;
-
-        public int Aggr
-        {
-            get { return aggr; }
-            set { aggr = value; }
-        }
-
-        private bool updateAggr = false;
-
-        public bool UpdateAggr
-        {
-            get { return updateAggr; }
-            set { updateAggr = value; }
-        }
+        #endregion
 
         #region QOS
 
@@ -167,6 +152,22 @@ namespace Jovice
         #endregion
 
         #region Topology
+        
+        private int aggr = -1;
+
+        public int Aggr
+        {
+            get { return aggr; }
+            set { aggr = value; }
+        }
+
+        private bool updateAggr = false;
+
+        public bool UpdateAggr
+        {
+            get { return updateAggr; }
+            set { updateAggr = value; }
+        }
 
         private string parentID = null;
 

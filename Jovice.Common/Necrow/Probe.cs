@@ -113,6 +113,22 @@ namespace Jovice
             set { updateDescription = value; }
         }
 
+        private int dot1q = -1;
+
+        public int Dot1Q
+        {
+            get { return dot1q; }
+            set { dot1q = value; }
+        }
+
+        private int qinq = -1;
+
+        public int QinQ
+        {
+            get { return qinq; }
+            set { qinq = value; }
+        }
+        
         #endregion
 
         #region QOS
@@ -294,6 +310,68 @@ namespace Jovice
         }
 
         #endregion
+    }
+    
+    internal class CustomerToDatabase : ToDatabase
+    {
+        private string name;
+
+        public string Name
+        {
+            get { return name; }
+            set { name = value; }
+        }
+
+        private string cid;
+
+        public string CID
+        {
+            get { return cid; }
+            set { cid = value; }
+        }
+    }
+
+    internal class ServiceToDatabase : ToDatabase
+    {
+        private string sid;
+
+        public string SID
+        {
+            get { return sid; }
+            set { sid = value; }
+        }
+
+        private string type;
+
+        public string Type
+        {
+            get { return type; }
+            set { type = value; }
+        }
+
+        private string subType;
+
+        public string SubType
+        {
+            get { return subType; }
+            set { subType = value; }
+        }
+
+        private string rawDesc;
+
+        public string RawDesc
+        {
+            get { return rawDesc; }
+            set { rawDesc = value; }
+        }
+
+        private string customerID;
+
+        public string CustomerID
+        {
+            get { return customerID; }
+            set { customerID = value; }
+        }
     }
 
     internal enum ProbeMode
@@ -1290,6 +1368,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             int wait = 0;
 
             StringBuilder lastOutputSB = new StringBuilder();
+            bool ending = false;
 
             while (true)
             {
@@ -1359,11 +1438,13 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                             }
                         }
 
-                        if (losb.TrimEnd().EndsWith(nodeTerminal.Trim())) break;
+                        if (losb.TrimEnd().EndsWith(nodeTerminal.Trim())) ending = true;
                     }
                 }
                 else
                 {
+                    if (ending) break;
+
                     wait++;
 
                     if (wait % 50 == 0 && wait < 400)
@@ -3895,68 +3976,6 @@ order by NO_ID asc
         }
 
         #endregion
-    }
-
-    internal class CustomerToDatabase : ToDatabase
-    {
-        private string name;
-
-        public string Name
-        {
-            get { return name; }
-            set { name = value; }
-        }
-
-        private string cid;
-
-        public string CID
-        {
-            get { return cid; }
-            set { cid = value; }
-        }
-    }
-
-    internal class ServiceToDatabase : ToDatabase
-    {
-        private string sid;
-
-        public string SID
-        {
-            get { return sid; }
-            set { sid = value; }
-        }
-
-        private string type;
-
-        public string Type
-        {
-            get { return type; }
-            set { type = value; }
-        }
-
-        private string subType;
-
-        public string SubType
-        {
-            get { return subType; }
-            set { subType = value; }
-        }
-
-        private string rawDesc;
-
-        public string RawDesc
-        {
-            get { return rawDesc; }
-            set { rawDesc = value; }
-        }
-
-        private string customerID;
-
-        public string CustomerID
-        {
-            get { return customerID; }
-            set { customerID = value; }
-        }
     }
 
     internal class ServiceReference

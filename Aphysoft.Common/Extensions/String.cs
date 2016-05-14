@@ -24,7 +24,6 @@ namespace Aphysoft.Common
                 rv = value.IndexOf(v);
                 if (rv > -1) break;
             }
-
             return rv;
         }
     }

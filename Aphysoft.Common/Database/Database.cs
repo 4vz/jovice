@@ -1379,32 +1379,32 @@ namespace Aphysoft.Common
             else return ToString();
         }
 
-        public long ToInt64()
+        public long ToLong()
         {
-            if (value.GetType() == typeof(Int64))
-                return GetValue<Int64>();
+            if (value.GetType() == typeof(long))
+                return GetValue<long>();
             else if (value.GetType() == typeof(int))
                 return GetValue<int>();
-            else if (value.GetType() == typeof(Int16))
-                return GetValue<Int16>();
+            else if (value.GetType() == typeof(short))
+                return GetValue<short>();
             else if (value.GetType() == typeof(decimal))
                 return (int)GetValue<decimal>();
             else
                 return 0;
         }
 
-        public long ToInt64(long def)
+        public long ToLong(long def)
         {
             if (IsNull) return def;
-            else return ToInt64();
+            else return ToLong();
         }
 
         public int ToInt()
         {
             if (value.GetType() == typeof(int))
                 return GetValue<int>();
-            else if (value.GetType() == typeof(Int16))
-                return GetValue<Int16>();
+            else if (value.GetType() == typeof(short))
+                return GetValue<short>();
             else if (value.GetType() == typeof(decimal))
                 return (int)GetValue<decimal>();
             else
@@ -1417,20 +1417,20 @@ namespace Aphysoft.Common
             else return ToInt();
         }
 
-        public int ToSmall()
+        public int ToShort()
         {
-            if (value.GetType() == typeof(Int16))
-                return GetValue<Int16>();
+            if (value.GetType() == typeof(short))
+                return GetValue<short>();
             else if (value.GetType() == typeof(decimal))
                 return (int)GetValue<decimal>();
             else
                 return 0;
         }
 
-        public int ToSmall(int def)
+        public int ToShort(int def)
         {
             if (IsNull) return def;
-            else return ToSmall();
+            else return ToShort();
         }
 
         public double ToDouble()

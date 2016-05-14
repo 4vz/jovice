@@ -335,6 +335,7 @@ namespace Aphysoft.Common
                     string atrs = null;
 
                     if (a == null) atrs = "NULL";
+                    else if (a is bool) atrs = (bool)a ? "1" : "0";
                     else if (a is DateTime) atrs = "'" + DateTime((DateTime)a) + "'";
                     else if (IsNumber(a)) atrs = "" + a.ToString() + "";
                     else atrs = "'" + Escape(a.ToString()) + "'";

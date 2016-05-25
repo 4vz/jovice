@@ -85,13 +85,13 @@ namespace Aphysoft.Share
         {
             HttpRequest request = context.Request;
             HttpResponse response = context.Response;
-            bool isResource = (bool)context.Items["resource"];
+            ExecutionTypes executionType = (ExecutionTypes)context.Items["provider"];
 
             bool sessionStart = false;
 
             if (request.Cookies[cookieSessionID] == null)
             {
-                if (!isResource)
+                if (executionType == ExecutionTypes.Default)
                 {
                     string sessionID = createID();
 
@@ -106,7 +106,7 @@ namespace Aphysoft.Share
                     Result newsession = share.ExecuteIdentity(@"
 insert into 
 Session(SS_SID, SS_Created, SS_Accessed, SS_UserAgent, SS_IPAddress)
-values({0}, GETDATE(), GETDATE(), {1}, {2})
+values({0}, GETUTCDATE(), GETUTCDATE(), {1}, {2})
 ", sessionID, request.UserAgent, request.UserHostAddress);
 
                     context.Items["sessionID"] = sessionID;
@@ -138,7 +138,7 @@ select SS_IPAddress from Session where SS_SID = {0}
                     else
                     {
                         share.Execute(@"
-update Session set SS_Accessed = GETDATE() where SS_SID = {0}
+update Session set SS_Accessed = GETUTCDATE() where SS_SID = {0}
 ", sessionID);
 
                         context.Items["sessionID"] = sessionID;
@@ -151,7 +151,7 @@ update Session set SS_Accessed = GETDATE() where SS_SID = {0}
                     Result newsession = share.ExecuteIdentity(@"
 insert into 
 Session(SS_SID, SS_Created, SS_Accessed, SS_UserAgent, SS_IPAddress)
-values({0}, GETDATE(), GETDATE(), {1}, {2})
+values({0}, GETUTCDATE(), GETUTCDATE(), {1}, {2})
 ", sessionID, request.UserAgent, request.UserHostAddress);
 
                     context.Items["sessionID"] = sessionID;

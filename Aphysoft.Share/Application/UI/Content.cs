@@ -41,6 +41,7 @@ namespace Aphysoft.Share
                     Resource.Register("system_setup_scripts", ResourceType.JavaScript, Aphysoft.Share.UI.System.Setup.Resources.ResourceManager, "setup")
                     )
                 );
+            
 
             #endregion
         }
@@ -50,7 +51,7 @@ namespace Aphysoft.Share
         #region Core
 
         // we accept WITHOUT urlPrefix
-        internal static void Begin(ResourceResult result)
+        internal static void Begin(ResourceAsyncResult result)
         {
             HttpContext context = result.Context;
             HttpResponse response = context.Response;
@@ -117,7 +118,7 @@ namespace Aphysoft.Share
             result.SetCompleted();
         }
 
-        internal static void End(ResourceResult result)
+        internal static void End(ResourceAsyncResult result)
         {
         }
 
@@ -329,6 +330,7 @@ namespace Aphysoft.Share
                     #endregion
                 }
             }
+            
 
             return data;
         }

@@ -78,7 +78,6 @@
     <Compile Include="Application\Service\SessionServiceMessage.cs" />
     <Compile Include="Application\Settings\SettingsList.cs" />
     <Compile Include="Application\Resource\Resource.cs" />
-    <Compile Include="Application\Resource\ResourceResult.cs" />
     <Compile Include="Application\Page\BasePage.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>

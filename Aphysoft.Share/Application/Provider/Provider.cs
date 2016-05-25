@@ -372,11 +372,12 @@ namespace Aphysoft.Share
             return Params.GetValue("c");
         }
 
-        private static Dictionary<int, ProviderRegister> providerRegisters = new Dictionary<int, ProviderRegister>();
+        private static Dictionary<int, ProviderRegister> resourceRegisters = new Dictionary<int, ProviderRegister>();
+        private static Dictionary<string, ProviderRegister> serviceRegisters = new Dictionary<string, ProviderRegister>();
 
         public static event ProviderClientDisconnectedEventHandler ClientDisconnected;
         
-        internal static void StreamBeginProcessRequest(ResourceResult result)
+        internal static void StreamBeginProcessRequest(ResourceAsyncResult result)
         {
             HttpResponse httpResponse = result.Context.Response;
             HttpRequest httpRequest = result.Context.Request;
@@ -486,11 +487,11 @@ namespace Aphysoft.Share
             result.SetCompleted();
         }
 
-        internal static void StreamEndProcessRequest(ResourceResult result)
+        internal static void StreamEndProcessRequest(ResourceAsyncResult result)
         {
         }
 
-        internal static void ProviderBeginProcessRequest(ResourceResult result)
+        internal static void ProviderBeginProcessRequest(ResourceAsyncResult result)
         {
             HttpContext context = result.Context;
             HttpResponse response = context.Response;
@@ -541,10 +542,10 @@ namespace Aphysoft.Share
 
                         #endregion
                     }
-                    else if (providerRegisters.ContainsKey(appid))
+                    else if (resourceRegisters.ContainsKey(appid))
                     {
-                        ProviderRegister register = providerRegisters[appid];
-                        ProviderRequest proc = register.Handler;
+                        ProviderRegister register = resourceRegisters[appid];
+                        ResourceRequest proc = register.ResourceHandler;
 
                         packet = proc(result, appid);
                         
@@ -558,7 +559,7 @@ namespace Aphysoft.Share
             result.SetCompleted();
         }
 
-        internal static void ProviderEndProcessRequest(ResourceResult result)
+        internal static void ProviderEndProcessRequest(ResourceAsyncResult result)
         {
         }
 
@@ -572,35 +573,45 @@ namespace Aphysoft.Share
             }
         }
         
-        public static void Register(int[] ids, ProviderRequest handler)
+        public static void Register(int[] ids, ResourceRequest handler)
         {
             ProviderRegister register = null;
 
             foreach (int id in ids)
             {
-                if (!providerRegisters.ContainsKey(id))
+                if (!resourceRegisters.ContainsKey(id))
                 {
                     if (register == null)
                         register = new ProviderRegister(handler);
 
-                    lock (providerRegisters)
+                    lock (resourceRegisters)
                     {
-                        providerRegisters.Add(id, register);
+                        resourceRegisters.Add(id, register);
                     }
                 }
             }
         }
 
-        public static void Register(int id, ProviderRequest handler)
+        public static void Register(int id, ResourceRequest handler)
         {
-            if (!providerRegisters.ContainsKey(id))
+            if (!resourceRegisters.ContainsKey(id))
             {
-                lock (providerRegisters)
+                lock (resourceRegisters)
                 {
-                    providerRegisters.Add(id, new ProviderRegister(handler));
+                    resourceRegisters.Add(id, new ProviderRegister(handler));
                 }
             }
+        }
 
+        public static void Register(string name, ServiceRequest handler)
+        {
+            if (!serviceRegisters.ContainsKey(name))
+            {
+                lock (serviceRegisters)
+                {
+                    serviceRegisters.Add(name, new ProviderRegister(handler));
+                }
+            }
         }
 
         #endregion
@@ -983,20 +994,32 @@ namespace Aphysoft.Share
     
     internal class ProviderRegister
     {
-        private ProviderRequest handler;
+        private ResourceRequest resourceHandler;
 
-        public ProviderRequest Handler
+        public ResourceRequest ResourceHandler
         {
-            get { return handler; }
+            get { return resourceHandler; }
         }
 
-        public ProviderRegister(ProviderRequest handler)
+        private ServiceRequest serviceHandler;
+
+        public ServiceRequest ServiceHandler
         {
-            this.handler = handler;
+            get { return serviceHandler; }
+        }
+
+        public ProviderRegister(ResourceRequest handler)
+        {
+            resourceHandler = handler;
+        }
+        public ProviderRegister(ServiceRequest handler)
+        {
+            serviceHandler = handler;
         }
     }
 
-    public delegate ProviderPacket ProviderRequest(ResourceResult result, int id);
+    public delegate ProviderPacket ResourceRequest(ResourceAsyncResult result, int id);
+    public delegate ProviderPacket ServiceRequest(ResourceAsyncResult result, string name);
 
     [DataContractAttribute]
     public class ProviderPacket

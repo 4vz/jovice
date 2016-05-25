@@ -78,6 +78,12 @@ namespace Aphysoft.Share
             get { return resourceProviderPath; }
         }
 
+        private static string serviceProviderPath = "services";
+        public static string ServiceProviderPath
+        {
+            get { return serviceProviderPath; }
+        }
+
         #endregion
 
         #region Domain

@@ -7,11 +7,18 @@ using System.Web.SessionState;
 using System.Web.Hosting;
 using Aphysoft.Common;
 using System.Diagnostics;
+using System.Threading;
 
 namespace Aphysoft.Share
 {
     public class Share : IHttpModule, IHttpAsyncHandler, IRequiresSessionState
     {
+        #region Consts
+
+        const string year2000 = "Sat, 01 Jan 2000 00:00:00 GMT";
+
+        #endregion
+
         #region Database
 
         private static Database share = null;
@@ -41,7 +48,6 @@ namespace Aphysoft.Share
         
         const string PathSetup = "/setup";
         
-
         #endregion
 
         #region System
@@ -169,11 +175,12 @@ namespace Aphysoft.Share
 
             string appExecutionPath = request.AppRelativeCurrentExecutionFilePath;
 
-            // except resource
-            if (!appExecutionPath.StartsWith("~/" + Settings.ResourceProviderPath) &&
-                appExecutionPath != "~/favicon.ico")
+            if (appExecutionPath.StartsWith("~/" + Settings.ResourceProviderPath)) context.Items["provider"] = ExecutionTypes.Resources;
+            else if (appExecutionPath.StartsWith("~/" + Settings.ServiceProviderPath)) context.Items["provider"] = ExecutionTypes.Services;
+            else if (appExecutionPath.ToLower() == "~/favicon.ico") context.Items["provider"] = ExecutionTypes.Favicon;
+            else
             {
-                context.Items["resource"] = false;
+                context.Items["provider"] = ExecutionTypes.Default;
 
                 string host = request.Headers["Host"];
                 string cExUrl = request.CurrentExecutionFilePath.ToLower();
@@ -231,11 +238,6 @@ namespace Aphysoft.Share
                     }
                 }
             }
-            else
-            {
-                // HttpSessionState is AVAILABLE if UI Disabled, otherwise NOT AVAILABLE
-                context.Items["resource"] = true;
-            }
         }
 
         private void application_AuthenticateRequest(object sender, EventArgs e)
@@ -288,7 +290,7 @@ namespace Aphysoft.Share
             HttpRequest request = context.Request;
             HttpResponse response = context.Response;
 
-            bool isResource = (bool)context.Items["resource"];
+            ExecutionTypes executionType = (ExecutionTypes)context.Items["provider"];
             string requestHostName = request.Headers["Host"];
 
             if (Settings.EnableUI)
@@ -296,7 +298,8 @@ namespace Aphysoft.Share
                 Session.Start(context);
 
                 #region Setup
-                if (!isResource)
+
+                if (executionType == ExecutionTypes.Default)
                 {
                     string cp = Path.Base();
 
@@ -327,8 +330,6 @@ namespace Aphysoft.Share
                         if (cp != Settings.UrlPrefix + PathSetup)
                         {
                             string verss = request.Cookies["vers"].Value;
-
-                            Service.Debug("vers:" + verss);
 
                             int vers;
 
@@ -371,7 +372,7 @@ namespace Aphysoft.Share
                 {
                     UIPage page = (UIPage)context.Items["uipage"];
                     page.Render(context);
-                    Resource.Compress(context);
+                    Compress(context);
                     context.Response.End();
                 }
             }
@@ -392,11 +393,11 @@ namespace Aphysoft.Share
             response.Headers.Remove("X-Powered-By");
 
             // send debugging information
-            response.Headers.Add("Server", string.Format("{0} {1} {2}",
-                context.Server.MachineName,
-                Process.GetCurrentProcess().Id.ToString(),
-                ""
-                ));
+            //response.Headers.Add("Server", string.Format("{0} {1} {2}",
+            //    context.Server.MachineName,
+            //    Process.GetCurrentProcess().Id.ToString(),
+            //    ""
+            //    ));
         }
 
         private void application_PreSendRequestContent(object sender, EventArgs e)
@@ -413,14 +414,191 @@ namespace Aphysoft.Share
 
         public IAsyncResult BeginProcessRequest(HttpContext context, AsyncCallback cb, object extraData)
         {
-            IAsyncResult result = Resource.Begin(context, cb, extraData);
+            HttpResponse response = context.Response;
+            HttpRequest request = context.Request;
+
+            string currentExecutionPath = string.Format("~{0}", context.Request.RawUrl);
+            string resourcesProviderExecutionPath = string.Format("~/{0}", Settings.ResourceProviderPath).ToLower();
+            string servicesProviderExecutionPath = string.Format("~/{0}", Settings.ServiceProviderPath).ToLower();
+
+            AsyncResult result = null;
+
+            bool notFound = true;
+            
+            if (currentExecutionPath.StartsWith(resourcesProviderExecutionPath.ToLower()))
+            {
+                #region Resource
+
+                string resourceRawTarget = currentExecutionPath.Substring(resourcesProviderExecutionPath.Length);
+
+                // rawtarget: /resourcekey/hash.filetype(?querystrings)
+                if (!string.IsNullOrEmpty(resourceRawTarget))
+                {
+                    string[] rawTargets = resourceRawTarget.Split(new char[] { '/' });
+
+                    if (rawTargets.Length >= 3)
+                    {
+                        string resourceKeyHash = rawTargets[1];
+                        string resourceRest = rawTargets[2];
+
+                        Resource resource = Resource.Get(resourceKeyHash);
+
+                        if (resource != null)
+                        {
+                            string ext = resource.FileExtension;
+                            string[] resourceRestParts = resourceRest.Split(new char[] { '?' }, 2);
+                            string resourceHash = resourceRestParts[0];
+
+                            if (resourceHash.EndsWith(ext))
+                            {
+                                notFound = false;
+                                ResourceAsyncResult resourceResult = new ResourceAsyncResult(context, cb, extraData);
+                                result = resourceResult;
+
+                                string ifModified = request.Headers["If-Modified-Since"];
+
+                                if (resource.Cache && !string.IsNullOrEmpty(ifModified) && ifModified == year2000)
+                                {
+                                    TimeSpan oneYear = TimeSpan.FromDays(365);
+                                    DateTime expires = DateTime.Now.Add(oneYear);
+                                    string expiresStr = expires.ToString("r");
+
+                                    response.Status = "304 Not Modified";
+                                    response.AppendHeader("Cache-Control", "public, max-age=" + oneYear.TotalSeconds + "");
+                                    response.AppendHeader("Last-Modified", year2000);
+                                    response.AppendHeader("Expires", expiresStr);
+
+                                    response.AppendHeader("Content-Type", resource.MimeType);
+                                    response.AppendHeader("Vary", "Accept-Encoding");
+
+                                    resourceResult.SetCompleted();
+                                }
+                                else
+                                {
+                                    if (resource.Cache && resource.BeginHandler == null)
+                                    {
+                                        //response.Cache.SetCacheability(HttpCacheability.Public);
+                                        //response.Cache.SetLastModified(new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+                                        //response.Expires = 518400;
+                                        TimeSpan oneYear = TimeSpan.FromDays(365);
+                                        DateTime expires = DateTime.Now.Add(oneYear);
+
+                                        string expiresStr = expires.ToString("r");
+
+                                        response.AppendHeader("Cache-Control", "public, max-age=" + oneYear.TotalSeconds + "");
+                                        response.AppendHeader("Last-Modified", year2000);
+                                        response.AppendHeader("Expires", expiresStr);
+                                        //response.AppendHeader("Pragma", "no-cache");
+                                    }
+                                    else
+                                    {
+                                        //response.Cache.SetCacheability(HttpCacheability.NoCache);
+                                        response.AppendHeader("Cache-Control", "private, no-store, no-cache, must-revalidate, post-check=0, pre-check=0");
+                                        response.AppendHeader("Pragma", "no-cache");
+
+                                        DateTime expires = DateTime.Now.Add(TimeSpan.FromDays(365));
+
+                                        string expiresStr = expires.ToString("r");
+
+                                        response.AppendHeader("Expires", expiresStr);
+                                    }
+
+                                    if (resource.AccessControlAllowOrigin != null)
+                                        response.AppendHeader("Access-Control-Allow-Origin", resource.AccessControlAllowOrigin);
+                                    if (resource.AccessControlAllowCredentials)
+                                        response.AppendHeader("Access-Control-Allow-Credentials", "true");
+                                    
+                                    response.AppendHeader("Content-Type", resource.MimeType);
+
+                                    if (resource.Compressed) Compress(context);
+
+                                    if (resource.BeginHandler != null)
+                                    {
+                                        if (resource.BufferOutput == false)
+                                            response.BufferOutput = false;
+
+                                        resourceResult.ResourceOutput = new ResourceOutput();
+                                        resourceResult.Resource = resource;
+                                        resource.BeginHandler(resourceResult);
+                                    }
+                                    else
+                                    {
+                                        response.Status = "200 OK";
+
+                                        if (resource.OriginalData != null || resource.groupSources != null)
+                                        {
+                                            byte[] data = resource.Data;
+                                            int bufferLength = 4096;
+                                            int length = data.Length;
+                                            int position = 0;
+                                            do
+                                            {
+                                                int left = (length - position) > bufferLength ? bufferLength : (length - position);
+                                                response.OutputStream.Write(data, position, left);
+                                                position += left;
+                                            }
+                                            while (position < length);
+                                        }
+
+                                        resourceResult.SetCompleted();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                #endregion
+            }
+            
+            if (notFound)
+            {
+                result = new AsyncResult(context, cb, extraData);
+                response.Status = "404 Not Found";
+                response.TrySkipIisCustomErrors = true;
+                result.SetCompleted();
+            }            
 
             return result;
         }
 
         public void EndProcessRequest(IAsyncResult result)
         {
-            Resource.End(result);
+            if (result.GetType() == typeof(ResourceAsyncResult))
+            {
+                ResourceAsyncResult resourceResult = (ResourceAsyncResult)result;
+                HttpContext context = resourceResult.Context;
+                HttpResponse response = context.Response;
+                Resource resource = resourceResult.Resource;
+
+                if (resource != null)
+                {
+                    if (resource.EndHandler != null)
+                    {
+                        ResourceEndProcessRequest proc = resource.EndHandler;
+                        if (proc != null) proc(resourceResult);
+                    }
+                    if (resource.BeginHandler != null)
+                    {
+                        ResourceOutput resourceOutput = resourceResult.ResourceOutput;
+                        if (resourceOutput.Data != null)
+                        {
+                            byte[] data = resourceOutput.GetData(resource);
+
+                            int bufferLength = 4096;
+                            int length = data.Length;
+                            int position = 0;
+                            do
+                            {
+                                int left = (length - position) > bufferLength ? bufferLength : (length - position);
+                                response.OutputStream.Write(data, position, left);
+                                position += left;
+                            }
+                            while (position < length);
+                        }
+                    }
+                }
+            }
         }
 
         #endregion
@@ -535,6 +713,41 @@ namespace Aphysoft.Share
         protected virtual void OnStyleSheetDataBinding(HttpContext context, StyleSheetData data) { }
 
         #endregion
+
+        #region Methods
+
+        internal static void Compress(HttpContext context)
+        {
+            // Gzip or Deflate if available
+            HttpResponse response = context.Response;
+            HttpRequest request = context.Request;
+
+            bool gzipped = false;
+            bool deflated = false;
+
+            string acceptEncoding = request.Headers["Accept-Encoding"];
+            if (!string.IsNullOrEmpty(acceptEncoding) && acceptEncoding.Contains("gzip"))
+                gzipped = true;
+            else if (!string.IsNullOrEmpty(acceptEncoding) && acceptEncoding.Contains("deflate"))
+                deflated = true;
+
+            if (gzipped || deflated)
+            {
+                if (gzipped)
+                {
+                    response.Filter = new System.IO.Compression.GZipStream(response.Filter, System.IO.Compression.CompressionMode.Compress);
+                    response.AppendHeader("Content-Encoding", "gzip");
+                }
+                else if (deflated)
+                {
+                    response.Filter = new System.IO.Compression.DeflateStream(response.Filter, System.IO.Compression.CompressionMode.Compress);
+                    response.AppendHeader("Content-Encoding", "deflate");
+                }
+
+                response.AppendHeader("Vary", "Content-Encoding");
+            }
+        }
+        #endregion
     }
 
     public class Request
@@ -562,5 +775,102 @@ namespace Aphysoft.Share
         {
 
         }
+    }
+
+    public class AsyncResult : IAsyncResult
+    {
+        #region Fields
+
+        protected HttpContext context;
+
+        protected AsyncCallback callback;
+
+        protected object asyncState;
+
+        protected bool isCompleted = false;
+
+        protected object responseObject;
+
+        #endregion
+
+        #region Constructors
+
+        public AsyncResult(HttpContext context, AsyncCallback callback, object asyncState)
+        {
+            this.context = context;
+            this.callback = callback;
+            this.asyncState = asyncState;
+        }
+
+        #endregion
+
+        #region IAsyncResult Members
+
+        public object AsyncState
+        {
+            get { return asyncState; }
+        }
+
+        public WaitHandle AsyncWaitHandle
+        {
+            get { throw new InvalidOperationException("ASP.NET Should never use this property"); }
+        }
+
+        public bool CompletedSynchronously
+        {
+            get { return false; }
+        }
+
+        public bool IsCompleted
+        {
+            get { return isCompleted; }
+        }
+
+        #endregion
+
+        public HttpContext Context
+        {
+            get { return context; }
+        }
+
+        public HttpResponse Response
+        {
+            get { return context.Response; }
+        }
+
+        public HttpRequest Request
+        {
+            get { return context.Request; }
+        }
+
+        public object ResponseObject
+        {
+            get { return responseObject; }
+            set { responseObject = value; }
+        }
+
+        public void SetCompleted()
+        {
+            isCompleted = true;
+
+            if (callback != null)
+                callback(this);
+        }
+
+        private int tag;
+
+        public int Tag
+        {
+            get { return tag; }
+            set { tag = value; }
+        }
+    }
+
+    internal enum ExecutionTypes
+    {
+        Default,
+        Resources,
+        Services,
+        Favicon
     }
 }

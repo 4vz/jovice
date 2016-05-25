@@ -101,9 +101,9 @@ namespace Jovice
             set { updateEgressID = value; }
         }
 
-        private int used = -1;
+        private bool? used = null;
 
-        public int Used
+        public bool? Used
         {
             get { return used; }
             set { used = value; }
@@ -425,6 +425,7 @@ namespace Jovice
     {
         private void MEProcess()
         {
+            string[] lines = null;
             Batch batch = Batch();
             Result result;
 
@@ -443,10 +444,7 @@ namespace Jovice
 
                 #region Live
 
-                SendLine("show service customer | match \"Customer-ID\"");
-                bool timeout;
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("show service customer | match \"Customer-ID\"", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -527,7 +525,7 @@ namespace Jovice
 
             Dictionary<string, MEQOSToDatabase> qoslive = new Dictionary<string, MEQOSToDatabase>();
             //debug1:
-            Dictionary<string, Row> qosdb = QueryDictionary("select * from MEQOS where MQ_NO = {0}", delegate (Row row) { return (row["MQ_Type"].ToBoolean() ? "1" : "0") + "_" + row["MQ_Name"].ToString(); }, nodeID);
+            Dictionary<string, Row> qosdb = QueryDictionary("select * from MEQOS where MQ_NO = {0}", delegate (Row row) { return (row["MQ_Type"].ToBool() ? "1" : "0") + "_" + row["MQ_Name"].ToString(); }, nodeID);
             //goto debug2;
             List<MEQOSToDatabase> qosinsert = new List<MEQOSToDatabase>();
             List<MEQOSToDatabase> qosupdate = new List<MEQOSToDatabase>();
@@ -538,10 +536,7 @@ namespace Jovice
             {
                 #region alu
 
-                SendLine("show qos sap-ingress");
-                bool timeout;
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("show qos sap-ingress", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -556,9 +551,7 @@ namespace Jovice
                     }
                 }
 
-                SendLine("show qos sap-egress");
-                lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("show qos sap-egress", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -586,10 +579,7 @@ namespace Jovice
             {
                 #region hwe
 
-                SendLine("display qos-profile configuration");
-                bool timeout;
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("display qos-profile configuration", out lines)) return;
 
                 bool qosCollect = false;
                 foreach (string line in lines)
@@ -702,7 +692,7 @@ namespace Jovice
 
             #endregion
 
-            qosdb = QueryDictionary("select * from MEQOS where MQ_NO = {0}", delegate (Row row) { return (row["MQ_Type"].ToBoolean() ? "1" : "0") + "_" + row["MQ_Name"].ToString(); }, nodeID);
+            qosdb = QueryDictionary("select * from MEQOS where MQ_NO = {0}", delegate (Row row) { return (row["MQ_Type"].ToBool() ? "1" : "0") + "_" + row["MQ_Name"].ToString(); }, nodeID);
             
             #endregion
 
@@ -722,10 +712,7 @@ namespace Jovice
             {
                 #region alu
 
-                SendLine("show service sdp");
-                bool timeout;
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("show service sdp", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -768,8 +755,8 @@ namespace Jovice
                             if (int.TryParse(amtu, out iamtu)) d.AdmMTU = iamtu;
                             else d.AdmMTU = 0;
                             d.FarEnd = farend;
-                            d.Status = status == true ? 1 : 0;
-                            d.Protocol = protocol == true ? 1 : 0;
+                            d.Status = status;
+                            d.Protocol = protocol;
                             d.Type = type;
                             d.LSP = lsp;
 
@@ -785,13 +772,10 @@ namespace Jovice
                 #region hwe
 
                 // dari mpls
-                SendLine("display mpls ldp remote-peer");
-                bool timeout;
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("display mpls ldp remote-peer", out lines)) return;
 
                 string farend = null;
-                int active = -1;
+                bool active = false;
 
                 foreach (string line in lines)
                 {
@@ -806,8 +790,8 @@ namespace Jovice
                         }
                         else if (farend != null)
                         {
-                            if (lineTrim.IndexOf("Active") > -1) active = 1;
-                            else active = 0;
+                            if (lineTrim.IndexOf("Active") > -1) active = true;
+                            else active = false;
 
                             MESDPToDatabase d = new MESDPToDatabase();
                             d.SDP = farend;
@@ -819,17 +803,13 @@ namespace Jovice
                             d.LSP = "L";
 
                             sdplive.Add(farend, d);
-
-                            active = -1;
                             farend = null;
                         }
                     }
                 }
 
                 // dari vsi
-                SendLine("display vsi verbose | in Peer Router ID");
-                lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("display vsi verbose | in Peer Router ID", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -847,8 +827,8 @@ namespace Jovice
                                 d.SDP = farend;
                                 d.AdmMTU = 0;
                                 d.FarEnd = farend;
-                                d.Status = 1;
-                                d.Protocol = 1;
+                                d.Status = true;
+                                d.Protocol = true;
                                 d.Type = "V";
                                 d.LSP = "L";
 
@@ -860,9 +840,7 @@ namespace Jovice
 
                 // dari mpls
                 //
-                SendLine("display mpls l2vc | in destination");
-                lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("display mpls l2vc | in destination", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -880,8 +858,8 @@ namespace Jovice
                                 d.SDP = farend;
                                 d.AdmMTU = 0;
                                 d.FarEnd = farend;
-                                d.Status = 1;
-                                d.Protocol = 1;
+                                d.Status = true;
+                                d.Protocol = true;
                                 d.Type = "E";
                                 d.LSP = "L";
 
@@ -924,14 +902,14 @@ namespace Jovice
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();                    
 
-                    if ((db["MS_Status"].ToBoolean() ? 1 : 0) != li.Status)
+                    if (db["MS_Status"].ToBool() != li.Status)
                     {
                         update = true;
                         u.UpdateStatus = true;
                         u.Status = li.Status;
                         updateinfo.Append("stat ");
                     }
-                    if ((db["MS_Protocol"].ToBoolean() ? 1 : 0) != li.Protocol)
+                    if (db["MS_Protocol"].ToBool() != li.Protocol)
                     {
                         update = true;
                         u.UpdateProtocol = true;
@@ -952,7 +930,7 @@ namespace Jovice
                         u.LSP = li.LSP;
                         updateinfo.Append("lsp ");
                     }
-                    if ((db["MS_MTU"].IsNull ? 0 : db["MS_MTU"].ToSmall()) != li.AdmMTU)
+                    if ((db["MS_MTU"].IsNull ? 0 : db["MS_MTU"].ToShort()) != li.AdmMTU)
                     {
                         update = true;
                         u.UpdateAdmMTU = true;
@@ -1001,8 +979,8 @@ namespace Jovice
             foreach (MESDPToDatabase s in sdpupdate)
             {
                 List<string> v = new List<string>();
-                if (s.UpdateStatus) v.Add("MS_Status = " + s.Status);
-                if (s.UpdateProtocol) v.Add("MS_Protocol = " + s.Protocol);
+                if (s.UpdateStatus) v.Add(Format("MS_Status = {0}", s.Status));
+                if (s.UpdateProtocol) v.Add(Format("MS_Protocol = {0}", s.Protocol));
                 if (s.UpdateType) v.Add(Format("MS_Type = {0}", s.Type));
                 if (s.UpdateLSP) v.Add(Format("MS_LSP = {0}", s.LSP));
                 if (s.UpdateAdmMTU) v.Add(s.AdmMTU == 0 ? Format("MS_MTU = {0}", null) : ("MS_MTU = " + s.AdmMTU));
@@ -1062,10 +1040,7 @@ namespace Jovice
                 //goto debug3;
                 
                 // STEP 1, dari display config untuk epipe dan vpls, biar dapet mtu dan deskripsinya
-                SendLine("admin display-config | match customer context children");
-                bool timeout;
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("admin display-config | match customer context children", out lines)) return;
 
                 MECircuitToDatabase cservice = null;
                 foreach (string line in lines)
@@ -1115,9 +1090,7 @@ namespace Jovice
                 }
 
                 // STEP 2, dari service-using, sisanya
-                SendLine("show service service-using");
-                lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("show service service-using", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -1138,8 +1111,8 @@ namespace Jovice
                                 else service.CustomerID = null;
                                 circuitlive.Add(linex[0], service);
                             }
-                            service.Status = linex[2] == "Up" ? 1 : 0;
-                            service.Protocol = linex[3] == "Up" ? 1 : 0;
+                            service.Status = linex[2] == "Up";
+                            service.Protocol = linex[3] == "Up";
                         }
                     }
                 }
@@ -1155,10 +1128,7 @@ namespace Jovice
                 // display mpls l2vc brief
 
                 // STEP 1, VSI Name dan VSI ID
-                SendLine("display vsi verbose | in VSI Name|VSI ID");
-                bool timeout;
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("display vsi verbose | in VSI Name|VSI ID", out lines)) return;
 
                 MECircuitToDatabase cservice = null;
                 foreach (string line in lines)
@@ -1181,8 +1151,8 @@ namespace Jovice
                             cservice = new MECircuitToDatabase();
                             cservice.Description = lineTrim.Substring(28).Trim();
                             cservice.Type = "V";
-                            cservice.Status = 1;
-                            cservice.Protocol = 1;
+                            cservice.Status = true;
+                            cservice.Protocol = true;
                         }
                     }
                     else if (lineTrim.StartsWith("VSI ID"))
@@ -1201,9 +1171,7 @@ namespace Jovice
                 }
 
                 // STEP 2, VSI Name and VSI Detail
-                SendLine("display vsi");
-                lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("display vsi", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -1219,7 +1187,7 @@ namespace Jovice
                             {
                                 MECircuitToDatabase cu = circuitlive[vsiName];
                                 cu.CustomerID = null;
-                                int state = linex[5] == "up" ? 1 : 0;
+                                bool state = linex[5] == "up";
                                 cu.Status = state;
                                 cu.Protocol = state;
                                 int amtu;
@@ -1234,9 +1202,7 @@ namespace Jovice
                 hwecircuitdetail = new List<string[]>();
 
                 //display mpls l2vc | in client interface|VC ID|local VC MTU|destination
-                SendLine("display mpls l2vc | in client interface|VC ID|local VC MTU|destination");
-                lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("display mpls l2vc | in client interface|VC ID|local VC MTU|destination", out lines)) return;
 
                 string cinterface = null;
                 string cinterfaceVCID = null;
@@ -1270,9 +1236,8 @@ namespace Jovice
                                         cu.Description = vcidname;
                                         cu.VCID = cinterfaceVCID;
                                         cu.CustomerID = null;
-                                        int state = cinterfacestate ? 1 : 0;
-                                        cu.Status = state;
-                                        cu.Protocol = state;
+                                        cu.Status = cinterfacestate;
+                                        cu.Protocol = cinterfacestate;
                                         cu.AdmMTU = cmtu;
 
                                         circuitlive.Add(vcidname, cu);
@@ -1328,9 +1293,8 @@ namespace Jovice
                         cu.Description = vcidname;
                         cu.VCID = cinterfaceVCID;
                         cu.CustomerID = null;
-                        int state = cinterfacestate ? 1 : 0;
-                        cu.Status = state;
-                        cu.Protocol = state;
+                        cu.Status = cinterfacestate;
+                        cu.Protocol = cinterfacestate;
                         cu.AdmMTU = cmtu;
 
                         circuitlive.Add(vcidname, cu);
@@ -1399,14 +1363,14 @@ namespace Jovice
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
 
-                    if ((db["MC_Status"].ToBoolean() ? 1 : 0) != li.Status)
+                    if (db["MC_Status"].ToBool() != li.Status)
                     {
                         update = true;
                         u.UpdateStatus = true;
                         u.Status = li.Status;
                         updateinfo.Append("stat ");
                     }
-                    if ((db["MC_Protocol"].ToBoolean() ? 1 : 0) != li.Protocol)
+                    if (db["MC_Protocol"].ToBool() != li.Protocol)
                     {
                         update = true;
                         u.UpdateProtocol = true;
@@ -1438,7 +1402,7 @@ namespace Jovice
 
                         if (u.Description != null) circuitservicereference.Add(u, u.Description);
                     }
-                    if ((db["MC_MTU"].IsNull ? 0 : db["MC_MTU"].ToSmall()) != li.AdmMTU)
+                    if ((db["MC_MTU"].IsNull ? 0 : db["MC_MTU"].ToShort()) != li.AdmMTU)
                     {
                         update = true;
                         u.UpdateAdmMTU = true;
@@ -1489,8 +1453,8 @@ namespace Jovice
             foreach (MECircuitToDatabase s in circuitupdate)
             {
                 List<string> v = new List<string>();
-                if (s.UpdateStatus) v.Add("MC_Status = " + s.Status);
-                if (s.UpdateProtocol) v.Add("MC_Protocol = " + s.Protocol);
+                if (s.UpdateStatus) v.Add(Format("MC_Status = {0}", s.Status));
+                if (s.UpdateProtocol) v.Add(Format("MC_Protocol = {0}", s.Protocol));
                 if (s.UpdateType) v.Add(Format("MC_Type = {0}", s.Type));
                 if (s.UpdateDescription)
                 {
@@ -1536,10 +1500,7 @@ namespace Jovice
             {
                 #region alu
 
-                SendLine("show service sdp-using");
-                bool timeout;
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("show service sdp-using", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -1569,7 +1530,7 @@ namespace Jovice
                                         else c.SDPID = null;
 
                                         c.Type = linex[2][0] + "";
-                                        c.Protocol = linex[4] == "Up" ? 1 : 0;
+                                        c.Protocol = linex[4] == "Up";
 
                                         if (c.CircuitID != null && c.SDPID != null)
                                         {
@@ -1591,10 +1552,7 @@ namespace Jovice
                 #region hwe
 
                 // peernya vsi
-                SendLine("display vsi peer-info");
-                bool timeout;
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("display vsi peer-info", out lines)) return;
 
                 string cvsi = null;
                 foreach (string line in lines)
@@ -1624,7 +1582,7 @@ namespace Jovice
                                 else c.SDPID = null;
 
                                 c.Type = "M";
-                                c.Protocol = linex[4] == "up" ? 1 : 0;
+                                c.Protocol = linex[4] == "up";
 
                                 if (c.CircuitID != null && c.SDPID != null)
                                 {
@@ -1662,7 +1620,7 @@ namespace Jovice
                         else c.SDPID = null;
 
                         c.Type = "S";
-                        c.Protocol = strs[2] == "True" ? 1 : 0;
+                        c.Protocol = strs[2] == "True";
 
                         if (c.CircuitID != null && c.SDPID != null)
                         {
@@ -1703,7 +1661,7 @@ namespace Jovice
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
 
-                    if ((db["MP_Protocol"].ToBoolean() ? 1 : 0) != li.Protocol)
+                    if (db["MP_Protocol"].ToBool() != li.Protocol)
                     {
                         update = true;
                         u.UpdateProtocol = true;
@@ -1806,11 +1764,7 @@ namespace Jovice
             if (nodeManufacture == alu)
             {
                 #region alu
-
-                SendLine("show port description");
-                bool timeout;
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("show port description", out lines)) return;
 
                 string port = null;
                 StringBuilder description = new StringBuilder();
@@ -1869,9 +1823,7 @@ namespace Jovice
                     }
                 }
 
-                SendLine("show port");
-                lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("show port", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -1888,15 +1840,15 @@ namespace Jovice
 
                                 if (interfacelive.ContainsKey(portex))
                                 {
-                                    interfacelive[portex].Status = (linex[1].Trim() == "Up") ? 1 : 0;
+                                    interfacelive[portex].Status = linex[1].Trim() == "Up";
 
                                     string il3 = linex[3].Trim();
                                     if (il3 == "Link") il3 = "Up";
 
-                                    interfacelive[portex].Protocol = (il3 == "Up") ? 1 : 0;
+                                    interfacelive[portex].Protocol = il3 == "Up";
 
-                                    if (interfacelive[portex].Status == 1 && interfacelive[portex].Protocol == 1)
-                                        interfacelive[portex].Used = 1; // 1 1
+                                    if (interfacelive[portex].Status && interfacelive[portex].Protocol)
+                                        interfacelive[portex].Used = true; // 1 1
                                     else
                                     {
                                         string desc = interfacelive[portex].Description.Trim();
@@ -1907,13 +1859,12 @@ namespace Jovice
                                                     desc.ToUpper().StartsWith("BOOK") ||
                                                     desc.ToUpper().StartsWith("TO")
                                                     ))
-                                            interfacelive[portex].Used = 1;
+                                            interfacelive[portex].Used = true;
                                         else
-                                            interfacelive[portex].Used = 0;
+                                            interfacelive[portex].Used = false;
                                     }
 
-                                    if (linex.Length >= 7)
-                                    {
+                                    if (linex.Length >= 7)                                    {
                                         string agr = linex[6].Trim();
                                         if (agr == "-") interfacelive[portex].Aggr = -1;
                                         else
@@ -1966,12 +1917,10 @@ namespace Jovice
                         }
                     }
                 }
-
+                
                 if (nodeVersion.StartsWith("TiMOS-B")) // sementara TiMOS-B ga bisa dapet deskripsi
                 {
-                    SendLine("show service sap-using");
-                    lines = Read(out timeout);
-                    if (timeout) { SaveExit(); return; }
+                    if (Request("show service sap-using", out lines)) return;
 
                     foreach (string line in lines)
                     {
@@ -2001,6 +1950,9 @@ namespace Jovice
                                     {
                                         MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                         mid.Name = name;
+                                        mid.Status = true;
+                                        mid.Protocol = true;
+                                        mid.Enabled = true;
                                         interfacelive.Add(name, mid);
                                     }
                                 }
@@ -2021,8 +1973,8 @@ namespace Jovice
                                 {
                                     MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                     mid.Name = thisport;
-                                    mid.Status = (status == "Up") ? 1 : 0;
-                                    mid.Protocol = (protocol == "Up") ? 1 : 0;
+                                    mid.Status = status == "Up";
+                                    mid.Protocol = protocol == "Up";
                                     mid.CircuitID = circuitID;
                                     mid.IngressID = ingressID;
                                     mid.EgressID = egressID;
@@ -2030,7 +1982,7 @@ namespace Jovice
                                     interfacelive.Add(thisport, mid);
 
                                     if (interfacelive.ContainsKey(name))
-                                        interfacelive[name].Used = 1;
+                                        interfacelive[name].Used = true;
                                 }
                             }
                         }
@@ -2039,15 +1991,76 @@ namespace Jovice
                 }
                 else
                 {
-                    SendLine("show service sap-using description");
-                    lines = Read(out timeout);
-                    if (timeout) { SaveExit(); return; }
+                    // make lag list
+                    if (Request("show lag description", out lines)) return;
+
+                    /* lag
+                /*
+===============================================================================
+Lag-id Port-id   Adm   Act/Stdby Opr   Description
+-------------------------------------------------------------------------------
+01234567890123456789012345678901234567890123456789
+          1         2         3         4
+1(e)             up              up    AKSES_PE-D2-CKA-TRANSIT/ae1_TO_ME-A-JKT-
+                                       CKA/lag-1_No1_3xGi (Downlink)
+       3/1/4     up    active    up    AKSES_PE TO_PE Transit
+       3/1/10    up    active    up    AKSES_TO_PE2-D2-CKA-VPN
+       3/1/14    up    active    up    AKSES_TO_PE-D2-CKA-VPN_Gi0/0/0/2
+       3/1/15    up    active    up    AKSES_TO_PE-D2-CKA-TRANSIT LAG-1 port
+                                       ge-5/0/1
+
+2(e)             up              up    TRUNK_to me2-d2-cka (80G)
+       5/1/6     up    active    up    TRUNK_to-me2-d2-cka port 3/1/2
+       5/2/3     up    active    up    TRUNK_to-me2-d2-cka port 8/1/4
+       */
+                    MEInterfaceToDatabase current = null;
+
+                    foreach (string line in lines)
+                    {
+                        if (line.Length > 1)
+                        {
+                            if (char.IsDigit(line[0]))
+                            {
+                                if (description != null && current != null) current.Description = description.ToString();
+                                description = null;
+                                current = null;
+
+                                int lag = -1;
+                                if (int.TryParse(line.Substring(0, line.IndexOf('(')), out lag))
+                                {
+                                    if (interfacelive.ContainsKey("Ag" + lag))
+                                    {
+                                        current = interfacelive["Ag" + lag];
+                                        bool enup = line.Substring(17, 2) == "up" ? true : false;
+                                        bool prot = line.Substring(33, 2) == "up" ? true : false;
+                                        current.Status = enup;
+                                        current.Enabled = enup;
+                                        current.Protocol = prot;
+                                        if (line.Length >= 40)
+                                        {
+                                            description = new StringBuilder();
+                                            description.Append(line.Substring(39));
+                                        }
+                                    }
+                                }
+                            }
+                            else if (description != null && line.Length >= 40)
+                            {
+                                if (line.Substring(0, 39).Trim() == "") description.Append(line.Substring(39));
+                            }
+                        }
+                    }
+
+                    if (description != null && current != null) current.Description = description.ToString();
+
+                    if (Request("show service sap-using description", out lines)) return;
 
                     port = null;
                     description = new StringBuilder();
                     string status = null;
                     string protocol = null;
                     string circuitID = null;
+                    int dot1q = -1;
                     foreach (string line in lines)
                     {
                         if (line.Length > 0)
@@ -2064,9 +2077,11 @@ namespace Jovice
                                         MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                         mid.Name = port;
                                         mid.Description = desc;
-                                        mid.Status = (status == "Up") ? 1 : 0;
-                                        mid.Protocol = (protocol == "Up") ? 1 : 0;
+                                        mid.Status = status == "Up";
+                                        mid.Protocol = protocol == "Up";
+                                        mid.Enabled = mid.Status;
                                         mid.CircuitID = circuitID;
+                                        mid.Dot1Q = dot1q;
 
                                         interfacelive.Add(port, mid);
                                     }
@@ -2087,8 +2102,12 @@ namespace Jovice
                                 {
                                     if (!interfacelive.ContainsKey(name))
                                     {
+                                        // Unexpected Lag, not found in Lag Description
                                         MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                         mid.Name = name;
+                                        mid.Status = true;
+                                        mid.Protocol = true;
+                                        mid.Enabled = true;
                                         interfacelive.Add(name, mid);
                                     }
                                 }
@@ -2108,8 +2127,14 @@ namespace Jovice
                                 // 0123456789012345678901234567890123456789012345678901234567890123456789
                                 //           1         2         3         4         5
 
+                                dot1q = -1;
                                 if (vlan == null) port = name + ".DIRECT";
-                                else port = name + "." + vlan;
+                                else
+                                {
+                                    port = name + "." + vlan;
+                                    string[] svlan = vlan.Split(StringSplitTypes.Dot);
+                                    int.TryParse(svlan[0], out dot1q);
+                                }
                             }
                             else if (line[0] == ' ')
                             {
@@ -2130,8 +2155,8 @@ namespace Jovice
                                         MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                         mid.Name = port;
                                         mid.Description = desc;
-                                        mid.Status = (status == "Up") ? 1 : 0;
-                                        mid.Protocol = (protocol == "Up") ? 1 : 0;
+                                        mid.Status = status == "Up";
+                                        mid.Protocol = protocol == "Up";
                                         mid.CircuitID = circuitID;
 
                                         interfacelive.Add(port, mid);
@@ -2151,17 +2176,17 @@ namespace Jovice
                             MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                             mid.Name = port;
                             mid.Description = desc;
-                            mid.Status = (status == "Up") ? 1 : 0;
-                            mid.Protocol = (protocol == "Up") ? 1 : 0;
+                            mid.Status = status == "Up";
+                            mid.Protocol = protocol == "Up";
+                            mid.Enabled = mid.Status;
                             mid.CircuitID = circuitID;
+                            mid.Dot1Q = dot1q;
 
                             interfacelive.Add(port, mid);
                         }
                     }
 
-                    SendLine("show service sap-using");
-                    lines = Read(out timeout);
-                    if (timeout) { SaveExit(); return; }
+                    if (Request("show service sap-using", out lines)) return;
 
                     foreach (string line in lines)
                     {
@@ -2197,7 +2222,7 @@ namespace Jovice
                                         interfacelive[thisport].EgressID = egressID;
 
                                     if (interfacelive.ContainsKey(name))
-                                        interfacelive[name].Used = 1;
+                                        interfacelive[name].Used = true;
                                 }
                             }
                         }
@@ -2208,11 +2233,7 @@ namespace Jovice
             else if (nodeManufacture == hwe)
             {
                 #region hwe
-
-                SendLine("display interface description");
-                bool timeout;
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("display interface description", out lines)) return;
 
                 bool begin = false;
                 string port = null;
@@ -2297,9 +2318,7 @@ namespace Jovice
                     port = null;
                 }
 
-                SendLine("display interface brief");
-                lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("display interface brief", out lines)) return;
 
                 begin = false;
                 string aggre = null;
@@ -2335,8 +2354,8 @@ namespace Jovice
                             {
                                 if (interfacelive.ContainsKey(poe))
                                 {
-                                    interfacelive[poe].Status = (pstat == "Up") ? 1 : 0;
-                                    interfacelive[poe].Protocol = (pprot == "Up") ? 1 : 0;
+                                    interfacelive[poe].Status = pstat == "Up";
+                                    interfacelive[poe].Protocol = pprot == "Up";
 
                                     if (issif == false)
                                     {
@@ -2402,9 +2421,7 @@ namespace Jovice
                 }
 
                 // vsi ke port (l2 binding vsi)
-                SendLine("display vsi services all");
-                lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("display vsi services all", out lines)) return;
 
                 //GigabitEthernet7/0/3.2999           "ZZZ ZZZ"                       up
                 //GigabitEthernet7/0/10.20            OAMN-MSAN-PWT02
@@ -2437,9 +2454,7 @@ namespace Jovice
                 }
 
                 // qos
-                SendLine("display cur int | in interface |qos-profile |user-queue");
-                lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("display cur int | in interface |qos-profile |user-queue", out lines)) return;
 
                 string qosInterface = null;
                 foreach (string line in lines)
@@ -2550,27 +2565,27 @@ namespace Jovice
                         parentPort = inf.GetBase();
 
                         ssubinf++;
-                        if (li.Status == 1)
+                        if (li.Status)
                         {
                             ssubinfup++;
-                            if (li.Protocol == 1) ssubinfupup++;
+                            if (li.Protocol) ssubinfupup++;
                         }
-                        if (inftype == "Hu") { ssubinfhu++; if (li.Status == 1) { ssubinfhuup++; if (li.Protocol == 1) ssubinfhuupup++; } }
-                        if (inftype == "Te") { ssubinfte++; if (li.Status == 1) { ssubinfteup++; if (li.Protocol == 1) ssubinfteupup++; } }
-                        if (inftype == "Gi") { ssubinfgi++; if (li.Status == 1) { ssubinfgiup++; if (li.Protocol == 1) ssubinfgiupup++; } }
-                        if (inftype == "Fa") { ssubinffa++; if (li.Status == 1) { ssubinffaup++; if (li.Protocol == 1) ssubinffaupup++; } }
-                        if (inftype == "Et") { ssubinfet++; if (li.Status == 1) { ssubinfetup++; if (li.Protocol == 1) ssubinfetupup++; } }
-                        if (inftype == "Ag") { ssubinfag++; if (li.Status == 1) { ssubinfagup++; if (li.Protocol == 1) ssubinfagupup++; } }
+                        if (inftype == "Hu") { ssubinfhu++; if (li.Status) { ssubinfhuup++; if (li.Protocol) ssubinfhuupup++; } }
+                        if (inftype == "Te") { ssubinfte++; if (li.Status) { ssubinfteup++; if (li.Protocol) ssubinfteupup++; } }
+                        if (inftype == "Gi") { ssubinfgi++; if (li.Status) { ssubinfgiup++; if (li.Protocol) ssubinfgiupup++; } }
+                        if (inftype == "Fa") { ssubinffa++; if (li.Status) { ssubinffaup++; if (li.Protocol) ssubinffaupup++; } }
+                        if (inftype == "Et") { ssubinfet++; if (li.Status) { ssubinfetup++; if (li.Protocol) ssubinfetupup++; } }
+                        if (inftype == "Ag") { ssubinfag++; if (li.Status) { ssubinfagup++; if (li.Protocol) ssubinfagupup++; } }
                     }
                     else
                     {
                         sinf++;
-                        if (li.Status == 1) sinfup++;
-                        if (inftype == "Hu") { sinfhu++; if (li.Status == 1) sinfhuup++; }
-                        if (inftype == "Te") { sinfte++; if (li.Status == 1) sinfteup++; }
-                        if (inftype == "Gi") { sinfgi++; if (li.Status == 1) sinfgiup++; }
-                        if (inftype == "Fa") { sinffa++; if (li.Status == 1) sinffaup++; }
-                        if (inftype == "Et") { sinfet++; if (li.Status == 1) sinfetup++; }
+                        if (li.Status) sinfup++;
+                        if (inftype == "Hu") { sinfhu++; if (li.Status) sinfhuup++; }
+                        if (inftype == "Te") { sinfte++; if (li.Status) sinfteup++; }
+                        if (inftype == "Gi") { sinfgi++; if (li.Status) sinfgiup++; }
+                        if (inftype == "Fa") { sinffa++; if (li.Status) sinffaup++; }
+                        if (inftype == "Et") { sinfet++; if (li.Status) sinfetup++; }
                         if (inftype == "Ag") { sinfag++; }
                         if (li.Aggr != -1) parentPort = "Ag" + li.Aggr;    
                     }
@@ -2627,37 +2642,54 @@ namespace Jovice
                                 li.AdjacentID = adjacentParentID;
 
                                 // query lawan
-                                li.AdjacentSubifID = new Dictionary<string, string>();
-                                result = Query("select PI_ID, PI_Name from PEInterface where PI_PI = {0}", li.AdjacentID);
+                                li.AdjacentIDList = new Dictionary<int, string>();
+                                result = Query("select PI_ID, PI_DOT1Q from PEInterface where PI_PI = {0}", li.AdjacentID);
                                 foreach (Row row in result)
                                 {
-                                    string spiname = row["PI_Name"].ToString();
-                                    int dot = spiname.IndexOf('.');
-                                    if (dot > -1 && spiname.Length > (dot + 1))
+                                    if (!row["PI_DOT1Q"].IsNull)
                                     {
-                                        string sifname = spiname.Substring(dot + 1);
-                                        if (!li.AdjacentSubifID.ContainsKey(sifname)) li.AdjacentSubifID.Add(sifname, row["PI_ID"].ToString());
+                                        int dot1q = row["PI_DOT1Q"].ToShort();
+                                        if (!li.AdjacentIDList.ContainsKey(dot1q)) li.AdjacentIDList.Add(dot1q, row["PI_ID"].ToString());
                                     }
+
+                                    //string spiname = row["PI_Name"].ToString();
+                                    //int dot = spiname.IndexOf('.');
+                                    //if (dot > -1 && spiname.Length > (dot + 1))
+                                    //{
+                                    //    string sifname = spiname.Substring(dot + 1);
+                                    //    if (!li.AdjacentSubifID.ContainsKey(sifname)) li.AdjacentSubifID.Add(sifname, row["PI_ID"].ToString());
+                                    //}
                                 }
                             }                            
                         }
                     }
                     else if (li.ParentID != null)
                     {
-                        int dot = li.Name.IndexOf('.');
-                        if (dot > -1 && li.Name.Length > (dot + 1))
+                        int dot1q = li.Dot1Q;
+                        if (dot1q > -1)
                         {
-                            string sifname = li.Name.Substring(dot + 1);
-                            if (sifname != "DIRECT")
+                            MEInterfaceToDatabase parent = interfacelive[parentPort];
+                            if (parent.AdjacentIDList != null)
                             {
-                                MEInterfaceToDatabase parent = interfacelive[parentPort];
-                                if (parent.AdjacentSubifID != null)
-                                {
-                                    if (parent.AdjacentSubifID.ContainsKey(sifname))
-                                        li.AdjacentID = parent.AdjacentSubifID[sifname];
-                                }
+                                if (parent.AdjacentIDList.ContainsKey(dot1q))
+                                    li.AdjacentID = parent.AdjacentIDList[dot1q];
                             }
                         }
+
+                        //int dot = li.Name.IndexOf('.');
+                        //if (dot > -1 && li.Name.Length > (dot + 1))
+                        //{
+                        //    string sifname = li.Name.Substring(dot + 1);
+                        //    if (sifname != "DIRECT")
+                        //    {
+                        //        MEInterfaceToDatabase parent = interfacelive[parentPort];
+                        //        if (parent.AdjacentSubifID != null)
+                        //        {
+                        //            if (parent.AdjacentSubifID.ContainsKey(sifname))
+                        //                li.AdjacentID = parent.AdjacentSubifID[sifname];
+                        //        }
+                        //    }
+                        //}
                     }
 
                 }
@@ -2707,21 +2739,35 @@ namespace Jovice
                         u.ServiceID = null;
                         if (u.Description != null) interfaceservicereference.Add(u, u.Description);
                     }
-                    if ((db["MI_Status"].ToBoolean() ? 1 : 0) != li.Status)
+                    if (db["MI_Status"].ToBool() != li.Status)
                     {
                         update = true;
                         u.UpdateStatus = true;
                         u.Status = li.Status;
                         updateinfo.Append("stat ");
                     }
-                    if ((db["MI_Protocol"].ToBoolean() ? 1 : 0) != li.Protocol)
+                    if (db["MI_Protocol"].ToBool() != li.Protocol)
                     {
                         update = true;
                         u.UpdateProtocol = true;
                         u.Protocol = li.Protocol;
                         updateinfo.Append("prot ");
                     }
-                    if (db["MI_Aggregator"].ToSmall(-1) != li.Aggr)
+                    if (db["MI_Enabled"].ToBool() != li.Enabled)
+                    {
+                        update = true;
+                        u.UpdateEnabled = true;
+                        u.Enabled = li.Enabled;
+                        updateinfo.Append("ena ");
+                    }
+                    if (db["MI_DOT1Q"].ToShort(-1) != li.Dot1Q)
+                    {
+                        update = true;
+                        u.UpdateDot1Q = true;
+                        u.Dot1Q = li.Dot1Q;
+                        updateinfo.Append("dot1q ");
+                    }
+                    if (db["MI_Aggregator"].ToShort(-1) != li.Aggr)
                     {
                         update = true;
                         u.UpdateAggr = true;
@@ -2756,67 +2802,26 @@ namespace Jovice
                         u.EgressID = li.EgressID;
                         updateinfo.Append("egress ");
                     }
-                    if (db["MI_Used"].IsNull)
+                    if (db["MI_Used"].ToNullableBool() != li.Used)
                     {
-                        if (li.Used > -1)
-                        {
-                            update = true;
-                            u.UpdateUsed = true;
-                            u.Used = li.Used;
-                            updateinfo.Append("used ");
-                        }
+                        update = true;
+                        u.UpdateUsed = true;
+                        u.Used = li.Used;
+                        updateinfo.Append("used ");
                     }
-                    else
+                    if (db["MI_Rate_Input"].ToInt(-1) != li.RateLimitInput)
                     {
-                        if ((db["MI_Used"].ToBoolean() ? 1 : 0) != li.Used)
-                        {
-                            update = true;
-                            u.UpdateUsed = true;
-                            u.Used = li.Used;
-                            updateinfo.Append("used ");
-                        }
+                        update = true;
+                        u.UpdateRateLimitInput = true;
+                        u.RateLimitInput = li.RateLimitInput;
+                        updateinfo.Append("rin ");
                     }
-                    Column rateinput = db["MI_Rate_Input"];
-                    if (rateinput.IsNull)
+                    if (db["MI_Rate_Output"].ToInt(-1) != li.RateLimitOutput)
                     {
-                        if (li.RateLimitInput > -1)
-                        {
-                            update = true;
-                            u.UpdateRateLimitInput = true;
-                            u.RateLimitInput = li.RateLimitInput;
-                            updateinfo.Append("rin ");
-                        }
-                    }
-                    else
-                    {
-                        if (li.RateLimitInput != rateinput.ToInt())
-                        {
-                            update = true;
-                            u.UpdateRateLimitInput = true;
-                            u.RateLimitInput = li.RateLimitInput;
-                            updateinfo.Append("rin ");
-                        }
-                    }
-                    Column rateoutput = db["MI_Rate_Output"];
-                    if (rateoutput.IsNull)
-                    {
-                        if (li.RateLimitOutput > -1)
-                        {
-                            update = true;
-                            u.UpdateRateLimitOutput = true;
-                            u.RateLimitOutput = li.RateLimitOutput;
-                            updateinfo.Append("rout ");
-                        }
-                    }
-                    else
-                    {
-                        if (li.RateLimitOutput != rateoutput.ToInt())
-                        {
-                            update = true;
-                            u.UpdateRateLimitOutput = true;
-                            u.RateLimitOutput = li.RateLimitOutput;
-                            updateinfo.Append("rout ");
-                        }
+                        update = true;
+                        u.UpdateRateLimitOutput = true;
+                        u.RateLimitOutput = li.RateLimitOutput;
+                        updateinfo.Append("rout ");
                     }
                     if (db["MI_Info"].ToString() != li.Info)
                     {
@@ -2825,7 +2830,7 @@ namespace Jovice
                         u.Info = li.Info;
                         updateinfo.Append("info ");
                     }
-                    if (db["MI_Summary_SubInterfaceCount"].ToSmall(-1) != li.SubInterfaceCount)
+                    if (db["MI_Summary_SubInterfaceCount"].ToShort(-1) != li.SubInterfaceCount)
                     {
                         update = true;
                         u.UpdateSubInterfaceCount = true;
@@ -2884,12 +2889,31 @@ namespace Jovice
             foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfaceinsert)
             {
                 MEInterfaceToDatabase s = pair.Value;
-                batch.Execute("insert into MEInterface(MI_ID, MI_NO, MI_Name, MI_Status, MI_Protocol, MI_Aggregator, MI_Description, MI_MC, MI_Type, MI_MQ_Input, MI_MQ_Output, MI_Rate_Input, MI_Rate_Output, MI_Used, MI_Summary_SubInterfaceCount, MI_Info, MI_SE, MI_MI, MI_TO_PI) values({0}, {1}, {2}, {3}, {4}, " + 
-                    (s.Aggr == -1 ? "NULL" : s.Aggr + "") + ", {5}, {6}, {7}, {8}, {9}, " + ((s.RateLimitInput == -1) ? "NULL" : (s.RateLimitInput + "")) + ", " + 
-                    ((s.RateLimitOutput == -1) ? "NULL" : (s.RateLimitOutput + "")) + ", " + ((s.Used == -1) ? "NULL" : (s.Used + "")) + ", " +
-                    ((s.SubInterfaceCount == -1) ? "NULL" : (s.SubInterfaceCount + "")) +
-                    ", {10}, {11}, {12}, {13})",
-                    s.ID, nodeID, s.Name, s.Status, s.Protocol, s.Description, s.CircuitID, s.InterfaceType, s.IngressID, s.EgressID, s.Info, s.ServiceID, s.ParentID, s.AdjacentID);
+
+                Insert insert = Insert("MEInterface");
+                insert.Value("MI_ID", s.ID);
+                insert.Value("MI_NO", nodeID);
+                insert.Value("MI_Name", s.Name);
+                insert.Value("MI_Status", s.Status);
+                insert.Value("MI_Protocol", s.Protocol);
+                insert.Value("MI_Enabled", s.Enabled);
+                insert.Value("MI_DOT1Q", s.Dot1Q.Nullable(-1));
+                insert.Value("MI_Aggregator", s.Aggr.Nullable(-1));
+                insert.Value("MI_Description", s.Description);
+                insert.Value("MI_MC", s.CircuitID);
+                insert.Value("MI_Type", s.InterfaceType);
+                insert.Value("MI_MQ_Input", s.IngressID);
+                insert.Value("MI_MQ_Output", s.EgressID);
+                insert.Value("MI_Rate_Input", s.RateLimitInput.Nullable(-1));
+                insert.Value("MI_Rate_Output", s.RateLimitOutput.Nullable(-1));
+                insert.Value("MI_Used", s.Used);
+                insert.Value("MI_Info", s.Info);
+                insert.Value("MI_SE", s.ServiceID);
+                insert.Value("MI_MI", s.ParentID);
+                insert.Value("MI_TO_PI", s.AdjacentID);
+                insert.Value("MI_Summary_SubInterfaceCount", s.SubInterfaceCount.Nullable(-1));
+
+                batch.Execute(insert);
                 interfacereferenceupdate.Add(new Tuple<string, string>(s.AdjacentID, s.ID));
             }
             result = batch.Commit();
@@ -2899,54 +2923,35 @@ namespace Jovice
             batch.Begin();
             foreach (MEInterfaceToDatabase s in interfaceupdate)
             {
-                List<string> v = new List<string>();
-                if (s.UpdateParentID) v.Add(Format("MI_MI = {0}", s.ParentID));
+                Update update = Update("MEInterface");
+                update.Set("MI_MI", s.ParentID, s.UpdateParentID);
                 if (s.UpdateAdjacentID)
                 {
-                    v.Add(Format("MI_TO_PI = {0}", s.AdjacentID));
+                    update.Set("MI_TO_PI", s.AdjacentID);
                     interfacereferenceupdate.Add(new Tuple<string, string>(s.AdjacentID, s.ID));
                 }
                 if (s.UpdateDescription)
                 {
-                    v.Add(Format("MI_Description = {0}", s.Description));
-                    v.Add(Format("MI_SE = {0}", s.ServiceID));
+                    update.Set("MI_Description", s.Description);
+                    update.Set("MI_SE", s.ServiceID);
                 }
-                if (s.UpdateStatus) v.Add("MI_Status = " + s.Status);
-                if (s.UpdateProtocol) v.Add("MI_Protocol = " + s.Protocol);
-                if (s.UpdateAggr)
-                {
-                    if (s.Aggr == -1)
-                        v.Add("MI_Aggregator = NULL");
-                    else
-                        v.Add("MI_Aggregator = " + s.Aggr);
-                }
-                if (s.UpdateCircuit) v.Add(Format("MI_MC = {0}", s.CircuitID));
-                if (s.UpdateInterfaceType) v.Add(Format("MI_Type = {0}", s.InterfaceType));
-                if (s.UpdateIngressID) v.Add(Format("MI_MQ_Input = {0}", s.IngressID));
-                if (s.UpdateEgressID) v.Add(Format("MI_MQ_Output = {0}", s.EgressID));
-                if (s.UpdateRateLimitInput)
-                {
-                    if (s.RateLimitInput > -1) v.Add("MI_Rate_Input = " + s.RateLimitInput);
-                    else v.Add("MI_Rate_Input = NULL");
-                }
-                if (s.UpdateRateLimitOutput)
-                {
-                    if (s.RateLimitOutput > -1) v.Add("MI_Rate_Output = " + s.RateLimitOutput);
-                    else v.Add("MI_Rate_Output = NULL");
-                }
-                if (s.UpdateUsed)
-                {
-                    if (s.Used > -1) v.Add("MI_Used = " + s.Used);
-                    else v.Add("MI_Used = NULL");
-                }
-                if (s.UpdateInfo) v.Add(Format("MI_Info = {0}", s.Info));
-                if (s.UpdateSubInterfaceCount)
-                {
-                    if (s.SubInterfaceCount > -1) v.Add("MI_Summary_SubInterfaceCount = " + s.SubInterfaceCount);
-                    else v.Add("MI_Summary_SubInterfaceCount = NULL");
-                }
+                update.Set("MI_Status", s.Status, s.UpdateStatus);
+                update.Set("MI_Protocol", s.Protocol, s.UpdateProtocol);
+                update.Set("MI_Enabled", s.Enabled, s.UpdateEnabled);
+                update.Set("MI_DOT1Q", s.Dot1Q.Nullable(-1), s.UpdateDot1Q);
+                update.Set("MI_Aggregator", s.Aggr.Nullable(-1), s.UpdateAggr);
+                update.Set("MI_MC", s.CircuitID, s.UpdateCircuit);
+                update.Set("MI_Type", s.InterfaceType, s.UpdateInterfaceType);
+                update.Set("MI_MQ_Input", s.IngressID, s.UpdateIngressID);
+                update.Set("MI_MQ_Output", s.EgressID, s.UpdateEgressID);
+                update.Set("MI_Rate_Input", s.RateLimitInput.Nullable(-1), s.UpdateRateLimitInput);
+                update.Set("MI_Rate_Output", s.RateLimitOutput.Nullable(-1), s.UpdateRateLimitOutput);
+                update.Set("MI_Used", s.Used, s.UpdateUsed);
+                update.Set("MI_Info", s.Info, s.UpdateInfo);
+                update.Set("MI_Summary_SubInterfaceCount", s.SubInterfaceCount, s.UpdateSubInterfaceCount);
+                update.Where("MI_ID", s.ID);
 
-                if (v.Count > 0) batch.Execute("update MEInterface set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MI_ID = {0}", s.ID);
+                batch.Execute(update);
             }
             result = batch.Commit();
             Event(result, EventActions.Update, EventElements.Interface, false);
@@ -2954,10 +2959,8 @@ namespace Jovice
             batch.Begin();
             foreach (Tuple<string, string> tuple in interfacereferenceupdate)
             {
-                if (tuple.Item1 != null)
-                    batch.Execute("update PEInterface set PI_TO_MI = {0} where PI_ID = {1}", tuple.Item2, tuple.Item1);
-                else
-                    batch.Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI = {0}", tuple.Item2);
+                if (tuple.Item1 != null) batch.Execute("update PEInterface set PI_TO_MI = {0} where PI_ID = {1}", tuple.Item2, tuple.Item1);
+                else batch.Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI = {0}", tuple.Item2);
             }
             result = batch.Commit();
 

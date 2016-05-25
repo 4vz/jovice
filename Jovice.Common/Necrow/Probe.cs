@@ -25,20 +25,28 @@ namespace Jovice
 
     internal abstract class StatusToDatabase : ToDatabase
     {
-        private int status;
+        private bool status;
 
-        public int Status
+        public bool Status
         {
             get { return status; }
             set { status = value; }
         }
 
-        private int protocol;
+        private bool protocol;
 
-        public int Protocol
+        public bool Protocol
         {
             get { return protocol; }
             set { protocol = value; }
+        }
+
+        private bool enabled;
+
+        public bool Enabled
+        {
+            get { return enabled; }
+            set { enabled = value; }
         }
 
         private bool updateStatus = false;
@@ -56,6 +64,14 @@ namespace Jovice
             get { return updateProtocol; }
             set { updateProtocol = value; }
         }
+
+        private bool updateEnabled = false;
+
+        public bool UpdateEnabled
+        {
+            get { return updateEnabled; }
+            set { updateEnabled = value; }
+        }
     }
 
     internal abstract class ServiceBaseToDatabase : StatusToDatabase
@@ -67,16 +83,8 @@ namespace Jovice
             get { return serviceID; }
             set { serviceID = value; }
         }
-
-        private bool updateServiceID = false;
-
-        public bool UpdateServiceID
-        {
-            get { return updateServiceID; }
-            set { updateServiceID = value; }
-        }
     }
-
+    
     internal abstract class InterfaceToDatabase : ServiceBaseToDatabase
     {
         #region Basic
@@ -121,12 +129,12 @@ namespace Jovice
             set { dot1q = value; }
         }
 
-        private int qinq = -1;
+        private bool updateDot1Q = false;
 
-        public int QinQ
+        public bool UpdateDot1Q
         {
-            get { return qinq; }
-            set { qinq = value; }
+            get { return updateDot1Q; }
+            set { updateDot1Q = value; }
         }
         
         #endregion
@@ -217,12 +225,12 @@ namespace Jovice
             set { updateAdjacentID = value; }
         }
 
-        private Dictionary<string, string> adjacentSubifID = null;
+        private Dictionary<int, string> adjacentIDList = null;
 
-        public Dictionary<string, string> AdjacentSubifID
+        public Dictionary<int, string> AdjacentIDList
         {
-            get { return adjacentSubifID; }
-            set { adjacentSubifID = value; }
+            get { return adjacentIDList; }
+            set { adjacentIDList = value; }
         }
 
         #endregion
@@ -492,6 +500,16 @@ namespace Jovice
         public Batch Batch()
         {
             return j.Batch();
+        }
+
+        public Insert Insert(string table)
+        {
+            return j.Insert(table);
+        }
+
+        public Update Update(string table)
+        {
+            return j.Update(table);
         }
 
         public Dictionary<string, Row> QueryDictionary(string sql, string key, params object[] args)
@@ -1353,21 +1371,22 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             Exit();
         }
 
-        private List<string> Read(out bool timeout)
+        private bool Request(string command, out string[] lines)
         {
-            Event("Reading...");
+            Event("Request [" + command + "]...");
+            Thread.Sleep(1000);
+            SendLine(command);
 
             Stopwatch stopwatch = new Stopwatch();
-            stopwatch.Start();
-
-            timeout = false;
-            if (nodeTerminal == null) return null;
-
             StringBuilder lineBuilder = new StringBuilder();
-            List<string> lines = new List<string>();
-            int wait = 0;
-
             StringBuilder lastOutputSB = new StringBuilder();
+            List<string> listlines = new List<string>();
+            bool timeout = false;
+
+            //Event("Reading...");
+            stopwatch.Start();
+                        
+            int wait = 0;
             bool ending = false;
 
             while (true)
@@ -1378,9 +1397,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     {
                         wait = 0;
                         string output = outputs.Dequeue();
-
                         if (output == null) continue;
-
                         lastOutputSB.Append(output);
 
                         for (int i = 0; i < output.Length; i++)
@@ -1399,11 +1416,11 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                                         int sisa = 80;
                                         if (loop == looptimes - 1) sisa = line.Length - (loop * 80);
                                         string curline = line.Substring(loop * 80, sisa);
-                                        lines.Add(curline);
+                                        listlines.Add(curline);
                                     }
                                 }
                                 else
-                                    lines.Add(line);
+                                    listlines.Add(line);
 
                                 lineBuilder.Clear();
                             }
@@ -1421,7 +1438,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                                 {
                                     List<string> newlines = new List<string>();
 
-                                    foreach (string line in lines)
+                                    foreach (string line in listlines)
                                     {
                                         string newline;
                                         if (line.IndexOf(aluMORE) > -1)
@@ -1431,7 +1448,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                                         newlines.Add(newline);
                                     }
 
-                                    lines = newlines;
+                                    listlines = newlines;
 
                                     SendSpace();
                                 }
@@ -1450,9 +1467,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     if (wait % 50 == 0 && wait < 400)
                     {
                         Event("Waiting...");
-
                         SendLine("");
-
                         Event("Last Reading Output: ");
                         int lp = LastOutput.Length - 200;
                         if (lp < 0) lp = 0;
@@ -1468,7 +1483,6 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                         timeout = true;
                         Event("Reading timeout, cancel the reading...");
                     }
-
                     if (wait >= 400 && wait % 50 == 0)
                     {
                         SendControlC();
@@ -1480,13 +1494,21 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     }
                 }
             }
-            if (lineBuilder.Length > 0) lines.Add(lineBuilder.ToString().Trim());
+            if (lineBuilder.Length > 0) listlines.Add(lineBuilder.ToString().Trim());
             stopwatch.Stop();
 
             if (!timeout)
-                Event("Reading completed (" + string.Format("{0:0.###}", stopwatch.Elapsed.TotalSeconds) + "s)");
-
-            return lines;
+            {
+                lines = listlines.ToArray();
+                Event("Request completed (" + string.Format("{0:0.###}", stopwatch.Elapsed.TotalSeconds) + "s)");
+                return false;
+            }
+            else
+            {
+                lines = null;
+                SaveExit();
+                return true;
+            }
         }
 
         private bool ConnectByTelnet(string host, string manufacture, string user, string pass)
@@ -1815,6 +1837,8 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
         private void Enter(Row row, out bool continueProcess, bool prioritizeProcess)
         {
+            string[] lines = null;
+
             continueProcess = false;
 
             WaitUntilMCETerminalReady("MCE Waiting I");
@@ -1911,7 +1935,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
                             string existingType = result[0]["NO_Type"].ToString();
                             string existingNodeID = result[0]["NO_ID"].ToString();
-                            bool existingActive = result[0]["NO_Active"].ToBoolean();
+                            bool existingActive = result[0]["NO_Active"].ToBool();
                             bool existinghasentries = false;
 
                             if (existingType == "P")
@@ -2146,7 +2170,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
             if (nodeManufacture == alu)
             {
-                string[] lines = LastOutput.Split('\n');
+                lines = LastOutput.Split('\n');
                 string lastLine = lines[lines.Length - 1];
 
                 int titik2 = lastLine.LastIndexOf(':');
@@ -2154,13 +2178,13 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             }
             else if (nodeManufacture == hwe)
             {
-                string[] lines = LastOutput.Split('\n');
+                lines = LastOutput.Split('\n');
                 string lastLine = lines[lines.Length - 1];
                 terminal = lastLine;
             }
             else if (nodeManufacture == cso)
             {
-                string[] lines = LastOutput.Split('\n');
+                lines = LastOutput.Split('\n');
                 string lastLine = lines[lines.Length - 1];
                 terminal = lastLine;
 
@@ -2174,7 +2198,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             }
             else if (nodeManufacture == jun)
             {
-                string[] lines = LastOutput.Split('\n');
+                lines = LastOutput.Split('\n');
                 string lastLine = lines[lines.Length - 1];
 
                 string[] linex = lastLine.Split(new char[] { '@' }, StringSplitOptions.RemoveEmptyEntries);
@@ -2196,15 +2220,13 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             DateTime utcTime = DateTime.UtcNow;
             DateTime nodeTime = DateTime.MinValue;
 
-            List<string> junShowSystemUptimeLines = null;
+            string[] junShowSystemUptimeLines = null;
             
             if (nodeManufacture == alu)
             {
                 #region alu
 
-                SendLine("show system time");
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("show system time", out lines)) return;
                 
                 foreach (string line in lines)
                 {
@@ -2223,10 +2245,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             else if (nodeManufacture == cso)
             {
                 #region cso
-
-                SendLine("show clock");
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("show clock", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -2245,10 +2264,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             else if (nodeManufacture == hwe)
             {
                 #region hwe
-
-                SendLine("display clock");
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("display clock", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -2267,10 +2283,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             else if (nodeManufacture == jun)
             {
                 #region jun
-
-                SendLine("show system uptime");
-                junShowSystemUptimeLines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("show system uptime", out junShowSystemUptimeLines)) return;
 
                 foreach (string line in junShowSystemUptimeLines)
                 {
@@ -2314,13 +2327,8 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
             if (nodeManufacture == alu)
             {
-                SendLine("environment no saved-ind-prompt", true);
-                Read(out timeout);
-                if (timeout) { SaveExit(); return; }
-
-                SendLine("environment no more");
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("environment no saved-ind-prompt", out lines)) return;
+                if (Request("environment no more", out lines)) return;
 
                 string oline = string.Join(" ", lines);
                 if (oline.IndexOf("CLI Command not allowed for this user.") > -1)
@@ -2330,21 +2338,15 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             }
             else if (nodeManufacture == hwe)
             {
-                SendLine("screen-length 0 temporary");
-                Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("screen-length 0 temporary", out lines)) return;
             }
             else if (nodeManufacture == cso)
             {
-                SendLine("terminal length 0");
-                Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("terminal length 0", out lines)) return;
             }
             else if (nodeManufacture == jun)
             {
-                SendLine("set cli screen-length 0");
-                Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("set cli screen-length 0", out lines)) return;
             }
 
             #endregion
@@ -2372,9 +2374,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 if (nodeManufacture == alu)
                 {
                     #region alu
-                    SendLine("show version | match TiMOS");
-                    List<string> lines = Read(out timeout);
-                    if (timeout) { SaveExit(); return; }
+                    if (Request("show version | match TiMOS", out lines)) return;
 
                     foreach (string line in lines)
                     {
@@ -2391,9 +2391,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 else if (nodeManufacture == hwe)
                 {
                     #region hwe
-                    SendLine("display version");
-                    List<string> lines = Read(out timeout);
-                    if (timeout) { SaveExit(); return; }
+                    if (Request("display version", out lines)) return;
 
                     foreach (string line in lines)
                     {
@@ -2416,9 +2414,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 else if (nodeManufacture == cso)
                 {
                     #region cso
-                    SendLine("show version | in IOS");
-                    List<string> lines = Read(out timeout);
-                    if (timeout) { SaveExit(); return; }
+                    if (Request("show version | in IOS", out lines)) return;
 
                     string sl = string.Join("", lines.ToArray());
 
@@ -2457,9 +2453,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                         }
 
                         // model
-                        SendLine("show version | in bytes of memory");
-                        lines = Read(out timeout);
-                        if (timeout) { SaveExit(); return; }
+                        if (Request("show version | in bytes of memory", out lines)) return;
 
                         sl = string.Join("", lines.ToArray());
                         string slo = sl.ToLower();
@@ -2483,10 +2477,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 else if (nodeManufacture == jun)
                 {
                     #region jun
-
-                    SendLine("show version | match \"JUNOS Base OS boot\"");
-                    List<string> lines = Read(out timeout);
-                    if (timeout) { SaveExit(); return; }
+                    if (Request("show version | match \"JUNOS Base OS boot\"", out lines)) return;
 
                     foreach (string line in lines)
                     {
@@ -2545,9 +2536,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             if (nodeManufacture == alu)
             {
                 #region alu
-                SendLine("show system information | match \"Time Last Modified\"");
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("show system information | match \"Time Last Modified\"", out lines)) return;
 
                 bool lastModified = false;
 
@@ -2571,9 +2560,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
                 if (lastModified == false)
                 {
-                    SendLine("show system information | match \"Time Last Saved\"");
-                    lines = Read(out timeout);
-                    if (timeout) { SaveExit(); return; }
+                    if (Request("show system information | match \"Time Last Saved\"", out lines)) return;
 
                     foreach (string line in lines)
                     {
@@ -2603,9 +2590,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
                 if (nodeVersion == "8.80")
                 {
-                    SendLine("display configuration commit list 1");
-                    List<string> lines = Read(out timeout);
-                    if (timeout) { SaveExit(); return; }
+                    if (Request("display configuration commit list 1", out lines)) return;
 
                     foreach (string line in lines)
                     {
@@ -2622,9 +2607,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 }
                 else
                 {
-                    SendLine("display changed-configuration time");
-                    List<string> lines = Read(out timeout);
-                    if (timeout) { SaveExit(); return; }
+                    if (Request("display changed-configuration time", out lines)) return;
 
                     StringBuilder datesection = null;
                     foreach (string line in lines)
@@ -2659,9 +2642,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 if (nodeVersion == xr)
                 {
                     #region xr
-                    SendLine("show configuration history commit last 1 | in commit");
-                    List<string> lines = Read(out timeout);
-                    if (timeout) { SaveExit(); return; }
+                    if (Request("show configuration history commit last 1 | in commit", out lines)) return;
 
                     foreach (string line in lines)
                     {
@@ -2698,9 +2679,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     bool passed = false;
 
                     // most of ios version will work this way
-                    SendLine("show configuration id detail");
-                    List<string> lines = Read(out timeout);
-                    if (timeout) { SaveExit(); return; }
+                    if (Request("show configuration id detail", out lines)) return;
 
                     foreach (string line in lines)
                     {
@@ -2732,9 +2711,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     {
                         // using xr-like command history
                         //show configuration history
-                        SendLine("show configuration history");
-                        lines = Read(out timeout);
-                        if (timeout) { SaveExit(); return; }
+                        if (Request("show configuration history", out lines)) return;
 
                         string lastline = null;
                         foreach (string line in lines)
@@ -2770,9 +2747,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     if (passed == false)
                     {
                         // and here we are, using forbidden command ever
-                        SendLine("show log | in CONFIG_I");
-                        lines = Read(out timeout);
-                        if (timeout) { SaveExit(); return; }
+                        if (Request("show log | in CONFIG_I", out lines)) return;
 
                         string lastline = null;
                         foreach (string line in lines)
@@ -2812,10 +2787,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     if (passed == false)
                     {
                         // and... if everything fail, we will use this slowlest command ever
-                        SendLine("show run | in Last config");
-                        lines = Read(out timeout);
-
-                        if (timeout) { SaveExit(); return; }
+                        if (Request("show run | in Last config", out lines)) return;
 
                         foreach (string line in lines)
                         {
@@ -2906,10 +2878,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             if (nodeManufacture == cso)
             {
                 #region cso
-
-                SendLine("show processes cpu | in CPU");
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("show processes cpu | in CPU", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -2928,9 +2897,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 if (nodeVersion == xr)
                 {
                     //show memory summary | in Physical Memory
-                    SendLine("show memory summary | in Physical Memory");
-                    lines = Read(out timeout);
-                    if (timeout) { SaveExit(); return; }
+                    if (Request("show memory summary | in Physical Memory", out lines)) return;
 
                     foreach (string line in lines)
                     {
@@ -2967,10 +2934,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 else
                 {
                     //show process memory  | in Processor Pool
-                    SendLine("show process memory | in Total:");
-                    lines = Read(out timeout);
-
-                    if (timeout) { SaveExit(); return; }
+                    if (Request("show process memory | in Total:", out lines)) return;
 
                     foreach (string line in lines)
                     {
@@ -3017,10 +2981,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             else if (nodeManufacture == alu)
             {
                 #region alu
-
-                SendLine("show system cpu | match \"Busiest Core\"");
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("show system cpu | match \"Busiest Core\"", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -3044,9 +3005,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 }
 
                 //show system memory-pools | match bytes
-                SendLine("show system memory-pools | match bytes");
-                lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("show system memory-pools | match bytes", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -3082,11 +3041,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             else if (nodeManufacture == hwe)
             {
                 #region hwe
-
-                SendLine("display cpu-usage");
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
-
+                if (Request("display cpu-usage", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -3120,10 +3075,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     }
                 }
 
-                SendLine("display memory-usage");
-                lines = Read(out timeout);
-
-                if (timeout) { SaveExit(); return; }
+                if (Request("display memory-usage", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -3165,9 +3117,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 #region jun
 
                 //show chassis routing-engine | match Idle
-                SendLine("show chassis routing-engine | match Idle");
-                List<string> lines = Read(out timeout);
-                if (timeout) { SaveExit(); return; }
+                if (Request("show chassis routing-engine | match Idle", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -3194,10 +3144,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 }
 
                 //show task memory
-                SendLine("show task memory");
-                lines = Read(out timeout);
-
-                if (timeout) { SaveExit(); return; }
+                if (Request("show task memory", out lines)) return;
 
                 foreach (string line in lines)
                 {
@@ -3325,7 +3272,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             foreach (Row row in customerresult)
             {
                 customerdb.Add(row["SC_CID"].ToString(), row);
-                if (!row["SC_Name_Set"].ToBoolean(false)) servicebycustomerid.Add(row["SC_ID"].ToString());
+                if (!row["SC_Name_Set"].ToBool(false)) servicebycustomerid.Add(row["SC_ID"].ToString());
             }
             Result serviceresult = Query("select * from Service where SE_SID in ('" + string.Join("','", serviceid.ToArray()) + "') or SE_SC in ('" + string.Join("','", servicebycustomerid.ToArray()) + "')");
             foreach (Row row in serviceresult)
@@ -3869,17 +3816,23 @@ order by NO_ID asc
                                 else
                                 {
                                     // find pi child
-                                    li.AdjacentSubifID = new Dictionary<string, string>();
-                                    Result result = Query("select PI_ID, PI_Name from PEInterface where PI_PI = {0}", li.AdjacentID);
+                                    li.AdjacentIDList = new Dictionary<int, string>();
+                                    Result result = Query("select PI_ID, PI_DOT1Q from PEInterface where PI_PI = {0}", li.AdjacentID);
                                     foreach (Row row in result)
                                     {
-                                        string spiname = row["PI_Name"].ToString();
-                                        int dot = spiname.IndexOf('.');
-                                        if (dot > -1 && spiname.Length > (dot + 1))
+                                        if (!row["PI_DOT1Q"].IsNull)
                                         {
-                                            string sifname = spiname.Substring(dot + 1);
-                                            if (!li.AdjacentSubifID.ContainsKey(sifname)) li.AdjacentSubifID.Add(sifname, row["PI_ID"].ToString());
+                                            int dot1q = row["PI_DOT1Q"].ToShort();
+                                            if (!li.AdjacentIDList.ContainsKey(dot1q)) li.AdjacentIDList.Add(dot1q, row["PI_ID"].ToString());
                                         }
+
+                                        //string spiname = row["PI_Name"].ToString();
+                                        //int dot = spiname.IndexOf('.');
+                                        //if (dot > -1 && spiname.Length > (dot + 1))
+                                        //{
+                                        //    string sifname = spiname.Substring(dot + 1);
+                                        //    if (!li.AdjacentSubifID.ContainsKey(sifname)) li.AdjacentSubifID.Add(sifname, row["PI_ID"].ToString());
+                                        //}
                                     }
                                 }
                             }

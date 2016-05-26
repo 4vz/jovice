@@ -580,10 +580,13 @@ namespace Jovice
             {
                 foreach (string routeTarget in pair.Value)
                 {
-                    bool ipv6 = routeTarget[0] == '1';
-                    bool type = routeTarget[1] == '1';
-                    string community = routeTarget.Substring(2);
-                    batch.Execute("insert into PERouteTarget(PT_ID, PT_PR, PT_Type, PT_Community, PT_IPv6) values({0}, {1}, {2}, {3}, {4})", Database.ID(), pair.Key, type, community, ipv6);
+                    Insert insert = Insert("PERouteTarget");
+                    insert.Value("PT_ID", Database.ID());
+                    insert.Value("PT_PR", pair.Key);
+                    insert.Value("PT_Type", routeTarget[1] == '1');
+                    insert.Value("PT_Community", routeTarget.Substring(2));
+                    insert.Value("PT_IPv6", routeTarget[0] == '1');
+                    batch.Execute(insert);
                 }
             }
             result = batch.Commit();
@@ -593,9 +596,14 @@ namespace Jovice
             batch.Begin();
             foreach (PERouteNameToDatabase s in routenameinsert)
             {
-                batch.Execute("insert into PERouteName(PN_ID, PN_PR, PN_NO, PN_Name, PN_RD, PN_RDv6) values({0}, {1}, {2}, {3}, {4}, {5})",
-                    s.ID, s.RouteID, nodeID, s.Name, s.RD, s.RDIPv6
-                    );
+                Insert insert = Insert("PERouteName");
+                insert.Value("PN_ID", s.ID);
+                insert.Value("PN_PR", s.RouteID);
+                insert.Value("PN_NO", nodeID);
+                insert.Value("PN_Name", s.Name);
+                insert.Value("PN_RD", s.RD);
+                insert.Value("PN_RDv6", s.RDIPv6);
+                batch.Execute(insert);
             }
             result = batch.Commit();
             Event(result, EventActions.Add, EventElements.VRFReference, false);
@@ -604,12 +612,12 @@ namespace Jovice
             batch.Begin();
             foreach (PERouteNameToDatabase s in routenameupdate)
             {
-                List<string> v = new List<string>();
-                if (s.UpdateRD) v.Add(Format("PN_RD = {0}", s.RD));
-                if (s.UpdateRDIPv6) v.Add(Format("PN_RDv6 = {0}", s.RDIPv6));
-                if (s.UpdateRouteTargets) v.Add(Format("PN_PR = {0}", s.RouteID));
-
-                if (v.Count > 0) batch.Execute("update PERouteName set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where PN_ID = {0}", s.ID);
+                Update update = Update("PERouteName");
+                update.Set("PN_RD", s.RD, s.UpdateRD);
+                update.Set("PN_RDv6", s.RDIPv6, s.UpdateRDIPv6);
+                update.Set("PN_PR", s.RouteID, s.UpdateRouteTargets);
+                update.Where("PN_ID", s.ID);
+                batch.Execute(update);
             }
             result = batch.Commit();
             Event(result, EventActions.Update, EventElements.VRFReference, false);
@@ -750,9 +758,13 @@ namespace Jovice
             batch.Begin();
             foreach (PEQOSToDatabase s in qosinsert)
             {
-                // PQ_ID, PQ_NO, PQ_Name, PQ_Bandwidth, PQ_Package
-                if (s.Bandwidth == -1) batch.Execute("insert into PEQOS(PQ_ID, PQ_NO, PQ_Name, PQ_Bandwidth, PQ_Package) values({0}, {1}, {2}, null, {3})", s.ID, nodeID, s.Name, s.Package);
-                else batch.Execute("insert into PEQOS(PQ_ID, PQ_NO, PQ_Name, PQ_Bandwidth, PQ_Package) values({0}, {1}, {2}, {3}, {4})", s.ID, nodeID, s.Name, s.Bandwidth, s.Package);
+                Insert insert = Insert("PEQOS");
+                insert.Value("PQ_ID", s.ID);
+                insert.Value("PQ_NO", nodeID);
+                insert.Value("PQ_Name", s.Name);
+                insert.Value("PQ_Bandwidth", s.Bandwidth.Nullable(-1));
+                insert.Value("PQ_Package", s.Package);
+                batch.Execute(insert);
             }
             result = batch.Commit();
             Event(result, EventActions.Add, EventElements.QOS, false);
@@ -829,7 +841,7 @@ namespace Jovice
                                 i.Name = nodeinterface.GetShort();
                                 i.Status = status == "up";
                                 i.Protocol = protocol == "up";
-                                i.Enabled = !status.StartsWith("admin");
+                                i.Enable = !status.StartsWith("admin");
                                 i.Description = description == String.Empty ? null : description;
                                 interfacelive.Add(i.Name, i);
                             }
@@ -1095,8 +1107,8 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
                                         if (mid.StartsWith("up")) current.Status = true;
                                         else current.Status = false;
-                                        if (mid.StartsWith("admin")) current.Enabled = false;
-                                        else current.Enabled = true;
+                                        if (mid.StartsWith("admin")) current.Enable = false;
+                                        else current.Enable = true;
 
                                         if (last.StartsWith("up")) current.Protocol = true;
                                         else current.Protocol = false;
@@ -1427,7 +1439,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                                 PEInterfaceToDatabase pid = interfacelive[currentinterface];
                                                 if (currentmode == "input")
                                                 {
-                                                    pid.RateLimitInput = kbps;
+                                                    pid.RateInput = kbps;
 
                                                     if (parentPort2 != null)
                                                     {
@@ -1451,7 +1463,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                                 }
                                                 else if (currentmode == "output")
                                                 {
-                                                    pid.RateLimitOutput = kbps;
+                                                    pid.RateOutput = kbps;
 
                                                     if (parentPort2 != null)
                                                     {
@@ -1942,11 +1954,11 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                         u.Protocol = li.Protocol;
                         updateinfo.Append("prot ");
                     }
-                    if (db["PI_Enabled"].ToBool() != li.Enabled)
+                    if (db["PI_Enable"].ToBool() != li.Enable)
                     {
                         update = true;
-                        u.UpdateEnabled = true;
-                        u.Enabled = li.Enabled;
+                        u.UpdateEnable = true;
+                        u.Enable = li.Enable;
                         updateinfo.Append("ena ");
                     }
                     if (db["PI_DOT1Q"].ToShort(-1) != li.Dot1Q)
@@ -1984,18 +1996,18 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                         u.OutputQOSID = li.OutputQOSID;
                         updateinfo.Append("qout ");
                     }
-                    if (db["PI_Rate_Input"].ToInt(-1) != li.RateLimitInput)
+                    if (db["PI_Rate_Input"].ToInt(-1) != li.RateInput)
                     {
                         update = true;
-                        u.UpdateRateLimitInput = true;
-                        u.RateLimitInput = li.RateLimitInput;
+                        u.UpdateRateInput = true;
+                        u.RateInput = li.RateInput;
                         updateinfo.Append("rin ");
                     }
-                    if (db["PI_Rate_Output"].ToInt(-1) != li.RateLimitOutput)
+                    if (db["PI_Rate_Output"].ToInt(-1) != li.RateOutput)
                     {
                         update = true;
-                        u.UpdateRateLimitOutput = true;
-                        u.RateLimitOutput = li.RateLimitOutput;
+                        u.UpdateRateOutput = true;
+                        u.RateOutput = li.RateOutput;
                         updateinfo.Append("rout ");
                     }
                     if (db["PI_Summary_CIRConfigTotalInput"].ToInt(-1) != li.CirConfigTotalInput)
@@ -2148,11 +2160,30 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
             foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfaceinsert)
             {
                 PEInterfaceToDatabase s = pair.Value;
-                batch.Execute("insert into " +
-                    "PEInterface(PI_ID, PI_NO, PI_Name, PI_Status, PI_Protocol, PI_Enabled, PI_DOT1Q, PI_Aggregator, PI_Description, PI_PN, PI_PQ_Input, PI_PQ_Output, PI_SE, PI_PI, PI_TO_MI, PI_Rate_Input, PI_Rate_Output, PI_Summary_CIRConfigTotalInput, PI_Summary_CIRConfigTotalOutput, PI_Summary_CIRTotalInput, PI_Summary_CIRTotalOutput, PI_Summary_SubInterfaceCount) " + 
-                    "values({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}, {15}, {16}, {17}, {18}, {19}, {20}, {21})",
-                    s.ID, nodeID, s.Name, s.Status, s.Protocol, s.Enabled, s.Dot1Q.Nullable(-1), s.Aggr.Nullable(-1), s.Description, s.RouteID, s.InputQOSID, s.OutputQOSID, s.ServiceID, s.ParentID, s.AdjacentID, s.RateLimitInput.Nullable(-1), s.RateLimitOutput.Nullable(-1), s.CirConfigTotalInput.Nullable(-1), s.CirConfigTotalOutput.Nullable(-1), s.CirTotalInput.Nullable(-1), s.CirTotalOutput.Nullable(-1), s.SubInterfaceCount.Nullable(-1)
-                    );
+                Insert insert = Insert("PEInterface");
+                insert.Value("PI_ID", s.ID);
+                insert.Value("PI_NO", nodeID);
+                insert.Value("PI_Name", s.Name);
+                insert.Value("PI_Status", s.Status);
+                insert.Value("PI_Protocol", s.Protocol);
+                insert.Value("PI_Enable", s.Enable);
+                insert.Value("PI_DOT1Q", s.Dot1Q.Nullable(-1));
+                insert.Value("PI_Aggregator", s.Aggr.Nullable(-1));
+                insert.Value("PI_Description", s.Description);
+                insert.Value("PI_PN", s.RouteID);
+                insert.Value("PI_PQ_Input", s.InputQOSID);
+                insert.Value("PI_PQ_Output", s.OutputQOSID);
+                insert.Value("PI_SE", s.ServiceID);
+                insert.Value("PI_PI", s.ParentID);
+                insert.Value("PI_TO_MI", s.AdjacentID);
+                insert.Value("PI_Rate_Input", s.RateInput.Nullable(-1));
+                insert.Value("PI_Rate_Output", s.RateOutput.Nullable(-1));
+                insert.Value("PI_Summary_CIRConfigTotalInput", s.CirConfigTotalInput.Nullable(-1));
+                insert.Value("PI_Summary_CIRConfigTotalOutput", s.CirConfigTotalOutput.Nullable(-1));
+                insert.Value("PI_Summary_CIRTotalInput", s.CirTotalInput.Nullable(-1));
+                insert.Value("PI_Summary_CIRTotalOutput", s.CirTotalOutput.Nullable(-1));
+                insert.Value("PI_Summary_SubInterfaceCount", s.SubInterfaceCount.Nullable(-1));
+                batch.Execute(insert);
 
                 interfacereferenceupdate.Add(new Tuple<string, string>(s.AdjacentID, s.ID));
                 if (s.IP != null) ipinsert.Add(s.ID, s.IP);
@@ -2164,40 +2195,40 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
             batch.Begin();
             foreach (PEInterfaceToDatabase s in interfaceupdate)
             {
-                List<string> v = new List<string>();
-                if (s.UpdateParentID) v.Add(Format("PI_PI = {0}", s.ParentID));
+                Update update = Update("PEInterface");
+                update.Set("PI_PI", s.ParentID, s.UpdateParentID);
                 if (s.UpdateAdjacentID)
                 {
-                    v.Add(Format("PI_TO_MI = {0}", s.AdjacentID));
+                    update.Set("PI_TO_MI", s.AdjacentID);
                     interfacereferenceupdate.Add(new Tuple<string, string>(s.AdjacentID, s.ID));
                 }
                 if (s.UpdateDescription)
                 {
-                    v.Add(Format("PI_Description = {0}", s.Description));
-                    v.Add(Format("PI_SE = {0}", s.ServiceID));
+                    update.Set("PI_Description", s.Description);
+                    update.Set("PI_SE", s.ServiceID);
                 }
-                if (s.UpdateStatus) v.Add(Format("PI_Status = {0}", s.Status.ToInt()));
-                if (s.UpdateProtocol) v.Add(Format("PI_Protocol = {0}", s.Protocol.ToInt()));
-                if (s.UpdateEnabled) v.Add(Format("PI_Enabled = {0}", s.Enabled.ToInt()));
-                if (s.UpdateDot1Q) v.Add(Format("PI_DOT1Q = {0}", s.Dot1Q.Nullable(-1)));
-                if (s.UpdateAggr) v.Add(Format("PI_Aggregator = {0}", s.Aggr.Nullable(-1)));
-                if (s.UpdateRouteID) v.Add(Format("PI_PN = {0}", s.RouteID));
-                if (s.UpdateInputQOSID) v.Add(Format("PI_PQ_Input = {0}", s.InputQOSID));
-                if (s.UpdateOutputQOSID) v.Add(Format("PI_PQ_Output = {0}", s.OutputQOSID));
-                if (s.UpdateRateLimitInput) v.Add(Format("PI_Rate_Input = {0}", s.RateLimitInput.Nullable(-1)));
-                if (s.UpdateRateLimitOutput) v.Add(Format("PI_Rate_Output = {0}", s.RateLimitOutput.Nullable(-1)));
-                if (s.UpdateCirConfigTotalInput) v.Add(Format("PI_Summary_CIRConfigTotalInput = {0}", s.CirConfigTotalInput.Nullable(-1)));
-                if (s.UpdateCirConfigTotalOutput) v.Add(Format("PI_Summary_CIRConfigTotalOutput = {0}", s.CirConfigTotalOutput.Nullable(-1)));
-                if (s.UpdateCirTotalInput) v.Add(Format("PI_Summary_CIRTotalInput = {0}", s.CirTotalInput.Nullable(-1)));
-                if (s.UpdateCirTotalOutput) v.Add(Format("PI_Summary_CIRTotalOutput = {0}", s.CirTotalOutput.Nullable(-1)));
-                if (s.UpdateSubInterfaceCount) v.Add(Format("PI_Summary_SubInterfaceCount = {0}", s.SubInterfaceCount.Nullable(-1)));
+                update.Set("PI_Status", s.Status, s.UpdateStatus);
+                update.Set("PI_Protocol", s.Protocol, s.UpdateProtocol);
+                update.Set("PI_Enable", s.Enable, s.UpdateEnable);
+                update.Set("PI_DOT1Q", s.Dot1Q.Nullable(-1), s.UpdateDot1Q);
+                update.Set("PI_Aggregator", s.Aggr.Nullable(-1), s.UpdateAggr);
+                update.Set("PI_PN", s.RouteID, s.UpdateRouteID);
+                update.Set("PI_PQ_Input", s.InputQOSID, s.UpdateInputQOSID);
+                update.Set("PI_PQ_Output", s.OutputQOSID, s.UpdateOutputQOSID);
+                update.Set("PI_Rate_Input", s.RateInput.Nullable(-1), s.UpdateRateInput);
+                update.Set("PI_Rate_Output", s.RateOutput.Nullable(-1), s.UpdateRateOutput);
+                update.Set("PI_Summary_CIRConfigTotalInput", s.CirConfigTotalInput.Nullable(-1), s.UpdateCirConfigTotalInput);
+                update.Set("PI_Summary_CIRConfigTotalOutput", s.CirConfigTotalOutput.Nullable(-1), s.UpdateCirConfigTotalOutput);
+                update.Set("PI_Summary_CIRTotalInput", s.CirTotalInput.Nullable(-1), s.UpdateCirTotalInput);
+                update.Set("PI_Summary_CIRTotalOutput", s.CirTotalOutput.Nullable(-1), s.UpdateCirTotalOutput);
+                update.Set("PI_Summary_SubInterfaceCount", s.SubInterfaceCount.Nullable(-1), s.UpdateSubInterfaceCount);
+                update.Where("PI_ID", s.ID);
+                batch.Execute(update);
 
                 if (s.IP != null)
                     ipinsert.Add(s.ID, s.IP);
                 if (s.DeleteIP != null)
                     ipdelete.Add(s.ID, s.DeleteIPID);
-
-                if (v.Count > 0) batch.Execute("update PEInterface set " + StringHelper.EscapeFormat(string.Join(", ", v.ToArray())) + " where PI_ID = {0}", s.ID);
             }
             result = batch.Commit();
             Event(result, EventActions.Update, EventElements.Interface, false);
@@ -2219,7 +2250,12 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                 List<string> ips = pair.Value;
                 foreach (string ip in ips)
                 {
-                    batch.Execute("insert into PEInterfaceIP(PP_ID, PP_PI, PP_Type, PP_IP) values({0}, {1}, {2}, {3})", Database.ID(), pair.Key, ip.Substring(0, 1), ip.Substring(2));
+                    Insert insert = Insert("PEInterfaceIP");
+                    insert.Value("PP_ID", Database.ID());
+                    insert.Value("PP_PI", pair.Key);
+                    insert.Value("PP_Type", ip.Substring(0, 1));
+                    insert.Value("PP_IP", ip.Substring(2));
+                    batch.Execute(insert);
                 }               
             }
             result = batch.Commit();

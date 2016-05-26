@@ -496,18 +496,22 @@ namespace Jovice
                 batch.Begin();
                 foreach (MECustomerToDatabase s in alucustinsert)
                 {
-                    batch.Execute("insert into MECustomer(MU_ID, MU_NO, MU_UID) values({0}, {1}, {2})", s.ID, nodeID, s.CustomerID);
+                    Insert insert = Insert("MECustomer");
+                    insert.Value("MU_ID", s.ID);
+                    insert.Value("MU_NO", nodeID);
+                    insert.Value("MU_UID", s.CustomerID);
+                    batch.Execute(insert);
                 }
                 result = batch.Commit();
                 Event(result, EventActions.Add, EventElements.ALUCustomer, false);
 
                 // UPDATE
                 batch.Begin();
-                foreach (MECustomerToDatabase s in alucustinsert)
+                foreach (MECustomerToDatabase s in alucustupdate)
                 {
-                    List<string> v = new List<string>();
+                    //List<string> v = new List<string>();
                     // ...
-                    if (v.Count > 0) batch.Execute("update MECustomer set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MU_ID = {0}", s.ID);
+                    //if (v.Count > 0) batch.Execute("update MECustomer set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MU_ID = {0}", s.ID);
                 }
                 result = batch.Commit();
                 Event(result, EventActions.Update, EventElements.ALUCustomer, false);
@@ -664,16 +668,13 @@ namespace Jovice
             batch.Begin();
             foreach (MEQOSToDatabase s in qosinsert)
             {
-                if (s.Type == -1)
-                {
-                    if (s.Bandwidth == -1) batch.Execute("insert into MEQOS(MQ_ID, MQ_NO, MQ_Name, MQ_Type, MQ_Bandwidth) values({0}, {1}, {2}, null, null)", s.ID, nodeID, s.Name);
-                    else batch.Execute("insert into MEQOS(MQ_ID, MQ_NO, MQ_Name, MQ_Type, MQ_Bandwidth) values({0}, {1}, {2}, null, {3})", s.ID, nodeID, s.Name, s.Bandwidth);
-                }
-                else
-                {
-                    if (s.Bandwidth == -1) batch.Execute("insert into MEQOS(MQ_ID, MQ_NO, MQ_Name, MQ_Type, MQ_Bandwidth) values({0}, {1}, {2}, {3}, null)", s.ID, nodeID, s.Name, s.Type);
-                    else batch.Execute("insert into MEQOS(MQ_ID, MQ_NO, MQ_Name, MQ_Type, MQ_Bandwidth) values({0}, {1}, {2}, {3}, {4})", s.ID, nodeID, s.Name, s.Type, s.Bandwidth);
-                }
+                Insert insert = Insert("MEQOS");
+                insert.Value("MQ_ID", s.ID);
+                insert.Value("MQ_NO", nodeID);
+                insert.Value("MQ_Name", s.Name);
+                insert.Value("MQ_Type", s.Type.Nullable(-1));
+                insert.Value("MQ_Bandwidth", s.Bandwidth.Nullable(-1));
+                batch.Execute(insert);
             }
             result = batch.Commit();
             Event(result, EventActions.Add, EventElements.QOS, false);
@@ -682,10 +683,10 @@ namespace Jovice
             batch.Begin();
             foreach (MEQOSToDatabase s in qosupdate)
             {
-                List<string> v = new List<string>();
-                if (s.UpdateBandwidth) v.Add(s.Bandwidth == -1 ? "MQ_Bandwidth = null" : Format("MQ_Bandwidth = {0}", s.Bandwidth));
-
-                if (v.Count > 0) batch.Execute("update MEQOS set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MQ_ID = {0}", s.ID);                    
+                Update update = Update("MEQOS");
+                update.Set("MQ_Bandwidth", s.Bandwidth.Nullable(-1), s.UpdateBandwidth);
+                update.Where("MQ_ID", s.ID);
+                batch.Execute(update);
             }
             result = batch.Commit();
             Event(result, EventActions.Update, EventElements.QOS, false);
@@ -967,9 +968,18 @@ namespace Jovice
             batch.Begin();
             foreach (MESDPToDatabase s in sdpinsert)
             {
-                batch.Execute("insert into MESDP(MS_ID, MS_NO, MS_SDP, MS_Status, MS_Protocol, MS_IP, MS_MTU, MS_Type, MS_LSP, MS_TO_NO) values({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9})",
-                    s.ID, nodeID, s.SDP, s.Status, s.Protocol, s.FarEnd, s.AdmMTU, s.Type, s.LSP, s.FarEndNodeID
-                    );
+                Insert insert = Insert("MESDP");
+                insert.Value("MS_ID", s.ID);
+                insert.Value("MS_NO", nodeID);
+                insert.Value("MS_SDP", s.SDP);
+                insert.Value("MS_Status", s.Status);
+                insert.Value("MS_Protocol", s.Protocol);
+                insert.Value("MS_IP", s.FarEnd);
+                insert.Value("MS_MTU", s.AdmMTU);
+                insert.Value("MS_Type", s.Type);
+                insert.Value("MS_LSP", s.LSP);
+                insert.Value("MS_TO_NO", s.FarEndNodeID);
+                batch.Execute(insert);
             }
             result = batch.Commit();
             Event(result, EventActions.Add, EventElements.SDP, false);
@@ -978,16 +988,16 @@ namespace Jovice
             batch.Begin();
             foreach (MESDPToDatabase s in sdpupdate)
             {
-                List<string> v = new List<string>();
-                if (s.UpdateStatus) v.Add(Format("MS_Status = {0}", s.Status));
-                if (s.UpdateProtocol) v.Add(Format("MS_Protocol = {0}", s.Protocol));
-                if (s.UpdateType) v.Add(Format("MS_Type = {0}", s.Type));
-                if (s.UpdateLSP) v.Add(Format("MS_LSP = {0}", s.LSP));
-                if (s.UpdateAdmMTU) v.Add(s.AdmMTU == 0 ? Format("MS_MTU = {0}", null) : ("MS_MTU = " + s.AdmMTU));
-                if (s.UpdateFarEnd) v.Add(Format("MS_IP = {0}", s.FarEnd));
-                if (s.UpdateFarEndNodeID) v.Add(Format("MS_TO_NO = {0}", s.FarEndNodeID));
-
-                if (v.Count > 0) batch.Execute("update MESDP set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MS_ID = {0}", s.ID);
+                Update update = Update("MESDP");
+                update.Set("MS_Status", s.Status, s.UpdateStatus);
+                update.Set("MS_Protocol", s.Protocol, s.UpdateProtocol);
+                update.Set("MS_Type", s.Type, s.UpdateType);
+                update.Set("MS_LSP", s.LSP, s.UpdateLSP);
+                update.Set("MS_MTU", s.AdmMTU.Nullable(0), s.UpdateAdmMTU);
+                update.Set("MS_IP", s.FarEnd, s.UpdateFarEnd);
+                update.Set("MS_TO_NO", s.FarEndNodeID, s.UpdateFarEndNodeID);
+                update.Where("MS_ID", s.ID);
+                batch.Execute(update);
             }
             result = batch.Commit();
             Event(result, EventActions.Update, EventElements.SDP, false);
@@ -1428,10 +1438,18 @@ namespace Jovice
             batch.Begin();
             foreach (MECircuitToDatabase s in circuitinsert)
             {
-                batch.Execute("insert into MECircuit(MC_ID, MC_NO, MC_VCID, MC_Type, MC_Status, MC_Protocol, MC_MU, MC_Description, MC_MTU, MC_SE) values({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9})",
-                    s.ID, nodeID, s.VCID, s.Type, s.Status, s.Protocol, s.CustomerID, s.Description, s.AdmMTU, s.ServiceID
-                    );
-                
+                Insert insert = Insert("MECircuit");
+                insert.Value("MC_ID", s.ID);
+                insert.Value("MC_NO", nodeID);
+                insert.Value("MC_VCID", s.VCID);
+                insert.Value("MC_Type", s.Type);
+                insert.Value("MC_Status", s.Status);
+                insert.Value("MC_Protocol", s.Protocol);
+                insert.Value("MC_MU", s.CustomerID);
+                insert.Value("MC_Description", s.Description);
+                insert.Value("MC_MTU", s.AdmMTU.Nullable(0));
+                insert.Value("MC_SE", s.ServiceID);
+                batch.Execute(insert);
             }
             result = batch.Commit();
             Event(result, EventActions.Add, EventElements.Circuit, false);
@@ -1452,19 +1470,19 @@ namespace Jovice
             batch.Begin();
             foreach (MECircuitToDatabase s in circuitupdate)
             {
-                List<string> v = new List<string>();
-                if (s.UpdateStatus) v.Add(Format("MC_Status = {0}", s.Status));
-                if (s.UpdateProtocol) v.Add(Format("MC_Protocol = {0}", s.Protocol));
-                if (s.UpdateType) v.Add(Format("MC_Type = {0}", s.Type));
+                Update update = Update("MECircuit");
+                update.Set("MC_Status", s.Status, s.UpdateStatus);
+                update.Set("MC_Protocol", s.Protocol, s.UpdateProtocol);
+                update.Set("MC_Type", s.Type, s.UpdateType);
                 if (s.UpdateDescription)
                 {
-                    v.Add(Format("MC_Description = {0}", s.Description));
-                    v.Add(Format("MC_SE = {0}", s.ServiceID));
+                    update.Set("MC_Description", s.Description);
+                    update.Set("MC_SE", s.ServiceID);
                 }
-                if (s.UpdateAdmMTU) v.Add(s.AdmMTU == 0 ? Format("MC_MTU = {0}", null) : ("MC_MTU = " + s.AdmMTU));
-                if (s.UpdateCustomer) v.Add(Format("MC_MU = {0}", s.CustomerID));
-
-                if (v.Count > 0) batch.Execute("update MECircuit set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MC_ID = {0}", s.ID);
+                update.Set("MC_MTU", s.AdmMTU.Nullable(0), s.UpdateAdmMTU);
+                update.Set("MC_MU", s.CustomerID, s.UpdateCustomer);
+                update.Where("MC_ID", s.ID);
+                batch.Execute(update);
             }
             result = batch.Commit();
             Event(result, EventActions.Update, EventElements.Circuit, false);
@@ -1698,10 +1716,15 @@ namespace Jovice
             batch.Begin();
             foreach (MEPeerToDatabase s in peerinsert)
             {
-                //MP_ID, MP_MC, MP_MS, MP_VCID, MP_Protocol, MP_Type
-                batch.Execute("insert into MEPeer(MP_ID, MP_MC, MP_MS, MP_VCID, MP_Protocol, MP_Type) values({0}, {1}, {2}, {3}, {4}, {5})",
-                    s.ID, s.CircuitID, s.SDPID, s.VCID, s.Protocol, s.Type
-                    ); 
+                Insert insert = Insert("MEPeer");
+                insert.Value("MP_ID", s.ID);
+                insert.Value("MP_MC", s.CircuitID);
+                insert.Value("MP_MS", s.SDPID);
+                insert.Value("MP_VCID", s.VCID);
+                insert.Value("MP_Protocol", s.Protocol);
+                insert.Value("MP_Type", s.Type);
+                insert.Value("MP_TO_MC", s.ToCircuitID);
+                batch.Execute(insert);
             }
             result = batch.Commit();
             Event(result, EventActions.Add, EventElements.Peer, false);
@@ -1710,12 +1733,12 @@ namespace Jovice
             batch.Begin();
             foreach (MEPeerToDatabase s in peerupdate)
             {
-                List<string> v = new List<string>();
-                if (s.UpdateProtocol) v.Add("MP_Protocol = " + s.Protocol);
-                if (s.UpdateType) v.Add(Format("MP_Type = {0}", s.Type));
-                if (s.UpdateToCircuitID) v.Add(Format("MP_TO_MC = {0}", s.ToCircuitID));
-
-                if (v.Count > 0) batch.Execute("update MEPeer set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MP_ID = {0}", s.ID);
+                Update update = Update("MEPeer");
+                update.Set("MP_Protocol", s.Protocol, s.UpdateProtocol);
+                update.Set("MP_Type", s.Type, s.UpdateType);
+                update.Set("MP_TO_MC", s.ToCircuitID, s.UpdateToCircuitID);
+                update.Where("MP_ID", s.ID);
+                batch.Execute(update);
             }
             result = batch.Commit();
             Event(result, EventActions.Update, EventElements.Peer, false);
@@ -1952,7 +1975,7 @@ namespace Jovice
                                         mid.Name = name;
                                         mid.Status = true;
                                         mid.Protocol = true;
-                                        mid.Enabled = true;
+                                        mid.Enable = true;
                                         interfacelive.Add(name, mid);
                                     }
                                 }
@@ -2034,7 +2057,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                         bool enup = line.Substring(17, 2) == "up" ? true : false;
                                         bool prot = line.Substring(33, 2) == "up" ? true : false;
                                         current.Status = enup;
-                                        current.Enabled = enup;
+                                        current.Enable = enup;
                                         current.Protocol = prot;
                                         if (line.Length >= 40)
                                         {
@@ -2079,7 +2102,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                         mid.Description = desc;
                                         mid.Status = status == "Up";
                                         mid.Protocol = protocol == "Up";
-                                        mid.Enabled = mid.Status;
+                                        mid.Enable = mid.Status;
                                         mid.CircuitID = circuitID;
                                         mid.Dot1Q = dot1q;
 
@@ -2107,7 +2130,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                         mid.Name = name;
                                         mid.Status = true;
                                         mid.Protocol = true;
-                                        mid.Enabled = true;
+                                        mid.Enable = true;
                                         interfacelive.Add(name, mid);
                                     }
                                 }
@@ -2178,7 +2201,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             mid.Description = desc;
                             mid.Status = status == "Up";
                             mid.Protocol = protocol == "Up";
-                            mid.Enabled = mid.Status;
+                            mid.Enable = mid.Status;
                             mid.CircuitID = circuitID;
                             mid.Dot1Q = dot1q;
 
@@ -2508,8 +2531,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 int size;
                                 if (!int.TryParse(rSize, out size)) size = -1;
 
-                                if (rDir == "inbound") interfacelive[qosInterface].RateLimitInput = size;
-                                else if (rDir == "outbound") interfacelive[qosInterface].RateLimitOutput = size;
+                                if (rDir == "inbound") interfacelive[qosInterface].RateInput = size;
+                                else if (rDir == "outbound") interfacelive[qosInterface].RateOutput = size;
                             }
                         }
                     }
@@ -2753,11 +2776,11 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.Protocol = li.Protocol;
                         updateinfo.Append("prot ");
                     }
-                    if (db["MI_Enabled"].ToBool() != li.Enabled)
+                    if (db["MI_Enable"].ToBool() != li.Enable)
                     {
                         update = true;
-                        u.UpdateEnabled = true;
-                        u.Enabled = li.Enabled;
+                        u.UpdateEnable = true;
+                        u.Enable = li.Enable;
                         updateinfo.Append("ena ");
                     }
                     if (db["MI_DOT1Q"].ToShort(-1) != li.Dot1Q)
@@ -2809,18 +2832,18 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.Used = li.Used;
                         updateinfo.Append("used ");
                     }
-                    if (db["MI_Rate_Input"].ToInt(-1) != li.RateLimitInput)
+                    if (db["MI_Rate_Input"].ToInt(-1) != li.RateInput)
                     {
                         update = true;
-                        u.UpdateRateLimitInput = true;
-                        u.RateLimitInput = li.RateLimitInput;
+                        u.UpdateRateInput = true;
+                        u.RateInput = li.RateInput;
                         updateinfo.Append("rin ");
                     }
-                    if (db["MI_Rate_Output"].ToInt(-1) != li.RateLimitOutput)
+                    if (db["MI_Rate_Output"].ToInt(-1) != li.RateOutput)
                     {
                         update = true;
-                        u.UpdateRateLimitOutput = true;
-                        u.RateLimitOutput = li.RateLimitOutput;
+                        u.UpdateRateOutput = true;
+                        u.RateOutput = li.RateOutput;
                         updateinfo.Append("rout ");
                     }
                     if (db["MI_Info"].ToString() != li.Info)
@@ -2896,7 +2919,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 insert.Value("MI_Name", s.Name);
                 insert.Value("MI_Status", s.Status);
                 insert.Value("MI_Protocol", s.Protocol);
-                insert.Value("MI_Enabled", s.Enabled);
+                insert.Value("MI_Enable", s.Enable);
                 insert.Value("MI_DOT1Q", s.Dot1Q.Nullable(-1));
                 insert.Value("MI_Aggregator", s.Aggr.Nullable(-1));
                 insert.Value("MI_Description", s.Description);
@@ -2904,16 +2927,16 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 insert.Value("MI_Type", s.InterfaceType);
                 insert.Value("MI_MQ_Input", s.IngressID);
                 insert.Value("MI_MQ_Output", s.EgressID);
-                insert.Value("MI_Rate_Input", s.RateLimitInput.Nullable(-1));
-                insert.Value("MI_Rate_Output", s.RateLimitOutput.Nullable(-1));
+                insert.Value("MI_Rate_Input", s.RateInput.Nullable(-1));
+                insert.Value("MI_Rate_Output", s.RateOutput.Nullable(-1));
                 insert.Value("MI_Used", s.Used);
                 insert.Value("MI_Info", s.Info);
                 insert.Value("MI_SE", s.ServiceID);
                 insert.Value("MI_MI", s.ParentID);
                 insert.Value("MI_TO_PI", s.AdjacentID);
                 insert.Value("MI_Summary_SubInterfaceCount", s.SubInterfaceCount.Nullable(-1));
-
                 batch.Execute(insert);
+
                 interfacereferenceupdate.Add(new Tuple<string, string>(s.AdjacentID, s.ID));
             }
             result = batch.Commit();
@@ -2937,20 +2960,19 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
                 update.Set("MI_Status", s.Status, s.UpdateStatus);
                 update.Set("MI_Protocol", s.Protocol, s.UpdateProtocol);
-                update.Set("MI_Enabled", s.Enabled, s.UpdateEnabled);
+                update.Set("MI_Enable", s.Enable, s.UpdateEnable);
                 update.Set("MI_DOT1Q", s.Dot1Q.Nullable(-1), s.UpdateDot1Q);
                 update.Set("MI_Aggregator", s.Aggr.Nullable(-1), s.UpdateAggr);
                 update.Set("MI_MC", s.CircuitID, s.UpdateCircuit);
                 update.Set("MI_Type", s.InterfaceType, s.UpdateInterfaceType);
                 update.Set("MI_MQ_Input", s.IngressID, s.UpdateIngressID);
                 update.Set("MI_MQ_Output", s.EgressID, s.UpdateEgressID);
-                update.Set("MI_Rate_Input", s.RateLimitInput.Nullable(-1), s.UpdateRateLimitInput);
-                update.Set("MI_Rate_Output", s.RateLimitOutput.Nullable(-1), s.UpdateRateLimitOutput);
+                update.Set("MI_Rate_Input", s.RateInput.Nullable(-1), s.UpdateRateInput);
+                update.Set("MI_Rate_Output", s.RateOutput.Nullable(-1), s.UpdateRateOutput);
                 update.Set("MI_Used", s.Used, s.UpdateUsed);
                 update.Set("MI_Info", s.Info, s.UpdateInfo);
                 update.Set("MI_Summary_SubInterfaceCount", s.SubInterfaceCount, s.UpdateSubInterfaceCount);
                 update.Where("MI_ID", s.ID);
-
                 batch.Execute(update);
             }
             result = batch.Commit();

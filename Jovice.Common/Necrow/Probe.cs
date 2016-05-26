@@ -41,12 +41,12 @@ namespace Jovice
             set { protocol = value; }
         }
 
-        private bool enabled;
+        private bool enable;
 
-        public bool Enabled
+        public bool Enable
         {
-            get { return enabled; }
-            set { enabled = value; }
+            get { return enable; }
+            set { enable = value; }
         }
 
         private bool updateStatus = false;
@@ -65,12 +65,12 @@ namespace Jovice
             set { updateProtocol = value; }
         }
 
-        private bool updateEnabled = false;
+        private bool updateEnable = false;
 
-        public bool UpdateEnabled
+        public bool UpdateEnable
         {
-            get { return updateEnabled; }
-            set { updateEnabled = value; }
+            get { return updateEnable; }
+            set { updateEnable = value; }
         }
     }
 
@@ -141,36 +141,36 @@ namespace Jovice
 
         #region QOS
 
-        private int rateLimitInput = -1;
+        private int rateInput = -1;
 
-        public int RateLimitInput
+        public int RateInput
         {
-            get { return rateLimitInput; }
-            set { rateLimitInput = value; }
+            get { return rateInput; }
+            set { rateInput = value; }
         }
 
-        private int rateLimitOutput = -1;
+        private int rateOutput = -1;
 
-        public int RateLimitOutput
+        public int RateOutput
         {
-            get { return rateLimitOutput; }
-            set { rateLimitOutput = value; }
+            get { return rateOutput; }
+            set { rateOutput = value; }
         }
 
-        private bool updateRateLimitInput = false;
+        private bool updateRateInput = false;
 
-        public bool UpdateRateLimitInput
+        public bool UpdateRateInput
         {
-            get { return updateRateLimitInput; }
-            set { updateRateLimitInput = value; }
+            get { return updateRateInput; }
+            set { updateRateInput = value; }
         }
 
-        private bool updateRateLimitOutput = false;
+        private bool updateRateOutput = false;
 
-        public bool UpdateRateLimitOutput
+        public bool UpdateRateOutput
         {
-            get { return updateRateLimitOutput; }
-            set { updateRateLimitOutput = value; }
+            get { return updateRateOutput; }
+            set { updateRateOutput = value; }
         }
 
         #endregion
@@ -3571,7 +3571,11 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             batch.Begin();
             foreach (CustomerToDatabase s in customerinsert)
             {
-                batch.Execute("insert into ServiceCustomer(SC_ID, SC_CID, SC_Name) values({0}, {1}, {2})", s.ID, s.CID, s.Name);
+                Insert insert = Insert("ServiceCustomer");
+                insert.Value("SC_ID", s.ID);
+                insert.Value("SC_CID", s.CID);
+                insert.Value("SC_Name", s.Name);
+                batch.Execute(insert);
             }
             result = batch.Commit();
             Event(result, EventActions.Add, EventElements.Customer, false);
@@ -3589,7 +3593,14 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             batch.Begin();
             foreach (ServiceToDatabase s in serviceinsert)
             {
-                batch.Execute("insert into Service(SE_ID, SE_SID, SE_SC, SE_Type, SE_SubType, SE_Raw_Desc) values({0}, {1}, {2}, {3}, {4}, {5})", s.ID, s.SID, s.CustomerID, s.Type, s.SubType, s.RawDesc);
+                Insert insert = Insert("Service");
+                insert.Value("SE_ID", s.ID);
+                insert.Value("SE_SID", s.SID);
+                insert.Value("SE_SC", s.CustomerID);
+                insert.Value("SE_Type", s.Type);
+                insert.Value("SE_SubType", s.SubType);
+                insert.Value("SE_Raw_Desc", s.RawDesc);
+                batch.Execute(insert);
             }
             result = batch.Commit();
             Event(result, EventActions.Add, EventElements.Service, false);
@@ -3598,7 +3609,11 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             batch.Begin();
             foreach (ServiceToDatabase s in serviceupdate)
             {
-                batch.Execute("update Service set SE_Type = {0}, SE_SubType = {1} where SE_ID = {2}", s.Type, s.SubType, s.ID);
+                Update update = Update("Service");
+                update.Set("SE_Type", s.Type);
+                update.Set("SE_SubType", s.SubType);
+                update.Where("SE_ID", s.ID);
+                batch.Execute(update);
             }
             result = batch.Commit();
             Event(result, EventActions.Update, EventElements.Service, false);

@@ -1053,7 +1053,7 @@ namespace Jovice
                 //goto debug3;
                 
                 // STEP 1, dari display config untuk epipe dan vpls, biar dapet mtu dan deskripsinya
-                if (Request("admin display-config | match customer context children", out lines)) return;
+                if (Request("admin display-config | match customer context children | match \"epipe|vpls|description|service-mtu\" expression", out lines)) return;
 
                 MECircuitToDatabase cservice = null;
                 foreach (string line in lines)

@@ -1451,12 +1451,11 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 while (true)
                 {
                     if (outputs.Count > 0)
-                    {
+                    {                        
                         lock (outputs)
                         {
                             wait = 0;
                             string output = outputs.Dequeue();
-                            if (output == null) continue;
                             lastOutputSB.Append(output);
 
                             for (int i = 0; i < output.Length; i++)
@@ -1567,7 +1566,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                         improperCommand = true;
                         foreach (string line in lines)
                         {
-                            if (line.Contains(command))
+                            if (line.Contains(command.Length <= 20 ? command : command.Substring(0, 20)))
                             {
                                 improperCommand = false;
                                 break;

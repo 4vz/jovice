@@ -1683,7 +1683,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     }
                 }
 
-                if (Request("disp cur | in interface|vlan-type\\ dot1q", out lines)) return;
+                if (Request("disp cur int | in interface|vlan-type\\ dot1q", out lines)) return;
 
                 //interface Eth-Trunk25.3648
                 //01234567890123456

@@ -8,6 +8,8 @@ using Aphysoft.Share;
 
 namespace Jovice
 {
+    #region To Database
+
     class MECustomerToDatabase : ToDatabase
     {
         private string customerID;
@@ -420,6 +422,8 @@ namespace Jovice
             set { updateToCircuitID = value; }
         }
     }
+
+    #endregion
 
     internal sealed partial class Probe
     {
@@ -3014,12 +3018,21 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             result = batch.Commit();
             Event(result, EventActions.Delete, EventElements.Interface, false);
 
+            // RESERVED INTERFACES
+            batch.Begin();
+            foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
+            {
+                if (reservedInterfaces.ContainsKey(pair.Key)) batch.Execute("delete from ReservedInterface where RI_ID = {0}", reservedInterfaces[pair.Key]["RI_ID"].ToString());
+            }
+            result = batch.Commit();
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " reserved interface" + (result.AffectedRows > 1 ? "s have " : " has ") + " been found");
+
             #endregion
-            
+
             #endregion
 
             #region LATE DELETE
-            
+
             // CIRCUIT DELETE
             batch.Begin();
             List<string> circuitdelete = new List<string>();

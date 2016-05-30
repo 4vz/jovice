@@ -9,6 +9,8 @@ using Aphysoft.Share;
 
 namespace Jovice
 {
+    #region To Database
+
     class PERouteNameToDatabase : ToDatabase
     {        
         private string name;
@@ -178,6 +180,8 @@ namespace Jovice
         }
 
     }
+
+    #endregion
 
     internal sealed partial class Probe
     {
@@ -1751,7 +1755,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
             }
 
             #endregion
-                   
+
             #region Check
 
             foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
@@ -1909,6 +1913,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
                     PEInterfaceToDatabase u = new PEInterfaceToDatabase();
                     u.ID = db["PI_ID"].ToString();
+                    li.ID = u.ID;
 
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
@@ -2300,10 +2305,43 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
             batch.Begin();
             foreach (string id in interfacedelete)
             {
+                batch.Execute("update POP set OO_PI = NULL where OO_PI = {0}", id);
                 batch.Execute("delete from PEInterface where PI_ID = {0}", id);
             }
             result = batch.Commit();
             Event(result, EventActions.Delete, EventElements.Interface, false);
+
+            // RESERVED INTERFACES
+            batch.Begin();
+            foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
+            {
+                if (reservedInterfaces.ContainsKey(pair.Key)) batch.Execute("delete from ReservedInterface where RI_ID = {0}", reservedInterfaces[pair.Key]["RI_ID"].ToString());
+            }
+            result = batch.Commit();
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " reserved interface" + (result.AffectedRows > 1 ? "s have " : " has ") + " been found");
+
+            // POP
+            batch.Begin();
+            foreach (KeyValuePair<string, Row> pair in popInterfaces)
+            {
+                Row row = pair.Value;
+                if (row["OO_PI"].IsNull)
+                {
+                    if (interfacelive.ContainsKey(pair.Key))
+                    {
+                        batch.Execute("update POP set OO_PI = {0} where OO_ID = {1}", interfacelive[pair.Key].ID, row["OO_ID"].ToString());
+                    }
+                }
+                else
+                {
+                    if (!interfacelive.ContainsKey(pair.Key))
+                    {
+                        batch.Execute("update POP set OO_PI = NULL where OO_ID = {0}", row["OO_ID"].ToString());
+                    }
+                }
+            }
+            result = batch.Commit();
+            Event(result, EventActions.Update, EventElements.POPInterfaceReference, false);
 
             #endregion
 

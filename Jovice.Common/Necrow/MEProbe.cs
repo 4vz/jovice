@@ -1016,7 +1016,6 @@ namespace Jovice
             Dictionary<string, Row> circuitdb = null;
             List<MECircuitToDatabase> circuitinsert = new List<MECircuitToDatabase>();
             List<MECircuitToDatabase> circuitupdate = new List<MECircuitToDatabase>();
-            //debug2:
             List<string[]> hwecircuitdetail = null;
             ServiceReference circuitservicereference = new ServiceReference();
                                
@@ -2276,7 +2275,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                     {
                                         MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                         mid.Name = port;
-                                        mid.Description = description.ToString();
+                                        mid.Description = description.ToString().Trim();
 
                                         interfacelive.Add(port, mid);
                                     }
@@ -2332,7 +2331,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     {
                         MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                         mid.Name = port;
-                        mid.Description = description.ToString();
+                        mid.Description = description.ToString().Trim();
 
                         interfacelive.Add(port, mid);
                     }
@@ -2477,7 +2476,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
 
                 // qos
-                if (Request("display cur int | in interface |qos-profile |user-queue", out lines)) return;
+                if (Request("display cur int | in interface |qos-profile |user-queue |vlan-type\\ dot1q", out lines)) return;
 
                 string qosInterface = null;
                 foreach (string line in lines)
@@ -2535,8 +2534,14 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 else if (rDir == "outbound") interfacelive[qosInterface].RateOutput = size;
                             }
                         }
+                        else if (lineTrim.StartsWith("vlan-type"))
+                        {
+                            //vlan-type dot1q 110
+                            //012345678901234567890123456789
+                            int dot1q;
+                            if (int.TryParse(lineTrim.Substring(16), out dot1q)) interfacelive[qosInterface].Dot1Q = dot1q;
+                        }
                     }
-
                 }
 
                 #endregion

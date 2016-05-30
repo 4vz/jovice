@@ -11,6 +11,8 @@ using Aphysoft.Share;
 
 namespace Jovice
 {
+    #region To Database
+
     internal abstract class ToDatabase
     {
         private string id;
@@ -382,6 +384,8 @@ namespace Jovice
         }
     }
 
+    #endregion
+
     internal enum ProbeMode
     {
         Default,
@@ -414,7 +418,7 @@ namespace Jovice
         private enum EventActions { Add, Remove, Delete, Update }
         private enum EventElements { ALUCustomer, QOS, SDP, Circuit, Interface, Peer, CircuitReference,
             VRFReference, VRF, VRFRouteTarget, InterfaceIP, Service, Customer, NodeReference, InterfaceReference,
-            NodeAlias, NodeSummary
+            NodeAlias, NodeSummary, POPInterfaceReference
         }
 
         #endregion
@@ -466,6 +470,8 @@ namespace Jovice
         private char[] newline = new char[] { (char)13, (char)10 };
 
         private Queue<string> prioritize = new Queue<string>();
+        private Dictionary<string, Row> reservedInterfaces;
+        private Dictionary<string, Row> popInterfaces;
 
         public bool IsConnected
         {
@@ -654,6 +660,7 @@ namespace Jovice
                         case EventElements.InterfaceReference: sb.Append("interface reference"); break;
                         case EventElements.NodeAlias: sb.Append("node alias"); break;
                         case EventElements.NodeSummary: sb.Append("node summary"); break;
+                        case EventElements.POPInterfaceReference: sb.Append("POP interface reference"); break;
                     }
                 }
                 else
@@ -677,6 +684,7 @@ namespace Jovice
                         case EventElements.InterfaceReference: sb.Append("interface references"); break;
                         case EventElements.NodeAlias: sb.Append("node aliases"); break;
                         case EventElements.NodeSummary: sb.Append("node summaries"); break;
+                        case EventElements.POPInterfaceReference: sb.Append("POP interface references"); break;
                     }
                 }
                 if (row > 1) sb.Append(" have been ");
@@ -948,6 +956,51 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                                 }
                             }));
                             idleThread.Start();
+
+                            Batch batch = Batch();
+                            Result result;
+
+                            batch.Begin();
+
+                            // RESERVED INTERFACES
+                            reservedInterfaces = QueryDictionary("select * from ReservedInterface where RI_NO = {0}", "RI_Name", delegate (Row row)
+                            {
+                                // delete duplicated RI_Name per RI_NO
+                                batch.Execute("delete from ReservedInterface where RI_ID = {0}", row["RI_ID"].ToString());
+                            }, nodeID);
+
+                            // POP
+                            if (nodeType == "P")
+                            {
+                                popInterfaces = new Dictionary<string, Row>();
+                                result = Query("select * from POP where UPPER(OO_NO_Name) = {0}", nodeName);
+                                foreach (Row row in result)
+                                {                                    
+                                    string storedID = row["OO_ID"].ToString();
+                                    string interfaceName = row["OO_PI_Name"].ToString();
+                                    bool ooPINULL = row["OO_PI"].IsNull;
+
+                                    if (!popInterfaces.ContainsKey(interfaceName))
+                                    {
+                                        popInterfaces.Add(interfaceName, row);
+
+                                        if (row["OO_NO_Name"].ToString() != nodeName)
+                                        {
+                                            // fix incorrect name in POP
+                                            batch.Execute("update POP set OO_NO_Name = {0} where OO_ID = {1}", nodeName, storedID);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // delete duplicated OO_PI_Name per OO_NO_Name
+                                        batch.Execute("delete from POP where OO_ID = {0}", storedID);
+                                    }
+                                }
+                            }
+                            else popInterfaces = null;
+
+                            batch.Commit();
+
 
                             if (nodeType == "P")
                             {
@@ -1819,13 +1872,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 
                 if (type == "P")
                 {                    
-                    result = Execute("update PEPOP set PO_NO = NULL where PO_NO = {0}", id);
-                    Event(result, EventActions.Remove, EventElements.NodeReference, false);
-                    result = Execute("update PEPOPExt set PX_NO = NULL where PX_NO = {0}", id);
-                    Event(result, EventActions.Remove, EventElements.NodeReference, false);
-                    result = Execute("update PEPOP set PO_PI = NULL where PO_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
-                    Event(result, EventActions.Remove, EventElements.InterfaceReference, false);
-                    result = Execute("update PEPOPExt set PX_PI = NULL where PX_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
+                    result = Execute("update POP set OO_PI = NULL where OO_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
                     Event(result, EventActions.Remove, EventElements.InterfaceReference, false);
                     result = Execute("delete from PEInterfacePI where PP_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
                     Event(result, EventActions.Delete, EventElements.InterfaceIP, false);
@@ -1985,12 +2032,6 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                                 Event("Keep " + hostName + ", delete " + nodeName);
                                 Execute("update NodeAlias set NA_NO = {0} where NA_NO = {1}", existingNodeID, nodeID); // move alias to existing
 
-                                if (existingType == "P")
-                                {
-                                    Execute("update PEPOP set PO_NO = {0} where PO_NO = {1}", existingNodeID, nodeID); // move pop to existing
-                                    Execute("update PEPOPExt set PX_NO = {0} where PX_NO = {1}", existingNodeID, nodeID); // move popext to existing
-                                }
-
                                 FlushNode(nodeID); // flush current node                                    
                                 Execute("delete from Node where NO_ID = {0}", nodeID); // delete node
                                 if (!Exists("NodeAlias", "NA_Name", nodeName))
@@ -2002,12 +2043,6 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                             {
                                 Event("Keep " + nodeName + ", delete " + hostName);
                                 Execute("update NodeAlias set NA_NO = {0} where NA_NO = {1}", nodeID, existingNodeID); // move existing alias to current
-
-                                if (existingType == "P")
-                                {
-                                    Execute("update PEPOP set PO_NO = {0} where PO_NO = {1}", nodeID, existingNodeID); // move existing pop to current
-                                    Execute("update PEPOPExt set PX_NO = {0} where PX_NO = {1}", nodeID, existingNodeID); // move existing popext to current
-                                }
 
                                 FlushNode(existingNodeID);
                                 Execute("delete from Node where NO_ID = {0}", existingNodeID); // delete existing node
@@ -2619,7 +2654,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             {
                 #region hwe
 
-                if (nodeVersion == "8.80")
+                if (nodeVersion.StartsWith("8"))
                 {
                     if (Request("display configuration commit list 1", out lines)) return;
 

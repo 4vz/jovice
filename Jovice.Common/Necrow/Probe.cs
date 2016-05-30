@@ -1374,138 +1374,171 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
         private bool Request(string command, out string[] lines)
         {
             Event("Request [" + command + "]...");
-            Thread.Sleep(1000);
-            SendLine(command);
 
-            Stopwatch stopwatch = new Stopwatch();
-            StringBuilder lineBuilder = new StringBuilder();
-            StringBuilder lastOutputSB = new StringBuilder();
-            List<string> listlines = new List<string>();
+            bool requestLoop = true;
             bool timeout = false;
+            lines = null;
 
-            //Event("Reading...");
-            stopwatch.Start();
-                        
-            int wait = 0;
-            bool ending = false;
-
-            while (true)
+            while (requestLoop)
             {
-                if (outputs.Count > 0)
+                Thread.Sleep(500);
+                SendLine(command);
+
+                Stopwatch stopwatch = new Stopwatch();
+                StringBuilder lineBuilder = new StringBuilder();
+                StringBuilder lastOutputSB = new StringBuilder();
+                List<string> listlines = new List<string>();
+
+                //Event("Reading...");
+                stopwatch.Start();
+
+                int wait = 0;
+                bool ending = false;
+
+                while (true)
                 {
-                    lock (outputs)
+                    if (outputs.Count > 0)
                     {
-                        wait = 0;
-                        string output = outputs.Dequeue();
-                        if (output == null) continue;
-                        lastOutputSB.Append(output);
-
-                        for (int i = 0; i < output.Length; i++)
+                        lock (outputs)
                         {
-                            byte b = (byte)output[i];
-                            if (b == 10)
+                            wait = 0;
+                            string output = outputs.Dequeue();
+                            if (output == null) continue;
+                            lastOutputSB.Append(output);
+
+                            for (int i = 0; i < output.Length; i++)
                             {
-                                string line = lineBuilder.ToString();
-
-                                if (nodeManufacture == hwe && nodeVersion == "5.160" && line.Length > 80)
+                                byte b = (byte)output[i];
+                                if (b == 10)
                                 {
-                                    int looptimes = (int)Math.Ceiling((float)line.Length / 80);
+                                    string line = lineBuilder.ToString();
 
-                                    for (int loop = 0; loop < looptimes; loop++)
+                                    if (nodeManufacture == hwe && nodeVersion == "5.160" && line.Length > 80)
                                     {
-                                        int sisa = 80;
-                                        if (loop == looptimes - 1) sisa = line.Length - (loop * 80);
-                                        string curline = line.Substring(loop * 80, sisa);
-                                        listlines.Add(curline);
+                                        int looptimes = (int)Math.Ceiling((float)line.Length / 80);
+
+                                        for (int loop = 0; loop < looptimes; loop++)
+                                        {
+                                            int sisa = 80;
+                                            if (loop == looptimes - 1) sisa = line.Length - (loop * 80);
+                                            string curline = line.Substring(loop * 80, sisa);
+                                            listlines.Add(curline);
+                                        }
+                                    }
+                                    else
+                                        listlines.Add(line);
+
+                                    lineBuilder.Clear();
+                                }
+                                else if (b >= 32) lineBuilder.Append((char)b);
+                            }
+
+                            string losb = lastOutputSB.ToString();
+
+                            if (noMore == false)
+                            {
+                                if (nodeManufacture == alu)
+                                {
+                                    string aluMORE = "Press any key to continue (Q to quit)";
+                                    if (losb.Contains(aluMORE))
+                                    {
+                                        List<string> newlines = new List<string>();
+
+                                        foreach (string line in listlines)
+                                        {
+                                            string newline;
+                                            if (line.IndexOf(aluMORE) > -1)
+                                                newline = line.Replace(aluMORE + "                                      ", "");
+                                            else newline = line;
+
+                                            newlines.Add(newline);
+                                        }
+
+                                        listlines = newlines;
+
+                                        SendSpace();
                                     }
                                 }
-                                else
-                                    listlines.Add(line);
-
-                                lineBuilder.Clear();
                             }
-                            else if (b >= 32) lineBuilder.Append((char)b);
+
+                            if (losb.TrimEnd().EndsWith(nodeTerminal.Trim())) ending = true;
                         }
+                    }
+                    else
+                    {
+                        if (ending) break;
 
-                        string losb = lastOutputSB.ToString();
+                        wait++;
 
-                        if (noMore == false)
+                        if (wait % 50 == 0 && wait < 400)
                         {
-                            if (nodeManufacture == alu)
-                            {
-                                string aluMORE = "Press any key to continue (Q to quit)";
-                                if (losb.Contains(aluMORE))
-                                {
-                                    List<string> newlines = new List<string>();
-
-                                    foreach (string line in listlines)
-                                    {
-                                        string newline;
-                                        if (line.IndexOf(aluMORE) > -1)
-                                            newline = line.Replace(aluMORE + "                                      ", "");
-                                        else newline = line;
-
-                                        newlines.Add(newline);
-                                    }
-
-                                    listlines = newlines;
-
-                                    SendSpace();
-                                }
-                            }
+                            Event("Waiting...");
+                            SendLine("");
+                            Event("Last Reading Output: ");
+                            int lp = LastOutput.Length - 200;
+                            if (lp < 0) lp = 0;
+                            string lop = LastOutput.Substring(lp);
+                            lop = lop.Replace("\r", "<CR>");
+                            lop = lop.Replace("\n", "<NL>");
+                            Event(lop);
                         }
 
-                        if (losb.TrimEnd().EndsWith(nodeTerminal.Trim())) ending = true;
+                        Thread.Sleep(100);
+                        if (wait == 400)
+                        {
+                            timeout = true;
+                            Event("Reading timeout, cancel the reading...");
+                        }
+                        if (wait >= 400 && wait % 50 == 0)
+                        {
+                            SendControlC();
+                        }
+                        if (wait == 800)
+                        {
+                            Event("Cancel has failed, restarting the probe...");
+                            Failure();
+                        }
                     }
                 }
-                else
+                if (lineBuilder.Length > 0) listlines.Add(lineBuilder.ToString().Trim());
+                stopwatch.Stop();
+                
+                if (!timeout)
                 {
-                    if (ending) break;
+                    lines = listlines.ToArray();
 
-                    wait++;
+                    bool improperCommand = false;
 
-                    if (wait % 50 == 0 && wait < 400)
+                    if (lines.Length < 5)
                     {
-                        Event("Waiting...");
-                        SendLine("");
-                        Event("Last Reading Output: ");
-                        int lp = LastOutput.Length - 200;
-                        if (lp < 0) lp = 0;
-                        string lop = LastOutput.Substring(lp);
-                        lop = lop.Replace("\r", "<CR>");
-                        lop = lop.Replace("\n", "<NL>");
-                        Event(lop);
+                        improperCommand = true;
+                        foreach (string line in lines)
+                        {
+                            if (line.Contains(command))
+                            {
+                                improperCommand = false;
+                                break;
+                            }
+                        }
                     }
 
-                    Thread.Sleep(100);
-                    if (wait == 400)
+                    if (improperCommand)
                     {
-                        timeout = true;
-                        Event("Reading timeout, cancel the reading...");
+                        Event("Improper command, send request again...");
                     }
-                    if (wait >= 400 && wait % 50 == 0)
+                    else
                     {
-                        SendControlC();
-                    }
-                    if (wait == 800)
-                    {
-                        Event("Cancel has failed, restarting the probe...");
-                        Failure();
+                        Event("Request completed (" + lines.Length + " lines in " + string.Format("{0:0.###}", stopwatch.Elapsed.TotalSeconds) + "s)");
+                        lines = listlines.ToArray();
+                        requestLoop = false;
                     }
                 }
+                else requestLoop = false;
             }
-            if (lineBuilder.Length > 0) listlines.Add(lineBuilder.ToString().Trim());
-            stopwatch.Stop();
 
-            if (!timeout)
-            {
-                lines = listlines.ToArray();
-                Event("Request completed (" + string.Format("{0:0.###}", stopwatch.Elapsed.TotalSeconds) + "s)");
-                return false;
-            }
+            if (!timeout) return false;
             else
             {
-                lines = null;
                 SaveExit();
                 return true;
             }
@@ -1860,8 +1893,6 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             nodeNVER = row["NO_NVER"].ToInt(0);
 
             string previousRemark = row["NO_Remark"].ToString();
-
-            bool timeout;
             string nodeUser = tacacUser;
             string nodePass = tacacPassword;
 

@@ -2700,11 +2700,14 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         int dot1q = li.Dot1Q;
                         if (dot1q > -1)
                         {
-                            MEInterfaceToDatabase parent = interfacelive[parentPort];
-                            if (parent.AdjacentIDList != null)
+                            if (interfacelive.ContainsKey(parentPort))
                             {
-                                if (parent.AdjacentIDList.ContainsKey(dot1q))
-                                    li.AdjacentID = parent.AdjacentIDList[dot1q];
+                                MEInterfaceToDatabase parent = interfacelive[parentPort];
+                                if (parent.AdjacentIDList != null)
+                                {
+                                    if (parent.AdjacentIDList.ContainsKey(dot1q))
+                                        li.AdjacentID = parent.AdjacentIDList[dot1q];
+                                }
                             }
                         }
 

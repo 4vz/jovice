@@ -230,17 +230,17 @@ namespace Aphysoft.Common
             int counter = 0;
             foreach (KeyValuePair<string, object> pair in objects)
             {
-                sb.Append(pair.Key);
-                counter++;
+                sb.Append(pair.Key);                
                 if (counter < objects.Count - 1) sb.Append(", ");
+                counter++;
             }
             sb.Append(") values(");
             counter = 0;
             foreach (KeyValuePair<string, object> pair in objects)
             {
                 sb.Append(database.Format("{0}", pair.Value));
-                counter++;
                 if (counter < objects.Count - 1) sb.Append(", ");
+                counter++;
             }
             sb.Append(")");
 
@@ -291,8 +291,8 @@ namespace Aphysoft.Common
                 sb.Append(pair.Key);
                 sb.Append(" = ");
                 sb.Append(database.Format("{0}", pair.Value));
-                counter++;
                 if (counter < objects.Count - 1) sb.Append(", ");
+                counter++;
             }
 
             if (where != null)
@@ -1531,9 +1531,9 @@ namespace Aphysoft.Common
             return ToObject(null);
         }
 
-        public object ToObject(object def)
+        public object ToObject(object ifNull)
         {
-            if (IsNull) return def;
+            if (IsNull) return ifNull;
             else return value;
         }
 
@@ -1542,9 +1542,9 @@ namespace Aphysoft.Common
             return GetValue<string>();
         }
 
-        public string ToString(string def)
+        public string ToString(string ifNull)
         {
-            if (IsNull) return def;
+            if (IsNull) return ifNull;
             else return ToString();
         }
 
@@ -1562,9 +1562,9 @@ namespace Aphysoft.Common
                 return 0;
         }
 
-        public long ToLong(long def)
+        public long ToLong(long ifNull)
         {
-            if (IsNull) return def;
+            if (IsNull) return ifNull;
             else return ToLong();
         }
 
@@ -1580,9 +1580,9 @@ namespace Aphysoft.Common
                 return 0;
         }
 
-        public int ToInt(int def)
+        public int ToInt(int ifNull)
         {
-            if (IsNull) return def;
+            if (IsNull) return ifNull;
             else return ToInt();
         }
 
@@ -1596,9 +1596,9 @@ namespace Aphysoft.Common
                 return 0;
         }
 
-        public int ToShort(int def)
+        public int ToShort(int ifNull)
         {
-            if (IsNull) return def;
+            if (IsNull) return ifNull;
             else return ToShort();
         }
 
@@ -1610,9 +1610,9 @@ namespace Aphysoft.Common
                 return 0;
         }
 
-        public double ToDouble(double def)
+        public double ToDouble(double ifNull)
         {
-            if (IsNull) return def;
+            if (IsNull) return ifNull;
             else return ToDouble();
         }
 
@@ -1630,9 +1630,9 @@ namespace Aphysoft.Common
                 return false;
         }
 
-        public bool ToBool(bool def)
+        public bool ToBool(bool ifNull)
         {
-            if (IsNull) return def;
+            if (IsNull) return ifNull;
             else return ToBool();
         }
 
@@ -1641,9 +1641,9 @@ namespace Aphysoft.Common
             return GetValue<DateTime>();
         }
 
-        public DateTime ToDateTime(DateTime def)
+        public DateTime ToDateTime(DateTime ifNull)
         {
-            if (IsNull) return def;
+            if (IsNull) return ifNull;
             else return ToDateTime();
         }
 

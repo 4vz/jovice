@@ -418,7 +418,7 @@ namespace Jovice
         private enum EventActions { Add, Remove, Delete, Update }
         private enum EventElements { ALUCustomer, QOS, SDP, Circuit, Interface, Peer, CircuitReference,
             VRFReference, VRF, VRFRouteTarget, InterfaceIP, Service, Customer, NodeReference, InterfaceReference,
-            NodeAlias, NodeSummary, POPInterfaceReference
+            NodeAlias, NodeSummary, POPInterfaceReference, Routing 
         }
 
         #endregion
@@ -661,6 +661,7 @@ namespace Jovice
                         case EventElements.NodeAlias: sb.Append("node alias"); break;
                         case EventElements.NodeSummary: sb.Append("node summary"); break;
                         case EventElements.POPInterfaceReference: sb.Append("POP interface reference"); break;
+                        case EventElements.Routing: sb.Append("routing"); break;
                     }
                 }
                 else
@@ -685,6 +686,7 @@ namespace Jovice
                         case EventElements.NodeAlias: sb.Append("node aliases"); break;
                         case EventElements.NodeSummary: sb.Append("node summaries"); break;
                         case EventElements.POPInterfaceReference: sb.Append("POP interface references"); break;
+                        case EventElements.Routing: sb.Append("routings"); break;
                     }
                 }
                 if (row > 1) sb.Append(" have been ");
@@ -741,36 +743,18 @@ namespace Jovice
             Start(sshServer, sshUser, sshPassword);
         }
 
-        private void End()
-        {
-            outputIdentifier = null;
-
-            Event("Disconnecting...");
-
-            mainLoop.Abort();
-            mainLoop = null;
-
-            if (idleThread != null)
-            {
-                idleThread.Abort();
-                mainLoop = null;
-            }
-
-            Thread.Sleep(5000);
-
-            base.Stop();
-        }
-
         private new void Stop()
         {
-            Event("Stop requested");
-            End();
+            outputIdentifier = null;
+            Event("Stop requested, disconnecting...");
+            base.Stop();
         }
 
         private void Failure()
         {
+            outputIdentifier = null;
             Event("Connection failure has occured");
-            End();
+            base.Stop();
         }
 
         #region SSHConnection
@@ -803,23 +787,34 @@ namespace Jovice
             }
 
             mainLoop = new Thread(new ThreadStart(MainLoop));
-
             mainLoop.Start();
         }
 
         protected override void Disconnected()
         {
+            outputIdentifier = null;
+            Event("Disconnected");
+
             if (mainLoop != null)
             {
                 mainLoop.Abort();
                 mainLoop = null;
+                Event("Main thread loop aborted");
+            }
+            if (idleThread != null)
+            {
+                idleThread.Abort();
+                mainLoop = null;
+                Event("Idle thread aborted");
             }
 
-            outputIdentifier = null;
-
-            Event("Disconnected");
-
+            int c = j.Cancel();
+            if (c > 0)
+                Event("Canceled " + c + " database transactions");            
+            
             Thread.Sleep(5000);
+
+            Restart();
         }
 
         public override void OnResponse(string output)
@@ -1561,7 +1556,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
                     bool improperCommand = false;
 
-                    if (lines.Length < 5)
+                    if (lines.Length < 10)
                     {
                         improperCommand = true;
                         foreach (string line in lines)

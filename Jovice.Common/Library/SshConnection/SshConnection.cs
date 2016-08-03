@@ -7,6 +7,7 @@ using Tamir.SharpSsh;
 using System.Text.RegularExpressions;
 using System.Net.Sockets;
 using System.Text;
+using System.IO;
 
 namespace Jovice
 {
@@ -129,23 +130,43 @@ namespace Jovice
                         Connected();
                     }
 
-                    string output;
+                    string output = null;
                     bool sendOutput = false;
 
-                    if (string.IsNullOrEmpty(expect) && expectRegex == null)
+                    try
                     {
-                        output = shell.Expect();
-                        sendOutput = true;
+                        if (string.IsNullOrEmpty(expect) && expectRegex == null)
+                        {
+                            output = shell.Expect();
+                            sendOutput = true;
+                        }
+                        else if (expectRegex != null)
+                        {
+                            output = shell.Expect(expectRegex);
+                            sendOutput = true;
+                        }
+                        else
+                        {
+                            output = shell.Expect(expect);
+                            sendOutput = true;
+                        }
                     }
-                    else if (expectRegex != null)
+                    catch (IOException ex)
                     {
-                        output = shell.Expect(expectRegex);
-                        sendOutput = true;
-                    }
-                    else
-                    {
-                        output = shell.Expect(expect);
-                        sendOutput = true;
+                        if (ex.Message == "Pipe closed")
+                        {
+                            // being kicked
+                        }
+                        else if (ex.Message == "Pipe broken")
+                        {
+                            // connection failure
+                        }
+
+                        haveConnected = false;
+                        sendOutput = false;
+                        shell.Close();
+                        shell = null;
+                        break;
                     }
 
                     if (sendOutput && output != null)
@@ -165,7 +186,11 @@ namespace Jovice
                 else
                 {
                     started = false;
-                    shell.Close();
+                    try
+                    {
+                        shell.Close();
+                    }
+                    catch { }
                     shell = null;
                     haveConnected = false;
                     break;
@@ -178,7 +203,11 @@ namespace Jovice
         protected void Stop()
         {
             listenerThread.Abort();
-            shell.Close();
+            try
+            {
+                shell.Close();
+            }
+            catch { }
             haveConnected = false;
             started = false;
 

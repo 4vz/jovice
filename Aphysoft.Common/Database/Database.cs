@@ -613,6 +613,14 @@ namespace Aphysoft.Common
             return connection.Exists(table, key, Format("{0}", value));
         }
 
+        /// <summary>
+        /// Cancels all current query/transactions.
+        /// </summary>
+        public int Cancel()
+        {
+            return connection.Cancel();
+        }
+
         private const string idChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz`1234567890~!@#$^*()_+-=[]{}|;:,./<>?";
         private const int idCharsLen = 89;
 
@@ -686,11 +694,19 @@ namespace Aphysoft.Common
 
         public virtual bool Exists(string table, string key, object value) { return false; }
 
+        public virtual int Cancel() { return 0; }
+
         #endregion
     }
 
     internal class SqlServerDatabaseConnection : DatabaseConnection
     {
+        #region Fields
+
+        private List<SqlCommand> commands = new List<SqlCommand>();
+
+        #endregion
+
         #region Constructor
 
         public SqlServerDatabaseConnection(Database database) : base(database)
@@ -759,6 +775,8 @@ namespace Aphysoft.Common
             using (SqlConnection connection = new SqlConnection(database.ConnectionString))
             {
                 SqlCommand command = Begin(sql, connection);
+                commands.Add(command);
+
                 bool ok = false;
                 for (int attempt = 0; attempt < attempts; attempt++)
                 {
@@ -803,7 +821,9 @@ namespace Aphysoft.Common
                     finally { if (reader != null) reader.Close(); }
                     if (ok) break;
                 }
+
                 End(connection, command);
+                commands.Remove(command);
             }
             return result;
         }
@@ -816,6 +836,8 @@ namespace Aphysoft.Common
             using (SqlConnection connection = new SqlConnection(database.ConnectionString))
             {
                 SqlCommand command = Begin(sql, connection);
+                commands.Add(command);
+
                 bool ok = false;
                 for (int attempt = 0; attempt < attempts; attempt++)
                 {
@@ -832,7 +854,9 @@ namespace Aphysoft.Common
                     }
                     if (ok) break;
                 }
+
                 End(connection, command);
+                commands.Remove(command);
             }
             return column;
         }
@@ -845,6 +869,7 @@ namespace Aphysoft.Common
             using (SqlConnection connection = new SqlConnection(database.ConnectionString))
             {
                 SqlCommand command = Begin(sql, connection);
+                commands.Add(command);
 
                 bool ok = false;
                 for (int attempt = 0; attempt < attempts; attempt++)
@@ -860,7 +885,9 @@ namespace Aphysoft.Common
                         if (returnIdentity)
                         {
                             identityCommand = new SqlCommand("select cast(SCOPE_IDENTITY() as bigint)", connection);
-                            result.Identity = (Int64)identityCommand.ExecuteScalar();
+                            commands.Add(identityCommand);
+
+                            result.Identity = (Int64)identityCommand.ExecuteScalar();                            
                         }
                         ok = true;
                     }
@@ -873,11 +900,19 @@ namespace Aphysoft.Common
                             Exception(e, sql);
                         }
                     }
-                    finally { if (identityCommand != null) identityCommand.Dispose(); }
+                    finally
+                    {
+                        if (identityCommand != null)
+                        {
+                            identityCommand.Dispose();
+                            commands.Remove(identityCommand);
+                        }
+                    }
                     if (ok) break;
                 }
 
                 End(connection, command);
+                commands.Remove(command);
             }
 
             return result;
@@ -898,6 +933,19 @@ namespace Aphysoft.Common
             Result result = Query("select top 1 * from " + table + " where " + key + " = " + value);
             if (result.Count == 1) return true;
             else return false;
+        }
+
+        public override int Cancel()
+        {
+            int nc = commands.Count;
+
+            foreach (SqlCommand command in commands)
+            {
+                command.Cancel();
+            }
+            commands.Clear();
+
+            return nc;
         }
 
         #endregion

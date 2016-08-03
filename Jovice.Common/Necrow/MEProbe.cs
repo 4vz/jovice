@@ -2052,7 +2052,19 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 current = null;
 
                                 int lag = -1;
-                                if (int.TryParse(line.Substring(0, line.IndexOf('(')), out lag))
+                                bool lagok = false;
+
+                                int fpar = line.IndexOf('(');
+                                if (fpar > -1)
+                                {
+                                    lagok = int.TryParse(line.Substring(0, fpar), out lag);
+                                }
+                                else
+                                {
+                                    lagok = int.TryParse(line.Substring(0, line.IndexOf(' ')), out lag);
+                                }
+
+                                if (lagok)
                                 {
                                     if (interfacelive.ContainsKey("Ag" + lag))
                                     {

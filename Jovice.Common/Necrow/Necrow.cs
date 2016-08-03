@@ -124,7 +124,7 @@ namespace Jovice
     {
         #region Fields
 
-        internal readonly static int Version = 8;
+        internal readonly static int Version = 10;
 
         private static Database joviceDatabase = null;
 

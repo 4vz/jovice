@@ -181,6 +181,81 @@ namespace Jovice
 
     }
 
+    class PERouteUseToDatabase : ToDatabase
+    {
+        private string type;
+
+        public string Type
+        {
+            get { return type; }
+            set { type = value; }
+        }
+
+        private string routeNameID;
+
+        public string RouteNameID
+        {
+            get { return routeNameID; }
+            set { routeNameID = value; }
+        }
+
+        private string network;
+
+        public string Network
+        {
+            get { return network; }
+            set { network = value; }
+        }
+
+        private string neighbor;
+
+        public string Neighbor
+        {
+            get { return neighbor; }
+            set { neighbor = value; }
+        }
+
+        private string interfaceID;
+
+        public string InterfaceID
+        {
+            get { return interfaceID; }
+            set { interfaceID = value; }
+        }
+
+        private string interfaceGone;
+
+        public string InterfaceGone
+        {
+            get { return interfaceGone; }
+            set { interfaceGone = value; }
+        }
+
+        private int remoteAS = -1;
+        
+        public int RemoteAS
+        {
+            get { return remoteAS; }
+            set { remoteAS = value; }
+        }
+
+        private int area = -1;
+
+        public int Area
+        {
+            get { return area; }
+            set { area = value; }
+        }
+
+        private int process = -1;
+
+        public int Process
+        {
+            get { return process; }
+            set { process = value; }
+        }
+    }
+
     #endregion
 
     internal sealed partial class Probe
@@ -195,7 +270,7 @@ namespace Jovice
 
             #region VRF
             
-            Dictionary<string, PERouteNameToDatabase> routelive = new Dictionary<string, PERouteNameToDatabase>();
+            Dictionary<string, PERouteNameToDatabase> routenamelive = new Dictionary<string, PERouteNameToDatabase>();
             Dictionary<string, Row> routenamedb = QueryDictionary("select * from PERouteName where PN_NO = {0}", "PN_Name", nodeID);
             Dictionary<string, List<string>> routetargetlocaldb = new Dictionary<string, List<string>>();
 
@@ -268,7 +343,7 @@ namespace Jovice
                                 i.Name = name;
                                 i.RD = RD;
                                 i.RouteTargets = routeTargets.ToArray();
-                                routelive.Add(name, i);
+                                routenamelive.Add(name, i);
                                 name = null;
                                 routeTargets.Clear();
                             }
@@ -289,7 +364,7 @@ namespace Jovice
                         i.Name = name;
                         i.RD = RD;
                         i.RouteTargets = routeTargets.ToArray();
-                        routelive.Add(name, i);
+                        routenamelive.Add(name, i);
                     }
 
                     #endregion
@@ -313,7 +388,7 @@ namespace Jovice
                                 i.Name = name;
                                 i.RD = RD;
                                 i.RouteTargets = routeTargets.ToArray();
-                                routelive.Add(name, i);
+                                routenamelive.Add(name, i);
                             }
 
                             routeTargets.Clear();
@@ -348,7 +423,7 @@ namespace Jovice
                             i.Name = name;
                             i.RD = RD;
                             i.RouteTargets = routeTargets.ToArray();
-                            routelive.Add(name, i);
+                            routenamelive.Add(name, i);
                         }
                     }
                     #endregion
@@ -391,7 +466,7 @@ namespace Jovice
                             i.RDIPv6 = RDIPv6;
                             i.RouteTargets = routeTargets.ToArray();
 
-                            routelive.Add(name, i);
+                            routenamelive.Add(name, i);
 
                             name = null;
                             ipv = null;
@@ -440,7 +515,7 @@ namespace Jovice
                     i.RDIPv6 = RDIPv6;
                     i.RouteTargets = routeTargets.ToArray();
 
-                    routelive.Add(name, i);
+                    routenamelive.Add(name, i);
                 }
 
                 #endregion
@@ -450,7 +525,7 @@ namespace Jovice
                        
             #region Check
 
-            foreach (KeyValuePair<string, PERouteNameToDatabase> pair in routelive)
+            foreach (KeyValuePair<string, PERouteNameToDatabase> pair in routenamelive)
             {
                 PERouteNameToDatabase li = pair.Value;
                 if (!routenamedb.ContainsKey(pair.Key))
@@ -466,6 +541,9 @@ namespace Jovice
                     if (routetargetlocaldb.ContainsKey(pair.Key)) routeTargets = routetargetlocaldb[pair.Key];
 
                     PERouteNameToDatabase u = new PERouteNameToDatabase();
+
+                    u.ID = db["PN_ID"].ToString();
+                    li.ID = u.ID;
 
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
@@ -502,7 +580,6 @@ namespace Jovice
 
                     if (update)
                     {
-                        u.ID = db["PN_ID"].ToString();
                         u.Name = pair.Key;
                         routenameupdate.Add(u);
                         Event("VRF Name UPDATE: " + pair.Key + " " + updateinfo.ToString());
@@ -510,7 +587,7 @@ namespace Jovice
                 }
             }
 
-            Summary("VRF_COUNT", routelive.Count);
+            Summary("VRF_COUNT", routenamelive.Count);
 
             // Search/set route targets
             List<PERouteNameToDatabase> routetargetsearch = new List<PERouteNameToDatabase>(routenameinsert);
@@ -2306,6 +2383,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
             foreach (string id in interfacedelete)
             {
                 batch.Execute("update POP set OO_PI = NULL where OO_PI = {0}", id);
+                batch.Execute("update PERouteUse set PU_PI = NULL, PU_PI_Gone = (select PI_Name from PEInterface where PI_ID = {0}) where PU_PI = {0}", id);
                 batch.Execute("delete from PEInterface where PI_ID = {0}", id);
             }
             result = batch.Commit();
@@ -2347,6 +2425,631 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
             #endregion
 
+            #region ROUTING
+
+            Dictionary<string, PERouteUseToDatabase> routeuselive = new Dictionary<string, PERouteUseToDatabase>();
+            Dictionary<string, Row> routeusedb = QueryDictionary("select PERouteUse.* from PERouteUse, PERouteName where PU_PN = PN_ID and PN_NO = {0}", delegate(Row row)
+            {
+                StringBuilder keysb = new StringBuilder();
+
+                keysb.Append(row["PU_PN"].ToString());
+                keysb.Append("_");
+
+                string type = row["PU_Type"].ToString();
+                keysb.Append(type);
+                keysb.Append("_");
+                
+                if (type == "S")
+                {
+                    keysb.Append(row["PU_Network"].ToString());
+                    keysb.Append("_");
+                    keysb.Append(row["PU_Neighbor"].ToString(""));
+                    keysb.Append("_");
+                    string pi = row["PU_PI"].ToString();
+                    string piGone = row["PU_PI_Gone"].ToString();
+                    keysb.Append(pi != null ? pi : piGone != null ? piGone : "");
+                }
+                else if (type == "B")
+                {
+                    keysb.Append(row["PU_Neighbor"].ToString());
+                    keysb.Append("_");
+                    int remoteAS = row["PU_B_RemoteAS"].ToInt(-1);
+                    keysb.Append("" + (remoteAS != -1 ? remoteAS + "" : ""));
+                }
+                else if (type == "O")
+                {
+                    int process = row["PU_O_Process"].ToInt(-1);
+                    keysb.Append(process != -1 ? process + "_" : "_");
+                    int area = row["PU_O_Area"].ToInt(-1);
+                    keysb.Append(area != -1 ? area + "_" : "_");
+
+                }
+                else if (type == "R")
+                {
+                    string pi = row["PU_PI"].ToString();
+                    string piGone = row["PU_PI_Gone"].ToString();
+                    keysb.Append(pi != null ? pi : piGone != null ? piGone : "");
+                }
+                else if (type == "E")
+                {
+                    string pi = row["PU_PI"].ToString();
+                    string piGone = row["PU_PI_Gone"].ToString();
+                    keysb.Append(pi != null ? pi : piGone != null ? piGone : "");
+                }
+
+                return keysb.ToString();
+
+            }, nodeID);
+            List<PERouteUseToDatabase> routeuseinsert = new List<PERouteUseToDatabase>();
+
+            Event("Checking Routing");
+
+            #region Live
+
+            if (nodeManufacture == cso)
+            {
+                #region cso    
+
+                if (nodeVersion == xr)
+                {
+                    #region xr
+
+                    string currentRouteNameID = null;
+                    string currentNeighbor = null;
+                    string currentRemoteAS = null;
+                    string currentProcess = null;
+                    string currentArea = null;
+                    string currentInterface = null;
+
+                    #region STATIC
+                    if (Request("sh run router static", out lines)) return;
+
+                    foreach (string line in lines)
+                    {
+                        string linetrim = line.Trim();
+                        if (linetrim.Length > 0)
+                        {
+                            if (linetrim.StartsWith("vrf "))
+                            {
+                                string vrfname = linetrim.Substring(4);
+
+                                if (routenamedb.ContainsKey(vrfname) && routenamelive.ContainsKey(vrfname))
+                                    currentRouteNameID = routenamedb[vrfname]["PN_ID"].ToString();
+                                else
+                                    currentRouteNameID = null;
+                            }
+                            else if (currentRouteNameID != null)
+                            {
+                                if (char.IsDigit(linetrim[0]))
+                                {
+                                    string[] parts = linetrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                                    string network = null, neighbor = null, interfaceID = null;
+                                    string ifname = null;
+                                    if (parts.Length == 2)
+                                    {
+                                        network = parts[0];
+
+                                        if (char.IsDigit(parts[1][0]))
+                                            neighbor = parts[1];
+                                        else
+                                        {
+                                            // probably interface
+                                            NodeInterface nif = NodeInterface.Parse(parts[1]);
+                                            if (nif != null)
+                                            {
+                                                ifname = nif.GetShort();
+                                                if (interfacelive.ContainsKey(ifname))
+                                                {
+                                                    interfaceID = interfacelive[ifname].ID;
+                                                }
+                                            }
+
+                                            neighbor = "INTERFACE";
+                                        }
+                                    }
+                                    else if (parts.Length == 3)
+                                    {
+                                        network = parts[0];
+                                        NodeInterface nif = NodeInterface.Parse(parts[1]);
+                                        if (nif != null)
+                                        {
+                                            ifname = nif.GetShort();
+                                            if (interfacelive.ContainsKey(ifname))
+                                            {
+                                                interfaceID = interfacelive[ifname].ID;
+                                            }
+                                        }
+                                        neighbor = parts[2];
+                                    }
+
+                                    if (network != null)
+                                    {
+                                        PERouteUseToDatabase i = new PERouteUseToDatabase();
+                                        i.RouteNameID = currentRouteNameID;
+                                        i.Type = "S";
+                                        i.Network = network;
+                                        i.Neighbor = neighbor;
+                                        i.InterfaceID = interfaceID;
+
+                                        if (interfaceID == null && ifname != null)
+                                        {
+                                            i.InterfaceGone = ifname;
+                                        }
+
+                                        string key = currentRouteNameID + "_S_" + network + "_" + (neighbor != null ? neighbor : "") + "_" + (interfaceID != null ? interfaceID : ifname != null ? ifname : "");
+                                        routeuselive.Add(key, i);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    #endregion
+
+                    #region BGP
+                    if (Request("sh run router bgp", out lines)) return;
+
+                    currentRouteNameID = null;
+                    currentNeighbor = null;
+                    currentRemoteAS = null;
+
+                    foreach (string line in lines)
+                    {
+                        string linetrim = line.Trim();
+                        if (linetrim.Length > 0)
+                        {
+                            if (linetrim.StartsWith("vrf "))
+                            {
+                                string vrfname = linetrim.Substring(4);
+                                if (routenamedb.ContainsKey(vrfname) && routenamelive.ContainsKey(vrfname))
+                                    currentRouteNameID = routenamedb[vrfname]["PN_ID"].ToString();
+                                else
+                                    currentRouteNameID = null;
+
+                                currentNeighbor = null;
+                            }
+                            else if (currentRouteNameID != null)
+                            { 
+                                if (linetrim.StartsWith("neighbor "))
+                                {
+                                    currentNeighbor = linetrim.Substring(9);
+                                    currentRemoteAS = null;
+                                }
+                                if (linetrim.StartsWith("remote-as "))
+                                {
+                                    currentRemoteAS = linetrim.Substring(10);
+                                }
+
+                                if (linetrim == "!")
+                                {
+                                    if (currentNeighbor != null)
+                                    {
+                                        PERouteUseToDatabase i = new PERouteUseToDatabase();
+                                        i.RouteNameID = currentRouteNameID;
+                                        i.Type = "B";
+                                        i.Neighbor = currentNeighbor;
+
+                                        if (currentRemoteAS != null)
+                                        {
+                                            int ras = -1;
+                                            if (int.TryParse(currentRemoteAS, out ras)) i.RemoteAS = ras;
+                                        }
+
+                                        string key = currentRouteNameID + "_B_" + currentNeighbor + "_" + (i.RemoteAS != -1 ? i.RemoteAS + "" : "");
+                                        routeuselive.Add(key, i);
+                                    }
+
+                                    currentNeighbor = null;
+                                    currentRemoteAS = null;
+                                }
+                            }
+                        }
+                    }
+
+                    #endregion
+
+                    #region OSPF
+                    if (Request("sh run router ospf", out lines)) return;
+
+                    currentRouteNameID = null;
+                    currentProcess = null;
+                    currentArea = null;
+                    currentInterface = null;
+                    currentNeighbor = null;
+
+                    foreach (string line in lines)
+                    {
+                        string linetrim = line.Trim();
+                        if (linetrim.Length > 0)
+                        {
+                            if (linetrim.StartsWith("router ospf "))
+                            {
+                                currentProcess = linetrim.Substring(12);
+
+                                currentRouteNameID = null;
+                                currentArea = null;
+                            }
+                            else if (currentProcess != null)
+                            {
+                                if (linetrim.StartsWith("vrf "))
+                                {
+                                    string vrfname = linetrim.Substring(4);
+                                    if (routenamedb.ContainsKey(vrfname) && routenamelive.ContainsKey(vrfname))
+                                        currentRouteNameID = routenamedb[vrfname]["PN_ID"].ToString();
+                                    else
+                                        currentRouteNameID = null;
+
+                                    currentArea = null;
+                                }
+                                else if (currentRouteNameID != null)
+                                {
+                                    if (linetrim.StartsWith("area "))
+                                    {
+                                        currentArea = linetrim.Substring(5);
+                                    }
+                                    else if (currentArea != null)
+                                    {
+                                        if (linetrim.StartsWith("interface "))
+                                        {
+                                            NodeInterface nif = NodeInterface.Parse(linetrim.Substring(10));
+                                            if (nif != null) currentInterface = nif.GetShort();
+
+                                            currentNeighbor = null;
+                                        }
+                                        else if (currentInterface != null)
+                                        {
+                                            if (linetrim.StartsWith("neighbor "))
+                                            {
+                                                currentNeighbor = linetrim.Substring(9);
+                                            }
+                                            else if (linetrim == "!")
+                                            {
+                                                PERouteUseToDatabase i = new PERouteUseToDatabase();
+                                                i.RouteNameID = currentRouteNameID;
+                                                i.Type = "O";
+                                                i.Neighbor = currentNeighbor;
+
+                                                int oprocess, oarea;
+                                                if (int.TryParse(currentProcess, out oprocess)) i.Process = oprocess;
+                                                if (int.TryParse(currentArea, out oarea)) i.Area = oarea;
+
+                                                int par;
+                                                if (int.TryParse(currentArea, out par)) i.Area = par;
+
+                                                string interfaceID = null;
+                                                if (interfacelive.ContainsKey(currentInterface))
+                                                {
+                                                    interfaceID = interfacelive[currentInterface].ID;
+                                                    if (interfaceID != null)
+                                                    {
+                                                        i.InterfaceID = interfaceID;
+                                                    }
+                                                }
+                                                else if (currentInterface != null)
+                                                    i.InterfaceGone = currentInterface;
+
+                                                string key = currentRouteNameID + "_O_" + currentProcess + "_" + currentArea + "_" + (interfaceID != null ? interfaceID : currentInterface != null ? currentInterface : "");
+                                                routeuselive.Add(key, i);
+
+                                                currentInterface = null;
+                                                currentNeighbor = null;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    #endregion
+
+                    #region RIP
+                    if (Request("sh run router rip", out lines)) return;
+
+                    currentRouteNameID = null;
+                    currentInterface = null;
+
+                    foreach (string line in lines)
+                    {
+                        string linetrim = line.Trim();
+                        if (linetrim.Length > 0)
+                        {
+                            if (linetrim.StartsWith("vrf "))
+                            {
+                                string vrfname = linetrim.Substring(4);
+                                if (routenamedb.ContainsKey(vrfname) && routenamelive.ContainsKey(vrfname))
+                                    currentRouteNameID = routenamedb[vrfname]["PN_ID"].ToString();
+                                else
+                                    currentRouteNameID = null;
+
+                                currentInterface = null;
+                            }
+                            else if (currentRouteNameID != null)
+                            {
+                                if (linetrim.StartsWith("interface "))
+                                {
+                                    NodeInterface nif = NodeInterface.Parse(linetrim.Substring(10));
+                                    if (nif != null) currentInterface = nif.GetShort();
+                                }
+                                else if (currentInterface != null)
+                                {
+                                    if (linetrim == "!")
+                                    {
+                                        PERouteUseToDatabase i = new PERouteUseToDatabase();
+                                        i.RouteNameID = currentRouteNameID;
+                                        i.Type = "R";
+
+                                        string interfaceID = null;
+                                        if (interfacelive.ContainsKey(currentInterface))
+                                        {
+                                            interfaceID = interfacelive[currentInterface].ID;
+                                            if (interfaceID != null)
+                                            {
+                                                i.InterfaceID = interfaceID;
+                                            }
+                                        }
+                                        else if (currentInterface != null)
+                                            i.InterfaceGone = currentInterface;
+
+                                        string key = currentRouteNameID + "_R_" + (interfaceID != null ? interfaceID : currentInterface != null ? currentInterface : "");
+                                        routeuselive.Add(key, i);
+
+                                        currentInterface = null;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+
+                    #endregion
+
+                    #region EIGRP
+                    if (Request("sh run router eigrp", out lines)) return;
+
+                    currentRouteNameID = null;
+                    currentInterface = null;
+
+                    foreach (string line in lines)
+                    {
+                        string linetrim = line.Trim();
+                        if (linetrim.Length > 0)
+                        {
+                            if (linetrim.StartsWith("vrf "))
+                            {
+                                string vrfname = linetrim.Substring(4);
+                                if (routenamedb.ContainsKey(vrfname) && routenamelive.ContainsKey(vrfname))
+                                    currentRouteNameID = routenamedb[vrfname]["PN_ID"].ToString();
+                                else
+                                    currentRouteNameID = null;
+
+                                currentInterface = null;
+                            }
+                            else if (currentRouteNameID != null)
+                            {
+                                if (linetrim.StartsWith("interface "))
+                                {
+                                    NodeInterface nif = NodeInterface.Parse(linetrim.Substring(10));
+                                    if (nif != null) currentInterface = nif.GetShort();
+                                }
+                                else if (currentInterface != null)
+                                {
+                                    if (linetrim == "!")
+                                    {
+                                        PERouteUseToDatabase i = new PERouteUseToDatabase();
+                                        i.RouteNameID = currentRouteNameID;
+                                        i.Type = "E";
+
+                                        string interfaceID = null;
+                                        if (interfacelive.ContainsKey(currentInterface))
+                                        {
+                                            interfaceID = interfacelive[currentInterface].ID;
+                                            if (interfaceID != null)
+                                            {
+                                                i.InterfaceID = interfaceID;
+                                            }
+                                        }
+                                        else if (currentInterface != null)
+                                            i.InterfaceGone = currentInterface;
+
+                                        string key = currentRouteNameID + "_E_" + (interfaceID != null ? interfaceID : currentInterface != null ? currentInterface : "");
+                                        routeuselive.Add(key, i);
+
+                                        currentInterface = null;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    #endregion
+
+                    #endregion
+                }
+
+                #endregion
+            }
+
+            #endregion
+
+            #region Check
+
+            foreach (KeyValuePair<string, PERouteUseToDatabase> pair in routeuselive)
+            {
+                PERouteUseToDatabase li = pair.Value;
+
+                if (!routeusedb.ContainsKey(pair.Key))
+                {
+                    string info = "UNKNOWN ";
+                    foreach (KeyValuePair<string, Row> pair2 in routenamedb)
+                    {
+                        if (pair2.Value["PN_ID"].ToString() == li.RouteNameID)
+                        {
+                            info = pair2.Key + " ";
+                            break;
+                        }
+                    }
+
+                    string referencedinterface = null;
+
+                    if (li.InterfaceID != null)
+                    {
+                        foreach (KeyValuePair<string, PEInterfaceToDatabase> pair2 in interfacelive)
+                        {
+                            if (pair2.Value.ID == li.InterfaceID)
+                            {
+                                referencedinterface = pair2.Key;
+                                break;
+                            }
+                        }
+                    }
+                    else
+                        referencedinterface = li.InterfaceGone + " NOTEXISTS";
+                    
+                    if (li.Type == "S") info += "static " + li.Network + " to " + li.Neighbor + (referencedinterface != null ? " (" + referencedinterface + ")" : "");
+                    else if (li.Type == "B") info += "bgp to " + li.Neighbor + " by remote AS " + li.RemoteAS;
+                    else if (li.Type == "O") info += "ospf area " + li.Area + (referencedinterface != null ? " (" + referencedinterface + ")" : "");
+                    else if (li.Type == "R") info += "rip" + (referencedinterface != null ? " (" + referencedinterface + ")" : "");
+                    else if (li.Type == "E") info += "eigrp" + (referencedinterface != null ? " (" + referencedinterface + ")" : "");
+
+                    Event("Routing ADD: " + info);
+
+                    li.ID = Database.ID();
+                    routeuseinsert.Add(li);
+                }
+                else
+                {
+                    Row db = routeusedb[pair.Key];
+
+                    PERouteUseToDatabase u = new PERouteUseToDatabase();
+                    u.ID = db["PU_ID"].ToString();
+                    li.ID = u.ID;
+
+                    bool update = false;
+                    StringBuilder updateinfo = new StringBuilder();
+
+                    if (li.Type == "S")
+                    {
+                        
+                    }
+                    else if (li.Type == "B")
+                    {
+
+                    }
+                    else if (li.Type == "O")
+                    {
+
+                    }
+                    else if (li.Type == "R")
+                    {
+
+                    }
+                    else if (li.Type == "E")
+                    {
+
+                    }
+                }
+            }
+
+            #endregion
+
+            #region Execute
+
+            // ADD
+            batch.Begin();
+            foreach (PERouteUseToDatabase s in routeuseinsert)
+            {
+                Insert insert = Insert("PERouteUse");
+                insert.Value("PU_ID", s.ID);
+                insert.Value("PU_PN", s.RouteNameID);
+                insert.Value("PU_Type", s.Type);
+
+                insert.Value("PU_PI", s.InterfaceID);
+                insert.Value("PU_PI_Gone", s.InterfaceGone);
+                insert.Value("PU_Network", s.Network);
+                insert.Value("PU_Neighbor", s.Neighbor);
+
+                if (s.Type == "S")
+                {
+
+                }
+                else if (s.Type == "B")
+                {
+                    insert.Value("PU_B_RemoteAS", s.RemoteAS);
+                }
+                else if (s.Type == "O")
+                {
+                    insert.Value("PU_O_Process", s.Process);
+                    insert.Value("PU_O_Area", s.Area);
+                }
+                else if (s.Type == "R")
+                {
+
+                }
+                else if (s.Type == "E")
+                {
+
+                }
+
+                batch.Execute(insert);
+            }
+            result = batch.Commit();
+            Event(result, EventActions.Add, EventElements.Routing, false);
+
+            // DELETE
+            batch.Begin();
+            foreach (KeyValuePair<string, Row> pair in routeusedb)
+            {
+                if (!routeuselive.ContainsKey(pair.Key))
+                {
+                    string info = "UNKNOWN ";
+                    foreach (KeyValuePair<string, Row> pair2 in routenamedb)
+                    {
+                        if (pair2.Value["PN_ID"].ToString() == pair.Value["PU_PN"].ToString())
+                        {
+                            info = pair2.Key + " ";
+                            break;
+                        }
+                    }
+
+                    string referencedinterface = null;
+                    string interfaceID = pair.Value["PU_PI"].ToString();
+                    string interfaceGone = pair.Value["PU_PI_Gone"].ToString();
+
+                    if (interfaceID != null)
+                    {
+                        foreach (KeyValuePair<string, PEInterfaceToDatabase> pair2 in interfacelive)
+                        {
+                            if (pair2.Value.ID == interfaceID)
+                            {
+                                referencedinterface = pair2.Key;
+                                break;
+                            }
+                        }
+                    }
+                    else if (interfaceGone != null)
+                        referencedinterface = interfaceGone + " NOTEXISTS";
+
+                    string type = pair.Value["PU_Type"].ToString();
+
+                    if (type == "S") info += "static " + pair.Value["PU_Network"].ToString() + " to " + pair.Value["PU_Neighbor"].ToString() + (referencedinterface != null ? " (" + referencedinterface + ")" : "");
+                    else if (type == "B") info += "bgp to " + pair.Value["PU_Neighbor"].ToString() + " by remote AS " + pair.Value["PU_B_RemoteAS"].ToString();
+                    else if (type == "O") info += "ospf area " + pair.Value["PU_O_Area"].ToString() + (referencedinterface != null ? " (" + referencedinterface + ")" : "");
+                    else if (type == "R") info += "rip" + (referencedinterface != null ? " (" + referencedinterface + ")" : "");
+                    else if (type == "E") info += "eigrp" + (referencedinterface != null ? " (" + referencedinterface + ")" : "");
+                    
+                    Event("Routing DELETE: " + info);
+                    batch.Execute("delete from PERouteUse where PU_ID = {0}", pair.Value["PU_ID"].ToString());
+                }
+            }
+            result = batch.Commit();
+            Event(result, EventActions.Delete, EventElements.Routing, false);
+
+            #endregion
+
+            #endregion
+
             #region LATE DELETE
 
             // DELETE QOS
@@ -2367,11 +3070,12 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
             List<string> routenamedelete = new List<string>();
             foreach (KeyValuePair<string, Row> pair in routenamedb)
             {
-                if (!routelive.ContainsKey(pair.Key))
+                if (!routenamelive.ContainsKey(pair.Key))
                 {
                     Event("Route Name DELETE: " + pair.Key);
                     string id = pair.Value["PN_ID"].ToString();
                     batch.Execute("update PEInterface set PI_PN = NULL where PI_PN = {0}", id);
+                    batch.Execute("delete from PERouteUse where PU_PN = {0}", id);
                     routenamedelete.Add(id);
                 }
             }

@@ -272,7 +272,7 @@ namespace Jovice
                             ci.ShortType = "Hu";
                             ci.CodeType = "H";
                         }
-                        else if (interfaceType == "ag")
+                        else if (interfaceType == "ag" || interfaceType == "eth-trunk" || interfaceType == "lag-")
                         {
                             ci.Type = "AggregatedInterface";
                             ci.ShortType = "Ag";

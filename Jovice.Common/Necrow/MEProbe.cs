@@ -1270,12 +1270,8 @@ namespace Jovice
                                     string[] linex2 = lineValue.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                                     if (linex2.Length >= 3)
                                     {
-                                        if (linex2[0].StartsWith("Eth-Trunk")) cinterface = "Ag" + linex2[0].Substring(9);
-                                        else
-                                        {
-                                            NodeInterface inf = NodeInterface.Parse(linex2[0]);
-                                            if (inf != null) cinterface = inf.GetShort();
-                                        }
+                                        NodeInterface inf = NodeInterface.Parse(linex2[0]);
+                                        if (inf != null) cinterface = inf.GetShort();
                                         if (linex2[2] == "up") cinterfacestate = true;
                                     }
                                 }
@@ -2318,12 +2314,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 //012345678901234567890123456789012345678901234567
                                 //          1         2         3         4
                                 string inf = line.Substring(0, 30).Trim();
-                                if (inf.StartsWith("Eth-Trunk")) port = "Ag" + inf.Substring(9);
-                                else
-                                {
-                                    NodeInterface nif = NodeInterface.Parse(inf);
-                                    if (nif != null) port = nif.GetShort();
-                                }
+                                NodeInterface nif = NodeInterface.Parse(inf);
+                                if (nif != null) port = nif.GetShort();
 
                                 if (port != null)
                                 {
@@ -2376,16 +2368,12 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             string pot = null;
                             bool issif = false;
 
-                            if (linex3[0].StartsWith("Eth-Trunk")) poe = "Ag" + linex3[0].Substring(9);
-                            else
+                            NodeInterface nif = NodeInterface.Parse(linex3[0]);
+                            if (nif != null)
                             {
-                                NodeInterface nif = NodeInterface.Parse(linex3[0]);
-                                if (nif != null)
-                                {
-                                    poe = nif.GetShort();
-                                    pot = nif.ShortType;
-                                    issif = nif.IsSubInterface;
-                                }
+                                poe = nif.GetShort();
+                                pot = nif.ShortType;
+                                issif = nif.IsSubInterface;
                             }
 
                             if (poe != null)
@@ -2502,17 +2490,13 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     if (lineTrim.StartsWith("interface "))
                     {
                         string nifc = lineTrim.Substring(10);
-
-                        string nifs = null;
-                        if (nifc.StartsWith("Eth-Trunk")) nifs = "Ag" + nifc.Substring(9);
-                        else
+                        NodeInterface nif = NodeInterface.Parse(nifc);
+                        if (nif != null)
                         {
-                            NodeInterface nif = NodeInterface.Parse(nifc);
-                            if (nif != null) nifs = nif.GetShort();
+                            string portnif = nif.GetShort();
+                            if (interfacelive.ContainsKey(portnif))
+                                qosInterface = portnif;
                         }
-
-                        if (nifs != null && interfacelive.ContainsKey(nifs))
-                            qosInterface = nifs;
                     }
                     else if (qosInterface != null)
                     {

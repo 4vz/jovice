@@ -11,34 +11,34 @@ namespace Aphysoft.Common
         [ThreadStatic]
         private static Random random;
 
-        private static Random RandomSeed
+        private static Random Random
         {
             get { return random ?? (random = new Random(unchecked(Environment.TickCount * 31 + Thread.CurrentThread.ManagedThreadId))); }
         }
 
         public static int Next()
         {
-            return RandomSeed.Next();
+            return Random.Next();
         }
 
         public static int Next(int maxValue)
         {
-            return RandomSeed.Next(maxValue);
+            return Random.Next(maxValue);
         }
 
         public static int Next(int minValue, int maxValue)
         {
-            return RandomSeed.Next(minValue, maxValue);
+            return Random.Next(minValue, maxValue);
         }
 
         public static double NextDouble()
         {
-            return RandomSeed.NextDouble();
+            return Random.NextDouble();
         }
 
         public static void NextBytes(byte[] buffer)
         {
-            RandomSeed.NextBytes(buffer);
+            Random.NextBytes(buffer);
         }
     }
 }

@@ -44,9 +44,7 @@ namespace NecrowConsole
                     properties.TacacPassword != null && properties.TacacPassword != null)
                 {
 #if DEBUG
-                    //properties.TestProbeNode = "PE-D2-JT2-VPN";
-                    //properties.TestProbeNode = "ME-A-JWB-CJR";
-                    properties.TestProbeNode = "ME-D4-WSB";
+                    //properties.TestProbeNode = "ME-D7-JAP";
 #endif
                     Necrow.Set(properties);
                     Necrow.Start(NecrowServices.Probe);

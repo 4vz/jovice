@@ -74,7 +74,6 @@
     <Compile Include="Providers\PortalAuth.cs" />
     <Compile Include="Providers\Search.cs" />
     <Compile Include="Providers\Search\InterfaceSearchMatch.cs" />
-    <Compile Include="Providers\Search\NodeSearchMatch.cs" />
     <Compile Include="Providers\Search\ServiceSearchMatch.cs" />
     <Compile Include="Providers\Statistics.cs" />
     <Compile Include="Web.cs" />
@@ -101,7 +100,6 @@
     <Content Include="View\main.js" />
     <Content Include="View\search.js" />
     <Content Include="View\Search\interface.js" />
-    <Content Include="View\Search\node.js" />
     <Content Include="View\Search\service.js" />
     <Content Include="Web.config">
       <SubType>Designer</SubType>

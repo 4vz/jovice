@@ -271,7 +271,7 @@
                     });
                     left = piNO.leftWidth();
                     var piName = ui.text(ref.topoContents)({
-                        text: jovice.formatInterfaceName(pi[8], pi[2]), top: 11, font: 14, left: left + 10, color: pi[10] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                        text: pi[8], top: 11, font: 14, left: left + 10, color: pi[10] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
                     });
                     left = piName.leftWidth();
 
@@ -1179,7 +1179,8 @@
         f.stream("service_" + streamSeID, function (data) {
             debug("incoming data: " + data);
         });
-        
+
+
         r.necrow = function (type, data) {
             
             if (type == "necrow") {

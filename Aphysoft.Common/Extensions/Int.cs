@@ -10,14 +10,14 @@ namespace Aphysoft.Common
     /// </summary>
     public static class IntExtensions
     {
-        public static int? Nullable(this int value, int ifNull)
+        public static int? Nullable(this int value, int nullif)
         {
-            if (value == ifNull) return (int?)null;
+            if (value == nullif) return (int?)null;
             else return new int?(value);
         }
-        public static long? Nullable(this long value, long ifNull)
+        public static long? Nullable(this long value, long nullif)
         {
-            if (value == ifNull) return (long?)null;
+            if (value == nullif) return (long?)null;
             else return new long?(value);
         }
     }

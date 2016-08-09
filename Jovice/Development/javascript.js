@@ -3369,7 +3369,8 @@
                 }
             }
         };
-        
+
+
         var _topContainer = function () {
             return topContainer;
         };
@@ -3458,39 +3459,25 @@
         //   y = 0 ... 100
     })(ui); 
 
-    // .font .calculateFont .measureText
+    // .font .calculateFont
     (function (ui) {
 
         var headings;
         var body;
 
-        var measureTextContext = null;
-        var measureTextElement = null;
-        var measureTextHeightCache = [];
-        var measureTextWidthCache = [];
-
         var fontCalculateElement = null;
+
         var calculateFontCache = [];
 
-        var font = function (t) {
-            if (t == "body") return body;
-            else if (t == "head") return headings;
-            else return null;
-        };
-        var parseFontFamily = function (a) {
-            var p = [];
-            if ($.isString(a)) {
-                var as = a.split(",");
-                $.each(as, function (ai, av) {
-                    var asv = av.trim();
-                    if (asv.length > 0) {
-                        if (asv[0] == "\"") asv = asv.substr(1);
-                        if (asv[asv.length - 1] == "\"") asv = asv.substr(0, asv.length - 1);
-                        p.push(asv);
-                    }
-                });
+        var font = function () {
+            var o = share.args(arguments, "string type");
+
+            if (o) {
+                if (o.type == "body") return body;
+                else if (o.type == "head") return headings;
+                else return null;
             }
-            return p;
+            else return null;
         };
         var calculateFont = function () {
 
@@ -3555,86 +3542,31 @@
             }
 
             return null;
-        };   
-        var measureText = function (a1, a2, a3, a4, a5) {
-
-            var t, f, s, w, i;
-            t = a1; f = a2; s = a3; w = a4; i = a5;
-
-            if (t == null || f == null || s == null) return null;
-
-            var f1 = ui.font(f);
-            if (f1 != null) f = f1;
-
-            if (measureTextContext == null) {
-                var measureTextCanvas = $("<canvas />");
-                $(document.body).append(measureTextCanvas);
-                measureTextContext = measureTextCanvas[0].getContext("2d");
+        };
+        var parseFontFamily = function (a) {
+            var p = [];
+            if ($.isString(a)) {
+                var as = a.split(",");
+                $.each(as, function (ai, av) {
+                    var asv = av.trim();
+                    if (asv.length > 0) {
+                        if (asv[0] == "\"") asv = asv.substr(1);
+                        if (asv[asv.length - 1] == "\"") asv = asv.substr(0, asv.length - 1);
+                        p.push(asv);
+                    }
+                });
             }
-            if (measureTextElement == null) {
-                measureTextElement = $("<div style=\"position:absolute;visibility:hidden;top:0px;left:0px\" />");
-                $(document.body).append(measureTextElement);
-            }
-
-            var ret = {};
-
-            var cacheKey = f + "|" + s + "|" + (w != null ? w : "") + "|" + (i ? "i " : "");
-            var cacheHeight = -1;
-            var cacheWidth = -1;
-
-            var cacheTextKey = t + "|" + cacheKey;
-            $.each(measureTextWidthCache, function (mi, mv) {
-                if (mv == cacheTextKey) {
-                    cacheWidth = measureTextWidthCache[mi + 1];
-                    return false;
-                }
-            });
-
-            if (cacheWidth == -1) {
-                measureTextContext.font = (i ? "italic " : "") + (w != null ? w + " " : "") + s + "px \"" + f + "\"";
-                var obj = measureTextContext.measureText(t);
-                ret.width = Math.round(obj.width);
-                ret.floatingWidth = obj.width;
-                measureTextWidthCache.push(cacheTextKey);
-                measureTextWidthCache.push(ret.floatingWidth);
-                if (measureTextWidthCache.length > 200) { // limit cache
-                    measureTextWidthCache.splice(0, 2);
-                }
-            }
-            else {
-                ret.width = Math.round(cacheWidth);
-                ret.floatingWidth = cacheWidth;
-            }
-
-            $.each(measureTextHeightCache, function (mi, mv) {
-                if (mv == cacheKey) {
-                    cacheHeight = measureTextHeightCache[mi + 1];
-                    return false;
-                }
-            });
-            
-            if (cacheHeight == -1) {
-                measureTextElement.html("&nbsp;");
-                measureTextElement.css({ "font-family": f });
-                measureTextElement.css({ "font-size": s });
-                measureTextElement.css({ "font-weight": (w != null ? (w + "") : "") });
-                measureTextElement.css({ "font-style": (i ? "italic" : "") });
-                ret.floatingHeight = measureTextElement[0].getBoundingClientRect().height;
-                ret.height = Math.round(ret.floatingHeight);
-                measureTextHeightCache.push(cacheKey);
-                measureTextHeightCache.push(ret.floatingHeight);
-            }
-            else {
-                ret.height = Math.round(cacheHeight);
-                ret.floatingHeight = cacheHeight;
-            }
-
-            return ret;
+            return p;
+        };
+        
+        var debugCalculateFont = function () {
+            debug("calculateFont cache size: " + calculateFontCache.length);
         };
 
         ui.font = font;
-        ui.measureText = measureText;
+        ui.calculateFont = calculateFont;
         ui.parseFontFamily = parseFontFamily;
+        ui.debugCalculateFont = debugCalculateFont;
 
         $(function () {
             headings = share.system("fontHeadings");
@@ -5656,10 +5588,10 @@
                     d.$.css({ backgroundColor: s });
                 }
             };
-            tb.measureText = function (s) { // calculate specified text using current properties
+            tb.calculateFont = function (s) { // calculate specified text using current properties
                 if (s != null) {
                     var fs = tb.font();
-                    return ui.measureText(s, fs.font, fs.size, tb.weight(), tb.italic());
+                    return ui.calculateFont(s, fs.font, fs.size, tb.weight(), tb.italic());
                 }
             };
 
@@ -5748,7 +5680,7 @@
                 else if (typeCase == 2) rt = rt.toLowerCase();
 
                 // calculate text
-                textSize = text.measureText(rt);
+                textSize = text.calculateFont(rt);
 
                 d.$.html(rt); 
             };
@@ -6112,7 +6044,6 @@
             };
             ib.design = function (v) {
                 if ($.isUndefined(v)) v = true;
-                design = v;
                 d.onDesign(v);
             };
             ib.isDesign = function () {
@@ -6147,31 +6078,6 @@
             var textinput = d;
 
             var dheight = d.height;
-
-            var csize;
-            var pheight = null;
-            function redraw(_this) {
-
-                if (csize == null) {
-                    var ff = ui.parseFontFamily(input.css("fontFamily"));
-                    csize = ui.measureText("&nbsp;", (ff && ff.length > 0) ? ff[0] : null, size);
-                }
-
-                var bheight;
-                if (pheight != null && pheight > csize.height) {
-                    bheight = pheight;
-                }
-                else bheight = csize.height;
-
-                input.height(bheight);
-
-                if (d.isDesign()) {
-                    bheight += 5;
-                }
-
-                dheight.apply(_this, [bheight]);
-            };
-
             textinput.onColor = function (s, a) {
                 if ($.isNull(s)) {
                     input.css({ color: '' });
@@ -6187,12 +6093,17 @@
                         input.css({ color: s });
                 }
             };
-            textinput.font = function (size) {
-                if ($.isNumber(size)) {
-                    var ff = ui.parseFontFamily(input.css("fontFamily"));
-                    csize = ui.measureText("&nbsp;", (ff && ff.length > 0) ? ff[0] : null, size);
-                    input.css({ fontSize: size });
-                    redraw(this);
+            textinput.font = function () {
+                var o = share.args(arguments, "number size");
+                var _this = this;
+                if (o) {
+                    if (o.size != null) {
+                        var ff = ui.parseFontFamily(input.css("fontFamily"));
+                        var csize = ui.calculateFont("&nbsp;", (ff && ff.length > 0) ? ff[0] : null, o.size);
+                        input.css({ fontSize: o.size });
+                        input.height(csize.height);
+                        dheight.apply(_this, [csize.height + (d.isDesign() ? 5 : 0)]);
+                    }
                 }
                 else return { size: parseInt(input.css("fontSize")) };
             };
@@ -6204,34 +6115,16 @@
                 }
                 else return input.css("fontStyle") == "italic" ? true : false;
             };
-            textinput.weight = function (w) {
-                if ($.isUndefined(w)) return input.css("fontWeight");
-                else input.css({ "font-weight": w });
-            };
-            textinput.height = function (h) {
-                if ($.isNumber(h) || $.isNull(h)) {
-                    pheight = h;
-                    redraw(this);
+            textinput.weight = function () {
+                var o = share.args(arguments, "string weight");
+                if (o) {
+                    if (o.weight != null) input.css({ "font-weight": o.weight });
                 }
-
+                else return input.css("fontWeight");
+            };
+            textinput.height = function () {
                 return dheight.apply(this, []);
-            };
-            textinput.paddingLeft = function (l) {
-                if ($.isNumber(l) || $.isNull(l)) {
-                    if (l == null) l = "";
-                    input.css({ "box-sizing": "border-box", "padding-left": l });
-                    redraw(this);
-                }
-                else return input.css("paddingLeft");
-            };
-            textinput.paddingRight = function (r) {
-                if ($.isNumber(r) || $.isNull(r)) {
-                    if (r == null) r = "";
-                    input.css({ paddingRight: r });
-                    redraw(this);
-                }
-                else return input.css("paddingRight");
-            };
+            };            
             textinput.placeholder = function (t) {
                 if ($.isUndefined(t)) return input.attr("placeholder");
                 else if (t == null) input.removeAttr("placeholder");
@@ -6293,20 +6186,26 @@
                 }
                 else return input.prop("maxLength");
             };
+
             textinput.onDesign = function (v) {
                 if (v == true) {
                     gline.show();
+                    dheight.apply(this, [input.height() + 5]);
                 }
                 else {
-                    //debug("false");
                     gline.hide();
+                    dheight.apply(this, [input.height()]);
                 }
-                redraw(this);
             };
+
+
+
+
+
 
             textinput.type = "textinput";
             textinput.font(12);
-            //textinput.width(300);
+            textinput.width(300);
 
             return textinput;
         };

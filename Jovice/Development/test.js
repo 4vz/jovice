@@ -2,6 +2,11 @@
 
     ui("test", {
         init: function (p) {
+            
+            ui.textarea(p)({
+                size: [200, 200],
+                readonly: true
+            });
 
 
             p.done();

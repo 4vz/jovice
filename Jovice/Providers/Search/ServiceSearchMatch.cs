@@ -22,30 +22,11 @@ namespace Jovice.Providers
             Language("sid", "SID");
             Language("service id", "SID");
             Language("services id", "SID");
-            Language("cid", "CID");
-            Language("customer id", "CID");
-            Language("customers id", "CID");
             Language("customer", "CUSTOMER");
             Language("customers", "CUSTOMER");
             Language("name", "NAME");
             Language("names", "NAME");
             Language("vcid", "VCID");
-            Language("vpnip", "VPNIP");
-            Language("vpn ip", "VPNIP");
-            Language("ipvpn", "VPNIP");
-            Language("ip vpn", "VPNIP");
-            Language("transaccess", "TRANSACC");
-            Language("transacc", "TRANSACC");
-            Language("transac", "TRANSACC");
-            Language("transaces", "TRANSACC");
-            Language("transacess", "TRANSACC");
-            Language("astinet", "ASTINET");
-            Language("astinet beda bandiwdth", "ASTINETBB");
-            Language("metro-e", "METRO");
-            Language("metro-ethernet", "METRO");
-            Language("metro ethernet", "METRO");
-            Language("metro e", "METRO");
-            Language("metro", "METRO");
         }
 
         #endregion
@@ -58,97 +39,48 @@ namespace Jovice.Providers
 
             List<SearchDescriptor> descriptors = Search.ParsePostTokens(postTokens);
 
-            bool done = false;
-
-            #region Mainly by SID
-
-            if (!done)
+            Where where;
+            
+            where = SearchDescriptor.Build(descriptors, delegate(SearchDescriptor descriptor)
             {
-                Where where = SearchDescriptor.Build(descriptors, delegate (SearchDescriptor descriptor)
-                {
-                    SearchConstraints c = descriptor.Constraint;
-                    string cv = Search.JoinValues(descriptor.Values);
+                string c = descriptor.Constraint;
+                string cv = Search.JoinValues(descriptor.Values);
 
-                    return descriptor.Build(delegate (int index, string value)
+                return descriptor.Build(delegate(int index, string value)
+                {
+                    string v = jovice.Escape(value);
+
+                    if (descriptor.Descriptor == "SID")
                     {
-                        string v = jovice.Escape(value);
-
-                        if (descriptor.Descriptor == "SID")
-                        {
-                            if (c == SearchConstraints.StartsWith) return "SE_SID like '" + v + "%'";
-                            else if (c == SearchConstraints.EndsWith) return "SE_SID like '%" + v + "'";
-                            else if (c == SearchConstraints.Like) return "SE_SID like '%" + v + "%'";
-                            else if (c == SearchConstraints.Equal) return "SE_SID like '" + v + "'";
-                        }
-                        else if ((descriptor.SuperDescriptor == "CUSTOMER" && descriptor.Descriptor == "NAME") || descriptor.Descriptor == "CUSTOMER")
-                        {
-                            if (c == SearchConstraints.StartsWith) return "SC_Name like '" + v + "%'";
-                            else if (c == SearchConstraints.EndsWith) return "SC_Name like '%" + v + "'";
-                            else if (c == SearchConstraints.Like) return "SC_Name like '%" + v + "%'";
-                            else if (c == SearchConstraints.Equal) return "SC_Name like '" + v + "'";
-                        }
-                        else if (descriptor.Descriptor == "CID")
-                        {
-                            if (c == SearchConstraints.StartsWith) return "SC_CID like '" + v + "%'";
-                            else if (c == SearchConstraints.EndsWith) return "SC_CID like '%" + v + "'";
-                            else if (c == SearchConstraints.Like) return "SC_CID like '%" + v + "%'";
-                            else if (c == SearchConstraints.Equal) return "SC_CID like '" + v + "'";
-                        }
-                        else if (descriptor.Descriptor == "ASTINET")
-                        {
-                            string res = "SE_Type = 'AS'";
-                            if (v.Length > 0) res += " AND SC_Name like '" + v + "'";
-                            return res;
-                        }
-                        else if (descriptor.Descriptor == "ASTINETBB")
-                        {
-                            string res = "SE_Type = 'AB'";
-                            if (v.Length > 0) res += " AND SC_Name like '" + v + "'";
-                            return res;
-                        }
-                        else if (descriptor.Descriptor == "VPNIP")
-                        {
-                            string res = "SE_Type = 'VP'";
-                            if (v.Length > 0) res += " AND SC_Name like '" + v + "'";
-                            return res;
-                        }
-                        else if (descriptor.Descriptor == "TRANSACC")
-                        {
-                            string res = "SE_Type = 'VP' AND SE_SubType = 'TA'";
-                            if (v.Length > 0) res += " AND SC_Name like '" + v + "'";
-                            return res;
-                        }
-                        else if (descriptor.Descriptor == "METRO")
-                        {
-                            string res = "SE_Type is null";
-                            if (v.Length > 0) res += " AND SC_Name like '" + v + "'";
-                            return res;
-                        }
-
-                        return null;
-                    });
+                        if (c == "STARTSWITH") return "SE_SID like '" + v + "%'";
+                        else if (c == "ENDSWITH") return "SE_SID like '%" + v + "'";
+                        else if (c == "LIKE") return "SE_SID like '%" + v + "%'";
+                        else if (c == "EQUAL") return "SE_SID like '" + v + "'";
+                    }
+                    return null;
                 });
+            });
 
-                if (where.Value != null)
-                {
-                    matchResult.QueryCount = "select SE_ID from Service left join ServiceCustomer on SE_SC = SC_ID " + where.Format(" where ");
-                    matchResult.Query = @"
+            if (where.Value != null)
+            {
+                #region cari by SID
+                matchResult.QueryCount = "select SE_ID from Service left join ServiceCustomer on SE_SC = SC_ID " + where.Format(" where ");
+                matchResult.Query = @"
 select SE_ID, SE_SID, SC_CID, SC_Name, SC_Name_Set, SE_Type, SE_SubType 
 from Service 
 left join ServiceCustomer on SE_SC = SC_ID 
 " + where.Format(" where ");
-                    done = true;              
-                }
+                #endregion
+
+                //SessionData ses = Service.GetSessionData();
+
+                //matchResult.RelatedSearch("services", "Client ID = " + ses.ClientID + ", StreamSubDomain = " + ses.StreamSubDomain);
             }
-            #endregion
-
-            #region Mainly by VCID
-
-            if (!done)
+            else
             {
-                Where where = SearchDescriptor.Build(descriptors, delegate(SearchDescriptor descriptor)
+                where = SearchDescriptor.Build(descriptors, delegate(SearchDescriptor descriptor)
                 {
-                    SearchConstraints c = descriptor.Constraint;
+                    string c = descriptor.Constraint;
 
                     return descriptor.Build(delegate(int index, string value)
                     {
@@ -164,7 +96,7 @@ left join ServiceCustomer on SE_SC = SC_ID
 
                 if (where.Value != null)
                 {
-
+                    #region cari by VCID
                     matchResult.QueryCount = @"
 select distinct SO_ID
 from (select SO_ID
@@ -204,15 +136,11 @@ where PI_ID = MI_TO_PI and MI_MC = MC_ID and " + where.Format() + @"
 ) source, Service, ServiceCustomer
 where SE_ID = SO_ID and SE_SC = SC_ID
 ";
-                    done = true;
+                    #endregion
                 }
             }
 
-            #endregion
-
-            #region Fallback
-
-            if (!done)
+            if (matchResult.QueryCount == null)
             {
                 matchResult.QueryCount = "select SE_ID from Service left join ServiceCustomer on SE_SC = SC_ID";
                 matchResult.Query = @"
@@ -221,10 +149,9 @@ from Service
 left join ServiceCustomer on SE_SC = SC_ID 
 ";
             }
-
-            #endregion
-
+           
             matchResult.RowID = "SE_ID";
+
             matchResult.Hide("SE_ID");
 
             matchResult.Sort("SE_SID", "SID");
@@ -419,15 +346,15 @@ order by XPI_Name desc, cmc.MC_Status desc, cmc.MC_Protocol desc
                             //--
                             string pi2desc = row["PI2_Description"].ToString();
                             topologyElementCurrent.Add(pi2desc);//5
-                            topologyElementCurrent.Add(row["PI2_Status"].ToBool());//6
-                            topologyElementCurrent.Add(row["PI2_Protocol"].ToBool());//7
+                            topologyElementCurrent.Add(row["PI2_Status"].ToBoolean());//6
+                            topologyElementCurrent.Add(row["PI2_Protocol"].ToBoolean());//7
                             //--
 
                             topologyElementCurrent.Add(piname);//8
                             string pidesc = row["PI_Description"].ToString();
                             topologyElementCurrent.Add(pidesc);//9
-                            topologyElementCurrent.Add(row["PI_Status"].ToBool());//10
-                            topologyElementCurrent.Add(row["PI_Protocol"].ToBool());//11    
+                            topologyElementCurrent.Add(row["PI_Status"].ToBoolean());//10
+                            topologyElementCurrent.Add(row["PI_Protocol"].ToBoolean());//11    
 
                             qinput = row["QInput"].ToInt();
                             topologyElementCurrent.Add(qinput);//12
@@ -560,9 +487,9 @@ order by XPI_Name desc, cmc.MC_Status desc, cmc.MC_Protocol desc
                                 topologyCurrentVCID = row["MC_VCID"].ToString();
                                 topologyElementCurrent.Add(topologyCurrentVCID);//11
                                 topologyElementCurrent.Add(row["MC_Description"].ToString());//12
-                                topologyElementCurrent.Add(row["MC_MTU"].ToShort());//13
-                                topologyElementCurrent.Add(row["MC_Status"].ToBool());//14
-                                topologyElementCurrent.Add(row["MC_Protocol"].ToBool());//15
+                                topologyElementCurrent.Add(row["MC_MTU"].ToSmall());//13
+                                topologyElementCurrent.Add(row["MC_Status"].ToBoolean());//14
+                                topologyElementCurrent.Add(row["MC_Protocol"].ToBoolean());//15
                                 topologyElementCurrent.Add(row["MC_Type"].ToString());//16
 
                                 //--
@@ -623,8 +550,8 @@ where a.MI_ID = {0} and a.MI_NO = NO_ID
                                 //--
                                 topologyElementCurrent.Add(row2["MI_Name"].ToString());//5
                                 topologyElementCurrent.Add(row2["MI_Description"].ToString());//6
-                                topologyElementCurrent.Add(row2["MI_Status"].ToBool());//7
-                                topologyElementCurrent.Add(row2["MI_Protocol"].ToBool());//8
+                                topologyElementCurrent.Add(row2["MI_Status"].ToBoolean());//7
+                                topologyElementCurrent.Add(row2["MI_Protocol"].ToBoolean());//8
 
                                 qinput = row2["QInput"].ToInt();
                                 topologyElementCurrent.Add(qinput);//9
@@ -653,15 +580,15 @@ where a.MI_ID = {0} and a.MI_NO = NO_ID
                                 topologyElementCurrent.Add(row2["QOutputName"].ToString());//14
                                 //--
                                 topologyElementCurrent.Add(row2["MI2_Description"].ToString());//15
-                                topologyElementCurrent.Add(row2["MI2_Status"].ToBool());//16
-                                topologyElementCurrent.Add(row2["MI2_Protocol"].ToBool());//17
+                                topologyElementCurrent.Add(row2["MI2_Status"].ToBoolean());//16
+                                topologyElementCurrent.Add(row2["MI2_Protocol"].ToBoolean());//17
                                 //--
                                 topologyCurrentVCID = row2["MC_VCID"].ToString();
                                 topologyElementCurrent.Add(topologyCurrentVCID);//18
                                 topologyElementCurrent.Add(row2["MC_Description"].ToString());//19
-                                topologyElementCurrent.Add(row2["MC_MTU"].ToShort());//20
-                                topologyElementCurrent.Add(row2["MC_Status"].ToBool());//21
-                                topologyElementCurrent.Add(row2["MC_Protocol"].ToBool());//22
+                                topologyElementCurrent.Add(row2["MC_MTU"].ToSmall());//20
+                                topologyElementCurrent.Add(row2["MC_Status"].ToBoolean());//21
+                                topologyElementCurrent.Add(row2["MC_Protocol"].ToBoolean());//22
                                 topologyElementCurrent.Add(row2["MC_Type"].ToString());//23
 
                                 //--
@@ -717,18 +644,18 @@ where a.MP_MC = {0} order by a.MP_TO_MC desc
 
                                     //--
                                     topologyElementCurrent.Add(row2["MP_VCID"].ToString());//5
-                                    topologyElementCurrent.Add(row2["MP_Protocol"].ToBool());//6
+                                    topologyElementCurrent.Add(row2["MP_Protocol"].ToBoolean());//6
                                     topologyElementCurrent.Add(row2["MP_Type"].ToString());//7
                                     //--
                                     topologyElementCurrent.Add(row2["MP2_VCID"].ToString());//8
-                                    topologyElementCurrent.Add(row2["MP2_Protocol"].ToBool());//9
+                                    topologyElementCurrent.Add(row2["MP2_Protocol"].ToBoolean());//9
                                     topologyElementCurrent.Add(row2["MP2_Type"].ToString());//10
                                     //--
                                     topologyElementCurrent.Add(row2["MC_VCID"].ToString());//11
                                     topologyElementCurrent.Add(row2["MC_Description"].ToString());//12
-                                    topologyElementCurrent.Add(row2["MC_MTU"].ToShort());//13
-                                    topologyElementCurrent.Add(row2["MC_Status"].ToBool());//14
-                                    topologyElementCurrent.Add(row2["MC_Protocol"].ToBool());//15
+                                    topologyElementCurrent.Add(row2["MC_MTU"].ToSmall());//13
+                                    topologyElementCurrent.Add(row2["MC_Status"].ToBoolean());//14
+                                    topologyElementCurrent.Add(row2["MC_Protocol"].ToBoolean());//15
                                     topologyElementCurrent.Add(row2["MC_Type"].ToString());//16
 
                                     //--
@@ -830,8 +757,8 @@ where a.MI_MC = {0} and a.MI_NO = n.NO_ID
                                 mi1Name = row2["MI_Name"].ToString();
                                 topologyElementCurrent.Add(mi1Name);//1
                                 topologyElementCurrent.Add(row2["MI_Description"].ToString());//2
-                                topologyElementCurrent.Add(row2["MI_Status"].ToBool());//3
-                                topologyElementCurrent.Add(row2["MI_Protocol"].ToBool());//4
+                                topologyElementCurrent.Add(row2["MI_Status"].ToBoolean());//3
+                                topologyElementCurrent.Add(row2["MI_Protocol"].ToBoolean());//4
 
                                 qinput = row2["QInput"].ToInt();
                                 topologyElementCurrent.Add(qinput);//5
@@ -872,8 +799,8 @@ where a.MI_MC = {0} and a.MI_NO = n.NO_ID
                                     {
                                         io11.Add(row3["MI_Name"].ToString());
                                         io12.Add(row3["MI_Description"].ToString());
-                                        io14.Add(row3["MI_Status"].ToBool());
-                                        io15.Add(row3["MI_Protocol"].ToBool());
+                                        io14.Add(row3["MI_Status"].ToBoolean());
+                                        io15.Add(row3["MI_Protocol"].ToBoolean());
                                     }
 
                                     topologyElementCurrent.Add(io11.ToArray());//11
@@ -896,8 +823,8 @@ where a.MI_MC = {0} and a.MI_NO = n.NO_ID
                                     topologyElementCurrent.Add(null);//11
                                     topologyElementCurrent.Add(miDesc);//12
                                     topologyElementCurrent.Add(FindName(miDesc));//13
-                                    topologyElementCurrent.Add(row2["MI2_Status"].ToBool());//14
-                                    topologyElementCurrent.Add(row2["MI2_Protocol"].ToBool());//15
+                                    topologyElementCurrent.Add(row2["MI2_Status"].ToBoolean());//14
+                                    topologyElementCurrent.Add(row2["MI2_Protocol"].ToBoolean());//15
                                 }
 
                                 topologyElementCurrent.Add(null);
@@ -1140,8 +1067,8 @@ n.NO_AR = ar.AR_ID and ar.AR_AW = aw.AW_ID
                                 {
                                     iolName.Add(row2["MI_Name"].ToString());
                                     iolDesc.Add(row2["MI_Description"].ToString());
-                                    iolStat.Add(row2["MI_Status"].ToBool());
-                                    iolProt.Add(row2["MI_Protocol"].ToBool());
+                                    iolStat.Add(row2["MI_Status"].ToBoolean());
+                                    iolProt.Add(row2["MI_Protocol"].ToBoolean());
                                 }
 
                                 string odesc = null;
@@ -1179,8 +1106,8 @@ n.NO_AR = ar.AR_ID and ar.AR_AW = aw.AW_ID
                         //--
                         topologyElementCurrent.Add(row["MI_Name"].ToString());//5
                         topologyElementCurrent.Add(row["MI_Description"].ToString());//6
-                        topologyElementCurrent.Add(row["MI_Status"].ToBool());//7
-                        topologyElementCurrent.Add(row["MI_Protocol"].ToBool());//8
+                        topologyElementCurrent.Add(row["MI_Status"].ToBoolean());//7
+                        topologyElementCurrent.Add(row["MI_Protocol"].ToBoolean());//8
 
                         qinput = row["QInput"].ToInt();
                         topologyElementCurrent.Add(qinput); //9
@@ -1195,15 +1122,15 @@ n.NO_AR = ar.AR_ID and ar.AR_AW = aw.AW_ID
                         topologyElementCurrent.Add(row["QOutputName"].ToString()); //14
                         //--
                         topologyElementCurrent.Add(row["MI2_Description"].ToString()); //15
-                        topologyElementCurrent.Add(row["MI2_Status"].ToBool()); //16
-                        topologyElementCurrent.Add(row["MI2_Protocol"].ToBool()); //17
+                        topologyElementCurrent.Add(row["MI2_Status"].ToBoolean()); //16
+                        topologyElementCurrent.Add(row["MI2_Protocol"].ToBoolean()); //17
                         //--
                         topologyCurrentVCID = row["MC_VCID"].ToString();
                         topologyElementCurrent.Add(topologyCurrentVCID); //18
                         topologyElementCurrent.Add(row["MC_Description"].ToString()); //19
-                        topologyElementCurrent.Add(row["MC_MTU"].ToShort()); //20
-                        topologyElementCurrent.Add(row["MC_Status"].ToBool()); //21
-                        topologyElementCurrent.Add(row["MC_Protocol"].ToBool()); //22
+                        topologyElementCurrent.Add(row["MC_MTU"].ToSmall()); //20
+                        topologyElementCurrent.Add(row["MC_Status"].ToBoolean()); //21
+                        topologyElementCurrent.Add(row["MC_Protocol"].ToBoolean()); //22
                         topologyElementCurrent.Add(row["MC_Type"].ToString()); //23
 
                         topologyRateInput = qinput > 0 && qinput > rinput ? qinput : rinput > 0 && rinput > qinput ? rinput : 0;
@@ -1267,18 +1194,18 @@ order by p2.MP_TO_MC desc
 
                                 //--
                                 topologyElementCurrent.Add(row2["MP_VCID"].ToString());//5
-                                topologyElementCurrent.Add(row2["MP_Protocol"].ToBool());//6
+                                topologyElementCurrent.Add(row2["MP_Protocol"].ToBoolean());//6
                                 topologyElementCurrent.Add(row2["MP_Type"].ToString());//7
                                 //--
                                 topologyElementCurrent.Add(row2["MP2_VCID"].ToString());//8
-                                topologyElementCurrent.Add(row2["MP2_Protocol"].ToBool());//9
+                                topologyElementCurrent.Add(row2["MP2_Protocol"].ToBoolean());//9
                                 topologyElementCurrent.Add(row2["MP2_Type"].ToString());//10
                                 //--
                                 topologyElementCurrent.Add(row2["MC_VCID"].ToString());//11
                                 topologyElementCurrent.Add(row2["MC_Description"].ToString());//12
-                                topologyElementCurrent.Add(row2["MC_MTU"].ToShort());//13
-                                topologyElementCurrent.Add(row2["MC_Status"].ToBool());//14
-                                topologyElementCurrent.Add(row2["MC_Protocol"].ToBool());//15
+                                topologyElementCurrent.Add(row2["MC_MTU"].ToSmall());//13
+                                topologyElementCurrent.Add(row2["MC_Status"].ToBoolean());//14
+                                topologyElementCurrent.Add(row2["MC_Protocol"].ToBoolean());//15
                                 topologyElementCurrent.Add(row2["MC_Type"].ToString());//16
 
                                 //--
@@ -1357,8 +1284,8 @@ where a.MI_MC = {0}
                                     string mi1Name = row2["MI_Name"].ToString();
                                     topologyElementCurrent.Add(row2["MI_Name"].ToString());//1
                                     topologyElementCurrent.Add(row2["MI_Description"].ToString());//2
-                                    topologyElementCurrent.Add(row2["MI_Status"].ToBool());//3
-                                    topologyElementCurrent.Add(row2["MI_Protocol"].ToBool());//4
+                                    topologyElementCurrent.Add(row2["MI_Status"].ToBoolean());//3
+                                    topologyElementCurrent.Add(row2["MI_Protocol"].ToBoolean());//4
 
                                     qinput = row2["QInput"].ToInt();
                                     topologyElementCurrent.Add(qinput);//5
@@ -1400,8 +1327,8 @@ where a.MI_MC = {0}
                                         {
                                             io1Name.Add(row3["MI_Name"].ToString());
                                             io1Desc.Add(row3["MI_Description"].ToString());
-                                            io1Stat.Add(row3["MI_Status"].ToBool());
-                                            io1Prot.Add(row3["MI_Protocol"].ToBool());
+                                            io1Stat.Add(row3["MI_Status"].ToBoolean());
+                                            io1Prot.Add(row3["MI_Protocol"].ToBoolean());
                                         }
 
                                         topologyElementCurrent.Add(io1Name.ToArray());//11
@@ -1424,8 +1351,8 @@ where a.MI_MC = {0}
                                         topologyElementCurrent.Add(null);//11
                                         topologyElementCurrent.Add(miDesc);//12
                                         topologyElementCurrent.Add(FindName(miDesc));//13
-                                        topologyElementCurrent.Add(row2["MI2_Status"].ToBool());//14
-                                        topologyElementCurrent.Add(row2["MI2_Protocol"].ToBool());//15
+                                        topologyElementCurrent.Add(row2["MI2_Status"].ToBoolean());//14
+                                        topologyElementCurrent.Add(row2["MI2_Protocol"].ToBoolean());//15
                                     }
 
                                     topologyElementCurrent.Add(null); //16
@@ -1480,8 +1407,8 @@ where a.MI_MC = {0} and a.MI_ID <> {1}
                                     string mi1Name = row2["MI_Name"].ToString();
                                     topologyElementCurrent.Add(row2["MI_Name"].ToString());//1
                                     topologyElementCurrent.Add(row2["MI_Description"].ToString());//2
-                                    topologyElementCurrent.Add(row2["MI_Status"].ToBool());//3
-                                    topologyElementCurrent.Add(row2["MI_Protocol"].ToBool());//4
+                                    topologyElementCurrent.Add(row2["MI_Status"].ToBoolean());//3
+                                    topologyElementCurrent.Add(row2["MI_Protocol"].ToBoolean());//4
 
                                     qinput = row2["QInput"].ToInt();
                                     topologyElementCurrent.Add(qinput);//5
@@ -1522,8 +1449,8 @@ where a.MI_MC = {0} and a.MI_ID <> {1}
                                         {
                                             io1Name.Add(row3["MI_Name"].ToString());
                                             io1Desc.Add(row3["MI_Description"].ToString());
-                                            io1Stat.Add(row3["MI_Status"].ToBool());
-                                            io1Prot.Add(row3["MI_Protocol"].ToBool());
+                                            io1Stat.Add(row3["MI_Status"].ToBoolean());
+                                            io1Prot.Add(row3["MI_Protocol"].ToBoolean());
                                         }
 
                                         topologyElementCurrent.Add(io1Name.ToArray());//11
@@ -1546,8 +1473,8 @@ where a.MI_MC = {0} and a.MI_ID <> {1}
                                         topologyElementCurrent.Add(null);//11
                                         topologyElementCurrent.Add(miDesc);//12
                                         topologyElementCurrent.Add(FindName(miDesc));//13
-                                        topologyElementCurrent.Add(row2["MI2_Status"].ToBool());//14
-                                        topologyElementCurrent.Add(row2["MI2_Protocol"].ToBool());//15
+                                        topologyElementCurrent.Add(row2["MI2_Status"].ToBoolean());//14
+                                        topologyElementCurrent.Add(row2["MI2_Protocol"].ToBoolean());//15
                                     }
 
 
@@ -1587,8 +1514,8 @@ where a.MI_MC = {0} and a.MI_ID <> {1}
                         //--
                         topologyElementCurrent.Add(row["MI_Name"].ToString());//5
                         topologyElementCurrent.Add(row["MI_Description"].ToString());//6
-                        topologyElementCurrent.Add(row["MI_Status"].ToBool());//7
-                        topologyElementCurrent.Add(row["MI_Protocol"].ToBool());//8
+                        topologyElementCurrent.Add(row["MI_Status"].ToBoolean());//7
+                        topologyElementCurrent.Add(row["MI_Protocol"].ToBoolean());//8
                         topologyCurrent.Add(topologyElementCurrent.ToArray());
 
                         #endregion

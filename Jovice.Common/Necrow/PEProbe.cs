@@ -371,7 +371,7 @@ namespace Jovice
                 }
                 else
                 {
-                    #region ios
+                    #region !xr
 
                     if (Request("show ip vrf detail | in RD|Export VPN|Import VPN|RT", out lines)) return;
 
@@ -751,7 +751,7 @@ namespace Jovice
                 }
                 else
                 {
-                    #region ios
+                    #region !xr
                     if (Request("show policy-map | in Policy Map", out lines)) return;
 
                     foreach (string line in lines)
@@ -1150,7 +1150,7 @@ namespace Jovice
                 }
                 else
                 {
-                    #region ios
+                    #region !xr
 
                     // interface
                     if (Request("show interface | in line protocol|Description|802.1Q", out lines)) return;
@@ -2860,35 +2860,6 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                     }
                                 }
                             }
-                        }
-                    }
-
-                    #endregion
-
-                    #endregion
-                }
-                else
-                {
-                    #region ios
-
-                    string currentRouteNameID = null;
-                    string currentNeighbor = null;
-                    string currentRemoteAS = null;
-                    string currentProcess = null;
-                    string currentArea = null;
-                    string currentInterface = null;
-
-                    #region STATIC
-
-                    //ip route vrf Astinet 203.130.235.128 255.255.255.248 GigabitEthernet1/19.2185 192.168.3.218
-                    if (Request("sh run | in ip route vrf", out lines)) return;
-
-                    foreach (string line in lines)
-                    {
-                        string linetrim = line.Trim();
-                        if (linetrim.Length > 0)
-                        {
-
                         }
                     }
 

@@ -2404,10 +2404,10 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             {
                                 string[] linex = line.Trim().Split(new char[] { '(', ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
-                                NodeInterface nif2 = NodeInterface.Parse(linex[0]);
-                                if (nif2 != null)
+                                NodeInterface nif = NodeInterface.Parse(linex[0]);
+                                if (nif != null)
                                 {
-                                    string portnif = nif2.GetShort();
+                                    string portnif = nif.GetShort();
                                     if (interfacelive.ContainsKey(portnif))
                                     {
                                         int agr;

@@ -10,7 +10,7 @@ namespace Jovice.Providers
 {
     public static class Statistics
     {
-        public static ProviderPacket ProviderRequest(ResourceResult result, int id)
+        public static ProviderPacket ProviderRequest(ResourceAsyncResult result, int id)
         {
             Database jovice = Jovice.Database;
 

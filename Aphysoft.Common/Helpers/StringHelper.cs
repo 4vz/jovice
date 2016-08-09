@@ -14,6 +14,7 @@ namespace Aphysoft.Common
     {
         public static readonly char[] Space = new char[] { ' ' };
         public static readonly char[] Comma = new char[] { ',' };
+        public static readonly char[] Dot = new char[] { '.' };
     }
 
 

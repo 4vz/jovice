@@ -8,7 +8,7 @@ namespace Aphysoft.Common
     /// <summary>
     /// Boolean Extensions
     /// </summary>
-    public static class BooleanExtensions
+    public static class BoolExtensions
     {
         public static int ToInt(this bool value)
         {

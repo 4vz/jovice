@@ -10,7 +10,7 @@ namespace Jovice.Providers
 {
     public static class NecrowClient
     {
-        public static ProviderPacket ProviderRequest(ResourceResult result, int id)
+        public static ProviderPacket ProviderRequest(ResourceAsyncResult result, int id)
         {
             Database center = Center.Database;
             Database jovice = Jovice.Database;

@@ -40,7 +40,7 @@ namespace Jovice.Providers
 
             Where piwhere = SearchDescriptor.Build(descriptors, delegate(SearchDescriptor descriptor)
             {
-                string c = descriptor.Constraint;
+                /*string c = descriptor.Constraint;
 
                 return descriptor.Build(delegate(int index, string value)
                 {
@@ -60,11 +60,12 @@ namespace Jovice.Providers
                     }
 
                     return null;
-                });
+                });*/
+                return null;
             });
             Where miwhere = SearchDescriptor.Build(descriptors, delegate(SearchDescriptor descriptor)
             {
-                string c = descriptor.Constraint;
+                /*string c = descriptor.Constraint;
 
                 return descriptor.Build(delegate(int index, string value)
                 {
@@ -84,7 +85,8 @@ namespace Jovice.Providers
                     }
 
                     return null;
-                });
+                });*/
+                return null;
             });
 
             #endregion

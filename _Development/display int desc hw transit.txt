@@ -1,0 +1,116 @@
+<PE2-D1-PBR-TRANSIT>display interface description
+PHY: Physical
+*down: administratively down
+^down: standby
+(l): loopback
+(s): spoofing
+(E): E-Trunk down
+(b): BFD down
+(B): Bit-error-detection down
+(e): ETHOAM down
+(d): Dampening Suppressed
+(p): port alarm down
+(dl): DLDP down
+(lh): link heartbeat down
+Interface                     PHY     Protocol Description
+Eth-Trunk1                    up      up       AGGR_PE2-D1-PBR-TRANSIT/ETH-TRUNK1_TO_T-D1-PBR/BE5_5x10G
+Eth-Trunk2                    up      up       AGGR_PE2-D1-PBR-TRANSIT/ETH-TRUNK2_TO_T-D1-DRI/BE3_2x10G
+Eth-Trunk3                    up      up       AGGR_PE2-D1-PBR-TRANSIT_Eth-Trunk3_TO_EBR-KENANGA.1_ae_No1_2x10G_TELKOMSEL_IX
+Eth-Trunk4                    up      up       AGGR_PE2-D1-PBR-TRANSIT_Eth-Trunk4_TO_EBR-MARPOYAN.1_ae_No1_2x10G_TELKOMSEL_IX
+Eth-Trunk25                   up      down     AGGR_PE2-D1-PBR-TRANSIT/ETH-TRUNK25_TO_ME3-D1-PBRC/lag-25_2x20G
+Eth-Trunk25.15                up      up       TRANSIT_BRIX_PBR2
+Eth-Trunk25.25                up      up
+Eth-Trunk25.2512              up      up       TRANSIT HUTCHINSON (H3I) SIMPANGBARU PEKANBARU  SID 3700100-0026543192
+Eth-Trunk25.3000              up      up       LINK_PE2-D1-PBR-TRANSIT/Eth-trunk25.3000_TO_PE-D1-MDC-TRANSIT/ae3.3000-via-ME (temporer, shinta, 15Jul2015)
+Eth-Trunk25.3641              up      up       3001001342-0024635080 IP_TRANSIT BB DOMESTIK PD SARANA PEMBANGUNAN JL. GATOT SUBROTO,NO.12,BENGKALIS-RIAU
+Eth-Trunk25.3642              up      up       3001001342-0024635080 IP_TRANSIT BB GLOBAL PD SARANA PEMBANGUNAN JL. GATOT SUBROTO,NO.12,BENGKALIS-RIAU
+Eth-Trunk25.3643              up      up       SID 3001001342-0029024947 TRANSIT MIX_DOMESTIK PD SARANA PEMBANGUNAN
+Eth-Trunk25.3644              up      up       SID 3001001342-0029024947 TRANSIT MIX_GLOBAL PD SARANA PEMBANGUNAN
+Eth-Trunk25.3647              up      up       TRANSIT_SURYA_DUMAI_DOMESTIC_ONLY 4702928-0003778240
+Eth-Trunk25.3648              up      up       3001001342-0023507398 TRANSIT GLOBAL PD SARANA PEMBANGUNAN
+Eth-Trunk25.3649              up      up       3001001342-0023507398 TRANSIT BB (DOMESTIK) PD SARANA PEMBANGUNANPD SARANA PEMBANGUNAN
+Eth-Trunk25.3651              up      up       4705220-0024422787 TRANSIT MIX_DOMESTIK UNIVERSITAS ISLAM NEGERI (UIN) SULTAN SYARIF KASIM
+Eth-Trunk25.3652              up      up       4705220-0024422787 TRANSIT MIX_GLOBAL UNIVERSITAS ISLAM NEGERI (UIN) SULTAN SYARIF KASIM
+Eth-Trunk25.3653              up      up       TRANSIT HUTCHINSON (H3I) 3700100-0027023501 DOMESTIK TIDAK BERBAYAR
+Eth-Trunk25.3654              up      up       4705195-0029138604 TRANSIT_MIX UNIVERSITAS ANDALAS  PADANG kampus limau manis UNAND,00,PADANG
+GE0/0/0                       down    down
+GE1/0/0(10G)                  up      up       TRUNK_PE2-D1-PBR-TRANSIT/GE1/0/0_TO_ME3-D1-PBRC/8/1/5_No1_Eth-Trunk25
+GE1/0/1(10G)                  up      up       TRUNK_PE2-D1-PBR-TRANSIT/GE1/0/1_TO_T-D1-DRI/Te0/5/0/0_No1_Eth-Trunk2
+GE1/0/2(10G)                  up      up       LINK_PE2-D1-PBR-TRANSIT_GE1/0/2_TO_EBR-KENANGA.1_xe-0/3/1_No1_10G_Eth-Trunk3_TELKOMSEL_IX
+GE1/0/3(10G)                  up      up       TRUNK_PE2-D1-PBR-TRANSIT_GE1/0/3_TO_T-D1-PBR_Te0/3/0/3_No2_10G_Eth-Trunk1
+GE1/0/4(10G)                  up      up       LINK_PE2-D1-PBR-TRANSIT_GE1/0/4_TO_EBR-MARPOYAN.1_xe-0/1/0_No2_10G_Eth-Trunk4_TELKOMSEL_IX
+GE1/0/5(10G)                  up      up       TRUNK_PE2-D1-PBR-TRANSIT_GE1/0/3_TO_T-D1-PBR_Te0/2/0/2_No3_10G_Eth-Trunk1
+GE1/0/6(10G)                  up      up       LINK_PE2-D1-PBR-TRANSIT_GE1/0/6_TO_EBR-KENANGA.1_xe-1/1/1_No3_10G_Eth-Trunk3_TELKOMSEL_IX
+GE1/0/7(10G)                  up      up       TRUNK_PE2-D1-PBR-TRANSIT_GE1/0/7_TO_T-D1-PBR_Te0/3/0/2_No4_10G_Eth-Trunk1
+GE1/0/8(10G)                  down    down
+GE1/0/9(10G)                  down    down
+GE1/0/10(10G)                 down    down
+GE1/0/11(10G)                 down    down
+GE7/0/0(10G)                  up      up       TRUNK_PE2-D1-PBR-TRANSIT_GE7/0/0_TO_T-D1-PBR_Te0/5/0/0_No1_10G_Eth-Trunk1
+GE7/0/1(10G)                  down    down
+GE7/0/2(10G)                  up      up       LINK_PE2-D1-PBR-TRANSIT_GE7/0/2_TO_EBR-KENANGA.1_xe-0/1/0_No2_10G_Eth-Trunk3_TELKOMSEL_IX
+GE7/0/3(10G)                  up      up       LINK_PE2-D1-PBR-TRANSIT_GE7/0/3_TO_EBR-MARPOYAN.1_xe-0/3/1_No1_10G_Eth-Trunk4_TELKOMSEL_IX
+GE7/0/4(10G)                  up      up       TRUNK_PE2-D1-PBR-TRANSIT_GE7/0/4_TO_T-D1-PBR_Te0/6/0/1_No5_10G_Eth-Trunk1
+GE7/0/5(10G)                  up      up       TRUNK_PE2-D1-PBR-TRANSIT/GE1/0/0_TO_ME3-D1-PBRC/8/1/4_No1_Eth-Trunk25
+GE7/0/6(10G)                  up      up       LINK_PE2-D1-PBR-TRANSIT_GE7/0/6_TO_EBR-MARPOYAN.1_xe-1/1/1_No3_10G_Eth-Trunk4_TELKOMSEL_IX
+GE7/0/7(10G)                  up      up       TRUNK_PE2-D1-PBR-TRANSIT/GE7/0/7_TO_T-D1-DRI/Te0/6/0/1_No2_Eth-Trunk2
+GE7/0/8(10G)                  down    down
+GE7/0/9(10G)                  down    down
+GE7/0/10(10G)                 down    down     TEMPORER_TRUNK_PE2-D1-PBR-TRANSIT/GE7/0/10_TO_T-D1-DRI_Eth-Trunk2
+GE7/0/11(10G)                 down    down     TEMPORER_TRUNK_PE2-D1-PBR-TRANSIT/GE7/0/11_TO_T-D1-DRI_Eth-Trunk2
+GE8/0/0                       down    down
+GE8/0/1                       down    down
+GE8/0/2                       down    down
+GE8/0/3                       down    down
+GE8/0/4                       down    down
+GE8/0/5                       down    down
+GE8/0/6                       down    down
+GE8/0/7                       down    down
+GE8/0/8                       down    down
+GE8/0/9                       down    down
+GE8/0/10                      down    down
+GE8/0/11                      down    down
+GE8/0/12                      down    down
+GE8/0/13                      down    down
+GE8/0/14                      down    down
+GE8/0/15                      down    down
+GE8/0/16                      down    down
+GE8/0/17                      down    down
+GE8/0/18                      down    down
+GE8/0/19                      down    down
+GE8/0/20                      down    down
+GE8/0/21                      down    down
+GE8/0/22                      down    down
+GE8/0/23                      down    down
+GE8/1/0                       down    down
+GE8/1/1                       down    down
+GE8/1/2                       down    down
+GE8/1/3                       down    down
+GE8/1/4                       down    down
+GE8/1/5                       down    down
+GE8/1/6                       down    down
+GE8/1/7                       down    down
+GE8/1/8                       down    down
+GE8/1/9                       down    down
+GE8/1/10                      down    down
+GE8/1/11                      down    down
+GE8/1/12                      down    down
+GE8/1/13                      down    down
+GE8/1/14                      down    down
+GE8/1/15                      down    down
+GE8/1/16                      down    down
+GE8/1/17                      down    down
+GE8/1/18                      down    down
+GE8/1/19                      down    down
+GE8/1/20                      down    down
+GE8/1/21                      down    down
+GE8/1/22                      down    down
+GE8/1/23                      down    down
+Loop0                         up      up(s)
+Loop1                         up      up(s)
+NULL0                         up      up(s)
+Tun1/1/32201                  up      up       **TO GW-BDS-TRANSIT**
+Tun1/1/32202                  up      up       **TO GW2-BTC-TRANSIT**
+Tun1/1/32301                  up      up       **TO GW-JT2-TRANSIT**
+Tun1/1/32302                  down    down     **TO GW-ELK-TRANSIT**
+Tun1/1/32303                  up      up       **TO GW2-JT2-TRANSIT**

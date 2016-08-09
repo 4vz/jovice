@@ -446,6 +446,7 @@ namespace Jovice
         private string tacacPassword = null;
 
         private string nodeID;
+        private long nodeProgressID = 0;
         private string nodeName;
         private string nodeManufacture;
         private string nodeModel;
@@ -838,12 +839,20 @@ namespace Jovice
             {
                 #region Default
 
-                List<string> ids = null;
-                int index = -1;
+                Queue<Tuple<long, string>> ids = new Queue<Tuple<long, string>>();
+
+                Result npr = Query("select NP_ID, NP_NO from NodeProgress where NP_EndTime is null order by NP_ID desc");
+
+                foreach (Row np in npr)
+                {
+                    long npID = np["NP_ID"].ToLong();
+                    string npNO = np["NP_NO"].ToString();
+                    ids.Enqueue(new Tuple<long, string>(npID, npNO));
+                }
 
                 while (true)
                 {
-                    if (index == -1)
+                    if (ids.Count == 0)
                     {
                         Event("Preparing node list...");
 
@@ -863,11 +872,11 @@ order by span asc, a.NO_LastConfiguration asc
 select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_TimeStamp is not null and NO_LastConfiguration is null                        
 ");
 
-                        ids = new List<string>();
+                        List<string> nids = new List<string>();
 
                         int excluded = 0;
 
-                        foreach (Row row in nres) ids.Add(row["NO_ID"].ToString());
+                        foreach (Row row in nres) nids.Add(row["NO_ID"].ToString());
                         foreach (Row row in mres)
                         {
                             string remark = row["NO_Remark"].ToString();
@@ -887,17 +896,37 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                                 }
                             }
 
-                            ids.Add(row["NO_ID"].ToString());
+                            nids.Add(row["NO_ID"].ToString());
                         }
-                        foreach (Row row in sres) ids.Add(row["NO_ID"].ToString());
+                        foreach (Row row in sres) nids.Add(row["NO_ID"].ToString());
                         int total = ids.Count + excluded;
-                        Event("Total " + total + " nodes available, " + ids.Count + " nodes eligible, " + excluded + " excluded in this iteration.");
+                        Event("Total " + total + " nodes available, " + ids.Count + " nodes eligible, " + excluded + " excluded in this list.");
+
+                        Batch batch = Batch();
+
+                        batch.Begin();
+                        foreach (string nid in nids)
+                        {
+                            Insert insert = Insert("NodeProgress");
+                            insert.Value("NP_NO", nid);
+                            batch.Execute(insert);
+                        }
+                        Result result = batch.Commit();
+                        if (result.Count > 0) Event("List created.");
+
+                        npr = Query("select NP_ID, NP_NO from NodeProgress where NP_EndTime is null order by NP_ID desc");
+
+                        foreach (Row np in npr)
+                        {
+                            long np_ID = np["NP_ID"].ToLong();
+                            string npNO = np["NP_NO"].ToString();
+                            ids.Enqueue(new Tuple<long, string>(np_ID, npNO));
+                        }
 
                         #endregion
-
-                        index = 0;
                     }
 
+                    long npID = 0;
                     Row node = null;
                     bool prioritizeProcess = false;
 
@@ -924,20 +953,20 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                             continue;
                         }
                     }
-                    else if (index < ids.Count)
+                    else if (ids.Count > 0)
                     {
-                        string id = ids[index]; 
-                        Result rnode = Query("select * from Node where NO_ID = {0}", id);
+                        Tuple<long, string> oid = ids.Dequeue();
+
+                        npID = oid.Item1;
+                        Result rnode = Query("select * from Node where NO_ID = {0}", oid.Item2);
                         node = rnode[0];
-                        index++;
                     }
-                    else index = -1;
 
                     if (node != null)
                     {
                         bool continueProcess = false;
 
-                        Enter(node, out continueProcess, prioritizeProcess);
+                        Enter(node, npID, out continueProcess, prioritizeProcess);
 
                         if (continueProcess)
                         {
@@ -1392,6 +1421,12 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             }
             outputIdentifier = null;
             Event("Exit!");
+
+            if (nodeProgressID != 0)
+            {
+                Execute("update NodeProgress set NP_Status = null, NP_EndTime = {0} where NP_ID = {1}", DateTime.UtcNow, nodeProgressID);
+                nodeProgressID = 0;
+            }
         }
 
         private void Exit(string manufacture)
@@ -1542,7 +1577,6 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                         }
                         if (wait == 800)
                         {
-                            Event("Cancel has failed, restarting the probe...");
                             Failure();
                         }
                     }
@@ -1882,6 +1916,10 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     Event(result, EventActions.Delete, EventElements.VRFReference, false);
                     result = Execute("delete from PEQOS where PQ_NO = {0}", id);
                     Event(result, EventActions.Delete, EventElements.QOS, false);
+                    result = Execute("delete from PERouteUse where PU_PN in (select PN_ID from PERouteName where PN_NO = {0})", id);
+                    Event(result, EventActions.Delete, EventElements.Routing, false);
+                    result = Execute("delete from PERouteName where PN_NO = {0}", id);
+                    Event(result, EventActions.Delete, EventElements.VRF, false);
                 }
                 else if (type == "M")
                 {                    
@@ -1909,7 +1947,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             }
         }
 
-        private void Enter(Row row, out bool continueProcess, bool prioritizeProcess)
+        private void Enter(Row row, long npID, out bool continueProcess, bool prioritizeProcess)
         {
             string[] lines = null;
 
@@ -1921,6 +1959,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             summaries = new Dictionary<string, string>();
 
             nodeID = row["NO_ID"].ToString();
+            nodeProgressID = npID;
             nodeName = row["NO_Name"].ToString();
             nodeManufacture = row["NO_Manufacture"].ToString();
             nodeModel = row["NO_Model"].ToString();
@@ -1936,6 +1975,8 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             string previousRemark = row["NO_Remark"].ToString();
             string nodeUser = tacacUser;
             string nodePass = tacacPassword;
+
+            Execute("update NodeProgress set NP_StartTime = {0} where NP_ID = {1}", DateTime.UtcNow, nodeProgressID);
 
             Event("Begin probing into " + nodeName);
             Event("Manufacture: " + nodeManufacture + "");
@@ -2733,7 +2774,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 }
                 else
                 {
-                    #region !xr
+                    #region ios
 
                     // because so many differences between IOS version, we might try every possible command
                     bool passed = false;

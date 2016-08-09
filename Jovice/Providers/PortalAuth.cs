@@ -11,7 +11,7 @@ namespace Jovice.Providers
 {
     public sealed class Portal
     {
-        public static ProviderPacket ProviderRequest(ResourceResult result, int id)
+        public static ProviderPacket ProviderRequest(ResourceAsyncResult result, int id)
         {
             if (id == 30001)
             {

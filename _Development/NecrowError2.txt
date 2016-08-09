@@ -1,0 +1,58 @@
+16/03/09 18:18:25.411|ME2-D2-GAN|Interface ADD: Ex2/2/2.2189
+16/03/09 18:18:25.412|ME2-D2-GAN|Interface ADD: Ex2/2/2.2228
+16/03/09 18:18:25.412|ME2-D2-GAN|Interface ADD: Ex2/2/2.2230
+16/03/09 18:18:25.412|ME2-D2-GAN|Interface ADD: Ex2/2/2.2237
+16/03/09 18:18:25.413|ME2-D2-GAN|Interface ADD: Ex2/2/2.2279
+16/03/09 18:18:25.413|ME2-D2-GAN|Interface MODIFY: Ex4/2/15.2657 ingress egress
+
+16/03/09 18:18:25.415|ME2-D2-GAN|Interface ADD: Ex3/1/5.3511
+16/03/09 18:18:25.416|ME2-D2-GAN|Interface ADD: Ex3/1/5.3902
+16/03/09 18:18:25.416|ME2-D2-GAN|Interface ADD: Ex3/1/5.3917
+16/03/09 18:18:25.653|ME2-D2-GAN|53 interface(s) added
+16/03/09 18:18:25.662|ME2-D2-GAN|1 interface(s) modified
+16/03/09 18:18:25.663|ME2-D2-GAN|Interface DELETE: Ex4/2/4.3790
+16/03/09 18:18:25.714|ME2-D2-GAN|1 interface(s) deleted
+16/03/09 18:18:25.714|ME2-D2-GAN|Customer DELETE: 1913303563
+16/03/09 18:18:25.716|JOVICE|Database exception: The DELETE statement conflicted
+ with the REFERENCE constraint "FK_MC_MECustomer". The conflict occurred in data
+base "jovice", table "dbo.MECircuit", column 'MC_MU'.
+The statement has been terminated., SQL: delete from MECustomer where MU_ID = 'v
+XJrj5c|n*T-7iIc,zzI'
+16/03/09 18:18:25.717|ME2-D2-GAN|Exiting...
+16/03/09 18:18:25.917|PROB|Exit!
+16/03/09 18:18:35.928|PROB|Begin probing into ME3-D2-KB
+16/03/09 18:18:35.929|PROB|Host IP: 172.30.129.243
+16/03/09 18:18:35.929|PROB|Manufacture: ALCATEL-LUCENT
+16/03/09 18:18:35.930|PROB|Checking host IP
+
+16/03/09 22:03:48.010|ME2-D2-CKA|Exiting...
+16/03/09 22:03:48.200|PROB|Exit!
+16/03/09 22:04:21.288|PROB|MCE Waiting... (1)
+
+Unhandled Exception: System.IO.IOException: Pipe closed
+   at Tamir.Streams.PipedInputStream.checkStateForReceive() in D:\Projects\jovic
+e\Jovice.Common\Library\SharpSSH\Streams\PipedInputStream.cs:line 213
+   at Tamir.Streams.PipedInputStream.receive(Byte[] b, Int32 off, Int32 len) in
+D:\Projects\jovice\Jovice.Common\Library\SharpSSH\Streams\PipedInputStream.cs:li
+ne 173
+   at Tamir.Streams.PipedOutputStream.Write(Byte[] buffer, Int32 offset, Int32 c
+ount) in D:\Projects\jovice\Jovice.Common\Library\SharpSSH\Streams\PipedOutputSt
+ream.cs:line 212
+   at Tamir.Streams.CombinedStream.Write(Byte[] buffer, Int32 offset, Int32 coun
+t) in D:\Projects\jovice\Jovice.Common\Library\SharpSSH\Streams\CombinedStream.c
+s:line 98
+   at Tamir.SharpSsh.SshShell.Write(Byte[] buffer, Int32 offset, Int32 count) in
+ D:\Projects\jovice\Jovice.Common\Library\SharpSSH\SshShell.cs:line 128
+   at Jovice.SshConnection.Request(Char data) in D:\Projects\jovice\Jovice.Commo
+n\Library\SshConnection\SshConnection.cs:line 193
+   at Jovice.Probe.NodeEnter(Row row, Boolean& goFurther) in D:\Projects\jovice\
+Jovice.Common\Necrow\Probe.cs:line 892
+   at Jovice.Probe.MainLoop() in D:\Projects\jovice\Jovice.Common\Necrow\Probe.c
+s:line 538
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionCo
+ntext, ContextCallback callback, Object state, Boolean preserveSyncCtx)
+   at System.Threading.ExecutionContext.Run(ExecutionContext executionContext, C
+ontextCallback callback, Object state, Boolean preserveSyncCtx)
+   at System.Threading.ExecutionContext.Run(ExecutionContext executionContext, C
+ontextCallback callback, Object state)
+   at System.Threading.ThreadHelper.ThreadStart()

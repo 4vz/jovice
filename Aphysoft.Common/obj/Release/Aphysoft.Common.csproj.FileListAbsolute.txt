@@ -1,0 +1,11 @@
+D:\Projects\Share\Aphysoft.Common\bin\Aphysoft.Common.dll
+D:\Projects\Share\Aphysoft.Common\bin\Aphysoft.Common.pdb
+D:\Projects\Share\Aphysoft.Common\bin\MySql.Data.dll
+D:\Projects\Share\Aphysoft.Common\bin\Oracle.DataAccess.dll
+D:\Projects\Share\Aphysoft.Common\obj\Release\Aphysoft.Common.dll
+D:\Projects\Share\Aphysoft.Common\obj\Release\Aphysoft.Common.pdb
+D:\Projects\Share\Aphysoft.Common\obj\Release\Aphysoft.Common.csprojResolveAssemblyReference.cache
+D:\Projects\jovice\Aphysoft.Common\bin\Aphysoft.Common.dll
+D:\Projects\jovice\Aphysoft.Common\bin\Aphysoft.Common.pdb
+D:\Projects\jovice\Aphysoft.Common\obj\Release\Aphysoft.Common.dll
+D:\Projects\jovice\Aphysoft.Common\obj\Release\Aphysoft.Common.pdb

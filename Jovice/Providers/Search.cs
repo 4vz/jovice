@@ -9,6 +9,12 @@ using Aphysoft.Share;
 
 namespace Jovice.Providers
 {
+    public enum SearchConstraints
+    {
+        None, NotLike, Like, NotStartsWith, StartsWith, NotEndsWith, EndsWith, NotLarger, Larger, NotSmaller, Smaller, NotEqual, Equal
+    }
+
+
     public static class Search
     {
         private static List<SearchMatch> matches = null;
@@ -40,7 +46,7 @@ namespace Jovice.Providers
             else return string.Join(", ", values, 0, values.Length - 1) + " and " + values[values.Length - 1];
         }
         
-        public static ProviderPacket ProviderRequest(ResourceResult result, int id)
+        public static ProviderPacket ProviderRequest(ResourceAsyncResult result, int id)
         {
             #region Lazy Load for searches
             if (matches == null)
@@ -58,7 +64,8 @@ namespace Jovice.Providers
                 #region Matches
 
                 matches.Add(new ServiceSearchMatch());
-                matches.Add(new InterfaceSearchMatch());
+                matches.Add(new NodeSearchMatch());
+                //matches.Add(new InterfaceSearchMatch());
 
                 #endregion
 
@@ -314,9 +321,7 @@ namespace Jovice.Providers
                     searchResult.ExQueries = exQueries.ToArray();
                     searchResult.ExExplainations = exExplainations.ToArray();
                 }
-
-
-
+                
                 if (sid == null)
                 {
                     r = center.ExecuteIdentity(@"
@@ -325,9 +330,7 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
 ", result.Context.Request.UserHostAddress, search, searchResult.Type, searchResult.ResultCount);
                     searchResult.SearchID = r.Identity.ToString();
                 }
-
-
-
+                
                 return searchResult;               
                 
                 #endregion
@@ -348,7 +351,7 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
 
             string lastDescriptor = null;
             string lastSuperDescriptor = null;
-            string lastConstraint = null;
+            SearchConstraints lastConstraint = SearchConstraints.None;
             string lastSeparator = "AND";
 
             int lastDescriptorIndex = -1;
@@ -398,7 +401,7 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
                         int descriptorLength = 0;
                         string descriptor = null;
                         string superDescriptor = null;
-                        string constraint = null;
+                        SearchConstraints constraint;
                         string value = null;
 
                         foreach (string language in languages)
@@ -556,57 +559,57 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
                             " not contain ", " not contained ", " not like ",
                             "n't contain ", "n't contained ", "n't like "
                             ))
-                            constraint = "NOTLIKE";
+                            constraint = SearchConstraints.NotLike;
                         else if (StringHelper.Find(phraseExistingLower, out index, out phraseIndex, out wordLength, 
                             " contain ", " contained ", " like "
                             ))
-                            constraint = "LIKE";
+                            constraint = SearchConstraints.Like;
                         else if (StringHelper.Find(phraseExistingLower, out index, out phraseIndex, out wordLength, 
                             " not starts with ", " not starts ", " not begins ", " not begins with ", " not begin with ", " not start with ", " not starting with ", " not starting ",
                             "n't starts with ", "n't starts ", "n't begins ", "n't begins with ", "n't begin with ", "n't start with ", "n't starting with ", "n't starting "
                             ))
-                            constraint = "NOTSTARTSWITH";
+                            constraint = SearchConstraints.NotStartsWith;
                         else if (StringHelper.Find(phraseExistingLower, out index, out phraseIndex, out wordLength, 
                             " starts with ", " starts ", " begins ", " begin ", " begins with ", " begin with ", " start with ", " starting with ", " starting ", " start "
                             ))
-                            constraint = "STARTSWITH";
+                            constraint = SearchConstraints.StartsWith;
                         else if (StringHelper.Find(phraseExistingLower, out index, out phraseIndex, out wordLength, 
                             " not ends with ", " not ending with ", " not end with ", " not end ",
                             "n't ends with ", "n't ending with ", "n't end with ", "n't end "
                             ))
-                            constraint = "NOTENDSWITH";
+                            constraint = SearchConstraints.NotEndsWith;
                         else if (StringHelper.Find(phraseExistingLower, out index, out phraseIndex, out wordLength, 
                             " ends with ", " ending with ", " end with ", " end "
                             ))
-                            constraint = "ENDSWITH";
+                            constraint = SearchConstraints.EndsWith;
                         else if (StringHelper.Find(phraseExistingLower, out index, out phraseIndex, out wordLength,
                             " not larger ", "n't larger "
                             ))
-                            constraint = "NOTLARGER";
+                            constraint = SearchConstraints.NotLarger;
                         else if (StringHelper.Find(phraseExistingLower, out index, out phraseIndex, out wordLength,
                             " larger "
                             ))
-                            constraint = "LARGER";
+                            constraint = SearchConstraints.Larger;
                         else if (StringHelper.Find(phraseExistingLower, out index, out phraseIndex, out wordLength,
                             " not smaller ", "n't smaller "
                             ))
-                            constraint = "NOTSMALLER";
+                            constraint = SearchConstraints.NotSmaller;
                         else if (StringHelper.Find(phraseExistingLower, out index, out phraseIndex, out wordLength,
                             " smaller "
                             ))
-                            constraint = "SMALLER";
+                            constraint = SearchConstraints.Smaller;
                         else if (StringHelper.Find(phraseExistingLower, out index, out phraseIndex, out wordLength,
                             " have not ", " has not ", " had not ", " is not ", " not equal ", " are not ",
                             " haven't ", " hasn't ", " hadn't ", " isn't ", " aren't ", " not "
                             ))
-                            constraint = "NOTEQUAL";
+                            constraint = SearchConstraints.NotEqual;
                         else if (StringHelper.Find(phraseExistingLower, out index, out phraseIndex, out wordLength,
                             " have ", " has ", " had ", " is ", " equal ", " are ", " = "
                             ))
-                            constraint = "EQUAL";
+                            constraint = SearchConstraints.Equal;
                         else
                         {
-                            constraint = "EQUAL";
+                            constraint = SearchConstraints.Equal;
                             index = -1;
                         }
                         #endregion
@@ -651,7 +654,7 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
                             superDescriptorCode = lastSuperDescriptor;
                         }
 
-                        if (constraint != null)
+                        if (constraint != SearchConstraints.None)
                         {
                             if (constraint != lastConstraint) changed = true;
                             lastConstraint = constraint;
@@ -719,9 +722,9 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
             set { superDescriptor = value; }
         }
 
-        private string constraint;
+        private SearchConstraints constraint;
 
-        public string Constraint
+        public SearchConstraints Constraint
         {
             get { return constraint; }
             set { constraint = value; }
@@ -984,6 +987,12 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
         {
             if (sorts == null) sorts = new List<string>();
             sorts.Add(description + ":" + name);
+        }
+
+        public void Sort(string name, string description, bool reverse)
+        {
+            if (sorts == null) sorts = new List<string>();
+            sorts.Add(description + ":" + name + ":r");
         }
 
         public void Column(string name)

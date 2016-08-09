@@ -1,0 +1,23 @@
+16/03/15 22:10:13.985|TOPO|Checking 500 ME interfaces for MI_TO_PI / PI_TO_MI
+16/03/15 22:13:52.747|TOPO|Commit: MI 4086, MIMI 0, MIMIAGG 0, PI 0, MITOPI 0, M
+P 0
+16/03/15 22:13:53.138|TOPO|Checking 500 ME interfaces for MI_TO_PI / PI_TO_MI
+16/03/15 22:17:38.514|TOPO|Commit: MI 3546, MIMI 0, MIMIAGG 0, PI 0, MITOPI 0, M
+P 0
+16/03/15 22:17:38.801|TOPO|Checking 500 ME interfaces for MI_TO_PI / PI_TO_MI
+16/03/15 22:18:08.063|ME5-D2-JT|17091 service(s) modified
+16/03/15 22:18:11.890|ME5-D2-JT|Checking Service Peer
+
+Unhandled Exception: System.IndexOutOfRangeException: Index was outside the boun
+ds of the array.
+   at Jovice.Probe.MEProcess() in D:\Projects\jovice\Jovice.Common\Necrow\MEProb
+e.cs:line 1664
+   at Jovice.Probe.MainLoop() in D:\Projects\jovice\Jovice.Common\Necrow\Probe.c
+s:line 526
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionCo
+ntext, ContextCallback callback, Object state, Boolean preserveSyncCtx)
+   at System.Threading.ExecutionContext.Run(ExecutionContext executionContext, C
+ontextCallback callback, Object state, Boolean preserveSyncCtx)
+   at System.Threading.ExecutionContext.Run(ExecutionContext executionContext, C
+ontextCallback callback, Object state)
+   at System.Threading.ThreadHelper.ThreadStart()

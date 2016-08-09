@@ -43,9 +43,9 @@ namespace Jovice
                     null));
 
             #region Search
-            
-            Resource.Register("search_service", ResourceType.JavaScript, "~/View/Search/service.js").NoMinify();
-            Resource.Register("search_interface", ResourceType.JavaScript, "~/View/Search/interface.js");
+
+            Resource.Register("search_service", ResourceType.JavaScript, "~/View/Search/service.js");
+            Resource.Register("search_node", ResourceType.JavaScript, "~/View/Search/node.js");
 
             #endregion
 
@@ -61,6 +61,10 @@ namespace Jovice
             Provider.Register(new int[] {
                 5001, // Main Statistics
             }, Providers.Statistics.ProviderRequest);
+
+            //Provider.Register("probe");
+
+
             #endregion
         }
 

@@ -1,4 +1,0 @@
-alu show time
-cso show clock
-hwe display clock
-jun show system uptime

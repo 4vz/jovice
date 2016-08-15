@@ -663,6 +663,8 @@ namespace Aphysoft.Common
 
         protected Stopwatch stopwatch;
 
+        protected bool cancelling = false;
+
         #endregion
 
         #region Constructor
@@ -811,19 +813,23 @@ namespace Aphysoft.Common
                     }
                     catch (Exception e)
                     {
-                        database.OnQueryFailed(e, attempt);
-                        if (attempt == attempts - 1)
+                        if (!cancelling)
                         {
-                            result.isExceptionThrown = true;
-                            Exception(e, sql);
+                            database.OnQueryFailed(e, attempt);
+                            if (attempt == attempts - 1)
+                            {
+                                result.isExceptionThrown = true;
+                                Exception(e, sql);
+                            }
                         }
+                        else ok = true;
                     }
                     finally { if (reader != null) reader.Close(); }
                     if (ok) break;
                 }
 
                 End(connection, command);
-                commands.Remove(command);
+                if (commands.Contains(command)) commands.Remove(command);
             }
             return result;
         }
@@ -849,14 +855,18 @@ namespace Aphysoft.Common
                     }
                     catch (Exception e)
                     {
-                        database.OnQueryFailed(e, attempt);
-                        if (attempt == attempts - 1) Exception(e, sql);
+                        if (!cancelling)
+                        {
+                            database.OnQueryFailed(e, attempt);
+                            if (attempt == attempts - 1) Exception(e, sql);
+                        }
+                        else ok = true;
                     }
                     if (ok) break;
                 }
 
                 End(connection, command);
-                commands.Remove(command);
+                if (commands.Contains(command)) commands.Remove(command);
             }
             return column;
         }
@@ -893,26 +903,30 @@ namespace Aphysoft.Common
                     }
                     catch (Exception e)
                     {
-                        database.OnQueryFailed(e, attempt);
-                        if (attempt == attempts - 1)
+                        if (!cancelling)
                         {
-                            result.isExceptionThrown = true;
-                            Exception(e, sql);
+                            database.OnQueryFailed(e, attempt);
+                            if (attempt == attempts - 1)
+                            {
+                                result.isExceptionThrown = true;
+                                Exception(e, sql);
+                            }
                         }
+                        else ok = true;
                     }
                     finally
                     {
                         if (identityCommand != null)
                         {
                             identityCommand.Dispose();
-                            commands.Remove(identityCommand);
+                            if (commands.Contains(command)) commands.Remove(identityCommand);
                         }
                     }
                     if (ok) break;
                 }
 
                 End(connection, command);
-                commands.Remove(command);
+                if (commands.Contains(command)) commands.Remove(command);
             }
 
             return result;
@@ -937,6 +951,8 @@ namespace Aphysoft.Common
 
         public override int Cancel()
         {
+            cancelling = true;
+
             int nc = commands.Count;
 
             foreach (SqlCommand command in commands)
@@ -944,6 +960,8 @@ namespace Aphysoft.Common
                 command.Cancel();
             }
             commands.Clear();
+
+            cancelling = false;
 
             return nc;
         }

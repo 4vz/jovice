@@ -1224,6 +1224,7 @@ namespace Jovice
                 string cinterfaceSDP = null;
                 bool cinterfacestate = false;
                 int cmtu = 0;
+                bool cinterfacewithstate = false;
 
                 foreach (string line in lines)
                 {
@@ -1258,12 +1259,13 @@ namespace Jovice
                                         circuitlive.Add(vcidname, cu);
                                     }
 
-                                    hweCircuitMplsL2vc.Add(new string[] { cinterface, cinterfaceSDP, cinterfacestate.ToString(), vcidname, cinterfaceVCID });
+                                    hweCircuitMplsL2vc.Add(new string[] { cinterface, cinterfaceSDP, cinterfacestate.ToString(), vcidname, cinterfaceVCID, cinterfacewithstate.ToString() });
 
                                     cinterface = null;
                                     cinterfaceVCID = null;
                                     cinterfaceSDP = null;
                                     cinterfacestate = false;
+                                    cinterfacewithstate = false;
                                     cmtu = 0;
                                 }
 
@@ -1272,7 +1274,18 @@ namespace Jovice
                                     string[] linex2 = lineValue.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                                     NodeInterface inf = NodeInterface.Parse(linex2[0]);
                                     if (inf != null) cinterface = inf.GetShort();
-                                    if (linex2[2] == "up") cinterfacestate = true;
+
+                                    if (linex2.Length >= 3)
+                                    {
+                                        cinterfacewithstate = true;
+                                        if (linex2[2] == "up") cinterfacestate = true;
+                                    }
+                                    else
+                                    {
+                                        // we dont know how to determine the cinterfacestate yet... so cinterfacewithstate = false
+                                        // lets assume true
+                                        cinterfacestate = true;
+                                    }
                                 }
                             }
                             else if (lineKey == "VC ID") cinterfaceVCID = lineValue;
@@ -1308,7 +1321,7 @@ namespace Jovice
                         circuitlive.Add(vcidname, cu);
                     }
 
-                    hweCircuitMplsL2vc.Add(new string[] { cinterface, cinterfaceSDP, cinterfacestate.ToString(), vcidname, cinterfaceVCID });
+                    hweCircuitMplsL2vc.Add(new string[] { cinterface, cinterfaceSDP, cinterfacestate.ToString(), vcidname, cinterfaceVCID, cinterfacewithstate.ToString() });
                 }
 
                 // STEP 4, dari VLL CCC
@@ -1708,8 +1721,8 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 // peernya mpls l2vc
                 foreach (string[] strs in hweCircuitMplsL2vc)
                 {
-                    // cinterface, cinterfaceSDP, cinterfacestate.ToString(), vcidname, cinterfaceVCID
-                    //  0            1              2                          3         4
+                    // cinterface, cinterfaceSDP, cinterfacestate.ToString(), vcidname, cinterfaceVCID, cinterfacewithstate
+                    //  0            1              2                          3         4              5
 
                     string vcidname = strs[3];
                     string vcid = strs[4];
@@ -1730,7 +1743,15 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                         else c.SDPID = null;
 
                         c.Type = "S";
-                        c.Protocol = strs[2] == "True";
+
+                        if (strs[5] == "True")
+                            c.Protocol = strs[2] == "True";
+                        else
+                        {
+                            // cannot determine the state without checking the interface status first
+                            // assume true
+                            c.Protocol = true;
+                        }
 
                         if (c.CircuitID != null && c.SDPID != null)
                         {
@@ -2521,8 +2542,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 // mpls l2vc ke port
                 foreach (string[] strs in hweCircuitMplsL2vc)
                 {
-                    // cinterface, cinterfaceSDP, cinterfacestate.ToString(), vcidname, cinterfaceVCID
-                    //  0            1              2                          3         4
+                    // cinterface, cinterfaceSDP, cinterfacestate.ToString(), vcidname, cinterfaceVCID, cinterfacewithstate
+                    //  0            1              2                          3         4              5
 
                     string vcidname = strs[3];
                     string vcid = strs[4];

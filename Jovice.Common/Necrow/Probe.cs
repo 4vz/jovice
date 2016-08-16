@@ -1421,12 +1421,6 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             }
             outputIdentifier = null;
             Event("Exit!");
-
-            if (nodeProgressID != 0)
-            {
-                Execute("update NodeProgress set NP_Status = null, NP_EndTime = {0} where NP_ID = {1}", DateTime.UtcNow, nodeProgressID);
-                nodeProgressID = 0;
-            }
         }
 
         private void Exit(string manufacture)
@@ -1877,6 +1871,12 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     else if (pair.Value != dbv) sb.Append(j.Format("update NodeSummary set NS_Value = {0} where NS_ID = {1};", pair.Value, dbi));
                 }
             }
+            
+            if (nodeProgressID != 0)
+            {
+                Execute("update NodeProgress set NP_Status = null, NP_EndTime = {0} where NP_ID = {1}", DateTime.UtcNow, nodeProgressID);
+                nodeProgressID = 0;
+            }
 
             if (sb.Length > 0)
             {
@@ -2292,8 +2292,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 if (terminal.EndsWith(">"))
                 {
                     Event("Error: Not In Privileged EXEC mode");
-                    Save();
-                    Exit();
+                    SaveExit();
                     return;
                 }
             }

@@ -1020,8 +1020,10 @@ namespace Jovice
             Dictionary<string, Row> circuitdb = null;
             List<MECircuitToDatabase> circuitinsert = new List<MECircuitToDatabase>();
             List<MECircuitToDatabase> circuitupdate = new List<MECircuitToDatabase>();
-            List<string[]> hwecircuitdetail = null;
-            ServiceReference circuitservicereference = new ServiceReference();
+            List<string[]> hweCircuitMplsL2vc = null;
+            List<string[]> hweCircuitVllCcc = null;
+            
+            ServiceReference circuitServiceReference = new ServiceReference();
                                
             //circuitdb = QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_VCID", nodeID);
             //goto debug3;
@@ -1212,7 +1214,7 @@ namespace Jovice
                 }
 
                 // STEP 3, dari MPLS L2VC
-                hwecircuitdetail = new List<string[]>();
+                hweCircuitMplsL2vc = new List<string[]>();
 
                 //display mpls l2vc | in client interface|VC ID|local VC MTU|destination
                 if (Request("display mpls l2vc | in client interface|VC ID|local VC MTU|destination", out lines)) return;
@@ -1256,7 +1258,7 @@ namespace Jovice
                                         circuitlive.Add(vcidname, cu);
                                     }
 
-                                    hwecircuitdetail.Add(new string[] { cinterface, cinterfaceSDP, cinterfacestate.ToString(), vcidname, cinterfaceVCID });
+                                    hweCircuitMplsL2vc.Add(new string[] { cinterface, cinterfaceSDP, cinterfacestate.ToString(), vcidname, cinterfaceVCID });
 
                                     cinterface = null;
                                     cinterfaceVCID = null;
@@ -1268,12 +1270,9 @@ namespace Jovice
                                 if (lineValue.Length > 0)
                                 {
                                     string[] linex2 = lineValue.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                                    if (linex2.Length >= 3)
-                                    {
-                                        NodeInterface inf = NodeInterface.Parse(linex2[0]);
-                                        if (inf != null) cinterface = inf.GetShort();
-                                        if (linex2[2] == "up") cinterfacestate = true;
-                                    }
+                                    NodeInterface inf = NodeInterface.Parse(linex2[0]);
+                                    if (inf != null) cinterface = inf.GetShort();
+                                    if (linex2[2] == "up") cinterfacestate = true;
                                 }
                             }
                             else if (lineKey == "VC ID") cinterfaceVCID = lineValue;
@@ -1309,7 +1308,97 @@ namespace Jovice
                         circuitlive.Add(vcidname, cu);
                     }
 
-                    hwecircuitdetail.Add(new string[] { cinterface, cinterfaceSDP, cinterfacestate.ToString(), vcidname, cinterfaceVCID });
+                    hweCircuitMplsL2vc.Add(new string[] { cinterface, cinterfaceSDP, cinterfacestate.ToString(), vcidname, cinterfaceVCID });
+                }
+
+                // STEP 4, dari VLL CCC
+                hweCircuitVllCcc = new List<string[]>();
+
+
+                /*
+012345678901234567890123456789012345678901234567890123456789
+name: MULIA-CEMERLANG, type: local, state: up,
+intf1: GigabitEthernet7/1/10.2463 (up), access-port: false
+
+intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
+                */
+                if (Request("display vll ccc", out lines)) return;
+
+                string cccname = null;
+                string cccif1 = null;
+                string cccif2 = null;
+                string cccstatus = null;
+
+                foreach (string line in lines)
+                {
+                    string lineTrim = line.Trim();
+
+                    if (lineTrim.Length > 0)
+                    {
+                        if (lineTrim.StartsWith("name: "))
+                        {
+                            if (cccname != null)
+                            {
+                                string vcidname = cccname + "_CCC";
+
+                                bool custatus = false;
+                                if (cccstatus != null && cccstatus.ToLower().StartsWith("up")) custatus = true;
+
+                                if (!circuitlive.ContainsKey(vcidname))
+                                {
+                                    MECircuitToDatabase cu = new MECircuitToDatabase();
+                                    cu.Type = "E";
+                                    cu.Description = vcidname;
+                                    cu.VCID = null;
+                                    cu.CustomerID = null;
+                                    cu.Status = custatus;
+                                    cu.Protocol = custatus;
+                                    cu.AdmMTU = 0;
+
+                                    circuitlive.Add(vcidname, cu);
+                                }
+
+                                hweCircuitVllCcc.Add(new string[] { cccname, cccif1, cccif2, vcidname });
+                                cccif1 = null;
+                                cccif2 = null;
+                            }
+
+                            cccname = lineTrim.Substring(6, lineTrim.IndexOf(',') - 6);
+                            cccstatus = lineTrim.Substring(lineTrim.IndexOf("state: ") + 7);
+                        }
+                        else if (cccname != null)
+                        {
+                            if (lineTrim.StartsWith("intf"))
+                            {
+                                string ifname = lineTrim.Substring(7, lineTrim.IndexOf(' ', 7) - 7);
+                                if (lineTrim.StartsWith("intf1")) cccif1 = ifname;
+                                else cccif2 = ifname;
+                            }
+                        }
+                    }
+                }
+                if (cccname != null)
+                {
+                    string vcidname = cccname + "_CCC";
+
+                    bool custatus = false;
+                    if (cccstatus != null && cccstatus.ToLower().StartsWith("up")) custatus = true;
+
+                    if (!circuitlive.ContainsKey(vcidname))
+                    {
+                        MECircuitToDatabase cu = new MECircuitToDatabase();
+                        cu.Type = "E";
+                        cu.Description = vcidname;
+                        cu.VCID = null;
+                        cu.CustomerID = null;
+                        cu.Status = custatus;
+                        cu.Protocol = custatus;
+                        cu.AdmMTU = 0;
+
+                        circuitlive.Add(vcidname, cu);
+                    }
+
+                    hweCircuitVllCcc.Add(new string[] { cccname, cccif1, cccif2, vcidname });
                 }
 
                 #endregion
@@ -1353,7 +1442,11 @@ namespace Jovice
 
                     Event("Circuit ADD: " + pair.Key);
                     li.ID = Database.ID();
-                    if (li.Description != null) circuitservicereference.Add(li, li.Description);
+                    if (li.Description != null)
+                    {
+                        if (!li.Description.EndsWith("_GROUP") && !li.Description.EndsWith("_CCC"))
+                            circuitServiceReference.Add(li, li.Description);
+                    }
                     if (li.VCID != null)
                     {
                         if (adjacentPeers.ContainsKey(li.VCID))
@@ -1409,7 +1502,7 @@ namespace Jovice
 
                         u.ServiceID = null;
 
-                        if (u.Description != null) circuitservicereference.Add(u, u.Description);
+                        if (u.Description != null) circuitServiceReference.Add(u, u.Description);
                     }
                     if ((db["MC_MTU"].IsNull ? 0 : db["MC_MTU"].ToShort()) != li.AdmMTU)
                     {
@@ -1431,7 +1524,7 @@ namespace Jovice
             #region Execute
 
             // SERVICE REFERENCE
-            ServiceExecute(circuitservicereference);
+            ServiceExecute(circuitServiceReference);
 
             // ADD
             batch.Begin();
@@ -1613,7 +1706,7 @@ namespace Jovice
                 }
 
                 // peernya mpls l2vc
-                foreach (string[] strs in hwecircuitdetail)
+                foreach (string[] strs in hweCircuitMplsL2vc)
                 {
                     // cinterface, cinterfaceSDP, cinterfacestate.ToString(), vcidname, cinterfaceVCID
                     //  0            1              2                          3         4
@@ -2426,7 +2519,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
                 
                 // mpls l2vc ke port
-                foreach (string[] strs in hwecircuitdetail)
+                foreach (string[] strs in hweCircuitMplsL2vc)
                 {
                     // cinterface, cinterfaceSDP, cinterfacestate.ToString(), vcidname, cinterfaceVCID
                     //  0            1              2                          3         4
@@ -2442,6 +2535,42 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         {
                             string cid = circuitdb[vcidname]["MC_ID"].ToString();
                             interfacelive[inf].CircuitID = cid;
+                        }
+                    }
+                }
+
+                // vll ccc ke port
+                foreach (string[] strs in hweCircuitVllCcc)
+                {
+                    /// cccname, cccif1, cccif2, vcidname
+                    string vcidname = strs[3];
+                    string inf1 = strs[1];
+                    string inf2 = strs[2];
+
+                    if (circuitdb.ContainsKey(vcidname))
+                    {
+                        NodeInterface nif1 = NodeInterface.Parse(inf1);
+                        
+                        if (nif1 != null)
+                        {
+                            string inf = nif1.GetShort();
+                            if (interfacelive.ContainsKey(inf))
+                            {
+                                string cid = circuitdb[vcidname]["MC_ID"].ToString();
+                                interfacelive[inf].CircuitID = cid;
+                            }
+                        }
+
+                        NodeInterface nif2 = NodeInterface.Parse(inf2);
+
+                        if (nif2 != null)
+                        {
+                            string inf = nif2.GetShort();
+                            if (interfacelive.ContainsKey(inf))
+                            {
+                                string cid = circuitdb[vcidname]["MC_ID"].ToString();
+                                interfacelive[inf].CircuitID = cid;
+                            }
                         }
                     }
                 }

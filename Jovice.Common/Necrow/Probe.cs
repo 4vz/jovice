@@ -914,7 +914,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                         Result result = batch.Commit();
                         if (result.Count > 0) Event("List created.");
 
-                        npr = Query("select NP_ID, NP_NO from NodeProgress where NP_EndTime is null order by NP_ID desc");
+                        npr = Query("select NP_ID, NP_NO from NodeProgress where NP_EndTime is null order by NP_ID asc");
 
                         foreach (Row np in npr)
                         {

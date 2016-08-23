@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using Aphysoft.Common;
 using Aphysoft.Share;
+using System.Net;
 
 namespace Jovice
 {
@@ -253,6 +254,14 @@ namespace Jovice
         {
             get { return process; }
             set { process = value; }
+        }
+
+        private string wildcard = null;
+
+        public string Wildcard
+        {
+            get { return wildcard; }
+            set { wildcard = value; }
         }
     }
 
@@ -2462,13 +2471,21 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     keysb.Append(process != -1 ? process + "_" : "_");
                     int area = row["PU_O_Area"].ToInt(-1);
                     keysb.Append(area != -1 ? area + "_" : "_");
-
+                    string pi = row["PU_PI"].ToString();
+                    string piGone = row["PU_PI_Gone"].ToString();
+                    keysb.Append(pi != null ? pi : piGone != null ? piGone : "");
+                    keysb.Append("_");
+                    keysb.Append(row["PU_Network"].ToString());
+                    keysb.Append("_");
+                    keysb.Append(row["PU_O_Wildcard"].ToString());
                 }
                 else if (type == "R")
                 {
                     string pi = row["PU_PI"].ToString();
                     string piGone = row["PU_PI_Gone"].ToString();
                     keysb.Append(pi != null ? pi : piGone != null ? piGone : "");
+                    keysb.Append("_");
+                    keysb.Append(row["PU_Network"].ToString());
                 }
                 else if (type == "E")
                 {
@@ -2623,18 +2640,15 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
                                 if (linetrim == "!")
                                 {
-                                    if (currentNeighbor != null)
+                                    if (currentNeighbor != null && currentRemoteAS != null)
                                     {
                                         PERouteUseToDatabase i = new PERouteUseToDatabase();
                                         i.RouteNameID = currentRouteNameID;
                                         i.Type = "B";
                                         i.Neighbor = currentNeighbor;
 
-                                        if (currentRemoteAS != null)
-                                        {
-                                            int ras = -1;
-                                            if (int.TryParse(currentRemoteAS, out ras)) i.RemoteAS = ras;
-                                        }
+                                        int ras = -1;
+                                        if (int.TryParse(currentRemoteAS, out ras)) i.RemoteAS = ras;
 
                                         string key = currentRouteNameID + "_B_" + currentNeighbor + "_" + (i.RemoteAS != -1 ? i.RemoteAS + "" : "");
                                         routeuselive.Add(key, i);
@@ -2714,9 +2728,6 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                                 if (int.TryParse(currentProcess, out oprocess)) i.Process = oprocess;
                                                 if (int.TryParse(currentArea, out oarea)) i.Area = oarea;
 
-                                                int par;
-                                                if (int.TryParse(currentArea, out par)) i.Area = par;
-
                                                 string interfaceID = null;
                                                 if (interfacelive.ContainsKey(currentInterface))
                                                 {
@@ -2729,7 +2740,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                                 else if (currentInterface != null)
                                                     i.InterfaceGone = currentInterface;
 
-                                                string key = currentRouteNameID + "_O_" + currentProcess + "_" + currentArea + "_" + (interfaceID != null ? interfaceID : currentInterface != null ? currentInterface : "");
+                                                string key = currentRouteNameID + "_O_" + currentProcess + "_" + currentArea + "_" + (interfaceID != null ? interfaceID : currentInterface != null ? currentInterface : "") + "__";
                                                 routeuselive.Add(key, i);
 
                                                 currentInterface = null;
@@ -2792,7 +2803,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                         else if (currentInterface != null)
                                             i.InterfaceGone = currentInterface;
 
-                                        string key = currentRouteNameID + "_R_" + (interfaceID != null ? interfaceID : currentInterface != null ? currentInterface : "");
+                                        string key = currentRouteNameID + "_R_" + (interfaceID != null ? interfaceID : currentInterface != null ? currentInterface : "") + "_";
                                         routeuselive.Add(key, i);
 
                                         currentInterface = null;
@@ -2871,16 +2882,12 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                 {
                     #region ios
 
-                    string currentRouteNameID = null;
-                    string currentNeighbor = null;
-                    string currentRemoteAS = null;
-                    string currentProcess = null;
-                    string currentArea = null;
-                    string currentInterface = null;
-
                     #region STATIC
 
                     //ip route vrf Astinet 203.130.235.128 255.255.255.248 GigabitEthernet1/19.2185 192.168.3.218
+                    //ip route vrf Astinet 203.130.235.128 255.255.255.248 192.168.3.218
+                    //ip route vrf Astinet 203.130.235.128 255.255.255.248 GigabitEthernet1/19.2185
+                    //01234567890123456
                     if (Request("sh run | in ip route vrf", out lines)) return;
 
                     foreach (string line in lines)
@@ -2888,7 +2895,259 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                         string linetrim = line.Trim();
                         if (linetrim.Length > 0)
                         {
+                            if (linetrim.StartsWith("ip route vrf"))
+                            {
+                                string lineleft = linetrim.Substring(13);
+                                string[] linex = lineleft.Split(StringSplitTypes.Space);
 
+                                string vrf = linex[0];
+                                if (routenamedb.ContainsKey(vrf) && routenamelive.ContainsKey(vrf))
+                                {
+                                    string routeNameID = routenamedb[vrf]["PN_ID"].ToString();                                    
+                                    string network = linex[1];
+                                    string netmask = linex[2];
+                                    string ifname = null;
+                                    string interfaceID = null;
+                                    string neighbor = null;
+
+                                    string thirdarg = linex[3];
+                                    string fortharg = null;
+                                    if (linex.Length > 4) fortharg = linex[4];
+
+                                    int cidr = IPNetwork.ToCidr(IPAddress.Parse(netmask));
+                                    network = network + "/" + cidr;
+
+                                    if (char.IsLetter(thirdarg[0]))
+                                    {
+                                        // probably interface
+                                        NodeInterface nif = NodeInterface.Parse(thirdarg);
+                                        if (nif != null)
+                                        {
+                                            ifname = nif.GetShort();
+                                            if (interfacelive.ContainsKey(ifname)) interfaceID = interfacelive[ifname].ID;
+                                            if (fortharg != null) neighbor = fortharg;
+                                            else neighbor = "INTERFACE";
+                                        }
+                                    }
+                                    else neighbor = thirdarg;
+
+                                    PERouteUseToDatabase i = new PERouteUseToDatabase();
+                                    i.RouteNameID = routeNameID;
+                                    i.Type = "S";
+                                    i.Network = network;
+                                    i.Neighbor = neighbor;
+                                    i.InterfaceID = interfaceID;
+
+                                    if (interfaceID == null && ifname != null)
+                                    {
+                                        i.InterfaceGone = ifname;
+                                    }
+
+                                    string key = routeNameID + "_S_" + network + "_" + (neighbor != null ? neighbor : "") + "_" + (interfaceID != null ? interfaceID : ifname != null ? ifname : "");
+                                    routeuselive.Add(key, i);
+                                }
+                            }
+                        }
+                    }
+
+                    #endregion
+
+                    #region BGP, RIP, OSPF, EIGRP
+
+                    string currentRouter = null;
+                    string currentRouteNameID = null;
+                    string currentNeighbor = null;
+                    string currentRemoteAS = null;
+                    string currentProcess = null;
+
+                    //sh run | in \ address-family|\ \ neighbor|\ exit-address-family
+                    if (Request(@"sh run | in router\ bgp|router\ rip|router\ ospf|router\ eigrp|\ address-family\ ipv4\ vrf|\ \ neighbor|\ exit-address-family|\ network\ ", out lines)) return;
+
+                    foreach (string line in lines)
+                    {
+                        string linetrim = line.Trim();
+                        if (linetrim.Length > 0)
+                        {
+                            if (linetrim.StartsWith("router eigrp "))
+                            {
+                                //router eigrp 777
+                                //01234567890123
+                                currentRouter = "E";
+                            }
+                            else if (linetrim.StartsWith("router bgp "))
+                            {
+                                currentRouter = "B";
+                            }
+                            else if (linetrim.StartsWith("router rip"))
+                            {
+                                currentRouter = "R";
+                            }
+                            else if (linetrim.StartsWith("router ospf "))
+                            {
+                                //router ospf 777 vrf V2399:Ditjen_Imigrasi
+                                //0      1    2   3   4
+                                currentRouter = "O";
+                                string[] routerx = linetrim.Split(StringSplitTypes.Space);
+
+                                if (routerx.Length == 5 && routerx[3] == "vrf")
+                                {
+                                    currentProcess = routerx[2];
+                                    string vrfname = routerx[4];
+                                    if (routenamedb.ContainsKey(vrfname) && routenamelive.ContainsKey(vrfname))
+                                        currentRouteNameID = routenamedb[vrfname]["PN_ID"].ToString();
+                                    else
+                                        currentRouteNameID = null;
+                                }
+                            }
+                            else if (linetrim.StartsWith("network "))
+                            {
+                                string[] networkx = linetrim.Split(StringSplitTypes.Space);
+                                if (currentRouter == "E")
+                                {
+                                    //network 10.0.0.0
+                                    //0123456789
+                                    //currentNetwork = linetrim.Substring(8);
+                                }
+                                else if (currentRouter == "R" && currentRouteNameID != null)
+                                {
+                                    if (networkx.Length > 1)
+                                    {
+                                        //network 172.30.0.0
+                                        //012345678
+                                        string network = networkx[1] + "/0"; // set network to /0
+
+                                        PERouteUseToDatabase i = new PERouteUseToDatabase();
+                                        i.RouteNameID = currentRouteNameID;
+                                        i.Type = "R";
+                                        i.Network = network;
+
+                                        string key = currentRouteNameID + "_R__" + network;
+                                        routeuselive.Add(key, i);
+                                    }
+                                }
+                                else if (currentRouter == "O" && currentRouteNameID != null)
+                                {
+                                    //network 172.20.243.96 0.0.0.3 area 0
+                                    //0       1             2       3    4
+                                    if (networkx.Length == 5 && networkx[3] == "area")
+                                    {
+                                        string network = networkx[1] + "/0"; // using /0 because we're using wildcard mask
+                                        string wcmask = networkx[2];
+                                        string area = networkx[4];
+
+                                        PERouteUseToDatabase i = new PERouteUseToDatabase();
+                                        i.RouteNameID = currentRouteNameID;
+                                        i.Type = "O";
+                                        i.Network = network; 
+                                        i.Wildcard = wcmask;
+
+                                        int oprocess, oarea;
+                                        if (int.TryParse(currentProcess, out oprocess)) i.Process = oprocess;
+                                        if (int.TryParse(area, out oarea)) i.Area = oarea;
+
+                                        string key = currentRouteNameID + "_O_" + currentProcess + "_" + area + "__" + network + "_" + wcmask;
+                                        routeuselive.Add(key, i);
+                                    }
+                                }
+                            }
+                            else if (linetrim.StartsWith("neighbor "))
+                            {
+                                string[] neighborx = linetrim.Split(StringSplitTypes.Space);
+                                if (currentRouter == "E" && currentRouteNameID != null)
+                                {
+                                    //neighbor 10.98.1.10 GigabitEthernet2/2/0.2989
+                                    NodeInterface nif = NodeInterface.Parse(neighborx[2]);
+                                    if (nif != null)
+                                    {
+                                        string dif = nif.GetShort();
+                                        string neighbor = neighborx[1];
+
+                                        PERouteUseToDatabase i = new PERouteUseToDatabase();
+                                        i.RouteNameID = currentRouteNameID;
+                                        i.Type = "E";
+                                        //i.Network = currentNetwork;
+                                        //i.Neighbor = neighbor;
+
+                                        string interfaceID = null;
+                                        if (interfacelive.ContainsKey(dif))
+                                        {
+                                            interfaceID = interfacelive[dif].ID;
+                                            if (interfaceID != null) i.InterfaceID = interfaceID;
+                                        }
+                                        else if (dif != null) i.InterfaceGone = dif;
+
+                                        string key = currentRouteNameID + "_E_" + (interfaceID != null ? interfaceID : dif != null ? dif : "");
+                                        routeuselive.Add(key, i);
+                                    }
+                                }
+                                else if (currentRouter == "B" && currentRouteNameID != null)
+                                {
+                                    string thisneighbor = neighborx[1];
+                                    if (currentNeighbor != null && thisneighbor != currentNeighbor)
+                                    {
+                                        // save current neighbor
+                                        if (currentRemoteAS != null)
+                                        {
+                                            PERouteUseToDatabase i = new PERouteUseToDatabase();
+                                            i.RouteNameID = currentRouteNameID;
+                                            i.Type = "B";
+                                            i.Neighbor = currentNeighbor;
+
+                                            int ras = -1;
+                                            if (int.TryParse(currentRemoteAS, out ras)) i.RemoteAS = ras;
+
+                                            string key = currentRouteNameID + "_B_" + currentNeighbor + "_" + (i.RemoteAS != -1 ? i.RemoteAS + "" : "");
+                                            routeuselive.Add(key, i);
+                                        }
+
+                                        currentNeighbor = thisneighbor;
+                                        currentRemoteAS = null;
+                                    }
+                                    else currentNeighbor = thisneighbor;
+
+                                    if (neighborx[2] == "remote-as") currentRemoteAS = neighborx[3];
+                                }
+                            }
+                            else if (linetrim.StartsWith("address-family ipv4 vrf"))
+                            {
+                                //address-family ipv4 vrf WIFI-ID
+                                //012345678901234567890123456789
+                                string vrfname = linetrim.Substring(24);
+                                if (routenamedb.ContainsKey(vrfname) && routenamelive.ContainsKey(vrfname))
+                                    currentRouteNameID = routenamedb[vrfname]["PN_ID"].ToString();
+                                else
+                                    currentRouteNameID = null;
+
+                                if (currentRouter == "B")
+                                {
+                                    currentNeighbor = null;
+                                    currentRemoteAS = null;
+                                }
+                            }
+                            else if (linetrim.StartsWith("exit-address-family"))
+                            {
+                                if (currentRouter == "B")
+                                {
+                                    if (currentNeighbor != null && currentRemoteAS != null)
+                                    {
+                                        PERouteUseToDatabase i = new PERouteUseToDatabase();
+                                        i.RouteNameID = currentRouteNameID;
+                                        i.Type = "B";
+                                        i.Neighbor = currentNeighbor;
+
+                                        int ras = -1;
+                                        if (int.TryParse(currentRemoteAS, out ras)) i.RemoteAS = ras;
+
+                                        string key = currentRouteNameID + "_B_" + currentNeighbor + "_" + (i.RemoteAS != -1 ? i.RemoteAS + "" : "");
+                                        routeuselive.Add(key, i);
+                                    }
+
+                                    currentNeighbor = null;
+                                    currentRemoteAS = null;
+                                }
+
+                                currentRouteNameID = null;
+                            }                            
                         }
                     }
 
@@ -3011,6 +3270,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                 {
                     insert.Value("PU_O_Process", s.Process);
                     insert.Value("PU_O_Area", s.Area);
+                    insert.Value("PU_O_Wildcard", s.Wildcard);
                 }
                 else if (s.Type == "R")
                 {

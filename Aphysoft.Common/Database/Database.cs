@@ -777,7 +777,10 @@ namespace Aphysoft.Common
             using (SqlConnection connection = new SqlConnection(database.ConnectionString))
             {
                 SqlCommand command = Begin(sql, connection);
-                commands.Add(command);
+                lock (commands)
+                {
+                    commands.Add(command);
+                }
 
                 bool ok = false;
                 for (int attempt = 0; attempt < attempts; attempt++)
@@ -829,7 +832,10 @@ namespace Aphysoft.Common
                 }
 
                 End(connection, command);
-                if (commands.Contains(command)) commands.Remove(command);
+                lock (commands)
+                {
+                    if (commands.Contains(command)) commands.Remove(command);
+                }
             }
             return result;
         }
@@ -842,7 +848,10 @@ namespace Aphysoft.Common
             using (SqlConnection connection = new SqlConnection(database.ConnectionString))
             {
                 SqlCommand command = Begin(sql, connection);
-                commands.Add(command);
+                lock (commands)
+                {
+                    commands.Add(command);
+                }
 
                 bool ok = false;
                 for (int attempt = 0; attempt < attempts; attempt++)
@@ -866,7 +875,10 @@ namespace Aphysoft.Common
                 }
 
                 End(connection, command);
-                if (commands.Contains(command)) commands.Remove(command);
+                lock (commands)
+                {
+                    if (commands.Contains(command)) commands.Remove(command);
+                }
             }
             return column;
         }
@@ -879,7 +891,10 @@ namespace Aphysoft.Common
             using (SqlConnection connection = new SqlConnection(database.ConnectionString))
             {
                 SqlCommand command = Begin(sql, connection);
-                commands.Add(command);
+                lock (commands)
+                {
+                    commands.Add(command);
+                }
 
                 bool ok = false;
                 for (int attempt = 0; attempt < attempts; attempt++)
@@ -895,7 +910,10 @@ namespace Aphysoft.Common
                         if (returnIdentity)
                         {
                             identityCommand = new SqlCommand("select cast(SCOPE_IDENTITY() as bigint)", connection);
-                            commands.Add(identityCommand);
+                            lock (commands)
+                            {
+                                commands.Add(identityCommand);
+                            }
 
                             result.Identity = (Int64)identityCommand.ExecuteScalar();                            
                         }
@@ -919,14 +937,20 @@ namespace Aphysoft.Common
                         if (identityCommand != null)
                         {
                             identityCommand.Dispose();
-                            if (commands.Contains(command)) commands.Remove(identityCommand);
+                            lock (commands)
+                            {
+                                if (commands.Contains(command)) commands.Remove(identityCommand);
+                            }
                         }
                     }
                     if (ok) break;
                 }
 
                 End(connection, command);
-                if (commands.Contains(command)) commands.Remove(command);
+                lock (commands)
+                {
+                    if (commands.Contains(command)) commands.Remove(command);
+                }
             }
 
             return result;
@@ -955,11 +979,14 @@ namespace Aphysoft.Common
 
             int nc = commands.Count;
 
-            foreach (SqlCommand command in commands)
+            lock (commands)
             {
-                command.Cancel();
+                foreach (SqlCommand command in commands)
+                {
+                    command.Cancel();
+                }
+                commands.Clear();
             }
-            commands.Clear();
 
             cancelling = false;
 

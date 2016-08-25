@@ -3192,8 +3192,12 @@ namespace Jovice
             Result customerresult = Query("select * from ServiceCustomer where SC_CID in {0}", customerid);
             foreach (Row row in customerresult)
             {
+                string c_id = row["SC_ID"].ToString();
+
                 customerdb.Add(row["SC_CID"].ToString(), row);
                 if (!row["SC_Name_Set"].ToBool(false)) servicebycustomerid.Add(row["SC_ID"].ToString());
+
+                if (!servicebycustomerdb.ContainsKey(c_id)) servicebycustomerdb.Add(c_id, new List<Row>());
             }
             Result serviceresult = Query("select * from Service where SE_SID in {0} or SE_SC in {1}", serviceid, servicebycustomerid);
             foreach (Row row in serviceresult)

@@ -386,12 +386,6 @@ namespace Jovice
 
     #endregion
 
-    internal enum ProbeMode
-    {
-        Default,
-        StandBy
-    }
-
     internal sealed partial class Probe : SshConnection
     {
         #region Enums
@@ -427,8 +421,6 @@ namespace Jovice
 
         private Thread mainLoop = null;
         private Thread idleThread = null;
-
-        private ProbeMode mode;
 
         private Queue<string> outputs = new Queue<string>();
         private Dictionary<string, object> updates;
@@ -470,7 +462,6 @@ namespace Jovice
 
         private char[] newline = new char[] { (char)13, (char)10 };
 
-        private Queue<string> prioritize = new Queue<string>();
         private Dictionary<string, Row> reservedInterfaces;
         private Dictionary<string, Row> popInterfaces;
 
@@ -573,47 +564,15 @@ namespace Jovice
         
         #region Static
 
-        private static Probe probeInstance = null;
-
-        private static Probe standbyProbeInstance = null;
-
-        public static void Start(ProbeProperties properties)
+        public static void Start(ProbeProperties properties, string identifier)
         {
-            probeInstance = new Probe(properties.SSHServerAddress, properties.SSHUser, properties.SSHPassword, properties.SSHTerminal, properties.TacacUser, properties.TacacPassword);
-
-            probeInstance.defaultOutputIdentifier = "PROB";
-
-            if (properties.TestProbeNode != null)
+            Thread start = new Thread(new ThreadStart(delegate ()
             {
-                probeInstance.PrioritizeQueue(properties.TestProbeNode + "*");
-            }
-
-            probeInstance.Start(ProbeMode.Default);
-        }
-
-        public static void Start(StandByProbeProperties properties)
-        {
-            standbyProbeInstance = new Probe(properties.SSHServerAddress, properties.SSHUser, properties.SSHPassword, properties.SSHTerminal, properties.TacacUser, properties.TacacPassword);
-
-            standbyProbeInstance.defaultOutputIdentifier = "STAN";
-
-            standbyProbeInstance.Start(ProbeMode.StandBy);
-        }
-
-        public static void Stop(ProbeMode mode)
-        {
-            if (mode == ProbeMode.Default && probeInstance != null)
-            {
-                probeInstance.Stop();
-            }
-        }
-
-        public static void Prioritize(string nodeName)
-        {
-            if (probeInstance != null)
-            {
-                probeInstance.PrioritizeQueue(nodeName);
-            }
+                Probe probe = new Probe(properties.SSHServerAddress, properties.SSHUser, properties.SSHPassword, properties.SSHTerminal, properties.TacacUser, properties.TacacPassword);
+                probe.defaultOutputIdentifier = identifier;
+                probe.Start();
+            }));
+            start.Start();
         }
 
         #endregion
@@ -704,38 +663,10 @@ namespace Jovice
             }
         }
 
-        private void Start(ProbeMode mode)
+        private void Start()
         {
-            this.mode = mode;
-
             Event("Connecting... (" + sshUser + "@" + sshServer + ")");
             Start(sshServer, sshUser, sshPassword);
-
-//            Result result = j.Query(@"select MI_Name, MI_Summary_SubInterfaceCount from MEInterface, Node where MI_NO = NO_ID and NO_NAME = 'ME3-D1-PBRC' and (MI_MI is null or MI_Aggregator is not null)
-//order by MI_Name asc");
-
-//            foreach (Row row in result)
-//            {
-//                Event(row["MI_Name"].ToString() + ": " + row["MI_Summary_SubInterfaceCount"].ToInt());
-//            }
-
-
-            //TimeZoneInfo a = TimeZoneInfo.Local;
-            //Event("offset:" + TimeZoneInfo.Local.GetUtcOffset(DateTime.UtcNow));
-
-            // TEST GOES HERE
-            //MEInterfaceToDatabase li = new MEInterfaceToDatabase();
-            //li.Description = "TRUNK_ME-D7-PTR/Gi6/0/19_No8_1G_To_PE-D7-PTR-VPN Gi0/7/0/12_EX_PE-D2-PTK";
-            //li.Name = "Gi6/0/19";
-            //nodeName = "ME-D7-PTR";
-
-            //SortedDictionary<string, MEInterfaceToDatabase> interfacelive = new SortedDictionary<string, MEInterfaceToDatabase>();
-            //MEInterfaceToDatabase mi = new MEInterfaceToDatabase();
-            //interfacelive.Add("Gi6/0/19", mi);
-
-            //FindPhysicalAdjacent(li);
-
-            //Event("li:" + li.AdjacentID);
         }
 
         private void Restart()
@@ -744,12 +675,12 @@ namespace Jovice
             Start(sshServer, sshUser, sshPassword);
         }
 
-        private new void Stop()
-        {
-            outputIdentifier = null;
-            Event("Stop requested, disconnecting...");
-            base.Stop();
-        }
+        //private new void Stop()
+        //{
+        //    outputIdentifier = null;
+        //    Event("Stop requested, disconnecting...");
+        //    base.Stop();
+        //}
 
         private void Failure()
         {
@@ -762,17 +693,23 @@ namespace Jovice
 
         protected override void CantConnect(string message)
         {
+            bool dorestart = false;
             if (message.IndexOf("Auth fail") > -1)
             {
                 Event("Connection failed: Authentication failed");
             }
-            else
+            else if (message.IndexOf("unreachable") > -1)
             {
-                Event("Connection failed: Server Not Responding / No Route To Server / Connection Blocked");
-                Event("Reconnecting after 50 seconds");
-
-                Thread.Sleep(50000);
-
+                Event("Connection failed: Server unreachable");
+                dorestart = true;
+            }
+            
+            if (dorestart)
+            {
+                Event("Reconnecting in 20 seconds");
+                Thread.Sleep(15000);
+                Event("Reconnecting in 5 seconds");
+                Thread.Sleep(5000);
                 Restart();
             }
         }
@@ -835,247 +772,134 @@ namespace Jovice
         {
             Culture.Default();
 
-            if (mode == ProbeMode.Default)
+            #region Default
+
+            while (true)
             {
-                #region Default
+                long npID = 0;
+                Row node = null;
+                bool prioritizeProcess = false;
 
-                Queue<Tuple<long, string>> ids = new Queue<Tuple<long, string>>();
+                string prioritizeNode = Necrow.GetPrioritize();
 
-                Result npr = Query("select NP_ID, NP_NO from NodeProgress where NP_EndTime is null order by NP_ID asc");
-
-                foreach (Row np in npr)
+                if (prioritizeNode != null)
                 {
-                    long npID = np["NP_ID"].ToLong();
-                    string npNO = np["NP_NO"].ToString();
-                    ids.Enqueue(new Tuple<long, string>(npID, npNO));
-                }
-
-                while (true)
-                {
-                    if (ids.Count == 0)
+                    if (prioritizeNode.EndsWith("*"))
                     {
-                        Event("Preparing node list...");
-
-                        #region Preparing node list
-
-                        Result nres = Query(@"
-select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_TimeStamp is null and NO_LastConfiguration is null                        
-");
-                        Result mres = Query(@"
-select a.NO_ID, a.NO_Name, a.NO_Remark, a.NO_TimeStamp, CASE WHEN a.span < 0 then 0 else a.span end as span from (
-select NO_ID, NO_Name, NO_Remark, NO_LastConfiguration, NO_TimeStamp, DateDiff(hour, NO_LastConfiguration, NO_TimeStamp) as span 
-from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_TimeStamp is not null and NO_LastConfiguration is not null
-) a
-order by span asc, a.NO_LastConfiguration asc
-");
-                        Result sres = Query(@"
-select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_TimeStamp is not null and NO_LastConfiguration is null                        
-");
-
-                        List<string> nids = new List<string>();
-
-                        int excluded = 0;
-
-                        foreach (Row row in nres) nids.Add(row["NO_ID"].ToString());
-                        foreach (Row row in mres)
-                        {
-                            string remark = row["NO_Remark"].ToString();
-                            if (remark != null)
-                            {
-                                DateTime timestamp = row["NO_TimeStamp"].ToDateTime();
-                                TimeSpan span = DateTime.Now - timestamp;
-
-                                if (
-                                    (remark == "CONNECTFAIL" && span.TotalHours <= 3) ||
-                                    (remark == "UNRESOLVED" && span.TotalDays <= 1)
-                                )
-                                {
-                                    excluded++;
-                                    Event("Excluded: " + row["NO_Name"].ToString() + " Remark: " + remark);
-                                    continue;
-                                }
-                            }
-
-                            nids.Add(row["NO_ID"].ToString());
-                        }
-                        foreach (Row row in sres) nids.Add(row["NO_ID"].ToString());
-                        int total = nids.Count + excluded;
-                        Event("Total " + total + " nodes available, " + nids.Count + " nodes eligible, " + excluded + " excluded in this list.");
-
-                        Batch batch = Batch();
-
-                        batch.Begin();
-                        foreach (string nid in nids)
-                        {
-                            Insert insert = Insert("NodeProgress");
-                            insert.Value("NP_NO", nid);
-                            batch.Execute(insert);
-                        }
-                        Result result = batch.Commit();
-                        if (result.Count > 0) Event("List created.");
-
-                        npr = Query("select NP_ID, NP_NO from NodeProgress where NP_EndTime is null order by NP_ID asc");
-
-                        foreach (Row np in npr)
-                        {
-                            long np_ID = np["NP_ID"].ToLong();
-                            string npNO = np["NP_NO"].ToString();
-                            ids.Enqueue(new Tuple<long, string>(np_ID, npNO));
-                        }
-
-                        #endregion
+                        prioritizeNode = prioritizeNode.TrimEnd(new char[] { '*' });
+                        prioritizeProcess = true;
                     }
 
-                    long npID = 0;
-                    Row node = null;
-                    bool prioritizeProcess = false;
+                    Event("Prioritizing Probe: " + prioritizeNode);
+                    Result rnode = Query("select * from Node where upper(NO_Name) = {0}", prioritizeNode);
 
-                    if (prioritize.Count > 0)
+                    if (rnode.Count == 1)
                     {
-                        string nodeName = prioritize.Dequeue();
-
-                        if (nodeName.EndsWith("*"))
-                        {
-                            nodeName = nodeName.TrimEnd(new char[] { '*' });
-                            prioritizeProcess = true;
-                        }
-
-                        Event("Prioritizing Probe: " + nodeName);
-                        Result rnode = Query("select * from Node where upper(NO_Name) = {0}", nodeName);
-
-                        if (rnode.Count == 1)
-                        {
-                            node = rnode[0];
-                        }
-                        else
-                        {
-                            Event("Failed, not exists in the database.");
-                            continue;
-                        }
-                    }
-                    else if (ids.Count > 0)
-                    {
-                        Tuple<long, string> oid = ids.Dequeue();
-
-                        npID = oid.Item1;
-                        Result rnode = Query("select * from Node where NO_ID = {0}", oid.Item2);
                         node = rnode[0];
                     }
-
-                    if (node != null)
+                    else
                     {
-                        bool continueProcess = false;
-
-                        Enter(node, npID, out continueProcess, prioritizeProcess);
-
-                        if (continueProcess)
-                        {
-                            idleThread = new Thread(new ThreadStart(delegate ()
-                            {
-                                while (true)
-                                {
-                                    Thread.Sleep(30000);
-                                    if (nodeManufacture == alu || nodeManufacture == cso || nodeManufacture == hwe) SendCharacter((char)27);
-
-                                }
-                            }));
-                            idleThread.Start();
-
-                            Batch batch = Batch();
-                            Result result;
-
-                            batch.Begin();
-
-                            // RESERVED INTERFACES
-                            reservedInterfaces = QueryDictionary("select * from ReservedInterface where RI_NO = {0}", "RI_Name", delegate (Row row)
-                            {
-                                // delete duplicated RI_Name per RI_NO
-                                batch.Execute("delete from ReservedInterface where RI_ID = {0}", row["RI_ID"].ToString());
-                            }, nodeID);
-
-                            // POP
-                            if (nodeType == "P")
-                            {
-                                popInterfaces = new Dictionary<string, Row>();
-                                result = Query("select * from POP where UPPER(OO_NO_Name) = {0}", nodeName);
-                                foreach (Row row in result)
-                                {                                    
-                                    string storedID = row["OO_ID"].ToString();
-                                    string interfaceName = row["OO_PI_Name"].ToString();
-                                    bool ooPINULL = row["OO_PI"].IsNull;
-
-                                    if (!popInterfaces.ContainsKey(interfaceName))
-                                    {
-                                        popInterfaces.Add(interfaceName, row);
-
-                                        if (row["OO_NO_Name"].ToString() != nodeName)
-                                        {
-                                            // fix incorrect name in POP
-                                            batch.Execute("update POP set OO_NO_Name = {0} where OO_ID = {1}", nodeName, storedID);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        // delete duplicated OO_PI_Name per OO_NO_Name
-                                        batch.Execute("delete from POP where OO_ID = {0}", storedID);
-                                    }
-                                }
-                            }
-                            else popInterfaces = null;
-
-                            batch.Commit();
-
-
-                            if (nodeType == "P")
-                            {
-                                PEProcess();
-                                findMEPhysicalAdjacentLoaded = false;
-                            }
-                            else if (nodeType == "M")
-                            {
-                                MEProcess();
-                            }
-
-                            if (idleThread != null)
-                            {
-                                idleThread.Abort();
-                                idleThread = null;
-                            }
-                        }
-
-                        // delay after probing finished
-                        Event("Next node in 5 seconds...");
-                        Thread.Sleep(5000);
+                        Event("Failed, not exists in the database.");
+                        continue;
                     }
                 }
-
-                #endregion
-            }
-            else if (mode == ProbeMode.StandBy)
-            {
-                #region Stand By
-
-                while (true)
+                else
                 {
-                    int wait = 0;
-                    /*while (SSHWait())
-                    {
-                        Event("Waiting");
-                        wait++;
+                    Tuple<long, string> noded = Necrow.GetNode();
 
-                        if (wait == 3)
-                        {
-                            Failure();
-                        }
-                    }*/
-
-                    Event("Idle");
-
-                    Thread.Sleep(5000);
+                    npID = noded.Item1;
+                    Result rnode = Query("select * from Node where NO_ID = {0}", noded.Item2);
+                    node = rnode[0];
                 }
 
-                #endregion
+                if (node != null)
+                {
+                    bool continueProcess = false;
+
+                    Enter(node, npID, out continueProcess, prioritizeProcess);
+
+                    if (continueProcess)
+                    {
+                        idleThread = new Thread(new ThreadStart(delegate ()
+                        {
+                            while (true)
+                            {
+                                Thread.Sleep(30000);
+                                if (nodeManufacture == alu || nodeManufacture == cso || nodeManufacture == hwe) SendCharacter((char)27);
+
+                            }
+                        }));
+                        idleThread.Start();
+
+                        Batch batch = Batch();
+                        Result result;
+
+                        batch.Begin();
+
+                        // RESERVED INTERFACES
+                        reservedInterfaces = QueryDictionary("select * from ReservedInterface where RI_NO = {0}", "RI_Name", delegate (Row row)
+                        {
+                            // delete duplicated RI_Name per RI_NO
+                            batch.Execute("delete from ReservedInterface where RI_ID = {0}", row["RI_ID"].ToString());
+                        }, nodeID);
+
+                        // POP
+                        if (nodeType == "P")
+                        {
+                            popInterfaces = new Dictionary<string, Row>();
+                            result = Query("select * from POP where UPPER(OO_NO_Name) = {0}", nodeName);
+                            foreach (Row row in result)
+                            {                                    
+                                string storedID = row["OO_ID"].ToString();
+                                string interfaceName = row["OO_PI_Name"].ToString();
+                                bool ooPINULL = row["OO_PI"].IsNull;
+
+                                if (!popInterfaces.ContainsKey(interfaceName))
+                                {
+                                    popInterfaces.Add(interfaceName, row);
+
+                                    if (row["OO_NO_Name"].ToString() != nodeName)
+                                    {
+                                        // fix incorrect name in POP
+                                        batch.Execute("update POP set OO_NO_Name = {0} where OO_ID = {1}", nodeName, storedID);
+                                    }
+                                }
+                                else
+                                {
+                                    // delete duplicated OO_PI_Name per OO_NO_Name
+                                    batch.Execute("delete from POP where OO_ID = {0}", storedID);
+                                }
+                            }
+                        }
+                        else popInterfaces = null;
+
+                        batch.Commit();
+
+
+                        if (nodeType == "P")
+                        {
+                            PEProcess();
+                            findMEPhysicalAdjacentLoaded = false;
+                        }
+                        else if (nodeType == "M")
+                        {
+                            MEProcess();
+                        }
+
+                        if (idleThread != null)
+                        {
+                            idleThread.Abort();
+                            idleThread = null;
+                        }
+                    }
+
+                    // delay after probing finished
+                    Event("Next node in 5 seconds...");
+                    Thread.Sleep(5000);
+                }
             }
+
+            #endregion
         }
 
         private static void Shuffle<T>(IList<T> list)
@@ -1089,14 +913,6 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 list[k] = list[n];
                 list[n] = value;
             }
-        }
-
-        private void PrioritizeQueue(string nodeName)
-        {
-            string nn = nodeName.ToUpper();
-
-            if (!prioritize.Contains(nn))
-                prioritize.Enqueue(nn);
         }
 
         #region Methods

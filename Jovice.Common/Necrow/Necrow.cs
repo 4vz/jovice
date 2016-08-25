@@ -7,37 +7,11 @@ using System.Text;
 using Aphysoft.Common;
 using System.Threading;
 using System.Globalization;
+using System.IO;
 
 namespace Jovice
 {
-    [Flags]
-    public enum NecrowServices
-    {
-        None            = 0x00000,
-        Probe           = 0x00001,
-        StandbyProbe    = 0x10000,
-        All             = 0x11111,
-        AllExceptProbe  = 0x01110
-    }
-
-    public enum TestProbeServices
-    {
-        MECustomer = 1,
-        MEQOS = 2,
-        MEPeer = 4,
-        MEService = 8,
-        MEServicePeer = 16,
-        MEInterface = 32,
-        MEAll = 63,
-        PERoute = 64,
-        PEQOS = 128,
-        PEInterface = 256,
-        PERP = 512,
-        PEAll = 960,
-        All = 1023
-    }
-      
-    public abstract class BaseProbeProperties
+    public class ProbeProperties
     {
         #region Fields
 
@@ -89,35 +63,15 @@ namespace Jovice
             set { sshServerAddress = value; }
         }
 
-        #endregion
-    }
-
-    public class ProbeProperties : BaseProbeProperties
-    {
-        #region Fields
-
-        private string testProbeNode;
-
-        public string TestProbeNode
+        public bool IsComplete
         {
-            get { return testProbeNode; }
-            set { testProbeNode = value; }
-        }
-
-        private TestProbeServices testServices;
-
-        public TestProbeServices TestProbeServices
-        {
-            get { return testServices; }
-            set { testServices = value; }
+            get
+            {
+                return sshUser != null && sshPassword != null && sshServerAddress != null && sshTerminal != null && tacacUser != null && tacacPassword != null;
+            }
         }
 
         #endregion
-    }
-
-    public class StandByProbeProperties : BaseProbeProperties
-    {
-
     }
 
     public static class Necrow
@@ -133,23 +87,11 @@ namespace Jovice
             get { return joviceDatabase; }
         }
 
-        private static NecrowServices services;
-
         private static bool console = false;
-                
-        private static ProbeProperties probeProperties = null;
 
-        public static ProbeProperties ProbeProperties
-        {
-            get { return probeProperties; }
-        }
+        private static Queue<Tuple<long, string>> list = null;
 
-        private static StandByProbeProperties standbyProbeProperties = null;
-
-        public static StandByProbeProperties StandbyProbeProperties
-        {
-            get { return standbyProbeProperties; }
-        }
+        private static Queue<string> prioritize = new Queue<string>();
 
         #endregion
 
@@ -171,34 +113,129 @@ namespace Jovice
             Event(message, null);
         }
 
-        public static void Set(ProbeProperties properties)
+#if DEBUG
+        public static void Test(string name)
         {
-            probeProperties = properties;
+            prioritize.Enqueue(name + "*");
+        }
+#endif
+
+        internal static void CreateNodeQueue()
+        {
+            lock (list)
+            {
+                if (list.Count == 0)
+                {
+                    Event("Preparing node list...");
+
+                    Result nres = JoviceDatabase.Query(@"
+select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_TimeStamp is null and NO_LastConfiguration is null                        
+");
+                    Result mres = JoviceDatabase.Query(@"
+select a.NO_ID, a.NO_Name, a.NO_Remark, a.NO_TimeStamp, CASE WHEN a.span < 0 then 0 else a.span end as span from (
+select NO_ID, NO_Name, NO_Remark, NO_LastConfiguration, NO_TimeStamp, DateDiff(hour, NO_LastConfiguration, NO_TimeStamp) as span 
+from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_TimeStamp is not null and NO_LastConfiguration is not null
+) a
+order by span asc, a.NO_LastConfiguration asc
+");
+                    Result sres = JoviceDatabase.Query(@"
+select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_TimeStamp is not null and NO_LastConfiguration is null                        
+");
+
+                    List<string> nids = new List<string>();
+
+                    int excluded = 0;
+
+                    foreach (Row row in nres) nids.Add(row["NO_ID"].ToString());
+                    foreach (Row row in mres)
+                    {
+                        string remark = row["NO_Remark"].ToString();
+                        if (remark != null)
+                        {
+                            DateTime timestamp = row["NO_TimeStamp"].ToDateTime();
+                            TimeSpan span = DateTime.Now - timestamp;
+
+                            if (
+                                (remark == "CONNECTFAIL" && span.TotalHours <= 3) ||
+                                (remark == "UNRESOLVED" && span.TotalDays <= 1)
+                            )
+                            {
+                                excluded++;
+                                Event("Excluded: " + row["NO_Name"].ToString() + " Remark: " + remark);
+                                continue;
+                            }
+                        }
+
+                        nids.Add(row["NO_ID"].ToString());
+                    }
+                    foreach (Row row in sres) nids.Add(row["NO_ID"].ToString());
+                    int total = nids.Count + excluded;
+                    Event("Total " + total + " nodes available, " + nids.Count + " nodes eligible, " + excluded + " excluded in this list");
+
+                    Batch batch = JoviceDatabase.Batch();
+
+                    batch.Begin();
+                    foreach (string nid in nids)
+                    {
+                        Insert insert = JoviceDatabase.Insert("NodeProgress");
+                        insert.Value("NP_NO", nid);
+                        batch.Execute(insert);
+                    }
+                    Result result = batch.Commit();
+                    if (result.Count > 0) Event("List created");
+
+                    Result npr = JoviceDatabase.Query("select NP_ID, NP_NO from NodeProgress where NP_EndTime is null order by NP_ID asc");
+
+                    foreach (Row np in npr)
+                    {
+                        long np_ID = np["NP_ID"].ToLong();
+                        string npNO = np["NP_NO"].ToString();
+                        list.Enqueue(new Tuple<long, string>(np_ID, npNO));
+                    }
+                }
+            }
         }
 
-        public static void Set(StandByProbeProperties properties)
+        internal static Tuple<long, string> GetNode()
         {
-            standbyProbeProperties = properties;
+            Tuple<long, string> noded = null;
+
+            lock (list)
+            {
+                if (list.Count == 0)
+                {
+                    CreateNodeQueue();
+                }
+
+                noded = list.Dequeue();
+
+            }
+
+            return noded;
         }
 
-        public static bool IsServiceSet(NecrowServices service)
+        internal static string GetPrioritize()
         {
-            return services.IsFlagSet<NecrowServices>(service);
+            string node = null;
+
+            lock (prioritize)
+            {
+                if (prioritize.Count > 0)
+                {
+                    node = prioritize.Dequeue();
+                }
+            }
+
+            return node;
         }
 
-        public static void Start(NecrowServices services)
+        public static void Start()
         {
-            Culture.Default();
-            Necrow.services = services;
-            Thread start = new Thread(new ThreadStart(delegate()
+            Thread start = new Thread(new ThreadStart(delegate ()
             {
                 Culture.Default();
-
-                Thread.Sleep(100);
-
                 Event("Necrow Starting...");
 
-                Event("Initialize Service Client");
                 Service.Client();
                 Service.Connected += delegate (Connection connection)
                 {
@@ -206,13 +243,13 @@ namespace Jovice
                     Service.Send(new ServerNecrowServiceMessage(NecrowServiceMessageType.Hello));
                 };
                 Service.Register(typeof(ServerNecrowServiceMessage), NecrowServiceMessageHandler);
-                
-                Event("Checking Database...");
+
+                Event("Checking Jovice Database...");
 
                 bool joviceDatabaseConnected = false;
                 Database jovice = Jovice.Database;
 
-                DatabaseExceptionEventHandler checkingDatabaseException = delegate(object sender, DatabaseExceptionEventArgs eventArgs)
+                DatabaseExceptionEventHandler checkingDatabaseException = delegate (object sender, DatabaseExceptionEventArgs eventArgs)
                 {
                     Event("Connection Failed: " + eventArgs.Message);
                 };
@@ -228,28 +265,124 @@ namespace Jovice
                 jovice.Exception -= checkingDatabaseException;
 
                 joviceDatabase = jovice;
-                
+
                 jovice.Exception += Jovice_Exception;
                 jovice.QueryFailed += Jovice_QueryFailed;
                 jovice.Attempts = 3;
 
                 if (joviceDatabaseConnected)
                 {
-                    Event("Necrow Started");
+                    int account;
+                    if (!int.TryParse(Configuration.Settings("account", "0"), out account)) account = 0;
 
-                    if (services.IsFlagSet(NecrowServices.Probe) && probeProperties != null)
+                    List<ProbeProperties> accounts = new List<ProbeProperties>();
+
+                    for (int ai = 1; ai <= account; ai++)
                     {
-                        Probe.Start(probeProperties);
+                        string accconf = Configuration.Settings("account" + ai);
+
+                        if (accconf != null)
+                        {
+                            string[] confs = accconf.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+
+                            ProbeProperties prop = new ProbeProperties();
+
+                            foreach (string conf in confs)
+                            {
+                                string[] pair = conf.Split(new char[] { '=' });
+
+                                if (pair.Length == 2)
+                                {
+                                    if (pair[0] == "ssh")
+                                    {
+                                        string[] sshx = pair[1].Split(new char[] { '@', ':' }, 3);
+                                        if (sshx.Length == 3)
+                                        {
+                                            prop.SSHUser = sshx[0];
+                                            prop.SSHServerAddress = sshx[1];
+                                            prop.SSHPassword = sshx[2];
+                                        }
+                                    }
+                                    else if (pair[0] == "terminal")
+                                    {
+                                        prop.SSHTerminal = pair[1];
+                                    }
+                                    else if (pair[0] == "tacac")
+                                    {
+                                        string[] tacacx = pair[1].Split(new char[] { ':' }, 2);
+                                        if (tacacx.Length == 2)
+                                        {
+                                            prop.TacacUser = tacacx[0];
+                                            prop.TacacPassword = tacacx[1];
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (prop.IsComplete)
+                            {
+                                accounts.Add(prop);
+                            }
+                            else Event("Account #" + ai + " configuration is incomplete");
+                        }
+                        else Event("Cannot find Account #" + ai + " configuration");
                     }
-                    if (services.IsFlagSet(NecrowServices.StandbyProbe) && standbyProbeProperties != null)
+
+                    if (accounts.Count > 0)
                     {
-                        Probe.Start(standbyProbeProperties);
+                        Event("Loaded " + accounts.Count + " account" + ((accounts.Count > 1) ? "s" : ""));
+
+                        list = new Queue<Tuple<long, string>>();
+
+                        Result npr = jovice.Query("select NP_ID, NP_NO from NodeProgress where NP_EndTime is null order by NP_ID asc");
+
+                        foreach (Row np in npr)
+                        {
+                            long npID = np["NP_ID"].ToLong();
+                            string npNO = np["NP_NO"].ToString();
+                            list.Enqueue(new Tuple<long, string>(npID, npNO));
+                        }
+
+                        if (list.Count == 0)
+                        {
+                            CreateNodeQueue();
+                        }
+                        else
+                        {
+                            Event("Using existing list, " + list.Count + " node" + (list.Count > 1 ? "s" : "") + " remaining");
+                        }
+                        
+                        int instance;
+                        if (!int.TryParse(Configuration.Settings("instance", "1"), out instance)) instance = 1;
+                        if (instance < 1) instance = 1;
+                        Event("Creating " + instance + " probe instance" + (instance > 1 ? "s..." : "..."));
+
+                        for (int ins = 0; ins < instance; ins++)
+                        {
+                            int acn = ins % accounts.Count;
+                            Event("Starting Instance #" + (ins + 1) + " using Account #" + (acn + 1));
+                            Probe.Start(accounts[acn], "INST" + (ins + 1));
+                        }
                     }
+                    else Event("There's no account configured in the configuration file, please check account configuration in the *.config file");
+
+                }
+                else
+                {
+                    Event("Problem with database, please check database data source in the *.config file");
                 }
             }));
             start.Start();
         }
 
+        public static void Prioritize(string nodeName)
+        {
+            lock (prioritize)
+            {
+                prioritize.Enqueue(nodeName);
+            }
+        }
+        
         private static void Jovice_QueryFailed(object sender, EventArgs e)
         {
             Event("Query failed, retrying...");
@@ -263,10 +396,7 @@ namespace Jovice
 
         public static void Stop()
         {
-            if (services.IsFlagSet(NecrowServices.Probe))
-            {
-                Probe.Stop(ProbeMode.Default);
-            }
+            
         }
 
         public static void Console()
@@ -290,7 +420,7 @@ namespace Jovice
                     if (cs.Clauses.Count == 2)
                     {
                         string nodename = cs.Clauses[1];
-                        Probe.Prioritize(nodename);
+                        Necrow.Prioritize(nodename);
                     }
                 }
             }
@@ -303,9 +433,7 @@ namespace Jovice
             if (m.Type == NecrowServiceMessageType.Request)
             {
                 Event("We got request from server! = " + m.RequestID);
-
             }
-
         }
 
         #endregion

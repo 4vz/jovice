@@ -3189,13 +3189,13 @@ namespace Jovice
                 if (cid != null && customerid.IndexOf(cid) == -1) customerid.Add(cid);
             }
 
-            Result customerresult = Query("select * from ServiceCustomer where SC_CID in ('" + string.Join("','", customerid.ToArray()) + "')");
+            Result customerresult = Query("select * from ServiceCustomer where SC_CID in {0}", customerid);
             foreach (Row row in customerresult)
             {
                 customerdb.Add(row["SC_CID"].ToString(), row);
                 if (!row["SC_Name_Set"].ToBool(false)) servicebycustomerid.Add(row["SC_ID"].ToString());
             }
-            Result serviceresult = Query("select * from Service where SE_SID in ('" + string.Join("','", serviceid.ToArray()) + "') or SE_SC in ('" + string.Join("','", servicebycustomerid.ToArray()) + "')");
+            Result serviceresult = Query("select * from Service where SE_SID in {0} or SE_SC in {1}", serviceid, servicebycustomerid);
             foreach (Row row in serviceresult)
             {
                 servicedb.Add(row["SE_SID"].ToString(), row);

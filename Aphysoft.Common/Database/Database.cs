@@ -507,12 +507,16 @@ namespace Aphysoft.Common
                     else if (a is bool) atrs = (bool)a ? "1" : "0";
                     else if (a is DateTime) atrs = "'" + DateTime((DateTime)a) + "'";
                     else if (IsNumber(a)) atrs = "" + a.ToString() + "";
-                    else if (a is List<string>)
+                    else if (a is List<string> || a is string[])
                     {
                         StringBuilder sb = new StringBuilder();
+                        
+                        string[] ls;
+                        if (a is string[]) ls = (string[])a;
+                        else ls = ((List<string>)a).ToArray();
+
                         sb.Append("(");
-                        List<string> ls = (List<string>)a;
-                        if (ls.Count == 0) sb.Append("NULL");
+                        if (ls.Length == 0) sb.Append("NULL");
                         else
                         {
                             int lsi = 0;

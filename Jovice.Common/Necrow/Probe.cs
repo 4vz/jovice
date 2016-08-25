@@ -703,6 +703,11 @@ namespace Jovice
                 Event("Connection failed: Server unreachable");
                 dorestart = true;
             }
+            else
+            {
+                Event(message);
+                dorestart = true;
+            }
             
             if (dorestart)
             {
@@ -4133,6 +4138,7 @@ order by NO_ID asc
             else if ((rmv = d.IndexOf(" SID%")) > -1) { rle = 5; }
             else if ((rmv = d.IndexOf(" SID ")) > -1) { rle = 5; }
             else if ((rmv = d.IndexOf(" SIDT")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf(" SID0")) > -1) { rle = 4; }
             else if ((rmv = d.IndexOf(" SID1")) > -1) { rle = 4; }
             else if ((rmv = d.IndexOf(" SID2")) > -1) { rle = 4; }
             else if ((rmv = d.IndexOf(" SID3")) > -1) { rle = 4; }
@@ -4387,7 +4393,7 @@ order by NO_ID asc
                     de.SID = null;
                 else
                 {
-                    string fixsid = de.SID.Trim(new char[] { '-', ')', '(', '[', ']', '>', '<' });
+                    string fixsid = de.SID.Trim(new char[] { '-', ')', '(', '[', ']', '>', '<', '\'', '\"' });
                     fixsid = fixsid.Replace("--", "-");
 
                     string[] sids = fixsid.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);

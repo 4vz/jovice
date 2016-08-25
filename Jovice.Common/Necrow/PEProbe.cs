@@ -3317,7 +3317,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                             }
                         }
                     }
-                    else if (interfaceGone != null)
+                    else if (interfaceGone != null && interfaceGone != "")
                         referencedinterface = interfaceGone + " NOTEXISTS";
 
                     string type = pair.Value["PU_Type"].ToString();

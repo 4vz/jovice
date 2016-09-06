@@ -3385,6 +3385,8 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
             #endregion
 
+            Update(UpdateTypes.Active, 1);
+
             SaveExit();
         }
 

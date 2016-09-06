@@ -2096,14 +2096,22 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                 if (circuitdb.ContainsKey(linex[1])) circuitID = circuitdb[linex[1]]["MC_ID"].ToString();
                                 else circuitID = null;
 
-                                string status = linex[6];
-                                string protocol = linex[7];
-
+                                string status, protocol;
                                 string ingressID = null;
-                                if (qosdb.ContainsKey("0_" + linex[2])) ingressID = qosdb["0_" + linex[2]]["MQ_ID"].ToString();
                                 string egressID = null;
-                                if (qosdb.ContainsKey("1_" + linex[4])) egressID = qosdb["1_" + linex[4]]["MQ_ID"].ToString();
-
+                                if (nodeVersion.StartsWith("TiMOS-B-8"))
+                                {
+                                    status = linex[5];
+                                    protocol = linex[6];
+                                    if (qosdb.ContainsKey("0_" + linex[2])) ingressID = qosdb["0_" + linex[2]]["MQ_ID"].ToString();
+                                }
+                                else
+                                {
+                                    status = linex[6];
+                                    protocol = linex[7];
+                                    if (qosdb.ContainsKey("0_" + linex[2])) ingressID = qosdb["0_" + linex[2]]["MQ_ID"].ToString();
+                                    if (qosdb.ContainsKey("1_" + linex[4])) egressID = qosdb["1_" + linex[4]]["MQ_ID"].ToString();
+                                }
 
                                 if (!interfacelive.ContainsKey(thisport))
                                 {
@@ -3250,6 +3258,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             Event(result, EventActions.Delete, EventElements.QOS, false);
 
             #endregion
+
+            Update(UpdateTypes.Active, 1);
 
             SaveExit();            
         }

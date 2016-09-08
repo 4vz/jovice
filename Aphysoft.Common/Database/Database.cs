@@ -247,6 +247,12 @@ namespace Aphysoft.Common
             return sb.ToString();
         }
 
+        public void Execute()
+        {
+            database.Execute(this);
+        }
+        
+
         #endregion
     }
 
@@ -303,6 +309,12 @@ namespace Aphysoft.Common
 
             return sb.ToString();
         }
+
+        public void Execute()
+        {
+            database.Execute(this);
+        }
+
 
         #endregion
     }
@@ -629,6 +641,16 @@ namespace Aphysoft.Common
         {
             string fsql = Format(sql, args);
             return connection.Execute(fsql);
+        }
+
+        public Result Execute(Insert insert)
+        {
+            return connection.Execute(insert.ToString());
+        }
+
+        public Result Execute(Update update)
+        {
+            return connection.Execute(update.ToString());
         }
 
         public Result ExecuteIdentity(string sql, params object[] args)

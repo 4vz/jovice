@@ -3384,10 +3384,6 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
             Event(result, EventActions.Delete, EventElements.VRF, false);
 
             #endregion
-
-            Update(UpdateTypes.Active, 1);
-
-            SaveExit();
         }
 
         #endregion

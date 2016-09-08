@@ -93,6 +93,8 @@ namespace Jovice
 
         private static Queue<string> prioritize = new Queue<string>();
 
+        private static List<Tuple<string, string, string>> supportedVersions = null;
+
         #endregion
 
         #region Methods
@@ -229,6 +231,44 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             return node;
         }
 
+        internal static void SupportedNodeVersion(string manufacture, string version, string subVersion)
+        {
+            bool exists = false;
+
+            foreach (Tuple<string, string, string> sve in supportedVersions)
+            {
+                if (sve.Item1 == manufacture && sve.Item2 == version && sve.Item3 == subVersion)
+                {
+                    exists = true;
+                    break;
+                }
+            }
+
+            if (!exists)
+            {
+                lock (supportedVersions)
+                {
+                    supportedVersions.Add(new Tuple<string, string, string>(manufacture, version, subVersion));
+
+                    Insert insert = JoviceDatabase.Insert("NodeSupport");
+                    insert.Value("NT_ID", Database.ID());
+                    insert.Value("NT_Manufacture", manufacture);
+                    insert.Value("NT_Version", version);
+                    insert.Value("NT_SubVersion", subVersion);
+                    insert.Execute();
+                }
+            }
+        }
+
+        internal static void Log(string source, string log)
+        {
+            Insert insert = JoviceDatabase.Insert("Log");
+            insert.Value("LO_TimeStamp", DateTime.UtcNow);
+            insert.Value("LO_Source", source);
+            insert.Value("LO_Log", log);
+            insert.Execute();
+        }
+
         public static void Start()
         {
             Thread start = new Thread(new ThreadStart(delegate ()
@@ -350,6 +390,18 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                         else
                         {
                             Event("Using existing list, " + list.Count + " node" + (list.Count > 1 ? "s" : "") + " remaining");
+                        }
+
+                        if (supportedVersions == null)
+                        {
+                            Result sver = jovice.Query("select * from NodeSupport");
+
+                            supportedVersions = new List<Tuple<string, string, string>>();
+
+                            foreach (Row sve in sver)
+                            {
+                                supportedVersions.Add(new Tuple<string, string, string>(sve["NT_Manufacture"].ToString(), sve["NT_Version"].ToString(), sve["NT_SubVersion"].ToString()));
+                            }
                         }
                         
                         int instance;

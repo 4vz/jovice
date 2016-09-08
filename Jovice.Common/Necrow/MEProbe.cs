@@ -537,7 +537,7 @@ namespace Jovice
             //goto debug2;
             List<MEQOSToDatabase> qosinsert = new List<MEQOSToDatabase>();
             List<MEQOSToDatabase> qosupdate = new List<MEQOSToDatabase>();
-            
+
             #region Live
 
             if (nodeManufacture == alu)
@@ -698,19 +698,19 @@ namespace Jovice
             #endregion
 
             qosdb = QueryDictionary("select * from MEQOS where MQ_NO = {0}", delegate (Row row) { return (row["MQ_Type"].ToBool() ? "1" : "0") + "_" + row["MQ_Name"].ToString(); }, nodeID);
-            
+
             #endregion
 
             #region SDP
 
             Event("Checking SDP");
-            
+
             Dictionary<string, MESDPToDatabase> sdplive = new Dictionary<string, MESDPToDatabase>();
             Dictionary<string, Row> sdpdb = QueryDictionary("select * from MESDP where MS_NO = {0}", "MS_SDP", nodeID);
             Dictionary<string, Row> ipnodedb = QueryDictionary("select NO_IP, NO_ID from Node where NO_IP is not null", "NO_IP");
             List<MESDPToDatabase> sdpinsert = new List<MESDPToDatabase>();
             List<MESDPToDatabase> sdpupdate = new List<MESDPToDatabase>();
-            
+
             #region Live
 
             if (nodeManufacture == alu)
@@ -878,7 +878,7 @@ namespace Jovice
             }
 
             #endregion
-            
+
             #region Check
 
             foreach (KeyValuePair<string, MESDPToDatabase> pair in sdplive)
@@ -895,7 +895,7 @@ namespace Jovice
                 {
                     Event("SDP ADD: " + pair.Key);
                     li.ID = Database.ID();
-                    sdpinsert.Add(li);                    
+                    sdpinsert.Add(li);
                 }
                 else
                 {
@@ -905,7 +905,7 @@ namespace Jovice
                     u.ID = db["MS_ID"].ToString();
 
                     bool update = false;
-                    StringBuilder updateinfo = new StringBuilder();                    
+                    StringBuilder updateinfo = new StringBuilder();
 
                     if (db["MS_Status"].ToBool() != li.Status)
                     {
@@ -1009,7 +1009,7 @@ namespace Jovice
             #endregion
 
             sdpdb = QueryDictionary("select * from MESDP where MS_NO = {0}", "MS_SDP", nodeID);
-            
+
             #endregion
 
             #region CIRCUIT
@@ -1022,9 +1022,9 @@ namespace Jovice
             List<MECircuitToDatabase> circuitupdate = new List<MECircuitToDatabase>();
             List<string[]> hweCircuitMplsL2vc = null;
             List<string[]> hweCircuitVllCcc = null;
-            
+
             ServiceReference circuitServiceReference = new ServiceReference();
-                               
+
             //circuitdb = QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_VCID", nodeID);
             //goto debug3;
 
@@ -1033,14 +1033,14 @@ namespace Jovice
             if (nodeManufacture == alu)
             {
                 #region alu
-                
+
                 // PRESTEP, fix duplicated vcid in alu metro that might happen if probe fail sometime ago.
                 result = Query("select MC_VCID from (select MC_VCID, COUNT(MC_VCID) as c from MECircuit where MC_NO = {0} group by MC_VCID) a where c >= 2", nodeID);
                 if (result.Count > 0)
                 {
                     Event(result.Count + " circuit(s) are found duplicated, began deleting...");
                     List<string> duplicatedvcids = new List<string>();
-                    foreach (Row row in result)  duplicatedvcids.Add(row["MC_VCID"].ToString());
+                    foreach (Row row in result) duplicatedvcids.Add(row["MC_VCID"].ToString());
                     string duplicatedvcidstr = "'" + string.Join("', '", duplicatedvcids.ToArray()) + "'";
                     Execute("update MEInterface set MI_MC = NULL where MI_MC in (select MC_ID from MECircuit where MC_VCID in (" + duplicatedvcidstr + ") and MC_NO = {0})", nodeID);
                     Execute("update MEPeer set MP_TO_MC = NULL where MP_TO_MC in (select MC_ID from MECircuit where MC_VCID in (" + duplicatedvcidstr + ") and MC_NO = {0})", nodeID);
@@ -1049,11 +1049,11 @@ namespace Jovice
                     result = Execute("delete from MECircuit where MC_ID in (select MC_ID from MECircuit where MC_VCID in (" + duplicatedvcidstr + ") and MC_NO = {0})", nodeID);
                     Event(result.AffectedRows + " circuits(s) have been deleted");
                 }
-                
+
                 circuitdb = QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_VCID", nodeID);
 
                 //goto debug3;
-                
+
                 // STEP 1, dari display config untuk epipe dan vpls, biar dapet mtu dan deskripsinya
                 if (Request("admin display-config | match customer context children | match \"epipe|vpls|description|service-mtu\" expression", out lines)) return;
 
@@ -1070,7 +1070,7 @@ namespace Jovice
                             circuitlive.Add(cservice.VCID, cservice);
                             cservice = null;
                         }
-                                                
+
                         string[] olinex = oline.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                         if (olinex.Length >= 5 && alucustdb.ContainsKey(olinex[3]))
                         {
@@ -1136,9 +1136,9 @@ namespace Jovice
             else if (nodeManufacture == hwe)
             {
                 #region hwe
-                
+
                 circuitdb = QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_Description", nodeID);
-                
+
                 // display vsi verbose | in VSI
                 // display mpls l2vc brief
 
@@ -1418,9 +1418,9 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
             }
 
             #endregion
-            
+
             #region Check
-            
+
             Dictionary<string, List<string>> adjacentPeers = null;
             foreach (KeyValuePair<string, MECircuitToDatabase> pair in circuitlive)
             {
@@ -1596,13 +1596,13 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
             if (nodeManufacture == alu) circuitdb = QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_VCID", nodeID);
             else if (nodeManufacture == hwe) circuitdb = QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_Description", nodeID);
-            
+
             #endregion
 
             #region PEER
 
             Event("Checking Peer");
-            
+
             Dictionary<string, MEPeerToDatabase> peerlive = new Dictionary<string, MEPeerToDatabase>();
             List<string> duplicatedpeers = new List<string>();
             Dictionary<string, Row> peerdb = QueryDictionary("select * from MEPeer, MECircuit, MESDP where MP_MC = MC_ID and MP_MS = MS_ID and MC_NO = {0}", delegate (Row row) { return row["MS_SDP"].ToString() + ":" + row["MP_VCID"].ToString(); }, delegate (Row row) { duplicatedpeers.Add(row["MP_ID"].ToString()); }, nodeID);
@@ -1616,7 +1616,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 result = Execute("delete from MEPeer where MP_ID in (" + duplicatedpeerstr + ")");
                 Event(result, EventActions.Delete, EventElements.Peer, true);
             }
-            
+
             #region Live
 
             if (nodeManufacture == alu)
@@ -1766,7 +1766,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
             }
 
             #endregion
-            
+
             #region Check
 
             foreach (KeyValuePair<string, MEPeerToDatabase> pair in peerlive)
@@ -1863,7 +1863,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 if (!peerlive.ContainsKey(pair.Key) || pair.Value["MP_MC"].ToString() != peerlive[pair.Key].CircuitID)
                 {
                     Event("Peer DELETE: " + pair.Key);
-                    batch.Execute("delete from MEPeer where MP_ID = {0}", pair.Value["MP_ID"].ToString());                    
+                    batch.Execute("delete from MEPeer where MP_ID = {0}", pair.Value["MP_ID"].ToString());
                 }
             }
             result = batch.Commit();
@@ -1876,10 +1876,10 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
             #region INTERFACE
 
             Event("Checking Interface");
-            
+
             SortedDictionary<string, MEInterfaceToDatabase> interfacelive = new SortedDictionary<string, MEInterfaceToDatabase>();
             List<string> duplicatedinterfaces = new List<string>();
-            Dictionary<string, Row> interfacedb = QueryDictionary("select * from MEInterface where MI_NO = {0}", "MI_Name", delegate(Row row) { duplicatedinterfaces.Add(row["MI_ID"].ToString()); }, nodeID);
+            Dictionary<string, Row> interfacedb = QueryDictionary("select * from MEInterface where MI_NO = {0}", "MI_Name", delegate (Row row) { duplicatedinterfaces.Add(row["MI_ID"].ToString()); }, nodeID);
             SortedDictionary<string, MEInterfaceToDatabase> interfaceinsert = new SortedDictionary<string, MEInterfaceToDatabase>();
             List<MEInterfaceToDatabase> interfaceupdate = new List<MEInterfaceToDatabase>();
 
@@ -1894,7 +1894,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
             }
 
             ServiceReference interfaceservicereference = new ServiceReference();
-            
+
             #region Live
 
             if (nodeManufacture == alu)
@@ -2000,7 +2000,8 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                             interfacelive[portex].Used = false;
                                     }
 
-                                    if (linex.Length >= 7)                                    {
+                                    if (linex.Length >= 7)
+                                    {
                                         string agr = linex[6].Trim();
                                         if (agr == "-") interfacelive[portex].Aggr = -1;
                                         else
@@ -2053,7 +2054,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                         }
                     }
                 }
-                
+
                 if (nodeVersion.StartsWith("TiMOS-B")) // sementara TiMOS-B ga bisa dapet deskripsi
                 {
                     if (Request("show service sap-using", out lines)) return;
@@ -2144,19 +2145,19 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 Lag-id Port-id   Adm   Act/Stdby Opr   Description
 -------------------------------------------------------------------------------
 01234567890123456789012345678901234567890123456789
-          1         2         3         4
+            1         2         3         4
 1(e)             up              up    AKSES_PE-D2-CKA-TRANSIT/ae1_TO_ME-A-JKT-
-                                       CKA/lag-1_No1_3xGi (Downlink)
-       3/1/4     up    active    up    AKSES_PE TO_PE Transit
-       3/1/10    up    active    up    AKSES_TO_PE2-D2-CKA-VPN
-       3/1/14    up    active    up    AKSES_TO_PE-D2-CKA-VPN_Gi0/0/0/2
-       3/1/15    up    active    up    AKSES_TO_PE-D2-CKA-TRANSIT LAG-1 port
-                                       ge-5/0/1
+                                        CKA/lag-1_No1_3xGi (Downlink)
+        3/1/4     up    active    up    AKSES_PE TO_PE Transit
+        3/1/10    up    active    up    AKSES_TO_PE2-D2-CKA-VPN
+        3/1/14    up    active    up    AKSES_TO_PE-D2-CKA-VPN_Gi0/0/0/2
+        3/1/15    up    active    up    AKSES_TO_PE-D2-CKA-TRANSIT LAG-1 port
+                                        ge-5/0/1
 
 2(e)             up              up    TRUNK_to me2-d2-cka (80G)
-       5/1/6     up    active    up    TRUNK_to-me2-d2-cka port 3/1/2
-       5/2/3     up    active    up    TRUNK_to-me2-d2-cka port 8/1/4
-       */
+        5/1/6     up    active    up    TRUNK_to-me2-d2-cka port 3/1/2
+        5/2/3     up    active    up    TRUNK_to-me2-d2-cka port 8/1/4
+        */
                     MEInterfaceToDatabase current = null;
 
                     foreach (string line in lines)
@@ -2249,7 +2250,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 string[] portx = linex[0].Split(new char[] { ':' });
                                 if (portx[0].StartsWith("lag-")) name = "Ag" + portx[0].Substring(4);
                                 else name = "Ex" + portx[0];
-                                
+
                                 name = name.Replace('.', ':');
 
                                 if (portx.Length > 1) vlan = portx[1];
@@ -2546,7 +2547,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         if (line.StartsWith("Interface")) begin = true;
                     }
                 }
-                
+
                 // mpls l2vc ke port
                 foreach (string[] strs in hweCircuitMplsL2vc)
                 {
@@ -2579,7 +2580,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     if (circuitdb.ContainsKey(vcidname))
                     {
                         NodeInterface nif1 = NodeInterface.Parse(inf1);
-                        
+
                         if (nif1 != null)
                         {
                             string inf = nif1.GetShort();
@@ -2773,7 +2774,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         if (inftype == "Fa") { sinffa++; if (li.Status) sinffaup++; }
                         if (inftype == "Et") { sinfet++; if (li.Status) sinfetup++; }
                         if (inftype == "Ag") { sinfag++; }
-                        if (li.Aggr != -1) parentPort = "Ag" + li.Aggr;    
+                        if (li.Aggr != -1) parentPort = "Ag" + li.Aggr;
                     }
 
                     if (parentPort != null)
@@ -2846,7 +2847,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                     //    if (!li.AdjacentSubifID.ContainsKey(sifname)) li.AdjacentSubifID.Add(sifname, row["PI_ID"].ToString());
                                     //}
                                 }
-                            }                            
+                            }
                         }
                     }
                     else if (li.ParentID != null)
@@ -3163,7 +3164,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     string id = pair.Value["MI_ID"].ToString();
                     batch.Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI = {0}", id);
                     batch.Execute("update MEInterface set MI_MI = NULL where MI_MI = {0}", id);
-                    interfacedelete.Add(id);            
+                    interfacedelete.Add(id);
                 }
             }
             batch.Commit();
@@ -3220,7 +3221,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 if (!sdplive.ContainsKey(pair.Key))
                 {
                     Event("SDP DELETE: " + pair.Key);
-                    batch.Execute("delete from MESDP where MS_ID = {0}", pair.Value["MS_ID"].ToString());                    
+                    batch.Execute("delete from MESDP where MS_ID = {0}", pair.Value["MS_ID"].ToString());
                 }
             }
             result = batch.Commit();
@@ -3257,11 +3258,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             result = batch.Commit();
             Event(result, EventActions.Delete, EventElements.QOS, false);
 
-            #endregion
-
-            Update(UpdateTypes.Active, 1);
-
-            SaveExit();            
+            #endregion         
         }
     }
 }

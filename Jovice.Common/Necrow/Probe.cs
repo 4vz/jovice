@@ -880,16 +880,29 @@ namespace Jovice
 
                         batch.Commit();
 
+                        try
+                        {
+                            if (nodeType == "P")
+                            {
+                                PEProcess();
+                                findMEPhysicalAdjacentLoaded = false;
+                            }
+                            else if (nodeType == "M")
+                            {
+                                MEProcess();
+                            }
 
-                        if (nodeType == "P")
-                        {
-                            PEProcess();
-                            findMEPhysicalAdjacentLoaded = false;
+                            Necrow.SupportedNodeVersion(nodeManufacture, nodeVersion, nodeSubVersion);
                         }
-                        else if (nodeType == "M")
+                        catch (Exception ex)
                         {
-                            MEProcess();
+                            Necrow.Log("MAINLOOP", "MESSAGE:" + ex.Message + " STACKTRACE:" + ex.StackTrace);
+
+                            Update(UpdateTypes.Remark, "PROBEFAILED");
                         }
+
+                        Update(UpdateTypes.Active, 1);
+                        SaveExit();
 
                         if (idleThread != null)
                         {
@@ -1188,7 +1201,7 @@ namespace Jovice
                 case UpdateTypes.NecrowVersion: key = "NO_NVER"; break;
                 case UpdateTypes.TimeStamp: key = "NO_TimeStamp"; break;
                 case UpdateTypes.TimeOffset: key = "NO_TimeOffset"; break;
-                case UpdateTypes.Remark:key = "NO_Remark"; break;
+                case UpdateTypes.Remark: key = "NO_Remark"; break;
                 case UpdateTypes.RemarkUser: key = "NO_RemarkUser"; break;
                 case UpdateTypes.IP: key = "NO_IP"; break;
                 case UpdateTypes.Name: key = "NO_Name"; break;
@@ -1933,10 +1946,8 @@ namespace Jovice
                 }
                 else if (nodeIP != resolvedIP)
                 {
-                    Event("Host IP has changed to: " + resolvedIP + "");
+                    Event("Host IP has changed to: " + resolvedIP + ", this node is now marked as inactive");
                     Update(UpdateTypes.Remark, "IPHASCHANGED");
-
-                    Event("Mark this node as inactive");
                     Update(UpdateTypes.Active, 0);
 
                     Save();

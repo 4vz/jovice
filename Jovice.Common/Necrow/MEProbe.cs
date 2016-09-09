@@ -2641,23 +2641,41 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 // qos
                 if (Request("display cur int | in interface |qos-profile |user-queue |vlan-type\\ dot1q", out lines)) return;
 
-                string qosInterface = null;
+                string currentInterface = null;
+                string currentParent = null;
+                int typerate = -1;
+
                 foreach (string line in lines)
                 {
                     string lineTrim = line.Trim();
 
                     if (lineTrim.StartsWith("interface "))
                     {
+                        currentInterface = null;
+                        currentParent = null;
+                        typerate = -1;
+
                         string nifc = lineTrim.Substring(10);
                         NodeInterface nif = NodeInterface.Parse(nifc);
                         if (nif != null)
-                        {
+                        {                            
                             string portnif = nif.GetShort();
                             if (interfacelive.ContainsKey(portnif))
-                                qosInterface = portnif;
+                            {
+                                currentInterface = portnif;
+                                if (nif.IsSubInterface)
+                                {
+                                    string bport = nif.GetBase();
+                                    if (interfacelive.ContainsKey(bport))
+                                    {
+                                        currentParent = bport;
+                                        typerate = nif.GetTypeRate();
+                                    }
+                                }
+                            }
                         }
                     }
-                    else if (qosInterface != null)
+                    else if (currentInterface != null)
                     {
                         if (lineTrim.StartsWith("qos-profile"))
                         {
@@ -2672,8 +2690,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 {
                                     string qosID = qosdb["0_" + qosName]["MQ_ID"].ToString();
 
-                                    if (qosDir == "inbound") interfacelive[qosInterface].IngressID = qosID;
-                                    else if (qosDir == "outbound") interfacelive[qosInterface].EgressID = qosID;
+                                    if (qosDir == "inbound") interfacelive[currentInterface].IngressID = qosID;
+                                    else if (qosDir == "outbound") interfacelive[currentInterface].EgressID = qosID;
                                 }
                             }
                         }
@@ -2689,8 +2707,54 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 int size;
                                 if (!int.TryParse(rSize, out size)) size = -1;
 
-                                if (rDir == "inbound") interfacelive[qosInterface].RateInput = size;
-                                else if (rDir == "outbound") interfacelive[qosInterface].RateOutput = size;
+                                if (rDir == "inbound")
+                                {
+                                    interfacelive[currentInterface].RateInput = size;
+
+                                    if (currentParent != null)
+                                    {
+                                        if (size > 0)
+                                        {
+                                            int cur = interfacelive[currentParent].CirConfigTotalInput;
+                                            if (cur == -1) cur = 0;
+                                            interfacelive[currentParent].CirConfigTotalInput = cur + size;
+
+                                            long curR = interfacelive[currentParent].CirTotalInput;
+                                            if (curR == -1) curR = 0;
+                                            interfacelive[currentParent].CirTotalInput = curR + size;
+                                        }
+                                        else if (typerate > -1)
+                                        {
+                                            long curR = interfacelive[currentParent].CirTotalInput;
+                                            if (curR == -1) curR = 0;
+                                            interfacelive[currentParent].CirTotalInput = curR + typerate;
+                                        }
+                                    }
+                                }
+                                else if (rDir == "outbound")
+                                {
+                                    interfacelive[currentInterface].RateOutput = size;
+
+                                    if (currentParent != null)
+                                    {
+                                        if (size > 0)
+                                        {
+                                            int cur = interfacelive[currentParent].CirConfigTotalOutput;
+                                            if (cur == -1) cur = 0;
+                                            interfacelive[currentParent].CirConfigTotalOutput = cur + size;
+
+                                            long curR = interfacelive[currentParent].CirTotalOutput;
+                                            if (curR == -1) curR = 0;
+                                            interfacelive[currentParent].CirTotalOutput = curR + size;
+                                        }
+                                        else if (typerate > -1)
+                                        {
+                                            long curR = interfacelive[currentParent].CirTotalOutput;
+                                            if (curR == -1) curR = 0;
+                                            interfacelive[currentParent].CirTotalOutput = curR + typerate;
+                                        }
+                                    }
+                                }
                             }
                         }
                         else if (lineTrim.StartsWith("vlan-type"))
@@ -2698,7 +2762,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             //vlan-type dot1q 110
                             //012345678901234567890123456789
                             int dot1q;
-                            if (int.TryParse(lineTrim.Substring(16), out dot1q)) interfacelive[qosInterface].Dot1Q = dot1q;
+                            if (int.TryParse(lineTrim.Substring(16), out dot1q)) interfacelive[currentInterface].Dot1Q = dot1q;
                         }
                     }
                 }
@@ -3019,6 +3083,34 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.UpdateInfo = true;
                         u.Info = li.Info;
                         updateinfo.Append("info ");
+                    }
+                    if (db["MI_Summary_CIRConfigTotalInput"].ToInt(-1) != li.CirConfigTotalInput)
+                    {
+                        update = true;
+                        u.UpdateCirConfigTotalInput = true;
+                        u.CirConfigTotalInput = li.CirConfigTotalInput;
+                        updateinfo.Append("circonfin ");
+                    }
+                    if (db["MI_Summary_CIRConfigTotalOutput"].ToInt(-1) != li.CirConfigTotalOutput)
+                    {
+                        update = true;
+                        u.UpdateCirConfigTotalOutput = true;
+                        u.CirConfigTotalOutput = li.CirConfigTotalOutput;
+                        updateinfo.Append("circonfout ");
+                    }
+                    if (db["MI_Summary_CIRTotalInput"].ToLong(-1) != li.CirTotalInput)
+                    {
+                        update = true;
+                        u.UpdateCirTotalInput = true;
+                        u.CirTotalInput = li.CirTotalInput;
+                        updateinfo.Append("cirin ");
+                    }
+                    if (db["MI_Summary_CIRTotalOutput"].ToLong(-1) != li.CirTotalOutput)
+                    {
+                        update = true;
+                        u.UpdateCirTotalOutput = true;
+                        u.CirTotalOutput = li.CirTotalOutput;
+                        updateinfo.Append("cirout ");
                     }
                     if (db["MI_Summary_SubInterfaceCount"].ToShort(-1) != li.SubInterfaceCount)
                     {

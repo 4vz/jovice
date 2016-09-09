@@ -1706,12 +1706,8 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                 status = line.Substring(30, 7).Trim();
                                 protocol = line.Substring(38, 7).Trim();
 
-                                if (inf.StartsWith("Eth-Trunk")) port = "Ag" + inf.Substring(9);
-                                else
-                                {
-                                    NodeInterface nif = NodeInterface.Parse(inf);
-                                    if (nif != null) port = nif.GetShort();
-                                }
+                                NodeInterface nif = NodeInterface.Parse(inf);
+                                if (nif != null) port = nif.GetShort();
 
                                 if (port != null)
                                 {
@@ -1773,16 +1769,20 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     }
                 }
 
-                if (Request("disp cur int | in interface|vlan-type\\ dot1q", out lines)) return;
+                if (Request("disp cur int | in interface|vlan-type\\ dot1q|qos\\ car\\ cir", out lines)) return;
 
                 //interface Eth-Trunk25.3648
                 //01234567890123456
                 // vlan-type dot1q 3648
+                // qos car cir 102400 cbs 18700000 green pass red discard inbound
+                // qos car cir 102400 cbs 18700000 green pass red discard outbound
                 // 01234567890123456789
                 //interface Eth-Trunk25.3649
                 // vlan-type dot1q 3649
 
                 PEInterfaceToDatabase current = null;
+                PEInterfaceToDatabase currentParent = null;
+                int typerate = -1;
 
                 foreach (string line in lines)
                 {
@@ -1792,12 +1792,25 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                         string ifname = line.Substring(10).Trim();
                         // Eth-Trunk1234.5678
                         // 0123456789
-                        if (ifname.StartsWith("Eth-Trunk")) ifname = "Ag" + ifname.Substring(9);
                         NodeInterface inf = NodeInterface.Parse(ifname);
                         if (inf != null)
                         {
                             string sn = inf.GetShort();
-                            if (interfacelive.ContainsKey(sn)) current = interfacelive[sn];
+                            if (interfacelive.ContainsKey(sn))
+                            {
+                                current = interfacelive[sn];
+
+                                if (inf.IsSubInterface)
+                                {
+                                    string bport = inf.GetBase();
+                                    if (interfacelive.ContainsKey(bport))
+                                    {
+                                        currentParent = interfacelive[bport];
+                                        typerate = inf.GetTypeRate();
+                                    }
+                                }
+                                else currentParent = null;
+                            }
                         }
                     }
                     else if (current != null)
@@ -1809,7 +1822,64 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                             if (int.TryParse(linetrim.Substring(16), out dot1q))
                             {
                                 current.Dot1Q = dot1q;
-                                current = null;
+                            }
+                        }
+                        else if (linetrim.StartsWith("qos car cir"))
+                        {
+                            string[] splits = linetrim.Split(StringSplitTypes.Space);
+                            if (splits.Length > 3)
+                            {
+                                bool inbound = false;
+                                if (linetrim.EndsWith("inbound")) inbound = true;
+
+                                int kbps;
+                                if (int.TryParse(splits[3], out kbps))
+                                {
+                                    if (inbound) current.RateInput = kbps;
+                                    else current.RateOutput = kbps;
+
+                                    if (currentParent != null)
+                                    {
+                                        if (kbps > 0)
+                                        {
+                                            if (inbound)
+                                            {
+                                                int cur = currentParent.CirConfigTotalInput;
+                                                if (cur == -1) cur = 0;
+                                                currentParent.CirConfigTotalInput = cur + kbps;
+
+                                                long curR = currentParent.CirTotalInput;
+                                                if (curR == -1) curR = 0;
+                                                currentParent.CirTotalInput = curR + kbps;
+                                            }
+                                            else
+                                            {
+                                                int cur = currentParent.CirConfigTotalOutput;
+                                                if (cur == -1) cur = 0;
+                                                currentParent.CirConfigTotalOutput = cur + kbps;
+
+                                                long curR = currentParent.CirTotalOutput;
+                                                if (curR == -1) curR = 0;
+                                                currentParent.CirTotalOutput = curR + kbps;
+                                            }
+                                        }
+                                        else if (typerate > -1)
+                                        {
+                                            if (inbound)
+                                            {
+                                                long curR = currentParent.CirTotalInput;
+                                                if (curR == -1) curR = 0;
+                                                currentParent.CirTotalInput = curR + typerate;
+                                            }
+                                            else
+                                            {
+                                                long curR = currentParent.CirTotalOutput;
+                                                if (curR == -1) curR = 0;
+                                                currentParent.CirTotalOutput = curR + typerate;
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

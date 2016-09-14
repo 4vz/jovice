@@ -2029,6 +2029,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                             if (typ == "faste") ity = "Fa";
                                             else if (typ == "xcme") ity = "Gi";
                                             else if (typ == "xgige") ity = "Te";
+                                            else if (typ == "cgige") ity = "Hu";
                                             else if (typ == "tdm") ity = "Se";
 
                                             if (ity != null)

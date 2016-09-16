@@ -219,6 +219,14 @@ namespace Jovice
             set { adjacentID = value; }
         }
 
+        private string adjacentToID = null;
+
+        public string AdjacentToID
+        {
+            get { return adjacentToID; }
+            set { adjacentToID = value; }
+        }
+
         private bool updateAdjacentID = false;
 
         public bool UpdateAdjacentID
@@ -227,9 +235,17 @@ namespace Jovice
             set { updateAdjacentID = value; }
         }
 
-        private Dictionary<int, string> adjacentIDList = null;
+        private bool updateRemoteAdjacentID = false;
 
-        public Dictionary<int, string> AdjacentIDList
+        public bool UpdateRemoteAdjacentID
+        {
+            get { return updateRemoteAdjacentID; }
+            set { updateRemoteAdjacentID = value; }
+        }
+
+        private Dictionary<int, Tuple<string, string>> adjacentIDList = null;
+
+        public Dictionary<int, Tuple<string, string>> AdjacentIDList
         {
             get { return adjacentIDList; }
             set { adjacentIDList = value; }
@@ -412,7 +428,7 @@ namespace Jovice
         private enum EventActions { Add, Remove, Delete, Update }
         private enum EventElements { ALUCustomer, QOS, SDP, Circuit, Interface, Peer, CircuitReference,
             VRFReference, VRF, VRFRouteTarget, InterfaceIP, Service, Customer, NodeReference, InterfaceReference,
-            NodeAlias, NodeSummary, POPInterfaceReference, Routing 
+            NodeAlias, NodeSummary, POPInterfaceReference, Routing, AdjacentInterface
         }
 
         #endregion
@@ -622,6 +638,7 @@ namespace Jovice
                         case EventElements.NodeSummary: sb.Append("node summary"); break;
                         case EventElements.POPInterfaceReference: sb.Append("POP interface reference"); break;
                         case EventElements.Routing: sb.Append("routing"); break;
+                        case EventElements.AdjacentInterface: sb.Append("adjacent interface"); break;
                     }
                 }
                 else
@@ -647,6 +664,7 @@ namespace Jovice
                         case EventElements.NodeSummary: sb.Append("node summaries"); break;
                         case EventElements.POPInterfaceReference: sb.Append("POP interface references"); break;
                         case EventElements.Routing: sb.Append("routings"); break;
+                        case EventElements.AdjacentInterface: sb.Append("adjacent interfaces"); break;
                     }
                 }
                 if (row > 1) sb.Append(" have been ");
@@ -3556,7 +3574,7 @@ namespace Jovice
         }
 
         private bool findMEPhysicalAdjacentLoaded = false;
-        private List<Tuple<string, List<Tuple<string, string, string, string>>>> MEPEAdjacent = null;
+        private List<Tuple<string, List<Tuple<string, string, string, string, string>>>> MEPEAdjacent = null;
         private Dictionary<string, List<string>> meAlias = null;
         private Dictionary<string, string[]> MEInterfaceTestPrefix = null;
 
@@ -3577,7 +3595,7 @@ namespace Jovice
             if (!findMEPhysicalAdjacentLoaded)
             {
                 Result result = Query(@"
-select NO_Name, LEN(NO_Name) as NO_LEN, PI_Name, LEN(PI_Name) as PI_LEN, PI_ID, PI_Description, PI_PI from (
+select NO_Name, LEN(NO_Name) as NO_LEN, PI_Name, LEN(PI_Name) as PI_LEN, PI_ID, PI_Description, PI_PI, PI_TO_MI from (
 select NO_Name, NO_ID from Node where NO_Type = 'P'
 union
 select NA_Name, NA_NO from NodeAlias, Node where NA_NO = NO_ID and NO_Type = 'P'
@@ -3587,8 +3605,8 @@ where NO_ID = PI_NO and PI_Description is not null and ltrim(rtrim(PI_Descriptio
 order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
 ");
 
-                MEPEAdjacent = new List<Tuple<string, List<Tuple<string, string, string, string>>>>();
-                List<Tuple<string, string, string, string>> curlist = new List<Tuple<string, string, string, string>>();
+                MEPEAdjacent = new List<Tuple<string, List<Tuple<string, string, string, string, string>>>>();
+                List<Tuple<string, string, string, string, string>> curlist = new List<Tuple<string, string, string, string, string>>();
                 string curnoname = null;
                 foreach (Row row in result)
                 {
@@ -3597,20 +3615,22 @@ order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
                     string pidesc = row["PI_Description"].ToString();
                     string piid = row["PI_ID"].ToString();
                     string pipi = row["PI_PI"].ToString();
+                    string piToMi = row["PI_TO_MI"].ToString();
 
                     if (curnoname != noname)
                     {
                         if (curnoname != null)
                         {
-                            MEPEAdjacent.Add(new Tuple<string, List<Tuple<string, string, string, string>>>(curnoname, new List<Tuple<string, string, string, string>>(curlist)));
+                            MEPEAdjacent.Add(new Tuple<string, List<Tuple<string, string, string, string, string>>>(curnoname,
+                                new List<Tuple<string, string, string, string, string>>(curlist)));
                             curlist.Clear();
                         }
                         curnoname = noname;                  
                     }
 
-                    curlist.Add(new Tuple<string, string, string, string>(piname, pidesc, piid, pipi));
+                    curlist.Add(new Tuple<string, string, string, string, string>(piname, pidesc, piid, pipi, piToMi));
                 }
-                MEPEAdjacent.Add(new Tuple<string, List<Tuple<string, string, string, string>>>(curnoname, curlist));
+                MEPEAdjacent.Add(new Tuple<string, List<Tuple<string, string, string, string, string>>>(curnoname, curlist));
 
                 result = Query(@"
 select NO_ID, NA_Name from Node, NodeAlias where NA_NO = NO_ID and NO_Type = 'M'
@@ -3647,11 +3667,11 @@ order by NO_ID asc
 
             bool foundnode = false;
 
-            foreach (Tuple<string, List<Tuple<string, string, string, string>>> pe in MEPEAdjacent)
+            foreach (Tuple<string, List<Tuple<string, string, string, string, string>>> pe in MEPEAdjacent)
             {
                 string peName = pe.Item1;
                 
-                List<Tuple<string, string, string, string>> pis = pe.Item2;
+                List<Tuple<string, string, string, string, string>> pis = pe.Item2;
 
                 int peNamePart = description.IndexOf(peName);
 
@@ -3659,12 +3679,12 @@ order by NO_ID asc
                 {
                     foundnode = true;
                     string descPEPart = description.Substring(peNamePart);
-                    Tuple<string, string, string, string> matchedPI = null;
+                    Tuple<string, string, string, string, string> matchedPI = null;
 
                     #region Find in currently available PI
 
                     int locPI = descPEPart.Length;
-                    foreach (Tuple<string, string, string, string> pi in pis)
+                    foreach (Tuple<string, string, string, string, string> pi in pis)
                     {
                         string piName = pi.Item1;
                         string piType = piName.Substring(0, 2);
@@ -3758,6 +3778,7 @@ order by NO_ID asc
                             if (foundinterface)
                             {                                
                                 li.AdjacentID = matchedPI.Item3;
+                                li.AdjacentToID = matchedPI.Item5;
 
                                 if (li.Aggr != -1) // anak agregator ga mgkn punya anak sendiri
                                 {
@@ -3767,14 +3788,14 @@ order by NO_ID asc
                                 else
                                 {
                                     // find pi child
-                                    li.AdjacentIDList = new Dictionary<int, string>();
-                                    Result result = Query("select PI_ID, PI_DOT1Q from PEInterface where PI_PI = {0}", li.AdjacentID);
+                                    li.AdjacentIDList = new Dictionary<int, Tuple<string, string>>();
+                                    Result result = Query("select PI_ID, PI_DOT1Q, PI_TO_MI from PEInterface where PI_PI = {0}", li.AdjacentID);
                                     foreach (Row row in result)
                                     {
                                         if (!row["PI_DOT1Q"].IsNull)
                                         {
                                             int dot1q = row["PI_DOT1Q"].ToShort();
-                                            if (!li.AdjacentIDList.ContainsKey(dot1q)) li.AdjacentIDList.Add(dot1q, row["PI_ID"].ToString());
+                                            if (!li.AdjacentIDList.ContainsKey(dot1q)) li.AdjacentIDList.Add(dot1q, new Tuple<string, string>(row["PI_ID"].ToString(), row["PI_TO_MI"].ToString()));
                                         }
 
                                         //string spiname = row["PI_Name"].ToString();

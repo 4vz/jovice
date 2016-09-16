@@ -269,8 +269,6 @@ namespace Jovice
 
     internal sealed partial class Probe
     {
-        #region Methods
-
         private void PEProcess()
         {
             string[] lines = null;
@@ -1999,15 +1997,16 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                             string adjID = interfacedb[pair.Key]["PI_TO_MI"].ToString();
                             if (adjID != null)
                             {
-                                li.AdjacentIDList = new Dictionary<int, string>();
-                                result = Query("select MI_ID, MI_DOT1Q from MEInterface where MI_MI = {0}", adjID);
+                                li.AdjacentIDList = new Dictionary<int, Tuple<string, string>>();
+                                result = Query("select MI_ID, MI_DOT1Q, MI_TO_PI from MEInterface where MI_MI = {0}", adjID);
                                 foreach (Row row in result)
                                 {
                                     if (!row["MI_DOT1Q"].IsNull)
                                     {
-                                        string spiid = row["MI_ID"].ToString();
+                                        string smiid = row["MI_ID"].ToString();
+                                        string spiid = row["MI_TO_PI"].ToString();
                                         int dot1q = row["MI_DOT1Q"].ToShort();
-                                        if (!li.AdjacentIDList.ContainsKey(dot1q)) li.AdjacentIDList.Add(dot1q, spiid);
+                                        if (!li.AdjacentIDList.ContainsKey(dot1q)) li.AdjacentIDList.Add(dot1q, new Tuple<string, string>(smiid, spiid));
                                     }
                                     //string spiname = row["MI_Name"].ToString();
                                     //int dot = spiname.IndexOf('.');
@@ -2030,7 +2029,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                             if (parent.AdjacentIDList != null)
                             {
                                 if (parent.AdjacentIDList.ContainsKey(dot1q))
-                                    li.AdjacentID = parent.AdjacentIDList[dot1q];
+                                    li.AdjacentID = parent.AdjacentIDList[dot1q].Item1;
                             }
                         }
 
@@ -3455,7 +3454,5 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
             #endregion
         }
-
-        #endregion
     }
 }

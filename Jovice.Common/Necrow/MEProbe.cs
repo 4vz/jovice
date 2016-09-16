@@ -2894,14 +2894,14 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 li.AdjacentID = adjacentParentID;
 
                                 // query lawan
-                                li.AdjacentIDList = new Dictionary<int, string>();
-                                result = Query("select PI_ID, PI_DOT1Q from PEInterface where PI_PI = {0}", li.AdjacentID);
+                                li.AdjacentIDList = new Dictionary<int, Tuple<string, string>>();
+                                result = Query("select PI_ID, PI_DOT1Q, PI_TO_MI from PEInterface where PI_PI = {0}", li.AdjacentID);
                                 foreach (Row row in result)
                                 {
                                     if (!row["PI_DOT1Q"].IsNull)
                                     {
                                         int dot1q = row["PI_DOT1Q"].ToShort();
-                                        if (!li.AdjacentIDList.ContainsKey(dot1q)) li.AdjacentIDList.Add(dot1q, row["PI_ID"].ToString());
+                                        if (!li.AdjacentIDList.ContainsKey(dot1q)) li.AdjacentIDList.Add(dot1q, new Tuple<string, string>(row["PI_ID"].ToString(), row["PI_TO_MI"].ToString()));
                                     }
 
                                     //string spiname = row["PI_Name"].ToString();
@@ -2926,7 +2926,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 if (parent.AdjacentIDList != null)
                                 {
                                     if (parent.AdjacentIDList.ContainsKey(dot1q))
-                                        li.AdjacentID = parent.AdjacentIDList[dot1q];
+                                        li.AdjacentID = parent.AdjacentIDList[dot1q].Item1;
                                 }
                             }
                         }
@@ -2983,6 +2983,13 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.UpdateAdjacentID = true;
                         u.AdjacentID = li.AdjacentID;
                         updateinfo.Append("adj ");
+                    }
+                    else if (li.AdjacentID != null && li.AdjacentToID != u.ID)
+                    {
+                        update = true;
+                        u.UpdateRemoteAdjacentID = true;
+                        u.AdjacentID = li.AdjacentID;
+                        updateinfo.Append("remote-adj ");
                     }
                     if (db["MI_Description"].ToString() != li.Description)
                     {
@@ -3213,6 +3220,10 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     update.Set("MI_TO_PI", s.AdjacentID);
                     interfacereferenceupdate.Add(new Tuple<string, string>(s.AdjacentID, s.ID));
                 }
+                else if (s.UpdateRemoteAdjacentID)
+                {
+                    interfacereferenceupdate.Add(new Tuple<string, string>(s.AdjacentID, s.ID));
+                }
                 if (s.UpdateDescription)
                 {
                     update.Set("MI_Description", s.Description);
@@ -3245,6 +3256,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 else batch.Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI = {0}", tuple.Item2);
             }
             result = batch.Commit();
+            Event(result, EventActions.Update, EventElements.AdjacentInterface, false);
 
             // DELETE
             batch.Begin();

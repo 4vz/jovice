@@ -428,7 +428,8 @@ namespace Jovice
         private enum EventActions { Add, Remove, Delete, Update }
         private enum EventElements { ALUCustomer, QOS, SDP, Circuit, Interface, Peer, CircuitReference,
             VRFReference, VRF, VRFRouteTarget, InterfaceIP, Service, Customer, NodeReference, InterfaceReference,
-            NodeAlias, NodeSummary, POPInterfaceReference, Routing, AdjacentInterface
+            NodeAlias, NodeSummary, POPInterfaceReference, Routing, AdjacentInterface,
+            PrefixList, PrefixEntry
         }
 
         #endregion
@@ -639,6 +640,8 @@ namespace Jovice
                         case EventElements.POPInterfaceReference: sb.Append("POP interface reference"); break;
                         case EventElements.Routing: sb.Append("routing"); break;
                         case EventElements.AdjacentInterface: sb.Append("adjacent interface"); break;
+                        case EventElements.PrefixList: sb.Append("prefix-list"); break;
+                        case EventElements.PrefixEntry: sb.Append("prefix-list entry"); break;
                     }
                 }
                 else
@@ -665,6 +668,8 @@ namespace Jovice
                         case EventElements.POPInterfaceReference: sb.Append("POP interface references"); break;
                         case EventElements.Routing: sb.Append("routings"); break;
                         case EventElements.AdjacentInterface: sb.Append("adjacent interfaces"); break;
+                        case EventElements.PrefixList: sb.Append("prefix-lists"); break;
+                        case EventElements.PrefixEntry: sb.Append("prefix-list entries"); break;
                     }
                 }
                 if (row > 1) sb.Append(" have been ");
@@ -915,7 +920,8 @@ namespace Jovice
                         catch (Exception ex)
                         {
                             Necrow.Log("MAINLOOP", "MESSAGE:" + ex.Message + " STACKTRACE:" + ex.StackTrace);
-
+                            Event("Caught error: " + ex.Message + ", exiting current node...");
+                        
                             Update(UpdateTypes.Remark, "PROBEFAILED");
                         }
 
@@ -1037,13 +1043,13 @@ namespace Jovice
                 // print message where we are waiting (or why)
                 Event(waitMessage + "... (" + loop + ")");
 
-                Event("Last Reading Output: ");
-                int lp = LastOutput.Length - 200;
-                if (lp < 0) lp = 0;
-                string lop = LastOutput.Substring(lp);
-                lop = lop.Replace("\r", "<CR>");
-                lop = lop.Replace("\n", "<NL>");
-                Event(lop);
+                //Event("Last Reading Output: ");
+                //int lp = LastOutput.Length - 200;
+                //if (lp < 0) lp = 0;
+                //string lop = LastOutput.Substring(lp);
+                //lop = lop.Replace("\r", "<CR>");
+                //lop = lop.Replace("\n", "<NL>");
+                //Event(lop);
 
                 // try sending exit characters
                 SendCharacter((char)13);
@@ -1402,13 +1408,13 @@ namespace Jovice
                         {
                             Event("Waiting...");
                             SendLine("");
-                            Event("Last Reading Output: ");
-                            int lp = LastOutput.Length - 200;
-                            if (lp < 0) lp = 0;
-                            string lop = LastOutput.Substring(lp);
-                            lop = lop.Replace("\r", "<CR>");
-                            lop = lop.Replace("\n", "<NL>");
-                            Event(lop);
+                            //Event("Last Reading Output: ");
+                            //int lp = LastOutput.Length - 200;
+                            //if (lp < 0) lp = 0;
+                            //string lop = LastOutput.Substring(lp);
+                            //lop = lop.Replace("\r", "<CR>");
+                            //lop = lop.Replace("\n", "<NL>");
+                            //Event(lop);
                         }
 
                         Thread.Sleep(100);

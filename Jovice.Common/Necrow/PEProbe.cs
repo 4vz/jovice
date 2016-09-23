@@ -263,9 +263,290 @@ namespace Jovice
             get { return wildcard; }
             set { wildcard = value; }
         }
+
+        private string prefixListInID = null;
+
+        public string PrefixListInID
+        {
+            get { return prefixListInID; }
+            set { prefixListInID = value; }
+        }
+
+        private bool updatePrefixListInID = false;
+
+        public bool UpdatePrefixListInID
+        {
+            get { return updatePrefixListInID; }
+            set { updatePrefixListInID = value; }
+        }
+
+        private string prefixListInGone = null;
+
+        public string PrefixListInGone
+        {
+            get { return prefixListInGone; }
+            set { prefixListInGone = value; }
+        }
+
+        private bool updatePrefixListInGone = false;
+
+        public bool UpdatePrefixListInGone
+        {
+            get { return updatePrefixListInGone; }
+            set { updatePrefixListInGone = value; }
+        }
+
+        private string prefixListOutID = null;
+
+        public string PrefixListOutID
+        {
+            get { return prefixListOutID; }
+            set { prefixListOutID = value; }
+        }
+
+        private bool updatePrefixListOutID = false;
+
+        public bool UpdatePrefixListOutID
+        {
+            get { return updatePrefixListOutID; }
+            set { updatePrefixListOutID = value; }
+        }
+
+        private string prefixListOutGone = null;
+
+        public string PrefixListOutGone
+        {
+            get { return prefixListOutGone; }
+            set { prefixListOutGone = value; }
+        }
+
+        private bool updatePrefixListOutGone = false;
+
+        public bool UpdatePrefixListOutGone
+        {
+            get { return updatePrefixListOutGone; }
+            set { updatePrefixListOutGone = value; }
+        }
+
+        private int maximumPrefix = -1;
+
+        public int MaximumPrefix
+        {
+            get { return maximumPrefix; }
+            set { maximumPrefix = value; }
+        }
+
+        private bool updateMaximumPrefix = false;
+
+        public bool UpdateMaximumPrefix
+        {
+            get { return updateMaximumPrefix; }
+            set { updateMaximumPrefix = value; }
+        }
+
+        private int maximumPrefixThreshold = -1;
+
+        public int MaximumPrefixThreshold
+        {
+            get { return maximumPrefixThreshold; }
+            set { maximumPrefixThreshold = value; }
+        }
+
+        private bool updateMaximumPrefixThreshold = false;
+
+        public bool UpdateMaximumPrefixThreshold
+        {
+            get { return updateMaximumPrefixThreshold; }
+            set { updateMaximumPrefixThreshold = value; }
+        }
+
+        private bool? maximumPrefixWarningOnly;
+
+        public bool? MaximumPrefixWarningOnly
+        {
+            get { return maximumPrefixWarningOnly; }
+            set { maximumPrefixWarningOnly = value; }
+        }
+
+        private bool updateMaximumPrefixWarningOnly = false;
+
+        public bool UpdateMaximumPrefixWarningOnly
+        {
+            get { return updateMaximumPrefixWarningOnly; }
+            set { updateMaximumPrefixWarningOnly = value; }
+        }
+
+        private string routePolicyIn = null;
+
+        public string RoutePolicyIn
+        {
+            get { return routePolicyIn; }
+            set { routePolicyIn = value; }
+        }
+
+        private bool updateRoutePolicyIn = false;
+
+        public bool UpdateRoutePolicyIn
+        {
+            get { return updateRoutePolicyIn; }
+            set { updateRoutePolicyIn = value; }
+        }
+
+        private string routePolicyOut = null;
+
+        public string RoutePolicyOut
+        {
+            get { return routePolicyOut; }
+            set { routePolicyOut = value; }
+        }
+
+        private bool updateRoutePolicyOut = false;
+
+        public bool UpdateRoutePolicyOut
+        {
+            get { return updateRoutePolicyOut; }
+            set { updateRoutePolicyOut = value; }
+        }
+
+        private string messageDigestKey;
+
+        public string MessageDigestKey
+        {
+            get { return messageDigestKey; }
+            set { messageDigestKey = value; }
+        }
+
+        private bool updateMessageDigestKey = false;
+
+        public bool UpdateMessageDigestKey
+        {
+            get { return updateMessageDigestKey; }
+            set { updateMessageDigestKey = value; }
+        }
+
+        private string interfaceNetwork;
+
+        public string InterfaceNetwork
+        {
+            get { return interfaceNetwork; }
+            set { interfaceNetwork = value; }
+        }
+
+        private bool updateInterfaceNetwork = false;
+
+        public bool UpdateInterfaceNetwork
+        {
+            get { return updateInterfaceNetwork; }
+            set { updateInterfaceNetwork = value; }
+        }
+    }
+
+    class PEPrefixListToDatabase : ToDatabase
+    {
+        private string name;
+
+        public string Name
+        {
+            get { return name; }
+            set { name = value; }
+        }
+    }
+
+    class PEPrefixEntryToDatabase : ToDatabase
+    {
+        private string prefixListID;
+
+        public string PrefixListID
+        {
+            get { return prefixListID; }
+            set { prefixListID = value; }
+        }
+        
+        private string network;
+
+        public string Network
+        {
+            get { return network; }
+            set { network = value; }
+        }
+
+        private int sequence;
+
+        public int Sequence
+        {
+            get { return sequence; }
+            set { sequence = value; }
+        }
+
+        private bool updateSequence = false;
+
+        public bool UpdateSequence
+        {
+            get { return updateSequence; }
+            set { updateSequence = value; }
+        }
+
+        private string access;
+
+        public string Access
+        {
+            get { return access; }
+            set { access = value; }
+        }
+
+        private bool updateAccess = false;
+
+        public bool UpdateAccess
+        {
+            get { return updateAccess; }
+            set { updateAccess = value; }
+        }
+
+        private int ge;
+
+        public int GE
+        {
+            get { return ge; }
+            set { ge = value; }
+        }
+
+        private bool updateGE = false;
+
+        public bool UpdateGE
+        {
+            get { return updateGE; }
+            set { updateGE = value; }
+        }
+
+        private int le;
+
+        public int LE
+        {
+            get { return le; }
+            set { le = value; }
+        }
+
+        private bool updateLE = false;
+
+        public bool UpdateLE
+        {
+            get { return updateLE; }
+            set { updateLE = value; }
+        }
     }
 
     #endregion
+
+    class NeighborGroup : PERouteUseToDatabase
+    {
+        #region Fields
+
+        #endregion
+
+        #region Constructors
+
+        #endregion
+    }
 
     internal sealed partial class Probe
     {
@@ -276,7 +557,7 @@ namespace Jovice
             Result result;
 
             #region VRF
-            
+
             Dictionary<string, PERouteNameToDatabase> routenamelive = new Dictionary<string, PERouteNameToDatabase>();
             Dictionary<string, Row> routenamedb = QueryDictionary("select * from PERouteName where PN_NO = {0}", "PN_Name", nodeID);
             Dictionary<string, List<string>> routetargetlocaldb = new Dictionary<string, List<string>>();
@@ -303,7 +584,7 @@ namespace Jovice
             List<PERouteNameToDatabase> routenameupdate = new List<PERouteNameToDatabase>();
 
             string[] hweDisplayIPVPNInstanceVerboseLines = null;
-                   
+
             Event("Checking VRF");
 
             #region Live
@@ -529,7 +810,7 @@ namespace Jovice
             }
 
             #endregion
-                       
+
             #region Check
 
             foreach (KeyValuePair<string, PERouteNameToDatabase> pair in routenamelive)
@@ -598,7 +879,7 @@ namespace Jovice
 
             // Search/set route targets
             List<PERouteNameToDatabase> routetargetsearch = new List<PERouteNameToDatabase>(routenameinsert);
-            foreach (PERouteNameToDatabase u in routenameupdate) { if (u.UpdateRouteTargets) routetargetsearch.Add(u); }            
+            foreach (PERouteNameToDatabase u in routenameupdate) { if (u.UpdateRouteTargets) routetargetsearch.Add(u); }
             Dictionary<int, Result> routesearch = new Dictionary<int, Result>();
 
             foreach (PERouteNameToDatabase s in routetargetsearch)
@@ -652,7 +933,7 @@ namespace Jovice
             #region Execute
 
             // ADD
-            
+
             // Route
             batch.Begin();
             foreach (KeyValuePair<string, string[]> pair in routetargetinsert)
@@ -661,7 +942,7 @@ namespace Jovice
             }
             result = batch.Commit();
             Event(result, EventActions.Add, EventElements.VRF, false);
-            
+
             // Route Target
             batch.Begin();
             foreach (KeyValuePair<string, string[]> pair in routetargetinsert)
@@ -713,15 +994,15 @@ namespace Jovice
             #endregion
 
             routenamedb = QueryDictionary("select * from PERouteName where PN_NO = {0}", "PN_Name", nodeID);
-            
+
             #endregion
 
             #region QOS
-            
+
             Dictionary<string, PEQOSToDatabase> qoslive = new Dictionary<string, PEQOSToDatabase>();
             Dictionary<string, Row> qosdb = QueryDictionary("select * from PEQOS where PQ_NO = {0}", "PQ_Name", nodeID);
             List<PEQOSToDatabase> qosinsert = new List<PEQOSToDatabase>();
-                      
+
             Event("Checking QOS");
 
             #region Live
@@ -819,7 +1100,7 @@ namespace Jovice
             }
 
             #endregion
-                     
+
             #region Check
 
             foreach (KeyValuePair<string, PEQOSToDatabase> pair in qoslive)
@@ -860,11 +1141,11 @@ namespace Jovice
             #endregion
 
             qosdb = QueryDictionary("select * from PEQOS where PQ_NO = {0}", "PQ_Name", nodeID);
-            
+
             #endregion
 
             #region INTERFACE
-            
+
             SortedDictionary<string, PEInterfaceToDatabase> interfacelive = new SortedDictionary<string, PEInterfaceToDatabase>();
             Dictionary<string, Row> interfacedb = QueryDictionary("select * from PEInterface where PI_NO = {0}", "PI_Name", nodeID);
             Dictionary<string, List<string[]>> ipdb = new Dictionary<string, List<string[]>>();
@@ -889,7 +1170,7 @@ namespace Jovice
             Dictionary<string, List<string>> ipdelete = new Dictionary<string, List<string>>();
 
             ServiceReference interfaceservicereference = new ServiceReference();
-            
+
             Event("Checking Interface");
 
             #region Live
@@ -1882,7 +2163,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                         }
                     }
                 }
-                
+
                 string cvrf = null;
                 foreach (string line in hweDisplayIPVPNInstanceVerboseLines)
                 {
@@ -2058,7 +2339,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
                     // Service
                     if (li.Description != null) interfaceservicereference.Add(li, li.Description);
-                    
+
                     li.ID = Database.ID();
                     interfaceinsert.Add(li.Name, li);
                 }
@@ -2126,7 +2407,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                         update = true;
                         u.UpdateDot1Q = true;
                         u.Dot1Q = li.Dot1Q;
-                        updateinfo.Append("dot1q ");                        
+                        updateinfo.Append("dot1q ");
                     }
                     if (db["PI_Aggregator"].ToShort(-1) != li.Aggr)
                     {
@@ -2416,7 +2697,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     insert.Value("PP_Type", ip.Substring(0, 1));
                     insert.Value("PP_IP", ip.Substring(2));
                     batch.Execute(insert);
-                }               
+                }
             }
             result = batch.Commit();
             Event(result, EventActions.Add, EventElements.InterfaceIP, false);
@@ -2506,7 +2787,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
             #region ROUTING
 
             Dictionary<string, PERouteUseToDatabase> routeuselive = new Dictionary<string, PERouteUseToDatabase>();
-            Dictionary<string, Row> routeusedb = QueryDictionary("select PERouteUse.* from PERouteUse, PERouteName where PU_PN = PN_ID and PN_NO = {0}", delegate(Row row)
+            Dictionary<string, Row> routeusedb = QueryDictionary("select PERouteUse.* from PERouteUse, PERouteName where PU_PN = PN_ID and PN_NO = {0}", delegate (Row row)
             {
                 StringBuilder keysb = new StringBuilder();
 
@@ -2516,7 +2797,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                 string type = row["PU_Type"].ToString();
                 keysb.Append(type);
                 keysb.Append("_");
-                
+
                 if (type == "S")
                 {
                     keysb.Append(row["PU_Network"].ToString());
@@ -2567,6 +2848,18 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
             }, nodeID);
             List<PERouteUseToDatabase> routeuseinsert = new List<PERouteUseToDatabase>();
+            List<PERouteUseToDatabase> routeuseupdate = new List<PERouteUseToDatabase>();
+
+            Dictionary<string, Tuple<PEPrefixListToDatabase, List<PEPrefixEntryToDatabase>>> prefixlistlive = new Dictionary<string, Tuple<PEPrefixListToDatabase, List<PEPrefixEntryToDatabase>>>();
+            Dictionary<string, Row> prefixlistdb = QueryDictionary("select * from PEPrefixList where PX_NO = {0}", "PX_Name", nodeID);
+            Dictionary<string, Row> prefixentrydb = QueryDictionary("select PX_Name, PEPrefixEntry.* from PEPrefixEntry, PEPrefixList where PY_PX = PX_ID and PX_NO = {0}", delegate (Row row)
+            {
+                return row["PX_Name"].ToString() + "_" + row["PY_Network"].ToString() + "_" + row["PY_Sequence"].ToShort(-1) + "_" + row["PY_Access"].ToString() + "_" + row["PY_Ge"].ToShort(-1) + "_" + row["PY_Le"].ToShort(-1);
+            }, nodeID);
+            List<PEPrefixListToDatabase> prefixlistinsert = new List<PEPrefixListToDatabase>();
+            List<PEPrefixEntryToDatabase> prefixentryinsert = new List<PEPrefixEntryToDatabase>();
+            List<PEPrefixEntryToDatabase> prefixentryupdate = new List<PEPrefixEntryToDatabase>();
+            List<string> prefixentrydelete = new List<string>();
 
             Event("Checking Routing");
 
@@ -2673,19 +2966,209 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
                     #endregion
 
-                    #region BGP
-                    if (Request("sh run router bgp", out lines)) return;
+                    #region PREFIX-SET and ROUTE POLICY LANGUAGE
 
-                    currentRouteNameID = null;
-                    currentNeighbor = null;
-                    currentRemoteAS = null;
+                    if (Request(@"show rpl prefix-set", out lines)) return;
+                    //Wed Sep 21 15:23:41.177 GMT
+                    //Listing for all Prefix Set objects
+
+                    //prefix-set OSS_JT2
+                    //012345678901
+                    //  61.94.111.0/24 ge 32 le 32
+                    //      0           1  2 3  4
+                    //end-set
+                    //!
+                    //prefix-set TO-GLOBAL
+                    //  0.0.0.0/0
+                    //end-set
+                    //!
+                    //prefix-set FROM-ASTINET-AJB
+                    //  202.134.6.96/28
+                    //end-set
+
+                    string currentPrefixList = null;
 
                     foreach (string line in lines)
                     {
                         string linetrim = line.Trim();
                         if (linetrim.Length > 0)
                         {
-                            if (linetrim.StartsWith("vrf "))
+                            if (linetrim.StartsWith("prefix-set"))
+                            {
+                                string name = linetrim.Substring(11);
+                                if (!prefixlistlive.ContainsKey(name))
+                                {
+                                    PEPrefixListToDatabase pl = new PEPrefixListToDatabase();
+                                    pl.Name = name;
+                                    prefixlistlive.Add(name, new Tuple<PEPrefixListToDatabase, List<PEPrefixEntryToDatabase>>(pl, new List<PEPrefixEntryToDatabase>()));
+                                }
+                                currentPrefixList = name;
+                            }
+                            else if (linetrim.StartsWith("end-set"))
+                            {
+                                currentPrefixList = null;
+                            }
+                            else if (currentPrefixList != null)
+                            {
+                                string[] secs = linetrim.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                                string network = secs[0];
+                                int ge = -1;
+                                int le = -1;
+                                if (secs.Length > 2)
+                                {
+                                    if (secs[1] == "ge")
+                                    {
+                                        int.TryParse(secs[2], out ge);
+                                        if (secs.Length > 4 && secs[3] == "le") int.TryParse(secs[4], out le);
+                                    }
+                                    else if (secs[1] == "le")
+                                    {
+                                        int.TryParse(secs[2], out le);
+                                        if (secs.Length > 4 && secs[3] == "ge") int.TryParse(secs[4], out ge); // probably no, since ge always before le, lol
+                                    }
+                                }
+
+                                PEPrefixEntryToDatabase pe = new PEPrefixEntryToDatabase();
+                                pe.Sequence = -1;
+                                pe.Network = network;
+                                pe.GE = ge;
+                                pe.LE = le;
+
+                                prefixlistlive[currentPrefixList].Item2.Add(pe);
+                            }
+                        }
+                    }
+
+                    //RP/0/RSP1/CPU0:PE2-D2-JT2-VPN#show rpl route-policy
+                    //Wed Sep 21 19:34:30.619 GMT
+                    //Listing for all Route Policy objects
+
+                    //route-policy AIA
+                    //01234567890123
+                    //  if destination in AIA then
+                    //    drop
+                    //  else
+                    //    pass
+                    //  endif
+                    //end-policy
+                    //!
+                    Dictionary<string, string> rpl = new Dictionary<string, string>();
+
+                    if (Request(@"show rpl route-policy", out lines)) return;
+
+                    StringBuilder caps = new StringBuilder();
+                    string currentRPL = null;
+
+                    foreach (string line in lines)
+                    {
+                        if (currentRPL != null)
+                        {
+                            if (line.StartsWith("end-policy"))
+                            {
+                                rpl.Add(currentRPL, caps.ToString());
+                                currentRPL = null;
+                            }
+                            else
+                            {
+                                caps.AppendLine(line);
+                            }
+                        }
+                        else if (line.StartsWith("route-policy "))
+                        {
+                            currentRPL = line.Substring(13);
+                            caps.Clear();
+                        }
+                    }
+
+                    #endregion
+
+                    #region BGP
+                    if (Request("sh run router bgp", out lines)) return;
+
+                    currentRouteNameID = null;
+                    currentNeighbor = null;
+                    currentRemoteAS = null;
+                    string currentUseNeighborGroup = null;
+                    string currentUseRPLIN = null;
+                    string currentUseRPLOUT = null;
+
+                    string currentNeighborGroup = null;
+                    string currentMaximumPrefix = null;
+                    string currentMaximumPrefixThres = null;
+                    string currentMaximumPrefixWO = null;
+                    string currentRPLIN = null;
+                    string currentRPLOUT = null;
+
+                    Dictionary<string, NeighborGroup> neighborGroups = new Dictionary<string, NeighborGroup>();
+
+                    foreach (string line in lines)
+                    {
+                        string linetrim = line.Trim();
+                        if (linetrim.Length > 0)
+                        {
+                            //neighbor-group AFIS
+                            //01234567890123456789
+
+                            if (linetrim.StartsWith("neighbor-group "))
+                            {
+                                currentNeighborGroup = linetrim.Substring(15);
+                            }
+                            else if (currentNeighborGroup != null)
+                            {
+                                if (linetrim.StartsWith("maximum-prefix "))
+                                {
+                                    string[] splits = linetrim.Split(StringSplitTypes.Space);
+                                    //maximum-prefix 10 90 warning-only
+                                    // 0              1  2   3
+                                    currentMaximumPrefix = splits[1];
+                                    if (splits.Length > 2)
+                                    {
+                                        if (splits[2] == "warning-only") currentMaximumPrefixWO = "warning-only";
+                                        else currentMaximumPrefixThres = splits[2];
+                                    }
+                                    if (splits.Length > 3 && currentMaximumPrefixWO == null)
+                                    {
+                                        if (splits[3] == "warning-only") currentMaximumPrefixWO = "warning-only";
+                                    }
+                                }
+                                if (linetrim.StartsWith("route-policy "))
+                                {
+                                    //route-policy TO-DOMESTIK out
+                                    string[] rps = linetrim.Split(StringSplitTypes.Space);
+                                    if (rpl.ContainsKey(rps[1]))
+                                    {
+                                        string dir = rps[2];
+                                        if (dir == "in") currentRPLIN = rpl[rps[1]];
+                                        else if (dir == "out") currentRPLOUT = rpl[rps[1]];
+                                    }
+                                }
+                                if (linetrim == "!")
+                                {
+                                    NeighborGroup g = new NeighborGroup();
+
+                                    // maximum prefix
+                                    if (currentMaximumPrefix != null)
+                                    {
+                                        int mp;
+                                        if (int.TryParse(currentMaximumPrefix, out mp)) g.MaximumPrefix = mp;
+                                        if (currentMaximumPrefixThres != null && int.TryParse(currentMaximumPrefixThres, out mp)) g.MaximumPrefixThreshold = mp;
+                                        if (currentMaximumPrefixWO == "warning-only") g.MaximumPrefixWarningOnly = true;
+                                    }
+                                    // rpl
+                                    if (currentRPLIN != null) g.RoutePolicyIn = currentRPLIN;
+                                    if (currentRPLOUT != null) g.RoutePolicyOut = currentRPLOUT;
+
+                                    neighborGroups.Add(currentNeighborGroup, g);
+
+                                    currentNeighborGroup = null;
+                                    currentMaximumPrefix = null;
+                                    currentMaximumPrefixThres = null;
+                                    currentMaximumPrefixWO = null;
+                                    currentRPLIN = null;
+                                    currentRPLOUT = null;
+                                }
+                            }
+                            else if (linetrim.StartsWith("vrf "))
                             {
                                 string vrfname = linetrim.Substring(4);
                                 if (routenamedb.ContainsKey(vrfname) && routenamelive.ContainsKey(vrfname))
@@ -2696,35 +3179,62 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                 currentNeighbor = null;
                             }
                             else if (currentRouteNameID != null)
-                            { 
+                            {
                                 if (linetrim.StartsWith("neighbor "))
                                 {
                                     currentNeighbor = linetrim.Substring(9);
                                     currentRemoteAS = null;
+                                    currentUseNeighborGroup = null;
+                                    currentUseRPLIN = null;
+                                    currentUseRPLOUT = null;
                                 }
-                                if (linetrim.StartsWith("remote-as "))
+                                if (linetrim.StartsWith("remote-as ")) currentRemoteAS = linetrim.Substring(10);
+                                if (linetrim.StartsWith("use neighbor-group ")) currentUseNeighborGroup = linetrim.Substring(19);
+                                if (linetrim.StartsWith("route policy "))
                                 {
-                                    currentRemoteAS = linetrim.Substring(10);
+                                    //route-policy TO-DOMESTIK out
+                                    string[] rps = linetrim.Split(StringSplitTypes.Space);
+                                    if (rpl.ContainsKey(rps[1]))
+                                    {
+                                        string dir = rps[2];
+                                        if (dir == "in") currentUseRPLIN = rpl[rps[1]];
+                                        else if (dir == "out") currentUseRPLOUT = rpl[rps[1]];
+                                    }
                                 }
-
                                 if (linetrim == "!")
                                 {
-                                    if (currentNeighbor != null && currentRemoteAS != null)
+                                    if (currentNeighbor != null)
                                     {
                                         PERouteUseToDatabase i = new PERouteUseToDatabase();
                                         i.RouteNameID = currentRouteNameID;
                                         i.Type = "B";
                                         i.Neighbor = currentNeighbor;
 
-                                        int ras = -1;
-                                        if (int.TryParse(currentRemoteAS, out ras)) i.RemoteAS = ras;
+                                        if (currentUseNeighborGroup != null && neighborGroups.ContainsKey(currentUseNeighborGroup))
+                                        {
+                                            NeighborGroup g = neighborGroups[currentUseNeighborGroup];
+
+                                            i.MaximumPrefix = g.MaximumPrefix;
+                                            i.MaximumPrefixThreshold = g.MaximumPrefixThreshold;
+                                            i.MaximumPrefixWarningOnly = g.MaximumPrefixWarningOnly;
+                                            i.RoutePolicyIn = g.RoutePolicyIn;
+                                            i.RoutePolicyOut = g.RoutePolicyOut;
+                                        }
+
+                                        if (currentRemoteAS != null)
+                                        {
+                                            int ras = -1;
+                                            if (int.TryParse(currentRemoteAS, out ras)) i.RemoteAS = ras;
+                                        }
+
+                                        if (currentUseRPLIN != null) i.RoutePolicyIn = currentUseRPLIN;
+                                        if (currentUseRPLOUT != null) i.RoutePolicyOut = currentUseRPLOUT;
 
                                         string key = currentRouteNameID + "_B_" + currentNeighbor + "_" + (i.RemoteAS != -1 ? i.RemoteAS + "" : "");
                                         routeuselive.Add(key, i);
                                     }
 
                                     currentNeighbor = null;
-                                    currentRemoteAS = null;
                                 }
                             }
                         }
@@ -2740,6 +3250,9 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     currentArea = null;
                     currentInterface = null;
                     currentNeighbor = null;
+
+                    string currentMessageDigestKey = null;
+                    string currentOspfInterfaceNetwork = null;
 
                     foreach (string line in lines)
                     {
@@ -2779,13 +3292,14 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                             if (nif != null) currentInterface = nif.GetShort();
 
                                             currentNeighbor = null;
+                                            currentMessageDigestKey = null;
+                                            currentOspfInterfaceNetwork = null;
                                         }
                                         else if (currentInterface != null)
                                         {
-                                            if (linetrim.StartsWith("neighbor "))
-                                            {
-                                                currentNeighbor = linetrim.Substring(9);
-                                            }
+                                            if (linetrim.StartsWith("neighbor ")) currentNeighbor = linetrim.Substring(9);
+                                            else if (linetrim.StartsWith("message-digest-key ")) currentMessageDigestKey = linetrim.Substring(19);
+                                            else if (linetrim.StartsWith("network ")) currentOspfInterfaceNetwork = linetrim.Substring(8);
                                             else if (linetrim == "!")
                                             {
                                                 PERouteUseToDatabase i = new PERouteUseToDatabase();
@@ -2809,11 +3323,25 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                                 else if (currentInterface != null)
                                                     i.InterfaceGone = currentInterface;
 
+                                                if (currentMessageDigestKey != null) i.MessageDigestKey = currentMessageDigestKey;
+                                                if (currentOspfInterfaceNetwork != null)
+                                                {
+                                                    switch (currentOspfInterfaceNetwork)
+                                                    {
+                                                        case "broadcast": i.InterfaceNetwork = "B"; break;
+                                                        case "non-broadcast": i.InterfaceNetwork = "N"; break;
+                                                        case "point-to-multipoint": i.InterfaceNetwork = "M"; break;
+                                                        case "point-to-point": i.InterfaceNetwork = "P"; break;
+                                                    }
+                                                }
+
                                                 string key = currentRouteNameID + "_O_" + currentProcess + "_" + currentArea + "_" + (interfaceID != null ? interfaceID : currentInterface != null ? currentInterface : "") + "__";
                                                 routeuselive.Add(key, i);
 
                                                 currentInterface = null;
                                                 currentNeighbor = null;
+                                                currentMessageDigestKey = null;
+                                                currentOspfInterfaceNetwork = null;
                                             }
                                         }
                                     }
@@ -2972,7 +3500,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                 string vrf = linex[0];
                                 if (routenamedb.ContainsKey(vrf) && routenamelive.ContainsKey(vrf))
                                 {
-                                    string routeNameID = routenamedb[vrf]["PN_ID"].ToString();                                    
+                                    string routeNameID = routenamedb[vrf]["PN_ID"].ToString();
                                     string network = linex[1];
                                     string netmask = linex[2];
                                     string ifname = null;
@@ -3021,13 +3549,91 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
                     #endregion
 
-                    #region BGP, RIP, OSPF, EIGRP
+                    #region PREFIX-LIST
+
+                    if (Request(@"show ip prefix-list", out lines)) return;
+                    //PE-D2-JT2-INET#show ip prefix-list
+                    //ip prefix-list ADV-DEFAULT: 1 entries
+                    //   seq 5 permit 0.0.0.0/0
+                    //ip prefix-list ADV-NONE: 1 entries
+                    //   seq 5 deny 0.0.0.0/0
+                    //ip prefix-list ADV-TO-BRAS: 1 entries
+                    //   seq 10 permit 0.0.0.0/0
+                    //ip prefix-list AST-BB-TRIHAMAS: 3 entries
+                    //0123456789012345678901234567890123456789
+                    //   seq 5 permit 180.250.67.56/29
+                    //   seq 10 permit 180.250.72.184/29 ge 1 le 32
+                    //    0   1    2           3          4  5 6  7
+                    //    1   2    3           4          5  6 7  8
+                    //   seq 20 deny 0.0.0.0/0 le 32
+
+                    string currentPrefixList = null;
+
+                    foreach (string line in lines)
+                    {
+                        string linetrim = line.Trim();
+                        if (linetrim.Length > 0)
+                        {
+                            if (linetrim.StartsWith("ip prefix-list"))
+                            {
+                                string name = linetrim.Substring(15, linetrim.IndexOf(':') - 15);
+                                if (!prefixlistlive.ContainsKey(name))
+                                {
+                                    PEPrefixListToDatabase pl = new PEPrefixListToDatabase();
+                                    pl.Name = name;
+                                    prefixlistlive.Add(name, new Tuple<PEPrefixListToDatabase, List<PEPrefixEntryToDatabase>>(pl, new List<PEPrefixEntryToDatabase>()));
+                                }
+                                currentPrefixList = name;
+                            }
+                            else if (currentPrefixList != null && linetrim.StartsWith("seq"))
+                            {
+                                string[] secs = linetrim.Split(StringSplitTypes.Space);
+                                int seq = -1;
+                                if (!int.TryParse(secs[1], out seq)) seq = -1;
+                                string access = secs[2];
+                                string network = secs[3];
+                                int ge = -1;
+                                int le = -1;
+                                if (secs.Length > 5)
+                                {
+                                    if (secs[4] == "ge")
+                                    {
+                                        int.TryParse(secs[5], out ge);
+                                        if (secs.Length > 7 && secs[6] == "le") int.TryParse(secs[7], out le);
+                                    }
+                                    else if (secs[4] == "le")
+                                    {
+                                        int.TryParse(secs[5], out le);
+                                        if (secs.Length > 7 && secs[6] == "ge") int.TryParse(secs[7], out ge); // probably no, since ge always before le, lol
+                                    }
+                                }
+
+                                PEPrefixEntryToDatabase pe = new PEPrefixEntryToDatabase();
+                                pe.Sequence = seq;
+                                pe.Access = access == "permit" ? "P" : "D";
+                                pe.Network = network;
+                                pe.GE = ge;
+                                pe.LE = le;
+
+                                prefixlistlive[currentPrefixList].Item2.Add(pe);
+                            }
+                        }
+                    }
+
+                    #endregion
+
+                    #region BGP, RIP, OSPF, EIGRP                    
 
                     string currentRouter = null;
                     string currentRouteNameID = null;
                     string currentNeighbor = null;
                     string currentRemoteAS = null;
                     string currentProcess = null;
+                    string currentPrefixListIN = null;
+                    string currentPrefixListOUT = null;
+                    string currentMaximumPrefix = null;
+                    string currentMaximumPrefixThres = null;
+                    string currentMaximumPrefixWO = null;
 
                     //sh run | in \ address-family|\ \ neighbor|\ exit-address-family
                     if (Request(@"sh run | in router\ bgp|router\ rip|router\ ospf|router\ eigrp|\ address-family\ ipv4\ vrf|\ \ neighbor|\ exit-address-family|\ network\ ", out lines)) return;
@@ -3107,7 +3713,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                         PERouteUseToDatabase i = new PERouteUseToDatabase();
                                         i.RouteNameID = currentRouteNameID;
                                         i.Type = "O";
-                                        i.Network = network; 
+                                        i.Network = network;
                                         i.Wildcard = wcmask;
 
                                         int oprocess, oarea;
@@ -3155,26 +3761,63 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                     if (currentNeighbor != null && thisneighbor != currentNeighbor)
                                     {
                                         // save current neighbor
-                                        if (currentRemoteAS != null)
+                                        PERouteUseToDatabase i = new PERouteUseToDatabase();
+                                        i.RouteNameID = currentRouteNameID;
+                                        i.Type = "B";
+                                        i.Neighbor = currentNeighbor;
+                                        i.PrefixListInID = currentPrefixListIN;
+                                        i.PrefixListOutID = currentPrefixListOUT;
+
+                                        if (currentMaximumPrefix != null)
                                         {
-                                            PERouteUseToDatabase i = new PERouteUseToDatabase();
-                                            i.RouteNameID = currentRouteNameID;
-                                            i.Type = "B";
-                                            i.Neighbor = currentNeighbor;
-
-                                            int ras = -1;
-                                            if (int.TryParse(currentRemoteAS, out ras)) i.RemoteAS = ras;
-
-                                            string key = currentRouteNameID + "_B_" + currentNeighbor + "_" + (i.RemoteAS != -1 ? i.RemoteAS + "" : "");
-                                            routeuselive.Add(key, i);
+                                            int mp;
+                                            if (int.TryParse(currentMaximumPrefix, out mp))
+                                            {
+                                                i.MaximumPrefix = mp;
+                                                if (currentMaximumPrefixThres != null)
+                                                {
+                                                    if (int.TryParse(currentMaximumPrefixThres, out mp)) i.MaximumPrefixThreshold = mp;
+                                                    if (currentMaximumPrefixWO == "warning-only") i.MaximumPrefixWarningOnly = true;
+                                                }
+                                            }
                                         }
+
+
+                                        int ras = -1;
+                                        if (int.TryParse(currentRemoteAS, out ras)) i.RemoteAS = ras;
+
+                                        string key = currentRouteNameID + "_B_" + currentNeighbor + "_" + (i.RemoteAS != -1 ? i.RemoteAS + "" : "");
+                                        routeuselive.Add(key, i);
 
                                         currentNeighbor = thisneighbor;
                                         currentRemoteAS = null;
+                                        currentPrefixListIN = null;
+                                        currentPrefixListOUT = null;
+                                        currentMaximumPrefix = null;
+                                        currentMaximumPrefixThres = null;
+                                        currentMaximumPrefixWO = null;
                                     }
                                     else currentNeighbor = thisneighbor;
 
                                     if (neighborx[2] == "remote-as") currentRemoteAS = neighborx[3];
+                                    else if (neighborx[2] == "prefix-list")
+                                    {
+                                        if (neighborx[4] == "in") currentPrefixListIN = neighborx[3];
+                                        else if (neighborx[4] == "out") currentPrefixListOUT = neighborx[3];
+                                    }
+                                    else if (neighborx[2] == "maximum-prefix")
+                                    {
+                                        currentMaximumPrefix = neighborx[3];
+                                        if (neighborx.Length > 4)
+                                        {
+                                            if (neighborx[4] == "warning-only") currentMaximumPrefixWO = "warning-only";
+                                            else currentMaximumPrefixThres = neighborx[4];
+                                        }
+                                        if (neighborx.Length > 5 && currentMaximumPrefixWO == null)
+                                        {
+                                            if (neighborx[5] == "warning-only") currentMaximumPrefixWO = "warning-only";
+                                        }
+                                    }
                                 }
                             }
                             else if (linetrim.StartsWith("address-family ipv4 vrf"))
@@ -3216,7 +3859,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                 }
 
                                 currentRouteNameID = null;
-                            }                            
+                            }
                         }
                     }
 
@@ -3232,22 +3875,152 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
             #region Check
 
+            foreach (KeyValuePair<string, Tuple<PEPrefixListToDatabase, List<PEPrefixEntryToDatabase>>> pair in prefixlistlive)
+            {
+                PEPrefixListToDatabase li = pair.Value.Item1;
+
+                if (!prefixlistdb.ContainsKey(pair.Key))
+                {
+                    Event("Prefix-List ADD: " + pair.Key);
+
+                    li.ID = Database.ID();
+                    prefixlistinsert.Add(li);
+                }
+                else
+                {
+                    Row db = prefixlistdb[pair.Key];
+
+                    PEPrefixListToDatabase u = new PEPrefixListToDatabase();
+                    u.ID = db["PX_ID"].ToString();
+                    li.ID = u.ID;
+
+                    // theres no update for PrefixList atm
+                }
+            }
+
+            foreach (KeyValuePair<string, Tuple<PEPrefixListToDatabase, List<PEPrefixEntryToDatabase>>> pair in prefixlistlive)
+            {
+                PEPrefixListToDatabase li = pair.Value.Item1;
+                List<PEPrefixEntryToDatabase> len = pair.Value.Item2;
+
+                bool addEntry = false;
+
+                // ADD / UPDATE
+                foreach (PEPrefixEntryToDatabase en in len)
+                {
+                    string key = li.Name + "_" + en.Network + "_" + en.Sequence + "_" + en.Access + "_" + en.GE + "_" + en.LE;
+
+                    if (!prefixentrydb.ContainsKey(key))
+                    {
+                        if (!addEntry)
+                        {
+                            Event("Prefix-List " + li.Name + " ENTRIES:");
+                            addEntry = true;
+                        }
+
+                        Event("+ " + en.Network + (en.Access != null ? " " + (en.Access == "P" ? "permit" : "deny") : ""));
+
+                        en.ID = Database.ID();
+                        en.PrefixListID = li.ID;
+                        prefixentryinsert.Add(en);
+                    }
+                    else
+                    {
+                        Row db = prefixentrydb[key];
+
+                        PEPrefixEntryToDatabase u = new PEPrefixEntryToDatabase();
+                        u.ID = db["PY_ID"].ToString();
+                        en.ID = u.ID;
+
+                        bool update = false;
+                        StringBuilder updateinfo = new StringBuilder();
+
+                        if (db["PY_Sequence"].ToShort(-1) != en.Sequence)
+                        {
+                            update = true;
+                            u.UpdateSequence = true;
+                            u.Sequence = en.Sequence;
+                            updateinfo.Append("seq ");
+                        }
+                        if (db["PY_Access"].ToString() != en.Access)
+                        {
+                            update = true;
+                            u.UpdateAccess = true;
+                            u.Access = en.Access;
+                            updateinfo.Append(en.Access == "D" ? "deny " : "permit ");
+                        }
+                        if (db["PY_Ge"].ToShort(-1) != en.GE)
+                        {
+                            update = true;
+                            u.UpdateGE = true;
+                            u.GE = en.GE;
+                            updateinfo.Append("ge ");
+                        }
+                        if (db["PY_Le"].ToShort(-1) != en.LE)
+                        {
+                            update = true;
+                            u.UpdateLE = true;
+                            u.LE = en.LE;
+                            updateinfo.Append("le ");
+                        }
+
+                        if (update)
+                        {
+                            prefixentryupdate.Add(u);
+                            Event("U " + en.Network + " " + updateinfo.ToString());
+                        }
+                    }
+                }
+
+                foreach (KeyValuePair<string, Row> pair2 in prefixentrydb)
+                {
+                    string key = pair2.Key;
+
+                    if (pair2.Value["PX_Name"].ToString() == li.Name)
+                    {
+                        bool find = false;
+                        foreach (PEPrefixEntryToDatabase en in len)
+                        {
+                            if (key == li.Name + "_" + en.Network + "_" + en.Sequence + "_" + en.Access + "_" + en.GE + "_" + en.LE)
+                            {
+                                find = true;
+                                break;
+                            }
+                        }
+
+                        if (!find)
+                        {
+                            if (!addEntry)
+                            {
+                                Event("Prefix-List " + li.Name + " ENTRIES:");
+                                addEntry = true;
+                            }
+
+                            string access = pair2.Value["PY_Access"].ToString();
+
+                            Event("- " + pair2.Value["PY_Network"].ToString() + (access != null ? " " + (access == "P" ? "permit" : "deny") : ""));
+                            prefixentrydelete.Add(pair2.Value["PY_ID"].ToString());
+                        }
+                    }
+                }
+            }
+
             foreach (KeyValuePair<string, PERouteUseToDatabase> pair in routeuselive)
             {
                 PERouteUseToDatabase li = pair.Value;
 
+                string info = "UNKNOWN ";
+                foreach (KeyValuePair<string, Row> pair2 in routenamedb)
+                {
+                    if (pair2.Value["PN_ID"].ToString() == li.RouteNameID)
+                    {
+                        info = pair2.Key + " ";
+                        break;
+                    }
+                }
+
                 if (!routeusedb.ContainsKey(pair.Key))
                 {
-                    string info = "UNKNOWN ";
-                    foreach (KeyValuePair<string, Row> pair2 in routenamedb)
-                    {
-                        if (pair2.Value["PN_ID"].ToString() == li.RouteNameID)
-                        {
-                            info = pair2.Key + " ";
-                            break;
-                        }
-                    }
-
                     string referencedinterface = null;
 
                     if (li.InterfaceID != null)
@@ -3263,9 +4036,32 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     }
                     else
                         referencedinterface = li.InterfaceGone + " NOTEXISTS";
-                    
+
                     if (li.Type == "S") info += "static " + li.Network + " to " + li.Neighbor + (referencedinterface != null ? " (" + referencedinterface + ")" : "");
-                    else if (li.Type == "B") info += "bgp to " + li.Neighbor + " by remote AS " + li.RemoteAS;
+                    else if (li.Type == "B")
+                    {
+                        info += "bgp to " + li.Neighbor + " by remote AS " + li.RemoteAS;
+
+                        // setup prefix list in and out ID
+                        if (li.PrefixListInID != null)
+                        {
+                            if (prefixlistlive.ContainsKey(li.PrefixListInID)) li.PrefixListInID = prefixlistlive[li.PrefixListInID].Item1.ID;
+                            else
+                            {
+                                li.PrefixListInGone = li.PrefixListInID = null;
+                                li.PrefixListInID = null;
+                            }
+                        }
+                        if (li.PrefixListOutID != null)
+                        {
+                            if (prefixlistlive.ContainsKey(li.PrefixListOutID)) li.PrefixListOutID = prefixlistlive[li.PrefixListOutID].Item1.ID;
+                            else
+                            {
+                                li.PrefixListOutGone = li.PrefixListOutID = null;
+                                li.PrefixListOutID = null;
+                            }
+                        }
+                    }
                     else if (li.Type == "O") info += "ospf area " + li.Area + (referencedinterface != null ? " (" + referencedinterface + ")" : "");
                     else if (li.Type == "R") info += "rip" + (referencedinterface != null ? " (" + referencedinterface + ")" : "");
                     else if (li.Type == "E") info += "eigrp" + (referencedinterface != null ? " (" + referencedinterface + ")" : "");
@@ -3286,25 +4082,114 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
 
-                    if (li.Type == "S")
+                    if (li.Type == "B")
                     {
-                        
-                    }
-                    else if (li.Type == "B")
-                    {
+                        // setup prefix list in and out ID
+                        if (li.PrefixListInID != null)
+                        {
+                            if (prefixlistlive.ContainsKey(li.PrefixListInID)) li.PrefixListInID = prefixlistlive[li.PrefixListInID].Item1.ID;
+                            else
+                            {
+                                li.PrefixListInGone = li.PrefixListInID;
+                                li.PrefixListInID = null;
+                            }
+                        }
+                        if (li.PrefixListOutID != null)
+                        {
+                            if (prefixlistlive.ContainsKey(li.PrefixListOutID)) li.PrefixListOutID = prefixlistlive[li.PrefixListOutID].Item1.ID;
+                            else
+                            {
+                                li.PrefixListOutGone = li.PrefixListOutID;
+                                li.PrefixListOutID = null;
+                            }
+                        }
 
+                        if (db["PU_B_PX_In"].ToString() != li.PrefixListInID)
+                        {
+                            update = true;
+                            u.UpdatePrefixListInID = true;
+                            u.PrefixListInID = li.PrefixListInID;
+                            if (li.PrefixListInGone == null) updateinfo.Append("pl in ");
+                        }
+                        if (db["PU_B_PX_In_Gone"].ToString() != li.PrefixListInGone)
+                        {
+                            update = true;
+                            u.UpdatePrefixListInGone = true;
+                            u.PrefixListInGone = li.PrefixListInGone;
+                            if (li.PrefixListInID == null && li.PrefixListInGone != null) updateinfo.Append("pl in NOTEXISTS ");
+                        }
+                        if (db["PU_B_PX_Out"].ToString() != li.PrefixListOutID)
+                        {
+                            update = true;
+                            u.UpdatePrefixListOutID = true;
+                            u.PrefixListOutID = li.PrefixListOutID;
+                            if (li.PrefixListOutGone == null) updateinfo.Append("pl out ");
+                        }
+                        if (db["PU_B_PX_Out_Gone"].ToString() != li.PrefixListOutGone)
+                        {
+                            update = true;
+                            u.UpdatePrefixListOutGone = true;
+                            u.PrefixListOutGone = li.PrefixListOutGone;
+                            if (li.PrefixListOutID == null && li.PrefixListOutGone != null) updateinfo.Append("pl out NOTEXISTS ");
+                        }
+                        if (db["PU_B_RPL_In"].ToString() != li.RoutePolicyIn)
+                        {
+                            update = true;
+                            u.UpdateRoutePolicyIn = true;
+                            u.RoutePolicyIn = li.RoutePolicyIn;
+                            updateinfo.Append("rpl in ");
+                        }
+                        if (db["PU_B_RPL_Out"].ToString() != li.RoutePolicyOut)
+                        {
+                            update = true;
+                            u.UpdateRoutePolicyOut = true;
+                            u.RoutePolicyOut = li.RoutePolicyOut;
+                            updateinfo.Append("rpl out ");
+                        }
+                        if (db["PU_B_MaximumPrefix"].ToInt(-1) != li.MaximumPrefix)
+                        {
+                            update = true;
+                            u.UpdateMaximumPrefix = true;
+                            u.MaximumPrefix = li.MaximumPrefix;
+                            updateinfo.Append("max-prefix ");
+                        }
+                        if (db["PU_B_MaximumPrefix_Threshold"].ToShort(-1) != li.MaximumPrefixThreshold)
+                        {
+                            update = true;
+                            u.UpdateMaximumPrefixThreshold = true;
+                            u.MaximumPrefixThreshold = li.MaximumPrefixThreshold;
+                            updateinfo.Append("max-prefix-th ");
+                        }
+                        if (db["PU_B_MaximumPrefix_WarningOnly"].ToNullableBool() != li.MaximumPrefixWarningOnly)
+                        {
+                            update = true;
+                            u.UpdateMaximumPrefixWarningOnly = true;
+                            u.MaximumPrefixWarningOnly = li.MaximumPrefixWarningOnly;
+                            updateinfo.Append("max-prefix-wo ");
+                        }
                     }
                     else if (li.Type == "O")
                     {
-
+                        if (db["PU_O_MessageDigestKey"].ToString() != li.MessageDigestKey)
+                        {
+                            update = true;
+                            u.UpdateMessageDigestKey = true;
+                            u.MessageDigestKey = li.MessageDigestKey;
+                            updateinfo.Append("message-digest-key ");
+                        }
+                        if (db["PU_O_InterfaceNetwork"].ToString() != li.InterfaceNetwork)
+                        {
+                            update = true;
+                            u.UpdateInterfaceNetwork = true;
+                            u.InterfaceNetwork = li.InterfaceNetwork;
+                            updateinfo.Append("interface-network ");
+                        }
                     }
-                    else if (li.Type == "R")
-                    {
 
-                    }
-                    else if (li.Type == "E")
+                    if (update)
                     {
-
+                        routeuseupdate.Add(u);
+                        Event("Routing UPDATE: " + info + updateinfo.ToString());
                     }
                 }
             }
@@ -3313,6 +4198,65 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
             #region Execute
 
+            // PREFIX-LIST
+            // ADD
+            batch.Begin();
+            foreach (PEPrefixListToDatabase s in prefixlistinsert)
+            {
+                Insert insert = Insert("PEPrefixList");
+                insert.Value("PX_ID", s.ID);
+                insert.Value("PX_NO", nodeID);
+                insert.Value("PX_Name", s.Name);
+
+                batch.Execute(insert);
+            }
+            result = batch.Commit();
+            Event(result, EventActions.Add, EventElements.PrefixList, false);
+
+            // PREFIX-ENTRY
+            // ADD
+            batch.Begin();
+            foreach (PEPrefixEntryToDatabase s in prefixentryinsert)
+            {
+                Insert insert = Insert("PEPrefixEntry");
+                insert.Value("PY_ID", s.ID);
+                insert.Value("PY_PX", s.PrefixListID);
+                insert.Value("PY_Network", s.Network);
+                insert.Value("PY_Sequence", s.Sequence.Nullable(-1));
+                insert.Value("PY_Access", s.Access);
+                insert.Value("PY_Ge", s.GE.Nullable(-1));
+                insert.Value("PY_Le", s.LE.Nullable(-1));
+
+                batch.Execute(insert);
+            }
+            result = batch.Commit();
+            Event(result, EventActions.Add, EventElements.PrefixEntry, false);
+
+            // UPDATE
+            batch.Begin();
+            foreach (PEPrefixEntryToDatabase s in prefixentryupdate)
+            {
+                Update update = Update("PEPrefixEntry");
+                update.Set("PY_Sequence", s.Sequence, s.UpdateSequence);
+                update.Set("PY_Access", s.Access, s.UpdateAccess);
+                update.Set("PY_Ge", s.GE.Nullable(-1), s.UpdateGE);
+                update.Set("PY_Le", s.LE.Nullable(-1), s.UpdateLE);
+                update.Where("PY_ID", s.ID);
+                batch.Execute(update);
+            }
+            result = batch.Commit();
+            Event(result, EventActions.Update, EventElements.PrefixEntry, false);
+
+            // DELETE
+            batch.Begin();
+            foreach (string s in prefixentrydelete)
+            {
+                batch.Execute("delete from PEPrefixEntry where PY_ID = {0}", s);
+            }
+            result = batch.Commit();
+            Event(result, EventActions.Delete, EventElements.PrefixEntry, false);
+
+            // ROUTEUSE
             // ADD
             batch.Begin();
             foreach (PERouteUseToDatabase s in routeuseinsert)
@@ -3334,12 +4278,23 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                 else if (s.Type == "B")
                 {
                     insert.Value("PU_B_RemoteAS", s.RemoteAS);
+                    insert.Value("PU_B_PX_In", s.PrefixListInID);
+                    insert.Value("PU_B_PX_In_Gone", s.PrefixListInGone);
+                    insert.Value("PU_B_PX_Out", s.PrefixListOutID);
+                    insert.Value("PU_B_PX_Out_Gone", s.PrefixListOutGone);
+                    insert.Value("PU_B_RPL_In", s.RoutePolicyIn);
+                    insert.Value("PU_B_RPL_Out", s.RoutePolicyOut);
+                    insert.Value("PU_B_MaximumPrefix", s.MaximumPrefix.Nullable(-1));
+                    insert.Value("PU_B_MaximumPrefix_Threshold", s.MaximumPrefixThreshold.Nullable(-1));
+                    insert.Value("PU_B_MaximumPrefix_WarningOnly", s.MaximumPrefixWarningOnly);                    
                 }
                 else if (s.Type == "O")
                 {
                     insert.Value("PU_O_Process", s.Process);
                     insert.Value("PU_O_Area", s.Area);
                     insert.Value("PU_O_Wildcard", s.Wildcard);
+                    insert.Value("PU_O_MessageDigestKey", s.MessageDigestKey);
+                    insert.Value("PU_O_InterfaceNetwork", s.InterfaceNetwork);
                 }
                 else if (s.Type == "R")
                 {
@@ -3354,6 +4309,28 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
             }
             result = batch.Commit();
             Event(result, EventActions.Add, EventElements.Routing, false);
+
+            // UPDATE
+            batch.Begin();
+            foreach (PERouteUseToDatabase s in routeuseupdate)
+            {
+                Update update = Update("PERouteUse");
+                update.Set("PU_B_PX_In", s.PrefixListInID, s.UpdatePrefixListInID);
+                update.Set("PU_B_PX_In_Gone", s.PrefixListInGone, s.UpdatePrefixListInGone);
+                update.Set("PU_B_PX_Out", s.PrefixListOutID, s.UpdatePrefixListOutID);
+                update.Set("PU_B_PX_Out_Gone", s.PrefixListOutGone, s.UpdatePrefixListOutGone);
+                update.Set("PU_B_RPL_In", s.RoutePolicyIn, s.UpdateRoutePolicyIn);
+                update.Set("PU_B_RPL_Out", s.RoutePolicyOut, s.UpdateRoutePolicyOut);
+                update.Set("PU_B_MaximumPrefix", s.MaximumPrefix.Nullable(-1), s.UpdateMaximumPrefix);
+                update.Set("PU_B_MaximumPrefix_Threshold", s.MaximumPrefixThreshold.Nullable(-1), s.UpdateMaximumPrefixThreshold);
+                update.Set("PU_B_MaximumPrefix_WarningOnly", s.MaximumPrefixWarningOnly, s.UpdateMaximumPrefixWarningOnly);
+                update.Set("PU_O_MessageDigestKey", s.MessageDigestKey, s.UpdateMessageDigestKey);
+                update.Set("PU_O_InterfaceNetwork", s.InterfaceNetwork, s.UpdateInterfaceNetwork);
+                update.Where("PU_ID", s.ID);
+                batch.Execute(update);
+            }
+            result = batch.Commit();
+            Event(result, EventActions.Update, EventElements.Routing, false);
 
             // DELETE
             batch.Begin();
@@ -3409,6 +4386,19 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
             #endregion
 
             #region LATE DELETE
+            
+            // DELETE Prefix-LIST
+            batch.Begin();
+            foreach (KeyValuePair<string, Row> pair in prefixlistdb)
+            {
+                if (!prefixlistlive.ContainsKey(pair.Key))
+                {
+                    Event("Prefix-List DELETE: " + pair.Key);
+                    batch.Execute("delete from PEPrefixList where PX_ID = {0}", pair.Value["PX_ID"].ToString());
+                }
+            }
+            result = batch.Commit();
+            Event(result, EventActions.Delete, EventElements.PrefixList, false);
 
             // DELETE QOS
             batch.Begin();

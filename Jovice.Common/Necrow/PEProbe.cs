@@ -2048,16 +2048,19 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     }
                 }
 
-                if (Request("disp cur int | in interface|vlan-type\\ dot1q|qos\\ car\\ cir", out lines)) return;
+                if (Request(@"disp cur int | in interface|vlan-type\ dot1q|qos\ car\ cir|ip\ address", out lines)) return;
 
                 //interface Eth-Trunk25.3648
                 //01234567890123456
                 // vlan-type dot1q 3648
                 // qos car cir 102400 cbs 18700000 green pass red discard inbound
                 // qos car cir 102400 cbs 18700000 green pass red discard outbound
+                // ip address 61.94.229.5 255.255.255.252
                 // 01234567890123456789
                 //interface Eth-Trunk25.3649
                 // vlan-type dot1q 3649
+
+                // ip address unnumbered interface LoopBack0
 
                 PEInterfaceToDatabase current = null;
                 PEInterfaceToDatabase currentParent = null;
@@ -2102,6 +2105,26 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                             {
                                 current.Dot1Q = dot1q;
                             }
+                        }
+                        else if (linetrim.StartsWith("ip address"))
+                        {
+                            string[] splits = linetrim.Split(StringSplitTypes.Space);
+                            //ip address 61.94.229.5 255.255.255.252
+                            //ip address unnumbered interface LoopBack0
+                            if (splits.Length == 4)
+                            {
+                                string ip = splits[2];
+                                string nm = splits[3];
+                                IPAddress valid;
+                                if (IPAddress.TryParse(ip, out valid) && IPAddress.TryParse(nm, out valid))
+                                {
+                                    int cidr = IPNetwork.ToCidr(IPAddress.Parse(nm));
+                                    current.IP.Add("1:" + ip + "/" + nm);
+                                }
+                            }
+
+                            //int cidr = IPNetwork.ToCidr(IPAddress.Parse(netmask));
+
                         }
                         else if (linetrim.StartsWith("qos car cir"))
                         {

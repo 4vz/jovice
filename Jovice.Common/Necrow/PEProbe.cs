@@ -2056,11 +2056,14 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                 // qos car cir 102400 cbs 18700000 green pass red discard inbound
                 // qos car cir 102400 cbs 18700000 green pass red discard outbound
                 // ip address 61.94.229.5 255.255.255.252
+                // ipv6 enable
+                // ipv6 address 2001:4488:1::6D/126
                 // 01234567890123456789
                 //interface Eth-Trunk25.3649
                 // vlan-type dot1q 3649
 
                 // ip address unnumbered interface LoopBack0
+
 
                 PEInterfaceToDatabase current = null;
                 PEInterfaceToDatabase currentParent = null;
@@ -2310,7 +2313,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                     {
                                         string smiid = row["MI_ID"].ToString();
                                         string spiid = row["MI_TO_PI"].ToString();
-                                        int dot1q = row["MI_DOT1Q"].ToShort();
+                                        int dot1q = row["MI_DOT1Q"].ToIntShort();
                                         if (!li.AdjacentIDList.ContainsKey(dot1q)) li.AdjacentIDList.Add(dot1q, new Tuple<string, string>(smiid, spiid));
                                     }
                                     //string spiname = row["MI_Name"].ToString();
@@ -2426,14 +2429,14 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                         u.Enable = li.Enable;
                         updateinfo.Append("ena ");
                     }
-                    if (db["PI_DOT1Q"].ToShort(-1) != li.Dot1Q)
+                    if (db["PI_DOT1Q"].ToIntShort(-1) != li.Dot1Q)
                     {
                         update = true;
                         u.UpdateDot1Q = true;
                         u.Dot1Q = li.Dot1Q;
                         updateinfo.Append("dot1q ");
                     }
-                    if (db["PI_Aggregator"].ToShort(-1) != li.Aggr)
+                    if (db["PI_Aggregator"].ToIntShort(-1) != li.Aggr)
                     {
                         update = true;
                         u.UpdateAggr = true;
@@ -2503,7 +2506,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                         u.CirTotalOutput = li.CirTotalOutput;
                         updateinfo.Append("cirout ");
                     }
-                    if (db["PI_Summary_SubInterfaceCount"].ToShort(-1) != li.SubInterfaceCount)
+                    if (db["PI_Summary_SubInterfaceCount"].ToIntShort(-1) != li.SubInterfaceCount)
                     {
                         update = true;
                         u.UpdateSubInterfaceCount = true;
@@ -2878,7 +2881,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
             Dictionary<string, Row> prefixlistdb = QueryDictionary("select * from PEPrefixList where PX_NO = {0}", "PX_Name", nodeID);
             Dictionary<string, Row> prefixentrydb = QueryDictionary("select PX_Name, PEPrefixEntry.* from PEPrefixEntry, PEPrefixList where PY_PX = PX_ID and PX_NO = {0}", delegate (Row row)
             {
-                return row["PX_Name"].ToString() + "_" + row["PY_Network"].ToString() + "_" + row["PY_Sequence"].ToShort(-1) + "_" + row["PY_Access"].ToString() + "_" + row["PY_Ge"].ToShort(-1) + "_" + row["PY_Le"].ToShort(-1);
+                return row["PX_Name"].ToString() + "_" + row["PY_Network"].ToString() + "_" + row["PY_Sequence"].ToIntShort(-1) + "_" + row["PY_Access"].ToString() + "_" + row["PY_Ge"].ToIntShort(-1) + "_" + row["PY_Le"].ToIntShort(-1);
             }, nodeID);
             List<PEPrefixListToDatabase> prefixlistinsert = new List<PEPrefixListToDatabase>();
             List<PEPrefixEntryToDatabase> prefixentryinsert = new List<PEPrefixEntryToDatabase>();
@@ -3959,7 +3962,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                         bool update = false;
                         StringBuilder updateinfo = new StringBuilder();
 
-                        if (db["PY_Sequence"].ToShort(-1) != en.Sequence)
+                        if (db["PY_Sequence"].ToIntShort(-1) != en.Sequence)
                         {
                             update = true;
                             u.UpdateSequence = true;
@@ -3973,14 +3976,14 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                             u.Access = en.Access;
                             updateinfo.Append(en.Access == "D" ? "deny " : "permit ");
                         }
-                        if (db["PY_Ge"].ToShort(-1) != en.GE)
+                        if (db["PY_Ge"].ToIntShort(-1) != en.GE)
                         {
                             update = true;
                             u.UpdateGE = true;
                             u.GE = en.GE;
                             updateinfo.Append("ge ");
                         }
-                        if (db["PY_Le"].ToShort(-1) != en.LE)
+                        if (db["PY_Le"].ToIntShort(-1) != en.LE)
                         {
                             update = true;
                             u.UpdateLE = true;
@@ -4177,7 +4180,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                             u.MaximumPrefix = li.MaximumPrefix;
                             updateinfo.Append("max-prefix ");
                         }
-                        if (db["PU_B_MaximumPrefix_Threshold"].ToShort(-1) != li.MaximumPrefixThreshold)
+                        if (db["PU_B_MaximumPrefix_Threshold"].ToIntShort(-1) != li.MaximumPrefixThreshold)
                         {
                             update = true;
                             u.UpdateMaximumPrefixThreshold = true;

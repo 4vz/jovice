@@ -3800,7 +3800,7 @@ order by NO_ID asc
                                     {
                                         if (!row["PI_DOT1Q"].IsNull)
                                         {
-                                            int dot1q = row["PI_DOT1Q"].ToShort();
+                                            int dot1q = row["PI_DOT1Q"].ToIntShort();
                                             if (!li.AdjacentIDList.ContainsKey(dot1q)) li.AdjacentIDList.Add(dot1q, new Tuple<string, string>(row["PI_ID"].ToString(), row["PI_TO_MI"].ToString()));
                                         }
 

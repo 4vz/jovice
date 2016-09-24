@@ -560,7 +560,7 @@ order by XPI_Name desc, cmc.MC_Status desc, cmc.MC_Protocol desc
                                 topologyCurrentVCID = row["MC_VCID"].ToString();
                                 topologyElementCurrent.Add(topologyCurrentVCID);//11
                                 topologyElementCurrent.Add(row["MC_Description"].ToString());//12
-                                topologyElementCurrent.Add(row["MC_MTU"].ToShort());//13
+                                topologyElementCurrent.Add(row["MC_MTU"].ToIntShort());//13
                                 topologyElementCurrent.Add(row["MC_Status"].ToBool());//14
                                 topologyElementCurrent.Add(row["MC_Protocol"].ToBool());//15
                                 topologyElementCurrent.Add(row["MC_Type"].ToString());//16
@@ -659,7 +659,7 @@ where a.MI_ID = {0} and a.MI_NO = NO_ID
                                 topologyCurrentVCID = row2["MC_VCID"].ToString();
                                 topologyElementCurrent.Add(topologyCurrentVCID);//18
                                 topologyElementCurrent.Add(row2["MC_Description"].ToString());//19
-                                topologyElementCurrent.Add(row2["MC_MTU"].ToShort());//20
+                                topologyElementCurrent.Add(row2["MC_MTU"].ToIntShort());//20
                                 topologyElementCurrent.Add(row2["MC_Status"].ToBool());//21
                                 topologyElementCurrent.Add(row2["MC_Protocol"].ToBool());//22
                                 topologyElementCurrent.Add(row2["MC_Type"].ToString());//23
@@ -726,7 +726,7 @@ where a.MP_MC = {0} order by a.MP_TO_MC desc
                                     //--
                                     topologyElementCurrent.Add(row2["MC_VCID"].ToString());//11
                                     topologyElementCurrent.Add(row2["MC_Description"].ToString());//12
-                                    topologyElementCurrent.Add(row2["MC_MTU"].ToShort());//13
+                                    topologyElementCurrent.Add(row2["MC_MTU"].ToIntShort());//13
                                     topologyElementCurrent.Add(row2["MC_Status"].ToBool());//14
                                     topologyElementCurrent.Add(row2["MC_Protocol"].ToBool());//15
                                     topologyElementCurrent.Add(row2["MC_Type"].ToString());//16
@@ -1201,7 +1201,7 @@ n.NO_AR = ar.AR_ID and ar.AR_AW = aw.AW_ID
                         topologyCurrentVCID = row["MC_VCID"].ToString();
                         topologyElementCurrent.Add(topologyCurrentVCID); //18
                         topologyElementCurrent.Add(row["MC_Description"].ToString()); //19
-                        topologyElementCurrent.Add(row["MC_MTU"].ToShort()); //20
+                        topologyElementCurrent.Add(row["MC_MTU"].ToIntShort()); //20
                         topologyElementCurrent.Add(row["MC_Status"].ToBool()); //21
                         topologyElementCurrent.Add(row["MC_Protocol"].ToBool()); //22
                         topologyElementCurrent.Add(row["MC_Type"].ToString()); //23
@@ -1276,7 +1276,7 @@ order by p2.MP_TO_MC desc
                                 //--
                                 topologyElementCurrent.Add(row2["MC_VCID"].ToString());//11
                                 topologyElementCurrent.Add(row2["MC_Description"].ToString());//12
-                                topologyElementCurrent.Add(row2["MC_MTU"].ToShort());//13
+                                topologyElementCurrent.Add(row2["MC_MTU"].ToIntShort());//13
                                 topologyElementCurrent.Add(row2["MC_Status"].ToBool());//14
                                 topologyElementCurrent.Add(row2["MC_Protocol"].ToBool());//15
                                 topologyElementCurrent.Add(row2["MC_Type"].ToString());//16

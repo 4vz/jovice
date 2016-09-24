@@ -935,7 +935,7 @@ namespace Jovice
                         u.LSP = li.LSP;
                         updateinfo.Append("lsp ");
                     }
-                    if ((db["MS_MTU"].IsNull ? 0 : db["MS_MTU"].ToShort()) != li.AdmMTU)
+                    if ((db["MS_MTU"].IsNull ? 0 : db["MS_MTU"].ToIntShort()) != li.AdmMTU)
                     {
                         update = true;
                         u.UpdateAdmMTU = true;
@@ -1517,7 +1517,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
                         if (u.Description != null) circuitServiceReference.Add(u, u.Description);
                     }
-                    if ((db["MC_MTU"].IsNull ? 0 : db["MC_MTU"].ToShort()) != li.AdmMTU)
+                    if ((db["MC_MTU"].IsNull ? 0 : db["MC_MTU"].ToIntShort()) != li.AdmMTU)
                     {
                         update = true;
                         u.UpdateAdmMTU = true;
@@ -2900,7 +2900,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 {
                                     if (!row["PI_DOT1Q"].IsNull)
                                     {
-                                        int dot1q = row["PI_DOT1Q"].ToShort();
+                                        int dot1q = row["PI_DOT1Q"].ToIntShort();
                                         if (!li.AdjacentIDList.ContainsKey(dot1q)) li.AdjacentIDList.Add(dot1q, new Tuple<string, string>(row["PI_ID"].ToString(), row["PI_TO_MI"].ToString()));
                                     }
 
@@ -3022,14 +3022,14 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.Enable = li.Enable;
                         updateinfo.Append("ena ");
                     }
-                    if (db["MI_DOT1Q"].ToShort(-1) != li.Dot1Q)
+                    if (db["MI_DOT1Q"].ToIntShort(-1) != li.Dot1Q)
                     {
                         update = true;
                         u.UpdateDot1Q = true;
                         u.Dot1Q = li.Dot1Q;
                         updateinfo.Append("dot1q ");
                     }
-                    if (db["MI_Aggregator"].ToShort(-1) != li.Aggr)
+                    if (db["MI_Aggregator"].ToIntShort(-1) != li.Aggr)
                     {
                         update = true;
                         u.UpdateAggr = true;
@@ -3120,7 +3120,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.CirTotalOutput = li.CirTotalOutput;
                         updateinfo.Append("cirout ");
                     }
-                    if (db["MI_Summary_SubInterfaceCount"].ToShort(-1) != li.SubInterfaceCount)
+                    if (db["MI_Summary_SubInterfaceCount"].ToIntShort(-1) != li.SubInterfaceCount)
                     {
                         update = true;
                         u.UpdateSubInterfaceCount = true;

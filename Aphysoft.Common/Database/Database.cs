@@ -1718,6 +1718,8 @@ namespace Aphysoft.Common
                 return GetValue<int>();
             else if (value.GetType() == typeof(short))
                 return GetValue<short>();
+            else if (value.GetType() == typeof(byte))
+                return (int)GetValue<byte>();
             else if (value.GetType() == typeof(decimal))
                 return (int)GetValue<decimal>();
             else
@@ -1730,7 +1732,7 @@ namespace Aphysoft.Common
             else return ToInt();
         }
 
-        public int ToShort()
+        public int ToIntShort()
         {
             if (value.GetType() == typeof(short))
                 return GetValue<short>();
@@ -1740,10 +1742,24 @@ namespace Aphysoft.Common
                 return 0;
         }
 
-        public int ToShort(int ifNull)
+        public int ToIntShort(int ifNull)
         {
             if (IsNull) return ifNull;
-            else return ToShort();
+            else return ToIntShort();
+        }
+
+        public int ToIntByte()
+        {
+            if (value.GetType() == typeof(byte))
+                return (int)GetValue<byte>();
+            else
+                return 0;
+        }
+
+        public int ToIntByte(int ifNull)
+        {
+            if (IsNull) return ifNull;
+            else return ToIntByte();
         }
 
         public double ToDouble()

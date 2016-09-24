@@ -2118,8 +2118,9 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                 IPAddress valid;
                                 if (IPAddress.TryParse(ip, out valid) && IPAddress.TryParse(nm, out valid))
                                 {
+                                    if (current.IP == null) current.IP = new List<string>();
                                     int cidr = IPNetwork.ToCidr(IPAddress.Parse(nm));
-                                    current.IP.Add("1:" + ip + "/" + nm);
+                                    current.IP.Add("1:" + ip + "/" + cidr);
                                 }
                             }
 
@@ -2573,8 +2574,8 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     {
                         interfaceupdate.Add(u);
                         Event("Interface UPDATE: " + pair.Key + " " + updateinfo.ToString());
-                        if (u.IP != null) Event("          IP ADD: " + string.Join(",", u.IP.ToArray()));
-                        if (u.DeleteIP != null) Event("       IP DELETE: " + string.Join(",", u.DeleteIP.ToArray()));
+                        if (u.IP != null) Event("+ " + string.Join(",", u.IP.ToArray()));
+                        if (u.DeleteIP != null) Event("- " + string.Join(",", u.DeleteIP.ToArray()));
                     }
                 }
             }

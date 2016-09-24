@@ -1150,7 +1150,7 @@ namespace Jovice
             Dictionary<string, Row> interfacedb = QueryDictionary("select * from PEInterface where PI_NO = {0}", "PI_Name", nodeID);
             Dictionary<string, List<string[]>> ipdb = new Dictionary<string, List<string[]>>();
 
-            result = Query("select PI_Name, PP_ID, PP_Type + ':' + PP_IP as IP from PEInterface, PEInterfaceIP where PP_PI = PI_ID and PI_NO = {0} order by PI_Name asc", nodeID);
+            result = Query("select PI_Name, PP_ID, CAST(PP_IPv6 as varchar) + '_' + CAST(PP_Order as varchar) + '_' + PP_IP as IPKEY from PEInterface, PEInterfaceIP where PP_PI = PI_ID and PI_NO = {0} order by PI_Name asc", nodeID);
             foreach (Row row in result)
             {
                 string name = row["PI_Name"].ToString();
@@ -1161,7 +1161,7 @@ namespace Jovice
                     ip = new List<string[]>();
                     ipdb.Add(name, ip);
                 }
-                ip.Add(new string[] { row["IP"].ToString(), row["PP_ID"].ToString() });
+                ip.Add(new string[] { row["IPKEY"].ToString(), row["PP_ID"].ToString() });
             }
 
             SortedDictionary<string, PEInterfaceToDatabase> interfaceinsert = new SortedDictionary<string, PEInterfaceToDatabase>();
@@ -1433,6 +1433,48 @@ namespace Jovice
 
                     // ip
                     if (Request("show ipv4 vrf all interface | in \"Internet address|Secondary address|ipv4\"", out lines)) return;
+
+                    PEInterfaceToDatabase currentInterface = null;
+                    int linen = 0;
+                    int secondaryAddressCtr = 2;
+                    foreach (string line in lines)
+                    {
+                        linen++;
+                        if (linen <= (nodeVersion == xr ? 2 : 1)) continue;
+
+                        string linex = line.Trim();
+
+                        if (currentInterface != null && linex.StartsWith("Internet address"))
+                        {
+                            string ip = linex.Substring(20);
+                            if (currentInterface.IP == null) currentInterface.IP = new List<string>();
+                            currentInterface.IP.Add("0_1_" + ip);
+                        }
+                        else if (currentInterface != null && linex.StartsWith("Secondary address"))
+                        {
+                            string ip = linex.Substring(18);
+                            if (currentInterface.IP == null) currentInterface.IP = new List<string>();
+                            currentInterface.IP.Add("0_" + secondaryAddressCtr + "_" + ip);
+                            secondaryAddressCtr++;
+                        }
+                        else
+                        {
+                            currentInterface = null;
+                            secondaryAddressCtr = 2;
+
+                            if (linex.IndexOf(' ') > -1)
+                            {
+                                string name = linex.Substring(0, linex.IndexOf(' '));
+                                NodeInterface nodeInterface = NodeInterface.Parse(name);
+                                if (nodeInterface != null)
+                                {
+                                    string shortName = nodeInterface.GetShort();
+                                    if (interfacelive.ContainsKey(shortName))
+                                        currentInterface = interfacelive[shortName];
+                                }
+                            }
+                        }
+                    }
 
                     #endregion
                 }
@@ -1893,47 +1935,50 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
                     // ip
                     if (Request("show ip interface | in Internet address|Secondary address|line protocol", out lines)) return;
-
-                    #endregion
-                }
-
-                PEInterfaceToDatabase currentInterface = null;
-                int linen = 0;
-                foreach (string line in lines)
-                {
-                    linen++;
-                    if (linen <= (nodeVersion == xr ? 2 : 1)) continue;
-
-                    string linex = line.Trim();
-
-                    if (currentInterface != null && linex.StartsWith("Internet address"))
+                    
+                    PEInterfaceToDatabase currentInterface = null;
+                    int linen = 0;
+                    int secondaryAddressCtr = 2;
+                    foreach (string line in lines)
                     {
-                        string ip = linex.Substring(20);
-                        if (currentInterface.IP == null) currentInterface.IP = new List<string>();
-                        currentInterface.IP.Add("1:" + ip);
-                    }
-                    else if (currentInterface != null && linex.StartsWith("Secondary address"))
-                    {
-                        string ip = linex.Substring(18);
-                        if (currentInterface.IP == null) currentInterface.IP = new List<string>();
-                        currentInterface.IP.Add("2:" + ip);
-                    }
-                    else
-                    {
-                        currentInterface = null;
+                        linen++;
+                        if (linen <= (nodeVersion == xr ? 2 : 1)) continue;
 
-                        if (linex.IndexOf(' ') > -1)
+                        string linex = line.Trim();
+
+                        if (currentInterface != null && linex.StartsWith("Internet address"))
                         {
-                            string name = linex.Substring(0, linex.IndexOf(' '));
-                            NodeInterface nodeInterface = NodeInterface.Parse(name);
-                            if (nodeInterface != null)
+                            string ip = linex.Substring(20);
+                            if (currentInterface.IP == null) currentInterface.IP = new List<string>();
+                            currentInterface.IP.Add("0_1_" + ip);
+                        }
+                        else if (currentInterface != null && linex.StartsWith("Secondary address"))
+                        {
+                            string ip = linex.Substring(18);
+                            if (currentInterface.IP == null) currentInterface.IP = new List<string>();
+                            currentInterface.IP.Add("0_" + secondaryAddressCtr + "_" + ip);
+                            secondaryAddressCtr++;
+                        }
+                        else
+                        {
+                            currentInterface = null;
+                            secondaryAddressCtr = 2;
+
+                            if (linex.IndexOf(' ') > -1)
                             {
-                                string shortName = nodeInterface.GetShort();
-                                if (interfacelive.ContainsKey(shortName))
-                                    currentInterface = interfacelive[shortName];
+                                string name = linex.Substring(0, linex.IndexOf(' '));
+                                NodeInterface nodeInterface = NodeInterface.Parse(name);
+                                if (nodeInterface != null)
+                                {
+                                    string shortName = nodeInterface.GetShort();
+                                    if (interfacelive.ContainsKey(shortName))
+                                        currentInterface = interfacelive[shortName];
+                                }
                             }
                         }
                     }
+
+                    #endregion
                 }
 
                 #endregion
@@ -1941,6 +1986,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
             else if (nodeManufacture == hwe)
             {
                 #region hwe
+
                 if (Request("display interface description", out lines)) return;
 
                 bool begin = false;
@@ -2048,7 +2094,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     }
                 }
 
-                if (Request(@"disp cur int | in interface|vlan-type\ dot1q|qos\ car\ cir|ip\ address", out lines)) return;
+                if (Request(@"disp cur int | in interface|vlan-type\ dot1q|qos\ car\ cir|ip\ address|ipv6\ address", out lines)) return;
 
                 //interface Eth-Trunk25.3648
                 //01234567890123456
@@ -2068,12 +2114,17 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                 PEInterfaceToDatabase current = null;
                 PEInterfaceToDatabase currentParent = null;
                 int typerate = -1;
+                int ipv4SecondaryOrder = 1;
+                int ipv6SecondaryOrder = 1;
 
                 foreach (string line in lines)
                 {
                     if (line.StartsWith("interface "))
                     {
                         current = null;
+                        ipv4SecondaryOrder = 1;
+                        ipv6SecondaryOrder = 1;
+
                         string ifname = line.Substring(10).Trim();
                         // Eth-Trunk1234.5678
                         // 0123456789
@@ -2112,23 +2163,45 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                         else if (linetrim.StartsWith("ip address"))
                         {
                             string[] splits = linetrim.Split(StringSplitTypes.Space);
-                            //ip address 61.94.229.5 255.255.255.252
+                            //ip address 61.94.229.5 255.255.255.252 sub
                             //ip address unnumbered interface LoopBack0
-                            if (splits.Length == 4)
+                            if (splits.Length >= 4)
                             {
                                 string ip = splits[2];
                                 string nm = splits[3];
-                                IPAddress valid;
-                                if (IPAddress.TryParse(ip, out valid) && IPAddress.TryParse(nm, out valid))
+
+                                if (ip != "unnumbered")
                                 {
-                                    if (current.IP == null) current.IP = new List<string>();
-                                    int cidr = IPNetwork.ToCidr(IPAddress.Parse(nm));
-                                    current.IP.Add("1:" + ip + "/" + cidr);
+                                    IPAddress valid;
+                                    if (IPAddress.TryParse(ip, out valid) && IPAddress.TryParse(nm, out valid))
+                                    {
+                                        if (current.IP == null) current.IP = new List<string>();
+                                        int cidr = IPNetwork.ToCidr(IPAddress.Parse(nm));
+                                        current.IP.Add("0_" + ipv4SecondaryOrder + "_" + ip + "/" + cidr);
+                                        ipv4SecondaryOrder++;
+                                    }
                                 }
                             }
-
-                            //int cidr = IPNetwork.ToCidr(IPAddress.Parse(netmask));
-
+                        }
+                        else if (linetrim.StartsWith("ipv6 address"))
+                        {
+                            string[] splits = linetrim.Split(StringSplitTypes.Space);
+                            //ipv6 address 2001:4488:1::6D/126
+                            if (splits.Length >= 3)
+                            {
+                                string ip = splits[2];
+                                if (ip != "unnumbered" && ip != "auto")
+                                {
+                                    string[] ipparts = ip.Split(new char[] { '/' });
+                                    IPAddress valid;
+                                    if (IPAddress.TryParse(ipparts[0], out valid))
+                                    {
+                                        if (current.IP == null) current.IP = new List<string>();
+                                        current.IP.Add("1_" + ipv6SecondaryOrder + "_" + ip);
+                                        ipv6SecondaryOrder++;
+                                    }
+                                }
+                            }
                         }
                         else if (linetrim.StartsWith("qos car cir"))
                         {
@@ -2362,7 +2435,13 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
                     // IP
                     if (li.IP != null)
-                        Event("       IP ADD: " + string.Join(",", li.IP.ToArray()));
+                    {
+                        foreach (string ip in li.IP.ToArray())
+                        {
+                            string[] ipx = ip.Split(StringSplitTypes.Underscore);
+                            Event("+ " + (ipx[0] == "0" ? "IPv4" : "IPv6") + " " + (ipx[1] == "1" ? "" : "secondary ") + ipx[2]);
+                        }
+                    }
 
                     // Service
                     if (li.Description != null) interfaceservicereference.Add(li, li.Description);
@@ -2577,8 +2656,23 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     {
                         interfaceupdate.Add(u);
                         Event("Interface UPDATE: " + pair.Key + " " + updateinfo.ToString());
-                        if (u.IP != null) Event("+ " + string.Join(",", u.IP.ToArray()));
-                        if (u.DeleteIP != null) Event("- " + string.Join(",", u.DeleteIP.ToArray()));
+
+                        if (u.IP != null)
+                        {
+                            foreach (string ip in u.IP.ToArray())
+                            {
+                                string[] ipx = ip.Split(StringSplitTypes.Underscore);
+                                Event("+ " + (ipx[0] == "0" ? "IPv4" : "IPv6") + " " + (ipx[1] == "1" ? "" : "secondary ") + ipx[2]);
+                            }
+                        }
+                        if (u.DeleteIP != null)
+                        {
+                            foreach (string ip in u.DeleteIP.ToArray())
+                            {
+                                string[] ipx = ip.Split(StringSplitTypes.Underscore);
+                                Event("- " + (ipx[0] == "0" ? "IPv4" : "IPv6") + " " + (ipx[1] == "1" ? "" : "secondary ") + ipx[2]);
+                            }
+                        }
                     }
                 }
             }
@@ -2721,8 +2815,10 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     Insert insert = Insert("PEInterfaceIP");
                     insert.Value("PP_ID", Database.ID());
                     insert.Value("PP_PI", pair.Key);
-                    insert.Value("PP_Type", ip.Substring(0, 1));
-                    insert.Value("PP_IP", ip.Substring(2));
+                    string[] ipx = ip.Split(StringSplitTypes.Underscore);
+                    insert.Value("PP_IPv6", ipx[0] == "0" ? false : true);
+                    insert.Value("PP_Order", int.Parse(ipx[1]));
+                    insert.Value("PP_IP", ipx[2]);
                     batch.Execute(insert);
                 }
             }

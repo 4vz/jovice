@@ -175,7 +175,7 @@ namespace Jovice
                         int subsubif = -1;
                         string rest = input.Substring(portIndexOf);
 
-                        // cek huawei weirdness to define TenGig, it used GE and ends with (10G).
+                        // cek huawei weirdness to define TenGigE, it used GE and ends with (10G).
                         if (rest.EndsWith("(10G)"))
                         {
                             rest = rest.Remove(rest.Length - 4);

@@ -1431,12 +1431,12 @@ namespace Jovice
                         }
                     }
 
-                    // ip
+                    // ipv4
                     if (Request("show ipv4 vrf all interface | in \"Internet address|Secondary address|ipv4\"", out lines)) return;
 
                     PEInterfaceToDatabase currentInterface = null;
                     int linen = 0;
-                    int secondaryAddressCtr = 2;
+                    int ipv4SecondaryAddressCtr = 2;
                     foreach (string line in lines)
                     {
                         linen++;
@@ -1454,13 +1454,13 @@ namespace Jovice
                         {
                             string ip = linex.Substring(18);
                             if (currentInterface.IP == null) currentInterface.IP = new List<string>();
-                            currentInterface.IP.Add("0_" + secondaryAddressCtr + "_" + ip);
-                            secondaryAddressCtr++;
+                            currentInterface.IP.Add("0_" + ipv4SecondaryAddressCtr + "_" + ip);
+                            ipv4SecondaryAddressCtr++;
                         }
                         else
                         {
                             currentInterface = null;
-                            secondaryAddressCtr = 2;
+                            ipv4SecondaryAddressCtr = 2;
 
                             if (linex.IndexOf(' ') > -1)
                             {
@@ -1473,6 +1473,42 @@ namespace Jovice
                                         currentInterface = interfacelive[shortName];
                                 }
                             }
+                        }
+                    }
+
+                    // ipv6
+                    if (Request("show ipv6 vrf all interface | in \"ipv6 protocol|subnet is\"", out lines)) return;
+
+                    currentInterface = null;
+                    int ipv6AddressCtr = 1;
+
+                    foreach (string line in lines)
+                    {
+                        string linetrim = line.Trim();
+
+                        if (line.IndexOf("ipv6 protocol") > -1)
+                        {
+                            currentInterface = null;
+                            ipv6AddressCtr = 1;
+
+                            string name = linetrim.Substring(0, linetrim.IndexOf(' '));
+                            NodeInterface nodeInterface = NodeInterface.Parse(name);
+                            if (nodeInterface != null)
+                            {
+                                string shortName = nodeInterface.GetShort();
+                                if (interfacelive.ContainsKey(shortName))
+                                    currentInterface = interfacelive[shortName];
+                            }
+                        }
+                        else if (currentInterface != null && line.IndexOf("subnet is") > -1)
+                        {
+                            //    2001:4488:0:94::1, subnet is 2001:4488:0:94::/64
+                            string ip = linetrim.Substring(0, linetrim.IndexOf(','));
+                            string nm = linetrim.Substring(linetrim.IndexOf('/') + 1);
+
+                            if (currentInterface.IP == null) currentInterface.IP = new List<string>();
+                            currentInterface.IP.Add("1_" + ipv6AddressCtr + "_" + ip + "/" + nm);
+                            ipv6AddressCtr++;
                         }
                     }
 
@@ -3993,6 +4029,89 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
                 #endregion
             }
+            else if (nodeManufacture == hwe)
+            {
+                #region hwe
+
+                #region STATIC
+                //display cur | in ip route-static
+                //ip route-static vpn-instance Transit_Mix 118.98.26.0 255.255.255.0 NULL0
+                //ip route-static vpn-instance Transit_Mix 118.98.90.0 255.255.255.0 NULL0 1.1.1.1
+                //012345678901234567890123456789
+
+                //ip route vrf Astinet 203.130.235.128 255.255.255.248 192.168.3.218
+                //ip route vrf Astinet 203.130.235.128 255.255.255.248 GigabitEthernet1/19.2185
+                //01234567890123456
+                if (Request("display cur | in ip route-static vpn-instance", out lines)) return;
+
+                foreach (string line in lines)
+                {
+                    string linetrim = line.Trim();
+                    if (linetrim.Length > 0)
+                    {
+                        if (linetrim.StartsWith("ip route-static vpn-instance"))
+                        {
+                            string lineleft = linetrim.Substring(29);
+                            string[] linex = lineleft.Split(StringSplitTypes.Space);
+
+                            string vrf = linex[0];
+                            if (routenamedb.ContainsKey(vrf) && routenamelive.ContainsKey(vrf))
+                            {
+                                string routeNameID = routenamedb[vrf]["PN_ID"].ToString();
+                                string network = linex[1];
+                                string netmask = linex[2];
+                                string ifname = null;
+                                string interfaceID = null;
+                                string neighbor = null;
+
+                                string thirdarg = linex[3];
+                                string fortharg = null;
+                                if (linex.Length > 4) fortharg = linex[4];
+
+                                int cidr = IPNetwork.ToCidr(IPAddress.Parse(netmask));
+                                network = network + "/" + cidr;
+
+                                if (char.IsLetter(thirdarg[0]))
+                                {
+                                    // probably interface
+                                    NodeInterface nif = NodeInterface.Parse(thirdarg);
+                                    if (nif != null)
+                                    {
+                                        ifname = nif.GetShort();
+                                        if (interfacelive.ContainsKey(ifname)) interfaceID = interfacelive[ifname].ID;
+                                        if (fortharg != null) neighbor = fortharg;
+                                        else neighbor = "INTERFACE";
+                                    }
+                                    else if (thirdarg.StartsWith("NULL"))
+                                    {
+                                        if (fortharg != null) neighbor = fortharg;
+                                    }
+                                }
+                                else neighbor = thirdarg;
+
+                                PERouteUseToDatabase i = new PERouteUseToDatabase();
+                                i.RouteNameID = routeNameID;
+                                i.Type = "S";
+                                i.Network = network;
+                                i.Neighbor = neighbor;
+                                i.InterfaceID = interfaceID;
+
+                                if (interfaceID == null && ifname != null)
+                                {
+                                    i.InterfaceGone = ifname;
+                                }
+
+                                string key = routeNameID + "_S_" + network + "_" + (neighbor != null ? neighbor : "") + "_" + (interfaceID != null ? interfaceID : ifname != null ? ifname : "");
+                                routeuselive.Add(key, i);
+                            }
+                        }
+                    }
+                }
+
+                #endregion
+
+                #endregion
+            }
 
             #endregion
 
@@ -4157,10 +4276,10 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                             }
                         }
                     }
-                    else
+                    else if (li.InterfaceGone != null)
                         referencedinterface = li.InterfaceGone + " NOTEXISTS";
 
-                    if (li.Type == "S") info += "static " + li.Network + " to " + li.Neighbor + (referencedinterface != null ? " (" + referencedinterface + ")" : "");
+                    if (li.Type == "S") info += "static " + li.Network + (li.Neighbor != null ? (" to " + li.Neighbor + (referencedinterface != null ? " (" + referencedinterface + ")" : "")) : "");
                     else if (li.Type == "B")
                     {
                         info += "bgp to " + li.Neighbor + " by remote AS " + li.RemoteAS;

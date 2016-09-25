@@ -553,6 +553,17 @@ namespace Jovice
 
     #endregion
 
+    class NeighborGroup : PERouteUseToDatabase
+    {
+        #region Fields
+
+        #endregion
+
+        #region Constructors
+
+        #endregion
+    }
+
     internal sealed partial class Probe
     {
         private void PEProcess()

@@ -4022,13 +4022,18 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                 {
                                     currentNeighbor = null;
                                     currentRemoteAS = null;
+                                    currentPrefixListIN = null;
+                                    currentPrefixListOUT = null;
+                                    currentMaximumPrefix = null;
+                                    currentMaximumPrefixThres = null;
+                                    currentMaximumPrefixWO = null;
                                 }
                             }
                             else if (linetrim.StartsWith("exit-address-family"))
                             {
                                 if (currentRouter == "B")
                                 {
-                                    if (currentNeighbor != null && currentRemoteAS != null)
+                                    if (currentNeighbor != null)
                                     {
                                         PERouteUseToDatabase i = new PERouteUseToDatabase();
                                         i.RouteNameID = currentRouteNameID;
@@ -4042,9 +4047,6 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                         string key = currentRouteNameID + "_B_" + currentNeighbor + "_" + currentBGPAS;
                                         routeuselive.Add(key, i);
                                     }
-
-                                    currentNeighbor = null;
-                                    currentRemoteAS = null;
                                 }
 
                                 currentRouteNameID = null;
@@ -4212,10 +4214,97 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
                 #endregion
 
-                #region BGP, RIP, OSPF, EIGRP
+                #region BGP
 
-                if (Request("disp cur | in \"bgp\\ |\\ ipv4\\ family\\ |\\ ipv6\\ family\\ |\\ \\ peer\\ \"", out lines)) return;
-                
+                if (Request("disp cur | in \"bgp\\ |\\ ipv4-family\\ vpn-instance\\ |\\ ipv6-family\\ vpn-instance\\ |\\ \\ peer\\ |\\ #\"", out lines)) return;
+
+                string currentRouter = null;
+                string currentRouteNameID = null;
+                int currentBGPAS = -1;
+
+                foreach (string line in lines)
+                {
+                    string linetrim = line.Trim();
+                    if (linetrim.Length > 0)
+                    {
+                        if (linetrim.StartsWith("bgp "))
+                        {
+                            //bgp 7713
+                            //01234
+                            currentRouter = "B";
+                            if (!int.TryParse(linetrim.Substring(4), out currentBGPAS)) currentBGPAS = 1;
+                        }
+                        else if (linetrim.StartsWith("peer "))
+                        {
+                            string[] splits = linetrim.Split(StringSplitTypes.Space);
+                            if (currentRouter == "B" && currentRouteNameID != null)
+                            {
+                                string peer = splits[1];
+
+                                // peer should be IP
+                                IPAddress valid;
+                                if (IPAddress.TryParse(peer, out valid))
+                                {
+                                    string key = currentRouteNameID + "_B_" + peer + "_" + (currentBGPAS != -1 ? currentBGPAS + "" : "");
+
+                                    PERouteUseToDatabase i = null;
+
+                                    if (routeuselive.ContainsKey(key)) i = routeuselive[key];
+                                    else
+                                    {
+                                        i = new PERouteUseToDatabase();
+                                        i.RouteNameID = currentRouteNameID;
+                                        i.Type = "B";
+                                        i.Neighbor = peer;
+                                        i.BGPAS = currentBGPAS;
+
+                                        routeuselive.Add(key, i);
+                                    }
+
+                                    if (splits.Length == 4 && splits[2] == "as-number")
+                                    {
+                                        int ras = -1;
+                                        if (int.TryParse(splits[3], out ras)) i.RemoteAS = ras;
+                                    }
+                                    else if (splits.Length >= 4 && splits[2] == "route-limit")
+                                    {
+                                        int ras = -1;
+                                        if (int.TryParse(splits[3], out ras)) i.MaximumPrefix = ras;
+                                    }
+                                    else if (splits.Length == 4 && splits[2] == "connect-interface")
+                                    {
+                                        NodeInterface nif = NodeInterface.Parse(splits[3]);
+                                        if (nif != null)
+                                        {
+                                            string interfaceName = nif.GetShort();
+                                            if (interfacelive.ContainsKey(interfaceName))
+                                            {
+                                                string interfaceID = interfacelive[interfaceName].ID;
+                                                if (interfaceID != null) i.InterfaceID = interfaceID;
+                                            }
+                                            else if (interfaceName != null) i.InterfaceGone = interfaceName;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        else if (linetrim.StartsWith("ipv4-family vpn-instance") || linetrim.StartsWith("ipv6-family vpn-instance"))
+                        {
+                            //ipv4-family vpn-instance Transit_Domestik
+                            //012345678901234567890123456789
+                            string vrfname = linetrim.Substring(25);
+                            if (routenamedb.ContainsKey(vrfname) && routenamelive.ContainsKey(vrfname))
+                                currentRouteNameID = routenamedb[vrfname]["PN_ID"].ToString();
+                            else
+                                currentRouteNameID = null;
+                        }
+                        else if (linetrim.StartsWith("#"))
+                        {
+                            currentRouteNameID = null;
+                        }
+                    }
+                }
+
                 #endregion
 
                 #endregion
@@ -4635,7 +4724,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                 else if (s.Type == "B")
                 {
                     insert.Value("PU_B_AS", s.BGPAS);
-                    insert.Value("PU_B_RemoteAS", s.RemoteAS);
+                    insert.Value("PU_B_RemoteAS", s.RemoteAS.Nullable(-1));
                     insert.Value("PU_B_PX_In", s.PrefixListInID);
                     insert.Value("PU_B_PX_In_Gone", s.PrefixListInGone);
                     insert.Value("PU_B_PX_Out", s.PrefixListOutID);

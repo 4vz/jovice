@@ -3349,7 +3349,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                 }
                                 if (linetrim.StartsWith("remote-as ")) currentRemoteAS = linetrim.Substring(10);
                                 if (linetrim.StartsWith("use neighbor-group ")) currentUseNeighborGroup = linetrim.Substring(19);
-                                if (linetrim.StartsWith("route policy "))
+                                if (linetrim.StartsWith("route-policy "))
                                 {
                                     //route-policy TO-DOMESTIK out
                                     string[] rps = linetrim.Split(StringSplitTypes.Space);
@@ -4107,6 +4107,78 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                         }
                     }
                 }
+
+                #endregion
+
+                #region PREFIX-LIST
+
+                //>display ip ip-prefix
+                if (Request(@"display ip ip-prefix | in Prefix-list|index:", out lines)) return;
+                //Prefix-list bogons
+                //0123456789012
+                //Permitted 668
+                //Denied 2622212578
+                //    index: 5             permit     0.0.0.0/0   match-network
+                //    01234567
+                //    index: 10            permit     127.0.0.0/8           ge 8    le 32
+                //    index: 15            permit     10.0.0.0/8            ge 8    le 32
+                //           0             1          2                     3  4    5  6
+
+                string currentPrefixList = null;
+
+                foreach (string line in lines)
+                {
+                    string linetrim = line.Trim();
+                    if (linetrim.Length > 0)
+                    {
+                        if (linetrim.StartsWith("Prefix-list"))
+                        {
+                            string name = linetrim.Substring(12);
+                            if (!prefixlistlive.ContainsKey(name))
+                            {
+                                PEPrefixListToDatabase pl = new PEPrefixListToDatabase();
+                                pl.Name = name;
+                                prefixlistlive.Add(name, new Tuple<PEPrefixListToDatabase, List<PEPrefixEntryToDatabase>>(pl, new List<PEPrefixEntryToDatabase>()));
+                            }
+                            currentPrefixList = name;
+                        }
+                        else if (currentPrefixList != null && linetrim.StartsWith("index:"))
+                        {
+                            string[] secs = linetrim.Substring(7).Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                            int seq = -1;
+                            if (!int.TryParse(secs[0], out seq)) seq = -1;
+                            string access = secs[1];
+                            string network = secs[2];
+                            int ge = -1;
+                            int le = -1;
+                            if (secs.Length > 4)
+                            {
+                                if (secs[3] == "ge")
+                                {
+                                    int.TryParse(secs[4], out ge);
+                                    if (secs.Length > 6 && secs[5] == "le") int.TryParse(secs[6], out le);
+                                }
+                                else if (secs[3] == "le")
+                                {
+                                    int.TryParse(secs[4], out le);
+                                    if (secs.Length > 6 && secs[5] == "ge") int.TryParse(secs[6], out ge); // probably no, since ge always before le, lol
+                                }
+                            }
+
+                            PEPrefixEntryToDatabase pe = new PEPrefixEntryToDatabase();
+                            pe.Sequence = seq;
+                            pe.Access = access == "permit" ? "P" : "D";
+                            pe.Network = network;
+                            pe.GE = ge;
+                            pe.LE = le;
+
+                            prefixlistlive[currentPrefixList].Item2.Add(pe);
+                        }
+                    }
+                }
+
+
+
 
                 #endregion
 

@@ -2810,17 +2810,20 @@ namespace Jovice
             }
 
             lastConfLive = lastConfLive - nodeTimeOffset;
-            Event("Saved: " + lastConfDB.ToString("yyyy/MM/dd HH:mm:ss") + " UTC");
-            Event("Actual: " + lastConfLive.ToString("yyyy/MM/dd HH:mm:ss") + " UTC");
+            TimeSpan difference = lastConfLive - lastConfDB;
 
-            if (lastConfLive != lastConfDB)
+            if (Math.Abs(difference.TotalSeconds) > 1)
             {
+                Event("Saved: " + lastConfDB.ToString("yyyy/MM/dd HH:mm:ss") + " UTC");
+                Event("Actual: " + lastConfLive.ToString("yyyy/MM/dd HH:mm:ss") + " UTC");
                 Event("Configuration has changed!");
                 Update(UpdateTypes.LastConfiguration, lastConfLive);
                 configurationHasChanged = true;
             }
             else
             {
+                Event("Saved: " + lastConfLive.ToString("yyyy/MM/dd HH:mm:ss") + " UTC");
+                Event("Actual: " + lastConfLive.ToString("yyyy/MM/dd HH:mm:ss") + " UTC");
                 Event("Configuration is up to date");
             }
 

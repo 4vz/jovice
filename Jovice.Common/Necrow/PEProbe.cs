@@ -232,14 +232,6 @@ namespace Jovice
             set { interfaceGone = value; }
         }
 
-        private int remoteAS = -1;
-        
-        public int RemoteAS
-        {
-            get { return remoteAS; }
-            set { remoteAS = value; }
-        }
-
         private int area = -1;
 
         public int Area
@@ -262,6 +254,30 @@ namespace Jovice
         {
             get { return wildcard; }
             set { wildcard = value; }
+        }
+
+        private int bgpAS;
+
+        public int BGPAS
+        {
+            get { return bgpAS; }
+            set { bgpAS = value; }
+        }
+        
+        private int remoteAS = -1;
+
+        public int RemoteAS
+        {
+            get { return remoteAS; }
+            set { remoteAS = value; }
+        }
+
+        private bool updateRemoteAS = false;
+
+        public bool UpdateRemoteAS
+        {
+            get { return updateRemoteAS; }
+            set { updateRemoteAS = value; }
         }
 
         private string prefixListInID = null;
@@ -2971,8 +2987,8 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                 {
                     keysb.Append(row["PU_Neighbor"].ToString());
                     keysb.Append("_");
-                    int remoteAS = row["PU_B_RemoteAS"].ToInt(-1);
-                    keysb.Append("" + (remoteAS != -1 ? remoteAS + "" : ""));
+                    int BGPAS = row["PU_B_AS"].ToInt(-1);
+                    keysb.Append("" + (BGPAS != -1 ? BGPAS + "" : ""));
                 }
                 else if (type == "O")
                 {
@@ -3247,6 +3263,8 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     currentRouteNameID = null;
                     currentNeighbor = null;
                     currentRemoteAS = null;
+
+                    int currentBGPAS = -1;
                     string currentUseNeighborGroup = null;
                     string currentUseRPLIN = null;
                     string currentUseRPLOUT = null;
@@ -3267,7 +3285,12 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                         {
                             //neighbor-group AFIS
                             //01234567890123456789
-
+                            if (linetrim.StartsWith("router bgp "))
+                            {
+                                //router bgp 17974
+                                //012345678901
+                                if (!int.TryParse(linetrim.Substring(11), out currentBGPAS)) currentBGPAS = 1;
+                            }
                             if (linetrim.StartsWith("neighbor-group "))
                             {
                                 currentNeighborGroup = linetrim.Substring(15);
@@ -3368,6 +3391,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                         i.RouteNameID = currentRouteNameID;
                                         i.Type = "B";
                                         i.Neighbor = currentNeighbor;
+                                        i.BGPAS = currentBGPAS;
 
                                         if (currentUseNeighborGroup != null && neighborGroups.ContainsKey(currentUseNeighborGroup))
                                         {
@@ -3389,7 +3413,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                         if (currentUseRPLIN != null) i.RoutePolicyIn = currentUseRPLIN;
                                         if (currentUseRPLOUT != null) i.RoutePolicyOut = currentUseRPLOUT;
 
-                                        string key = currentRouteNameID + "_B_" + currentNeighbor + "_" + (i.RemoteAS != -1 ? i.RemoteAS + "" : "");
+                                        string key = currentRouteNameID + "_B_" + currentNeighbor + "_" + (currentBGPAS != -1 ? currentBGPAS + "" : "");
                                         routeuselive.Add(key, i);
                                     }
 
@@ -3794,6 +3818,8 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     string currentMaximumPrefixThres = null;
                     string currentMaximumPrefixWO = null;
 
+                    int currentBGPAS = -1;
+
                     //sh run | in \ address-family|\ \ neighbor|\ exit-address-family
                     if (Request(@"sh run | in router\ bgp|router\ rip|router\ ospf|router\ eigrp|\ address-family\ ipv4\ vrf|\ \ neighbor|\ exit-address-family|\ network\ ", out lines)) return;
 
@@ -3805,12 +3831,14 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                             if (linetrim.StartsWith("router eigrp "))
                             {
                                 //router eigrp 777
+                                //router bgp 17974
                                 //01234567890123
                                 currentRouter = "E";
                             }
                             else if (linetrim.StartsWith("router bgp "))
                             {
                                 currentRouter = "B";
+                                if (!int.TryParse(linetrim.Substring(11), out currentBGPAS)) currentBGPAS = 1;
                             }
                             else if (linetrim.StartsWith("router rip"))
                             {
@@ -3924,6 +3952,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                         i.RouteNameID = currentRouteNameID;
                                         i.Type = "B";
                                         i.Neighbor = currentNeighbor;
+                                        i.BGPAS = currentBGPAS;
                                         i.PrefixListInID = currentPrefixListIN;
                                         i.PrefixListOutID = currentPrefixListOUT;
 
@@ -3945,7 +3974,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                         int ras = -1;
                                         if (int.TryParse(currentRemoteAS, out ras)) i.RemoteAS = ras;
 
-                                        string key = currentRouteNameID + "_B_" + currentNeighbor + "_" + (i.RemoteAS != -1 ? i.RemoteAS + "" : "");
+                                        string key = currentRouteNameID + "_B_" + currentNeighbor + "_" + currentBGPAS;
                                         routeuselive.Add(key, i);
 
                                         currentNeighbor = thisneighbor;
@@ -4005,11 +4034,12 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                         i.RouteNameID = currentRouteNameID;
                                         i.Type = "B";
                                         i.Neighbor = currentNeighbor;
+                                        i.BGPAS = currentBGPAS;
 
                                         int ras = -1;
                                         if (int.TryParse(currentRemoteAS, out ras)) i.RemoteAS = ras;
 
-                                        string key = currentRouteNameID + "_B_" + currentNeighbor + "_" + (i.RemoteAS != -1 ? i.RemoteAS + "" : "");
+                                        string key = currentRouteNameID + "_B_" + currentNeighbor + "_" + currentBGPAS;
                                         routeuselive.Add(key, i);
                                     }
 
@@ -4180,6 +4210,12 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
 
 
+                #endregion
+
+                #region BGP, RIP, OSPF, EIGRP
+
+                if (Request("disp cur | in \"bgp\\ |\\ ipv4\\ family\\ |\\ ipv6\\ family\\ |\\ \\ peer\\ \"", out lines)) return;
+                
                 #endregion
 
                 #endregion
@@ -4354,7 +4390,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     if (li.Type == "S") info += "static " + li.Network + (li.Neighbor != null ? (" to " + li.Neighbor + (referencedinterface != null ? " (" + referencedinterface + ")" : "")) : "");
                     else if (li.Type == "B")
                     {
-                        info += "bgp to " + li.Neighbor + " by remote AS " + li.RemoteAS;
+                        info += "bgp " + li.BGPAS + " to " + li.Neighbor;
 
                         // setup prefix list in and out ID
                         if (li.PrefixListInID != null)
@@ -4418,6 +4454,13 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                             }
                         }
 
+                        if (db["PU_B_RemoteAS"].ToInt(-1) != li.RemoteAS)
+                        {
+                            update = true;
+                            u.UpdateRemoteAS = true;
+                            u.RemoteAS = li.RemoteAS;
+                            updateinfo.Append("remote-as ");
+                        }
                         if (db["PU_B_PX_In"].ToString() != li.PrefixListInID)
                         {
                             update = true;
@@ -4591,6 +4634,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                 }
                 else if (s.Type == "B")
                 {
+                    insert.Value("PU_B_AS", s.BGPAS);
                     insert.Value("PU_B_RemoteAS", s.RemoteAS);
                     insert.Value("PU_B_PX_In", s.PrefixListInID);
                     insert.Value("PU_B_PX_In_Gone", s.PrefixListInGone);
@@ -4629,6 +4673,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
             foreach (PERouteUseToDatabase s in routeuseupdate)
             {
                 Update update = Update("PERouteUse");
+                update.Set("PU_B_RemoteAS", s.RemoteAS.Nullable(-1), s.UpdateRemoteAS);
                 update.Set("PU_B_PX_In", s.PrefixListInID, s.UpdatePrefixListInID);
                 update.Set("PU_B_PX_In_Gone", s.PrefixListInGone, s.UpdatePrefixListInGone);
                 update.Set("PU_B_PX_Out", s.PrefixListOutID, s.UpdatePrefixListOutID);
@@ -4683,7 +4728,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     string type = pair.Value["PU_Type"].ToString();
 
                     if (type == "S") info += "static " + pair.Value["PU_Network"].ToString() + " to " + pair.Value["PU_Neighbor"].ToString() + (referencedinterface != null ? " (" + referencedinterface + ")" : "");
-                    else if (type == "B") info += "bgp to " + pair.Value["PU_Neighbor"].ToString() + " by remote AS " + pair.Value["PU_B_RemoteAS"].ToString();
+                    else if (type == "B") info += "bgp " + pair.Value["PU_B_AS"].ToString() + " to " + pair.Value["PU_Neighbor"].ToString();
                     else if (type == "O") info += "ospf area " + pair.Value["PU_O_Area"].ToString() + (referencedinterface != null ? " (" + referencedinterface + ")" : "");
                     else if (type == "R") info += "rip" + (referencedinterface != null ? " (" + referencedinterface + ")" : "");
                     else if (type == "E") info += "eigrp" + (referencedinterface != null ? " (" + referencedinterface + ")" : "");

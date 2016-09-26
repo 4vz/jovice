@@ -454,8 +454,7 @@ namespace Jovice
         private string tacacUser = null;
         private string tacacPassword = null;
 
-        private string nodeID;
-        private long nodeProgressID = 0;
+        private string nodeID;        
         private string nodeName;
         private string nodeManufacture;
         private string nodeModel;
@@ -468,6 +467,7 @@ namespace Jovice
         private string nodeType;
         private int nodeNVER;
         private TimeSpan nodeTimeOffset;
+        private long probeProgressID = 0;
 
         private bool noMore = false;
 
@@ -960,7 +960,7 @@ namespace Jovice
             }
         }
 
-#region Methods
+        #region Methods
 
         private void SendLine(string command)
         {
@@ -1492,7 +1492,7 @@ namespace Jovice
 
             if (manufacture == alu)
             {
-#region alu
+                #region alu
                 expect = MCEExpect("ogin:");
                 if (expect == 0)
                 {
@@ -1520,11 +1520,11 @@ namespace Jovice
                     Event("Cannot find login console prefix");
                     SendControlC();
                 }
-#endregion
+                #endregion
             }
             else if (manufacture == hwe)
             {
-#region hwe
+                #region hwe
                 expect = MCEExpect("sername:", "closed by foreign");
                 if (expect == 0)
                 {
@@ -1557,11 +1557,11 @@ namespace Jovice
                     Event("Cannot find username console prefix");
                     SendControlC();
                 }
-#endregion
+                #endregion
             }
             else if (manufacture == cso)
             {
-#region cso
+                #region cso
                 expect = MCEExpect("sername:");
                 if (expect == 0)
                 {
@@ -1594,7 +1594,7 @@ namespace Jovice
                     Event("Cannot find username console prefix");
                     SendControlC();
                 }
-#endregion
+                #endregion
             }
             else SendControlC();
 
@@ -1611,7 +1611,7 @@ namespace Jovice
 
             if (manufacture == hwe)
             {
-#region hwe
+                #region hwe
 
                 expect = MCEExpect("assword:", "Connection refused");
                 if (expect == 0)
@@ -1625,11 +1625,11 @@ namespace Jovice
                 }
                 else SendControlC();
 
-#endregion
+                #endregion
             }
             else if (manufacture == cso)
             {
-#region cso
+                #region cso
 
                 expect = MCEExpect("assword:", "Connection refused");
                 if (expect == 0)
@@ -1643,11 +1643,11 @@ namespace Jovice
                 }
                 else SendControlC();
 
-#endregion
+                #endregion
             }
             else if (manufacture == jun)
             {
-#region jun
+                #region jun
 
                 expect = MCEExpect("password:");
                 if (expect == 0)
@@ -1661,7 +1661,7 @@ namespace Jovice
                 }
                 else SendControlC();
 
-#endregion
+                #endregion
             }
             else SendControlC();
 
@@ -1735,10 +1735,10 @@ namespace Jovice
                 }
             }
             
-            if (nodeProgressID != 0)
+            if (probeProgressID != 0)
             {
-                Execute("update NodeProgress set NP_Status = null, NP_EndTime = {0} where NP_ID = {1}", DateTime.UtcNow, nodeProgressID);
-                nodeProgressID = 0;
+                Execute("update ProbeProgress set NP_EndTime = {0} where NP_ID = {1}", DateTime.UtcNow, probeProgressID);
+                probeProgressID = 0;
             }
 
             if (sb.Length > 0)
@@ -1810,7 +1810,7 @@ namespace Jovice
             }
         }
 
-        private void Enter(Row row, long npID, out bool continueProcess, bool prioritizeProcess)
+        private void Enter(Row row, long probeProgressID, out bool continueProcess, bool prioritizeProcess)
         {
             string[] lines = null;
 
@@ -1822,7 +1822,6 @@ namespace Jovice
             summaries = new Dictionary<string, string>();
 
             nodeID = row["NO_ID"].ToString();
-            nodeProgressID = npID;
             nodeName = row["NO_Name"].ToString();
             nodeManufacture = row["NO_Manufacture"].ToString();
             nodeModel = row["NO_Model"].ToString();
@@ -1834,12 +1833,13 @@ namespace Jovice
             nodeAreaID = row["NO_AR"].ToString();
             nodeType = row["NO_Type"].ToString();
             nodeNVER = row["NO_NVER"].ToInt(0);
+            this.probeProgressID = probeProgressID;
 
             string previousRemark = row["NO_Remark"].ToString();
             string nodeUser = tacacUser;
             string nodePass = tacacPassword;
 
-            Execute("update NodeProgress set NP_StartTime = {0} where NP_ID = {1}", DateTime.UtcNow, nodeProgressID);
+            Execute("update ProbeProgress set NP_StartTime = {0} where NP_ID = {1}", DateTime.UtcNow, this.probeProgressID);
 
             Event("Begin probing into " + nodeName);
             Event("Manufacture: " + nodeManufacture + "");
@@ -3205,7 +3205,7 @@ namespace Jovice
             }
         }
 
-#endregion
+        #endregion
 
         private void ServiceExecute(ServiceReference reference)
         {
@@ -3278,7 +3278,7 @@ namespace Jovice
 
                 string c_id = null, c_name = null, s_id = null;
 
-#region sc
+                #region sc
                 if (cid != null)
                 {
                     if (customerdb.ContainsKey(cid))
@@ -3308,9 +3308,9 @@ namespace Jovice
                         servicebycustomerdb.Add(c_id, new List<Row>());
                     }
                 }
-#endregion
+                #endregion
 
-#region se
+                #region se
                 if (servicedb.ContainsKey(sid))
                 {
                     s_id = servicedb[sid]["SE_ID"].ToString();
@@ -3356,9 +3356,9 @@ namespace Jovice
                     if (c_id != null)
                         servicebycustomerdb[c_id].Add(ndb);
                 }
-#endregion
+                #endregion
 
-#region Name Processing
+                #region Name Processing
 
                 if (c_id != null)
                 {
@@ -3532,7 +3532,7 @@ namespace Jovice
                         }
                     }
                 }
-#endregion
+                #endregion
             }
 
             // CUSTOMER ADD
@@ -3604,7 +3604,7 @@ namespace Jovice
 
             li.AdjacentIDChecked = true;
 
-#region Loader
+            #region Loader
 
             if (!findMEPhysicalAdjacentLoaded)
             {
@@ -3670,14 +3670,14 @@ order by NO_ID asc
                 findMEPhysicalAdjacentLoaded = true;
             }
 
-#endregion
+            #endregion
             
-#region Bekas/Ex/X dsb, remove hingga akhir
+            #region Bekas/Ex/X dsb, remove hingga akhir
 
             exid = description.IndexOf(" EX ", " EKS ", "(EX", "(EKS", "[EX", "[EKS", " EX-", " EKS-", " BEKAS ");
             if (exid > -1) description = description.Remove(exid);
 
-#endregion
+            #endregion
 
             bool foundnode = false;
 
@@ -3695,7 +3695,7 @@ order by NO_ID asc
                     string descPEPart = description.Substring(peNamePart);
                     Tuple<string, string, string, string, string> matchedPI = null;
 
-#region Find in currently available PI
+                    #region Find in currently available PI
 
                     int locPI = descPEPart.Length;
                     foreach (Tuple<string, string, string, string, string> pi in pis)
@@ -3729,11 +3729,11 @@ order by NO_ID asc
                         }
                     }
 
-#endregion
+                    #endregion
 
                     if (matchedPI != null)
                     {
-#region Crosscheck matched PI description
+                        #region Crosscheck matched PI description
 
                         string piDesc = matchedPI.Item2.ToUpper();
                         string miName = li.Name;
@@ -3741,10 +3741,10 @@ order by NO_ID asc
                         if (miType == "Ex") miType = li.InterfaceType;
                         string miDetail = miName.Substring(2);
 
-#region Bekas/Ex/X dsb, remove hingga akhir
+                        #region Bekas/Ex/X dsb, remove hingga akhir
                         exid = piDesc.IndexOf(" EX ", " EKS ", "(EX", "(EKS", "[EX", "[EKS", " EX-", " EKS-", " BEKAS ");
                         if (exid > -1) piDesc = piDesc.Remove(exid);
-#endregion
+                        #endregion
 
                         int meNamePart = piDesc.IndexOf(nodeName);
 
@@ -3824,7 +3824,7 @@ order by NO_ID asc
                             }
                         }
 
-#endregion
+                        #endregion
 
                         break;
                     }
@@ -3914,12 +3914,12 @@ order by NO_ID asc
             }
         }
 
-#endregion
+        #endregion
     }
 
     internal class ServiceReference
     {
-#region Fields
+        #region Fields
 
         private List<Tuple<ServiceBaseToDatabase, ServiceMapping>> mappings;
 
@@ -3928,18 +3928,18 @@ order by NO_ID asc
             get { return mappings; }
         }
 
-#endregion
+        #endregion
 
-#region Constructors
+        #region Constructors
 
         public ServiceReference()
         {
             mappings = new List<Tuple<ServiceBaseToDatabase, ServiceMapping>>();
         }
 
-#endregion
+        #endregion
 
-#region Methods
+        #region Methods
 
         public void Add(ServiceBaseToDatabase reference, string description)
         {
@@ -3948,19 +3948,19 @@ order by NO_ID asc
                 mappings.Add(new Tuple<ServiceBaseToDatabase, ServiceMapping>(reference, servmap));
         }
 
-#endregion
+        #endregion
     }
 
     internal class ServiceMapping
     {
-#region Constants
+        #region Constants
 
         private static string[] monthsEnglish = new string[] { "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER" };
         private static string[] monthsBahasa = new string[] { "JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER" };
 
-#endregion
+        #endregion
 
-#region Properties
+        #region Properties
 
         private string sid;
 
@@ -4010,9 +4010,9 @@ order by NO_ID asc
             private set { rawDescription = value; }
         }
 
-#endregion
+        #endregion
 
-#region Methods
+        #region Methods
 
         public static ServiceMapping Parse(string desc)
         {
@@ -4510,6 +4510,6 @@ order by NO_ID asc
             return de;
         }
 
-#endregion
+        #endregion
     }
 }

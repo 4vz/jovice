@@ -78,7 +78,7 @@ namespace Jovice
     {
         #region Fields
 
-        internal readonly static int Version = 12;
+        internal readonly static int Version = 13;
 
         private static Database joviceDatabase = null;
 
@@ -89,7 +89,7 @@ namespace Jovice
 
         private static bool console = false;
 
-        private static Queue<Tuple<long, string>> list = null;
+        private static Queue<Tuple<int, string>> list = null;
 
         private static Queue<string> prioritize = new Queue<string>();
 
@@ -177,30 +177,28 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     Batch batch = JoviceDatabase.Batch();
 
                     batch.Begin();
+                    int id = 1;
                     foreach (string nid in nids)
                     {
-                        Insert insert = JoviceDatabase.Insert("NodeProgress");
-                        insert.Value("NP_NO", nid);
+                        Insert insert = JoviceDatabase.Insert("ProbeProgress");
+                        insert.Value("XP_ID", id++);
+                        insert.Value("XP_NO", nid);
                         batch.Execute(insert);
                     }
                     Result result = batch.Commit();
                     if (result.Count > 0) Event("List created");
 
-                    Result npr = JoviceDatabase.Query("select NP_ID, NP_NO from NodeProgress where NP_EndTime is null order by NP_ID asc");
-
-                    foreach (Row np in npr)
+                    foreach (Row xp in JoviceDatabase.Query("select XP_ID, XP_NO from ProbeProgress order by XP_ID asc"))
                     {
-                        long np_ID = np["NP_ID"].ToLong();
-                        string npNO = np["NP_NO"].ToString();
-                        list.Enqueue(new Tuple<long, string>(np_ID, npNO));
+                        list.Enqueue(new Tuple<int, string>(xp["XP_ID"].ToInt(), xp["XP_NO"].ToString()));
                     }
                 }
             }
         }
 
-        internal static Tuple<long, string> GetNode()
+        internal static Tuple<int, string> GetNode()
         {
-            Tuple<long, string> noded = null;
+            Tuple<int, string> noded = null;
 
             lock (list)
             {
@@ -372,15 +370,11 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     {
                         Event("Loaded " + accounts.Count + " account" + ((accounts.Count > 1) ? "s" : ""));
 
-                        list = new Queue<Tuple<long, string>>();
+                        list = new Queue<Tuple<int, string>>();
 
-                        Result npr = jovice.Query("select NP_ID, NP_NO from NodeProgress where NP_EndTime is null order by NP_ID asc");
-
-                        foreach (Row np in npr)
+                        foreach (Row xp in jovice.Query("select XP_ID, XP_NO from ProbeProgress order by XP_ID asc"))
                         {
-                            long npID = np["NP_ID"].ToLong();
-                            string npNO = np["NP_NO"].ToString();
-                            list.Enqueue(new Tuple<long, string>(npID, npNO));
+                            list.Enqueue(new Tuple<int, string>(xp["XP_ID"].ToInt(), xp["XP_NO"].ToString()));
                         }
 
                         if (list.Count == 0)
@@ -389,6 +383,8 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                         }
                         else
                         {
+                            // set all starttime and status to null
+                            jovice.Execute("update ProbeProgress set XP_StartTime = NULL, XP_Status = NULL");
                             Event("Using existing list, " + list.Count + " node" + (list.Count > 1 ? "s" : "") + " remaining");
                         }
 

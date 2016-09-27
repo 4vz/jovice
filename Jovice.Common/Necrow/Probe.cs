@@ -467,7 +467,8 @@ namespace Jovice
         private string nodeType;
         private int nodeNVER;
         private TimeSpan nodeTimeOffset;
-        private long probeProgressID = 0;
+        private int probeProgressID = -1;
+        private DateTime nodeProbeStartTime = DateTime.MinValue;
 
         private bool noMore = false;
 
@@ -594,8 +595,6 @@ namespace Jovice
 
         #endregion
 
-        #region Methods
-
         private void Event(string message)
         {
             string oi;
@@ -698,21 +697,12 @@ namespace Jovice
             Start(sshServer, sshUser, sshPassword);
         }
 
-        //private new void Stop()
-        //{
-        //    outputIdentifier = null;
-        //    Event("Stop requested, disconnecting...");
-        //    base.Stop();
-        //}
-
         private void Failure()
         {
             outputIdentifier = null;
             Event("Connection failure has occured");
             base.Stop();
         }
-
-        #region SSHConnection
 
         protected override void CantConnect(string message)
         {
@@ -794,8 +784,6 @@ namespace Jovice
             }
         }
 
-        #endregion
-
         private void MainLoop()
         {
             Culture.Default();
@@ -804,7 +792,7 @@ namespace Jovice
 
             while (true)
             {
-                long npID = 0;
+                int xpID = -1;
                 Row node = null;
                 bool prioritizeProcess = false;
 
@@ -833,9 +821,9 @@ namespace Jovice
                 }
                 else
                 {
-                    Tuple<long, string> noded = Necrow.GetNode();
+                    Tuple<int, string> noded = Necrow.GetNode();
 
-                    npID = noded.Item1;
+                    xpID = noded.Item1;
                     Result rnode = Query("select * from Node where NO_ID = {0}", noded.Item2);
                     node = rnode[0];
                 }
@@ -844,7 +832,7 @@ namespace Jovice
                 {
                     bool continueProcess = false;
 
-                    Enter(node, npID, out continueProcess, prioritizeProcess);
+                    Enter(node, xpID, out continueProcess, prioritizeProcess);
 
                     if (continueProcess)
                     {
@@ -959,8 +947,6 @@ namespace Jovice
                 list[n] = value;
             }
         }
-
-        #region Methods
 
         private void SendLine(string command)
         {
@@ -1247,6 +1233,11 @@ namespace Jovice
                 if (updates.ContainsKey(key)) updates[key] = value;
                 else updates.Add(key, value);
             }
+        }
+
+        private void Status(string status)
+        {
+            if (probeProgressID != -1) Execute("update ProbeProgress XP_Status = {0} where XP_ID = {1}", status, probeProgressID);
         }
 
         private void Summary(string key, int value)
@@ -1706,7 +1697,11 @@ namespace Jovice
                 else
                     nsd.Add(nsk, new string[] { nsid, nsv });
             }
-                        
+
+            // end node
+            Result idr = ExecuteIdentity("insert into ProbeHistory(XH_NO, XH_StartTime, XH_EndTime) values({0}, {1}, {2})", nodeID, nodeProbeStartTime, DateTime.UtcNow);
+            long probeHistoryID = idr.Identity;
+
             foreach (KeyValuePair<string, string> pair in summaries)
             {
                 string[] db = null;
@@ -1734,11 +1729,11 @@ namespace Jovice
                     else if (pair.Value != dbv) sb.Append(j.Format("update NodeSummary set NS_Value = {0} where NS_ID = {1};", pair.Value, dbi));
                 }
             }
-            
-            if (probeProgressID != 0)
+
+            if (probeProgressID != -1)
             {
-                Execute("update ProbeProgress set NP_EndTime = {0} where NP_ID = {1}", DateTime.UtcNow, probeProgressID);
-                probeProgressID = 0;
+                Execute("delete from ProbeProgress where XP_ID = {0}", probeProgressID);
+                probeProgressID = -1;
             }
 
             if (sb.Length > 0)
@@ -1810,7 +1805,7 @@ namespace Jovice
             }
         }
 
-        private void Enter(Row row, long probeProgressID, out bool continueProcess, bool prioritizeProcess)
+        private void Enter(Row row, int probeProgressID, out bool continueProcess, bool prioritizeProcess)
         {
             string[] lines = null;
 
@@ -1839,7 +1834,8 @@ namespace Jovice
             string nodeUser = tacacUser;
             string nodePass = tacacPassword;
 
-            Execute("update ProbeProgress set NP_StartTime = {0} where NP_ID = {1}", DateTime.UtcNow, this.probeProgressID);
+            nodeProbeStartTime = DateTime.UtcNow;
+            Execute("update ProbeProgress set XP_StartTime = {0} where XP_ID = {1}", DateTime.UtcNow, this.probeProgressID);            
 
             Event("Begin probing into " + nodeName);
             Event("Manufacture: " + nodeManufacture + "");
@@ -3205,8 +3201,6 @@ namespace Jovice
             }
         }
 
-        #endregion
-
         private void ServiceExecute(ServiceReference reference)
         {
             Batch batch = Batch();
@@ -3913,8 +3907,6 @@ order by NO_ID asc
                 }
             }
         }
-
-        #endregion
     }
 
     internal class ServiceReference

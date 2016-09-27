@@ -4640,6 +4640,8 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                 }
             }
 
+            Summary("PREFIX_LIST_COUNT", prefixlistlive.Count);
+
             #endregion
 
             #region Execute

@@ -2531,6 +2531,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 {
                                     interfacelive[poe].Status = pstat == "Up";
                                     interfacelive[poe].Protocol = pprot == "Up";
+                                    interfacelive[poe].Enable = interfacelive[poe].Status;
 
                                     if (issif == false)
                                     {

@@ -138,6 +138,22 @@ namespace Jovice
             get { return updateDot1Q; }
             set { updateDot1Q = value; }
         }
+
+        private DateTime? lastDown = null;
+
+        public DateTime? LastDown
+        {
+            get { return lastDown; }
+            set { lastDown = value; }
+        }
+
+        private bool updateLastDown = false;
+
+        public bool UpdateLastDown
+        {
+            get { return updateLastDown; }
+            set { updateLastDown = value; }
+        }
         
         #endregion
 
@@ -1310,8 +1326,6 @@ namespace Jovice
 
             while (requestLoop)
             {
-                Thread.Sleep(500);
-
                 outputs.Clear();
                 SendLine(command);
 
@@ -1454,6 +1468,7 @@ namespace Jovice
                     if (improperCommand)
                     {
                         Event("Improper command, send request again...");
+                        Thread.Sleep(500);
                     }
                     else
                     {

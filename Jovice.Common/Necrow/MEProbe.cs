@@ -1978,6 +1978,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                 if (interfacelive.ContainsKey(portex))
                                 {
                                     interfacelive[portex].Status = linex[1].Trim() == "Up";
+                                    interfacelive[portex].Enable = interfacelive[portex].Status;
 
                                     string il3 = linex[3].Trim();
                                     if (il3 == "Link") il3 = "Up";

@@ -2001,7 +2001,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                                 string dtim = portlinetrim.Substring(21, 19);
                                                 DateTime lstch;
                                                 if (!DateTime.TryParse(dtim, out lstch)) lstch = DateTime.MinValue;
-                                                if (lstch > DateTime.MinValue) interfacelive[portex].LastDown = lstch;
+                                                if (lstch > DateTime.MinValue) interfacelive[portex].LastDown = lstch - nodeTimeOffset;
                                             }
                                         }
                                     }
@@ -2145,7 +2145,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                     mid.Name = thisport;
                                     mid.Status = status == "Up";
                                     mid.Protocol = protocol == "Up";
-                                    mid.Enable = status == "Up";
+                                    mid.Enable = mid.Status;
                                     mid.CircuitID = circuitID;
                                     mid.IngressID = ingressID;
                                     mid.EgressID = egressID;

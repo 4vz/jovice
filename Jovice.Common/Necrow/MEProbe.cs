@@ -2145,6 +2145,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                     mid.Name = thisport;
                                     mid.Status = status == "Up";
                                     mid.Protocol = protocol == "Up";
+                                    mid.Enable = status == "Up";
                                     mid.CircuitID = circuitID;
                                     mid.IngressID = ingressID;
                                     mid.EgressID = egressID;

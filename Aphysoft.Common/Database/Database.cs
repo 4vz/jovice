@@ -1807,6 +1807,12 @@ namespace Aphysoft.Common
             else return ToDateTime();
         }
 
+        public DateTime? ToNullabelDateTime()
+        {
+            if (IsNull) return null;
+            else return new DateTime?(ToDateTime());
+        }
+
         #endregion
     }
 }

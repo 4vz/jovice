@@ -86,7 +86,7 @@ namespace Jovice
             set { serviceID = value; }
         }
     }
-    
+
     internal abstract class InterfaceToDatabase : ServiceBaseToDatabase
     {
         #region Basic
@@ -154,7 +154,7 @@ namespace Jovice
             get { return updateLastDown; }
             set { updateLastDown = value; }
         }
-        
+
         #endregion
 
         #region QOS
@@ -194,7 +194,7 @@ namespace Jovice
         #endregion
 
         #region Topology
-        
+
         private int aggr = -1;
 
         public int Aggr
@@ -353,7 +353,7 @@ namespace Jovice
 
         #endregion
     }
-    
+
     internal class CustomerToDatabase : ToDatabase
     {
         private string name;
@@ -442,7 +442,9 @@ namespace Jovice
         }
 
         private enum EventActions { Add, Remove, Delete, Update }
-        private enum EventElements { ALUCustomer, QOS, SDP, Circuit, Interface, Peer, CircuitReference,
+        private enum EventElements
+        {
+            ALUCustomer, QOS, SDP, Circuit, Interface, Peer, CircuitReference,
             VRFReference, VRF, VRFRouteTarget, InterfaceIP, Service, Customer, NodeReference, InterfaceReference,
             NodeAlias, NodeSummary, POPInterfaceReference, Routing, AdjacentInterface,
             PrefixList, PrefixEntry
@@ -470,7 +472,7 @@ namespace Jovice
         private string tacacUser = null;
         private string tacacPassword = null;
 
-        private string nodeID;        
+        private string nodeID;
         private string nodeName;
         private string nodeManufacture;
         private string nodeModel;
@@ -560,7 +562,7 @@ namespace Jovice
         }
 
         public Dictionary<string, Row> QueryDictionary(string sql, QueryDictionaryKeyCallback callback, QueryDictionaryDuplicateCallback duplicate, params object[] args)
-        {            
+        {
             return j.QueryDictionary(sql, callback, duplicate, args);
         }
 
@@ -595,7 +597,7 @@ namespace Jovice
         }
 
         #endregion
-        
+
         #region Static
 
         public static void Start(ProbeProperties properties, string identifier)
@@ -737,7 +739,7 @@ namespace Jovice
                 Event(message);
                 dorestart = true;
             }
-            
+
             if (dorestart)
             {
                 Event("Reconnecting in 20 seconds");
@@ -782,8 +784,8 @@ namespace Jovice
 
             int c = j.Cancel();
             if (c > 0)
-                Event("Canceled " + c + " database transactions");            
-            
+                Event("Canceled " + c + " database transactions");
+
             Thread.Sleep(5000);
 
             Restart();
@@ -881,7 +883,7 @@ namespace Jovice
                             popInterfaces = new Dictionary<string, Row>();
                             result = Query("select * from POP where UPPER(OO_NO_Name) = {0}", nodeName);
                             foreach (Row row in result)
-                            {                                    
+                            {
                                 string storedID = row["OO_ID"].ToString();
                                 string interfaceName = row["OO_PI_Name"].ToString();
                                 bool ooPINULL = row["OO_PI"].IsNull;
@@ -911,16 +913,16 @@ namespace Jovice
                         try
                         {
 #endif
-                            if (nodeType == "P")
-                            {
-                                PEProcess();
-                                findMEPhysicalAdjacentLoaded = false;
-                            }
-                            else if (nodeType == "M")
-                            {
-                                MEProcess();
-                            }
-                            Necrow.SupportedNodeVersion(nodeManufacture, nodeVersion, nodeSubVersion);
+                        if (nodeType == "P")
+                        {
+                            PEProcess();
+                            findMEPhysicalAdjacentLoaded = false;
+                        }
+                        else if (nodeType == "M")
+                        {
+                            MEProcess();
+                        }
+                        Necrow.SupportedNodeVersion(nodeManufacture, nodeVersion, nodeSubVersion);
 #if !DEBUG
                         }
                         catch (Exception ex)
@@ -948,7 +950,7 @@ namespace Jovice
                 }
             }
 
-#endregion
+            #endregion
         }
 
         private static void Shuffle<T>(IList<T> list)
@@ -1243,7 +1245,7 @@ namespace Jovice
                 case UpdateTypes.VersionTime: key = "NO_VersionTime"; break;
                 case UpdateTypes.LastConfiguration: key = "NO_LastConfiguration"; break;
             }
-            
+
             if (key != null)
             {
                 if (updates.ContainsKey(key)) updates[key] = value;
@@ -1343,7 +1345,7 @@ namespace Jovice
                 while (true)
                 {
                     if (outputs.Count > 0)
-                    {                        
+                    {
                         lock (outputs)
                         {
                             wait = 0;
@@ -1445,7 +1447,7 @@ namespace Jovice
                 }
                 if (lineBuilder.Length > 0) listlines.Add(lineBuilder.ToString().Trim());
                 stopwatch.Stop();
-                
+
                 if (!timeout)
                 {
                     lines = listlines.ToArray();
@@ -1770,9 +1772,9 @@ namespace Jovice
                 Event(result, EventActions.Delete, EventElements.NodeAlias, false);
                 result = Execute("delete from NodeSummary where NS_NO = {0}", id);
                 Event(result, EventActions.Delete, EventElements.NodeSummary, false);
-                
+
                 if (type == "P")
-                {                    
+                {
                     result = Execute("update POP set OO_PI = NULL where OO_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
                     Event(result, EventActions.Remove, EventElements.InterfaceReference, false);
                     result = Execute("delete from PEInterfacePI where PP_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
@@ -1795,7 +1797,7 @@ namespace Jovice
                     Event(result, EventActions.Delete, EventElements.VRF, false);
                 }
                 else if (type == "M")
-                {                    
+                {
                     result = Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI in (select MI_ID from MEInterface where MI_NO = {0})", id);
                     Event(result, EventActions.Remove, EventElements.InterfaceReference, false);
                     result = Execute("update MEInterface set MI_MI = NULL where MI_MI in (select MI_ID from MEInterface where MI_NO = {0})", id);
@@ -1850,7 +1852,7 @@ namespace Jovice
             string nodePass = tacacPassword;
 
             nodeProbeStartTime = DateTime.UtcNow;
-            Execute("update ProbeProgress set XP_StartTime = {0} where XP_ID = {1}", DateTime.UtcNow, this.probeProgressID);            
+            Execute("update ProbeProgress set XP_StartTime = {0} where XP_ID = {1}", DateTime.UtcNow, this.probeProgressID);
 
             Event("Begin probing into " + nodeName);
             Event("Manufacture: " + nodeManufacture + "");
@@ -1869,7 +1871,7 @@ namespace Jovice
                 return;
             }
 
-#region CHECK IP
+            #region CHECK IP
 
             if (nodeIP != null) Event("Host IP: " + nodeIP);
 
@@ -1901,7 +1903,7 @@ namespace Jovice
                 }
             }
             else
-            {   
+            {
                 if (resolvedIP == null)
                 {
                     Event("Hostname is unresolved");
@@ -1932,7 +1934,7 @@ namespace Jovice
                             }
                             else if (existingType == "M")
                             {
-                                int existinginterfacecount = Scalar("select count(MI_ID) from MEInterface where MI_NO = {0}", existingNodeID).ToInt();   
+                                int existinginterfacecount = Scalar("select count(MI_ID) from MEInterface where MI_NO = {0}", existingNodeID).ToInt();
                                 existinghasentries = existinginterfacecount > 0;
                             }
 
@@ -1962,7 +1964,7 @@ namespace Jovice
                         }
                         else
                         {
-                            Event("Change " + nodeName + " to " + hostName);  
+                            Event("Change " + nodeName + " to " + hostName);
                             if (!Exists("NodeAlias", "NA_Name", nodeName)) Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})", Database.ID(), nodeID, nodeName);
                             Update(UpdateTypes.Name, hostName);
                             nodeName = hostName;
@@ -1981,7 +1983,7 @@ namespace Jovice
                             Update(UpdateTypes.Remark, "UNRESOLVED");
 
                         Save();
-                        return;                      
+                        return;
                     }
                 }
                 else if (nodeIP != resolvedIP)
@@ -1999,9 +2001,9 @@ namespace Jovice
 
             outputIdentifier = nodeName;
 
-#endregion
+            #endregion
 
-#region CONNECT
+            #region CONNECT
 
             Update(UpdateTypes.RemarkUser, nodeUser);
 
@@ -2084,7 +2086,7 @@ namespace Jovice
                         Event("Connection failed, TACAC server is possible overloaded/error/not responding.");
 
                         int time = 1;
-#region time
+                        #region time
                         if (loop == 0)
                         {
                             Event("Try again in 1 minute");
@@ -2109,7 +2111,7 @@ namespace Jovice
                             Event("Try again in 1 hour");
                             time = 60;
                         }
-#endregion
+                        #endregion
 
                         Thread.Sleep(60000 * time);
                         loop++;
@@ -2182,9 +2184,9 @@ namespace Jovice
             if (terminal != nodeTerminal) Update(UpdateTypes.Terminal, terminal);
             nodeTerminal = terminal;
 
-#endregion
+            #endregion
 
-#region TIME
+            #region TIME
 
             Event("Checking Time");
 
@@ -2193,13 +2195,13 @@ namespace Jovice
             DateTime nodeTime = DateTime.MinValue;
 
             string[] junShowSystemUptimeLines = null;
-            
+
             if (nodeManufacture == alu)
             {
-#region alu
+                #region alu
 
                 if (Request("show system time", out lines)) return;
-                
+
                 foreach (string line in lines)
                 {
                     if (line.StartsWith("Current Date"))
@@ -2212,11 +2214,11 @@ namespace Jovice
                     }
                 }
 
-#endregion
+                #endregion
             }
             else if (nodeManufacture == cso)
             {
-#region cso
+                #region cso
                 if (Request("show clock", out lines)) return;
 
                 foreach (string line in lines)
@@ -2231,11 +2233,11 @@ namespace Jovice
                     }
                 }
 
-#endregion
+                #endregion
             }
             else if (nodeManufacture == hwe)
             {
-#region hwe
+                #region hwe
                 if (Request("display clock", out lines)) return;
 
                 foreach (string line in lines)
@@ -2250,11 +2252,11 @@ namespace Jovice
                     }
                 }
 
-#endregion
+                #endregion
             }
             else if (nodeManufacture == jun)
             {
-#region jun
+                #region jun
                 if (Request("show system uptime", out junShowSystemUptimeLines)) return;
 
                 foreach (string line in junShowSystemUptimeLines)
@@ -2269,7 +2271,7 @@ namespace Jovice
                     }
                 }
 
-#endregion
+                #endregion
             }
 
             if (!nodeTimeRetrieved)
@@ -2288,10 +2290,10 @@ namespace Jovice
             Event("Local time: " + nodeTime.ToString("yyyy/MM/dd HH:mm:ss"));
             Event("UTC offset: " + nodeTimeOffset.TotalHours + "h");
             Update(UpdateTypes.TimeOffset, nodeTimeOffset.TotalHours);
-            
-#endregion
 
-#region TERMINAL SETUP
+            #endregion
+
+            #region TERMINAL SETUP
 
             Event("Setup terminal");
 
@@ -2321,9 +2323,9 @@ namespace Jovice
                 if (Request("set cli screen-length 0", out lines)) return;
             }
 
-#endregion
-            
-#region VERSION
+            #endregion
+
+            #region VERSION
 
             bool checkVersion = false;
 
@@ -2345,7 +2347,7 @@ namespace Jovice
 
                 if (nodeManufacture == alu)
                 {
-#region alu
+                    #region alu
                     if (Request("show version | match TiMOS", out lines)) return;
 
                     foreach (string line in lines)
@@ -2358,11 +2360,11 @@ namespace Jovice
                             break;
                         }
                     }
-#endregion
+                    #endregion
                 }
                 else if (nodeManufacture == hwe)
                 {
-#region hwe
+                    #region hwe
                     if (Request("display version", out lines)) return;
 
                     foreach (string line in lines)
@@ -2381,11 +2383,11 @@ namespace Jovice
                     //    if (timeout) { NodeStop(); return true; }
                     //}
 
-#endregion
+                    #endregion
                 }
                 else if (nodeManufacture == cso)
                 {
-#region cso
+                    #region cso
                     if (Request("show version | in IOS", out lines)) return;
 
                     string sl = string.Join("", lines.ToArray());
@@ -2444,11 +2446,11 @@ namespace Jovice
                             model = imod.Substring(iod);
                         }
                     }
-#endregion
+                    #endregion
                 }
                 else if (nodeManufacture == jun)
                 {
-#region jun
+                    #region jun
                     if (Request("show version | match \"JUNOS Base OS boot\"", out lines)) return;
 
                     foreach (string line in lines)
@@ -2461,7 +2463,7 @@ namespace Jovice
                         }
                     }
 
-#endregion
+                    #endregion
                 }
 
                 if (model != nodeModel)
@@ -2495,9 +2497,9 @@ namespace Jovice
 
             Event("Version: " + nodeVersion + ((nodeSubVersion != null) ? ":" + nodeSubVersion : ""));
 
-#endregion
+            #endregion
 
-#region LAST CONFIGURATION
+            #region LAST CONFIGURATION
 
             Event("Checking Last Configuration");
 
@@ -2507,7 +2509,7 @@ namespace Jovice
 
             if (nodeManufacture == alu)
             {
-#region alu
+                #region alu
                 if (Request("show system information | match \"Time Last Modified\"", out lines)) return;
 
                 bool lastModified = false;
@@ -2554,11 +2556,11 @@ namespace Jovice
                         }
                     }
                 }
-#endregion
+                #endregion
             }
             else if (nodeManufacture == hwe)
             {
-#region hwe
+                #region hwe
 
                 if (nodeVersion.StartsWith("8"))
                 {
@@ -2606,14 +2608,14 @@ namespace Jovice
                         if (DateTime.TryParseExact(datesection.ToString(), "MMM dd yyyy HH:mm:ss", null, DateTimeStyles.None, out lastConfLive)) lastConfLiveRetrieved = true;
                     }
                 }
-#endregion
+                #endregion
             }
             else if (nodeManufacture == cso)
             {
-#region cso
+                #region cso
                 if (nodeVersion == xr)
                 {
-#region xr
+                    #region xr
                     if (Request("show configuration history commit last 1 | in commit", out lines)) return;
 
                     foreach (string line in lines)
@@ -2641,11 +2643,11 @@ namespace Jovice
                             }
                         }
                     }
-#endregion
+                    #endregion
                 }
                 else
                 {
-#region ios
+                    #region ios
 
                     // because so many differences between IOS version, we might try every possible command
                     bool passed = false;
@@ -2790,13 +2792,13 @@ namespace Jovice
                         }
                     }
 
-#endregion
+                    #endregion
                 }
-#endregion
+                #endregion
             }
             else if (nodeManufacture == jun)
             {
-#region jun
+                #region jun
                 foreach (string line in junShowSystemUptimeLines)
                 {
                     if (line.StartsWith("Last configured: "))
@@ -2808,7 +2810,7 @@ namespace Jovice
                         break;
                     }
                 }
-#endregion
+                #endregion
             }
 
             DateTime lastConfDB = row["NO_LastConfiguration"].ToDateTime();
@@ -2838,9 +2840,9 @@ namespace Jovice
                 Event("Configuration is up to date");
             }
 
-#endregion
+            #endregion
 
-#region CPU / MEMORY
+            #region CPU / MEMORY
 
             Event("Checking CPU / Memory"); //mengecek memory dan CPU 
 
@@ -2848,11 +2850,11 @@ namespace Jovice
             int mtotal = -1;
             int mused = -1;
 
-#region Live
+            #region Live
 
             if (nodeManufacture == cso)
             {
-#region cso
+                #region cso
                 if (Request("show processes cpu | in CPU", out lines)) return;
 
                 foreach (string line in lines)
@@ -2951,11 +2953,11 @@ namespace Jovice
                     }
                 }
 
-#endregion
+                #endregion
             }
             else if (nodeManufacture == alu)
             {
-#region alu
+                #region alu
                 if (Request("show system cpu | match \"Busiest Core\"", out lines)) return;
 
                 foreach (string line in lines)
@@ -3011,11 +3013,11 @@ namespace Jovice
                     }
                 }
 
-#endregion
+                #endregion
             }
             else if (nodeManufacture == hwe)
             {
-#region hwe
+                #region hwe
                 if (Request("display cpu-usage", out lines)) return;
 
                 foreach (string line in lines)
@@ -3085,11 +3087,11 @@ namespace Jovice
                         }
                     }
                 }
-#endregion
+                #endregion
             }
             else if (nodeManufacture == jun)
             {
-#region jun
+                #region jun
 
                 //show chassis routing-engine | match Idle
                 if (Request("show chassis routing-engine | match Idle", out lines)) return;
@@ -3154,12 +3156,12 @@ namespace Jovice
                     }
                 }
 
-#endregion
+                #endregion
             }
 
-#endregion
+            #endregion
 
-#region Check and Update
+            #region Check and Update
 
             if (cpu > -1 && cpu < 100)
             {
@@ -3192,9 +3194,9 @@ namespace Jovice
                 Summary("MEMORY_USED", null);
             }
 
-#endregion
+            #endregion
 
-#endregion
+            #endregion
 
             if (configurationHasChanged || nodeNVER < Necrow.Version)
             {
@@ -3648,7 +3650,7 @@ order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
                                 new List<Tuple<string, string, string, string, string>>(curlist)));
                             curlist.Clear();
                         }
-                        curnoname = noname;                  
+                        curnoname = noname;
                     }
 
                     curlist.Add(new Tuple<string, string, string, string, string>(piname, pidesc, piid, pipi, piToMi));
@@ -3680,7 +3682,7 @@ order by NO_ID asc
             }
 
             #endregion
-            
+
             #region Bekas/Ex/X dsb, remove hingga akhir
 
             exid = description.IndexOf(" EX ", " EKS ", "(EX", "(EKS", "[EX", "[EKS", " EX-", " EKS-", " BEKAS ");
@@ -3693,7 +3695,7 @@ order by NO_ID asc
             foreach (Tuple<string, List<Tuple<string, string, string, string, string>>> pe in MEPEAdjacent)
             {
                 string peName = pe.Item1;
-                
+
                 List<Tuple<string, string, string, string, string>> pis = pe.Item2;
 
                 int peNamePart = description.IndexOf(peName);
@@ -3799,7 +3801,7 @@ order by NO_ID asc
                             }
 
                             if (foundinterface)
-                            {                                
+                            {
                                 li.AdjacentID = matchedPI.Item3;
                                 li.AdjacentToID = matchedPI.Item5;
 

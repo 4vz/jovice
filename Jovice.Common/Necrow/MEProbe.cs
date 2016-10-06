@@ -1971,7 +1971,8 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
                             if (linex.Length >= 4)
                             {
-                                string portex = "Ex" + linex[0].Trim();
+                                string portdet = linex[0].Trim();
+                                string portex = "Ex" + portdet;
                                 portex = portex.Replace('.', ':');
 
                                 if (interfacelive.ContainsKey(portex))
@@ -1982,6 +1983,28 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                     if (il3 == "Link") il3 = "Up";
 
                                     interfacelive[portex].Protocol = il3 == "Up";
+
+                                    if (interfacelive[portex].Status)
+                                    {
+                                        string[] portlines;
+                                        if (Request("show port " + portdet + " | match \"Last State Change\"", out portlines)) return;
+
+                                        foreach (string portline in portlines)
+                                        {
+                                            string portlinetrim = portline.Trim();
+                                            //Last State Change  : 09/27/2016 02:59:23        Hold time down   : 0 seconds
+                                            //01234567890123456789012345678901234567890123456789
+                                            //                     
+                                            if (portlinetrim.StartsWith("Last State Change") && portlinetrim.Length >= 40)
+                                            {
+                                                string dtim = portlinetrim.Substring(21, 19);
+                                                DateTime lstch;
+                                                if (!DateTime.TryParse(dtim, out lstch)) lstch = DateTime.MinValue;
+                                                if (lstch > DateTime.MinValue) interfacelive[portex].LastDown = lstch;
+                                            }
+                                        }
+                                    }
+                                    else interfacelive[portex].LastDown = null;
 
                                     if (interfacelive[portex].Status && interfacelive[portex].Protocol)
                                         interfacelive[portex].Used = true; // 1 1
@@ -3092,6 +3115,13 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.Info = li.Info;
                         updateinfo.Append("info ");
                     }
+                    if (db["MI_LastDown"].ToNullabelDateTime() != li.LastDown)
+                    {
+                        update = true;
+                        u.UpdateLastDown = true;
+                        u.LastDown = li.LastDown;
+                        updateinfo.Append("lastdown ");
+                    }
                     if (db["MI_Summary_CIRConfigTotalInput"].ToInt(-1) != li.CirConfigTotalInput)
                     {
                         update = true;
@@ -3201,6 +3231,11 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 insert.Value("MI_SE", s.ServiceID);
                 insert.Value("MI_MI", s.ParentID);
                 insert.Value("MI_TO_PI", s.AdjacentID);
+                insert.Value("MI_LastDown", s.LastDown);
+                insert.Value("MI_Summary_CIRConfigTotalInput", s.CirConfigTotalInput.Nullable(-1));
+                insert.Value("MI_Summary_CIRConfigTotalOutput", s.CirConfigTotalOutput.Nullable(-1));
+                insert.Value("MI_Summary_CIRTotalInput", s.CirTotalInput.Nullable(-1));
+                insert.Value("MI_Summary_CIRTotalOutput", s.CirTotalOutput.Nullable(-1));
                 insert.Value("MI_Summary_SubInterfaceCount", s.SubInterfaceCount.Nullable(-1));
                 batch.Execute(insert);
 
@@ -3242,6 +3277,11 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 update.Set("MI_Rate_Output", s.RateOutput.Nullable(-1), s.UpdateRateOutput);
                 update.Set("MI_Used", s.Used, s.UpdateUsed);
                 update.Set("MI_Info", s.Info, s.UpdateInfo);
+                update.Set("MI_LastDown", s.LastDown, s.UpdateLastDown);
+                update.Set("MI_Summary_CIRConfigTotalInput", s.CirConfigTotalInput.Nullable(-1), s.UpdateCirConfigTotalInput);
+                update.Set("MI_Summary_CIRConfigTotalOutput", s.CirConfigTotalOutput.Nullable(-1), s.UpdateCirConfigTotalOutput);
+                update.Set("MI_Summary_CIRTotalInput", s.CirTotalInput.Nullable(-1), s.UpdateCirTotalInput);
+                update.Set("MI_Summary_CIRTotalOutput", s.CirTotalOutput.Nullable(-1), s.UpdateCirTotalOutput);
                 update.Set("MI_Summary_SubInterfaceCount", s.SubInterfaceCount, s.UpdateSubInterfaceCount);
                 update.Where("MI_ID", s.ID);
                 batch.Execute(update);

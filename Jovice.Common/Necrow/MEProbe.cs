@@ -1984,7 +1984,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
                                     interfacelive[portex].Protocol = il3 == "Up";
 
-                                    if (interfacelive[portex].Status)
+                                    if (interfacelive[portex].Status == false)
                                     {
                                         string[] portlines;
                                         if (Request("show port " + portdet + " | match \"Last State Change\"", out portlines)) return;

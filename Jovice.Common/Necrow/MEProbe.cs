@@ -103,14 +103,6 @@ namespace Jovice
             set { updateEgressID = value; }
         }
 
-        private bool? used = null;
-
-        public bool? Used
-        {
-            get { return used; }
-            set { used = value; }
-        }
-
         private bool updateUsed = false;
 
         public bool UpdateUsed
@@ -2007,23 +1999,6 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                     }
                                     else interfacelive[portex].LastDown = null;
 
-                                    if (interfacelive[portex].Status && interfacelive[portex].Protocol)
-                                        interfacelive[portex].Used = true; // 1 1
-                                    else
-                                    {
-                                        string desc = interfacelive[portex].Description.Trim();
-                                        if (desc != null && (
-                                                    desc.ToUpper().StartsWith("RESERVED") ||
-                                                    desc.ToUpper().StartsWith("TRUNK") ||
-                                                    desc.ToUpper().StartsWith("REQUEST") ||
-                                                    desc.ToUpper().StartsWith("BOOK") ||
-                                                    desc.ToUpper().StartsWith("TO")
-                                                    ))
-                                            interfacelive[portex].Used = true;
-                                        else
-                                            interfacelive[portex].Used = false;
-                                    }
-
                                     if (linex.Length >= 7)
                                     {
                                         string agr = linex[6].Trim();
@@ -2092,30 +2067,30 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                             {
                                 string[] linex = line.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
 
-                                string name = null, vlan = null;
+                                string mainname = null, vlan = null;
                                 string thisport = null;
                                 string circuitID = null;
 
                                 string[] portx = linex[0].Split(new char[] { ':' });
-                                if (portx[0].StartsWith("lag-")) name = "Ag" + portx[0].Substring(4);
-                                else name = "Ex" + portx[0];
+                                if (portx[0].StartsWith("lag-")) mainname = "Ag" + portx[0].Substring(4);
+                                else mainname = "Ex" + portx[0];
 
-                                name = name.Replace('.', ':');
+                                mainname = mainname.Replace('.', ':');
 
                                 if (portx.Length > 1) vlan = portx[1];
-                                if (vlan == null) thisport = name + ".DIRECT";
-                                else thisport = name + "." + vlan;
+                                if (vlan == null) thisport = mainname + ".DIRECT";
+                                else thisport = mainname + "." + vlan;
 
-                                if (name.StartsWith("Ag"))
+                                if (mainname.StartsWith("Ag"))
                                 {
-                                    if (!interfacelive.ContainsKey(name))
+                                    if (!interfacelive.ContainsKey(mainname))
                                     {
                                         MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
-                                        mid.Name = name;
+                                        mid.Name = mainname;
                                         mid.Status = true;
                                         mid.Protocol = true;
                                         mid.Enable = true;
-                                        interfacelive.Add(name, mid);
+                                        interfacelive.Add(mainname, mid);
                                     }
                                 }
 
@@ -2151,9 +2126,6 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                     mid.EgressID = egressID;
 
                                     interfacelive.Add(thisport, mid);
-
-                                    if (interfacelive.ContainsKey(name))
-                                        interfacelive[name].Used = true;
                                 }
                             }
                         }
@@ -2379,18 +2351,18 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             {
                                 string[] linex = line.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
 
-                                string name = null, vlan = null;
+                                string mainname = null, vlan = null;
                                 string thisport = null;
 
                                 string[] portx = linex[0].Split(new char[] { ':' });
-                                if (portx[0].StartsWith("lag-")) name = "Ag" + portx[0].Substring(4);
-                                else name = "Ex" + portx[0];
+                                if (portx[0].StartsWith("lag-")) mainname = "Ag" + portx[0].Substring(4);
+                                else mainname = "Ex" + portx[0];
 
-                                name = name.Replace('.', ':');
+                                mainname = mainname.Replace('.', ':');
 
                                 if (portx.Length > 1) vlan = portx[1];
-                                if (vlan == null) thisport = name + ".DIRECT";
-                                else thisport = name + "." + vlan;
+                                if (vlan == null) thisport = mainname + ".DIRECT";
+                                else thisport = mainname + "." + vlan;
 
                                 string ingressID = null;
                                 if (qosdb.ContainsKey("0_" + linex[2])) ingressID = qosdb["0_" + linex[2]]["MQ_ID"].ToString();
@@ -2403,9 +2375,6 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                         interfacelive[thisport].IngressID = ingressID;
                                     if (egressID != null)
                                         interfacelive[thisport].EgressID = egressID;
-
-                                    if (interfacelive.ContainsKey(name))
-                                        interfacelive[name].Used = true;
                                 }
                             }
                         }
@@ -2572,6 +2541,50 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     else
                     {
                         if (line.StartsWith("Interface")) begin = true;
+                    }
+                }
+
+                // last down
+                //display interface main | in current state|down time
+                if (Request("display interface main | in current state|down time", out lines)) return;
+
+                MEInterfaceToDatabase currentInterfaceToDatabase = null;
+
+                foreach (string line in lines)
+                {
+                    if (line.IndexOf("current state") > -1 && !line.StartsWith("Line protocol"))
+                    {
+                        currentInterfaceToDatabase = null;
+                        string[] splits = line.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                        NodeInterface nif = NodeInterface.Parse(splits[0]);
+                        if (nif != null)
+                        {
+                            string nifshort = nif.GetShort();
+                            if (interfacelive.ContainsKey(nifshort)) currentInterfaceToDatabase = interfacelive[nifshort];
+                        }
+                    }
+                    else if (currentInterfaceToDatabase != null && line.StartsWith("Last physical down time"))
+                    {
+                        //Last physical down time : 2013-11-07 01:05:24 UTC+07:00
+                        //01234567890123456789012345678901234567890123456789
+                        //                          1234567890123456789
+                        //                          0123456789012345678
+                        if (currentInterfaceToDatabase.Status == false)
+                        {
+                            string dtim = line.Substring(26, 19);
+                            int year, month, day;
+                            int hour, min, sec;
+                            if (int.TryParse(dtim.Substring(0, 4), out year) &&
+                                int.TryParse(dtim.Substring(5, 2), out month) &&
+                                int.TryParse(dtim.Substring(8, 2), out day) &&
+                                int.TryParse(dtim.Substring(11, 2), out hour) &&
+                                int.TryParse(dtim.Substring(14, 2), out min) &&
+                                int.TryParse(dtim.Substring(17, 2), out sec))
+                            {
+                                currentInterfaceToDatabase.LastDown = (new DateTime(year, month, day, hour, min, sec)) - nodeTimeOffset;
+                            }
+                        }
+                        currentInterfaceToDatabase = null;
                     }
                 }
 
@@ -3090,13 +3103,6 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.EgressID = li.EgressID;
                         updateinfo.Append("egress ");
                     }
-                    if (db["MI_Used"].ToNullableBool() != li.Used)
-                    {
-                        update = true;
-                        u.UpdateUsed = true;
-                        u.Used = li.Used;
-                        updateinfo.Append("used ");
-                    }
                     if (db["MI_Rate_Input"].ToInt(-1) != li.RateInput)
                     {
                         update = true;
@@ -3229,7 +3235,6 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 insert.Value("MI_MQ_Output", s.EgressID);
                 insert.Value("MI_Rate_Input", s.RateInput.Nullable(-1));
                 insert.Value("MI_Rate_Output", s.RateOutput.Nullable(-1));
-                insert.Value("MI_Used", s.Used);
                 insert.Value("MI_Info", s.Info);
                 insert.Value("MI_SE", s.ServiceID);
                 insert.Value("MI_MI", s.ParentID);
@@ -3278,7 +3283,6 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 update.Set("MI_MQ_Output", s.EgressID, s.UpdateEgressID);
                 update.Set("MI_Rate_Input", s.RateInput.Nullable(-1), s.UpdateRateInput);
                 update.Set("MI_Rate_Output", s.RateOutput.Nullable(-1), s.UpdateRateOutput);
-                update.Set("MI_Used", s.Used, s.UpdateUsed);
                 update.Set("MI_Info", s.Info, s.UpdateInfo);
                 update.Set("MI_LastDown", s.LastDown, s.UpdateLastDown);
                 update.Set("MI_Summary_CIRConfigTotalInput", s.CirConfigTotalInput.Nullable(-1), s.UpdateCirConfigTotalInput);

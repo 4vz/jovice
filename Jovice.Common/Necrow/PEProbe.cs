@@ -2105,7 +2105,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     {
                         PEInterfaceToDatabase pid = new PEInterfaceToDatabase();
                         pid.Name = port;
-                        pid.Description = description.ToString();
+                        pid.Description = description.Length > 0 ? description.ToString() : null;
                         pid.Status = (status == "up" || status == "up(s)");
                         pid.Protocol = (status == "up" || status == "up(s)");
                         interfacelive.Add(port, pid);

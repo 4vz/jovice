@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Jovice
 {
-    internal class NodeQOS
+    internal class QOS
     {
         #region Fields
 
@@ -224,7 +224,7 @@ namespace Jovice
         #endregion
     }
     
-    internal class NodeQOSCSO : NodeQOS
+    internal class CiscoQOS : QOS
     {
         #region Fields
 
@@ -240,7 +240,7 @@ namespace Jovice
 
         #region Constructors
 
-        public NodeQOSCSO()
+        public CiscoQOS()
         {
 
         }
@@ -249,7 +249,7 @@ namespace Jovice
 
         #region Methods
 
-        public static NodeQOSCSO Parse(string input)
+        public static CiscoQOS Parse(string input)
         {
             string pmpack = null;
             int pmspeed = -1;
@@ -285,7 +285,7 @@ namespace Jovice
 
             if (pmspeed < 8) pmspeed = -1; // below 8kbps is not applicable
 
-            NodeQOSCSO qos = new NodeQOSCSO();
+            CiscoQOS qos = new CiscoQOS();
             qos.Name = input;
             qos.Package = pmpack;
             qos.Bandwidth = pmspeed;
@@ -296,13 +296,13 @@ namespace Jovice
         #endregion
     }
 
-    internal class NodeQOSALU : NodeQOS
+    internal class AlcatelLucentQOS : QOS
     {
         #region Methods
 
-        public static NodeQOSALU Parse(string input)
+        public static AlcatelLucentQOS Parse(string input)
         {
-            NodeQOSALU q = new NodeQOSALU();
+            AlcatelLucentQOS q = new AlcatelLucentQOS();
             q.Name = input;
 
             if (input.Length == 5)
@@ -332,15 +332,15 @@ namespace Jovice
         #endregion
     }
 
-    internal class NodeQOSHWE : NodeQOS
+    internal class HuaweiQOS : QOS
     {
         #region Methods
 
-        public static NodeQOSHWE Parse(string input)
+        public static HuaweiQOS Parse(string input)
         {
             int pmspeed = -1;
 
-            NodeQOSHWE q = new NodeQOSHWE();
+            HuaweiQOS q = new HuaweiQOS();
             q.Name = input;
 
             string[] pnmes = input.Split(new char[] { '-', '_' }, StringSplitOptions.RemoveEmptyEntries);

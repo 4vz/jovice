@@ -553,7 +553,7 @@ namespace Jovice
                 foreach (KeyValuePair<string, MEQOSToDatabase> pair in qoslive)
                 {
                     MEQOSToDatabase li = pair.Value;
-                    NodeQOSALU ni = NodeQOSALU.Parse(li.Name);
+                    AlcatelLucentQOS ni = AlcatelLucentQOS.Parse(li.Name);
                     li.Bandwidth = ni.Bandwidth;
                 }
 
@@ -594,7 +594,7 @@ namespace Jovice
                 foreach (KeyValuePair<string, MEQOSToDatabase> pair in qoslive)
                 {
                     MEQOSToDatabase li = pair.Value;
-                    NodeQOSHWE ni = NodeQOSHWE.Parse(li.Name);
+                    HuaweiQOS ni = HuaweiQOS.Parse(li.Name);
                     li.Bandwidth = ni.Bandwidth;
                 }
 

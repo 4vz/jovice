@@ -56,7 +56,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Helpers\NodeQOS.cs" />
+    <Compile Include="Helpers\QOS.cs" />
     <Compile Include="Helpers\NetworkInterface.cs" />
     <Compile Include="Jovice.cs" />
     <Compile Include="Necrow\Necrow.cs" />

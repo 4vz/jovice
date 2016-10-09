@@ -1044,7 +1044,7 @@ namespace Jovice
 
                             PEQOSToDatabase li = new PEQOSToDatabase();
                             li.Name = name;
-                            NodeQOSCSO qos = NodeQOSCSO.Parse(li.Name);
+                            CiscoQOS qos = CiscoQOS.Parse(li.Name);
                             li.Package = qos.Package;
                             li.Bandwidth = qos.Bandwidth;
                             qoslive.Add(name, li);
@@ -1068,7 +1068,7 @@ namespace Jovice
 
                             PEQOSToDatabase li = new PEQOSToDatabase();
                             li.Name = name;
-                            NodeQOSCSO qos = NodeQOSCSO.Parse(li.Name);
+                            CiscoQOS qos = CiscoQOS.Parse(li.Name);
                             li.Package = qos.Package;
                             li.Bandwidth = qos.Bandwidth;
                             qoslive.Add(name, li);
@@ -1106,7 +1106,7 @@ namespace Jovice
 
                             PEQOSToDatabase li = new PEQOSToDatabase();
                             li.Name = name;
-                            NodeQOSHWE qos = NodeQOSHWE.Parse(li.Name);
+                            HuaweiQOS qos = HuaweiQOS.Parse(li.Name);
                             li.Bandwidth = qos.Bandwidth;
                             qoslive.Add(name, li);
                         }
@@ -1219,11 +1219,11 @@ namespace Jovice
                             string protocol = length >= 43 ? lineTrim.Substring(31, 12).Trim() : null;
                             string description = length >= 44 ? lineTrim.Substring(43).Trim() : null;
 
-                            NetworkInterface nodeinterface = NetworkInterface.Parse(ifname);
-                            if (nodeinterface != null)
+                            NetworkInterface networkInterface = NetworkInterface.Parse(ifname);
+                            if (networkInterface != null)
                             {
                                 PEInterfaceToDatabase i = new PEInterfaceToDatabase();
-                                i.Name = nodeinterface.ShortName;
+                                i.Name = networkInterface.ShortName;
                                 i.Status = status == "up";
                                 i.Protocol = protocol == "up";
                                 i.Enable = !status.StartsWith("admin");
@@ -1252,8 +1252,8 @@ namespace Jovice
                             string[] linex = line.Split(StringSplitTypes.Space);
                             if (linex.Length == 2)
                             {
-                                NetworkInterface nodeinterface = NetworkInterface.Parse(linex[1]);
-                                if (nodeinterface != null) currentPIName = nodeinterface.ShortName;
+                                NetworkInterface networkInterface = NetworkInterface.Parse(linex[1]);
+                                if (networkInterface != null) currentPIName = networkInterface.ShortName;
                             }
                         }
                         else if (currentPIName != null)
@@ -1311,10 +1311,10 @@ namespace Jovice
                                 }
                                 else
                                 {
-                                    NetworkInterface nodeInterface = NetworkInterface.Parse(lineTrim);
-                                    if (nodeInterface != null)
+                                    NetworkInterface networkInterface = NetworkInterface.Parse(lineTrim);
+                                    if (networkInterface != null)
                                     {
-                                        string name = nodeInterface.ShortName;
+                                        string name = networkInterface.ShortName;
 
                                         if (interfacelive.ContainsKey(name))
                                         {
@@ -1372,11 +1372,11 @@ namespace Jovice
                             string[] linex = lineTrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
                             if (linex.Length == 2)
                             {
-                                NetworkInterface nodeInterface = NetworkInterface.Parse(linex[0]);
-                                if (nodeInterface != null)
+                                NetworkInterface networkInterface = NetworkInterface.Parse(linex[0]);
+                                if (networkInterface != null)
                                 {
-                                    string name = nodeInterface.ShortName;
-                                    string type = nodeInterface.ShortType;
+                                    string name = networkInterface.ShortName;
+                                    string type = networkInterface.ShortType;
                                     int typerate = -1;
                                     if (type == "Te") typerate = 10485760;
                                     else if (type == "Ge") typerate = 1048576;
@@ -1386,9 +1386,9 @@ namespace Jovice
                                     if (interfacelive.ContainsKey(name))
                                     {
                                         string parentPort = null;
-                                        if (nodeInterface.IsSubInterface)
+                                        if (networkInterface.IsSubInterface)
                                         {
-                                            string bport = nodeInterface.ShortBaseName;
+                                            string bport = networkInterface.ShortBaseName;
                                             if (interfacelive.ContainsKey(bport))
                                                 parentPort = bport;
                                         }
@@ -1481,10 +1481,10 @@ namespace Jovice
                             if (linex.IndexOf(' ') > -1)
                             {
                                 string name = linex.Substring(0, linex.IndexOf(' '));
-                                NetworkInterface nodeInterface = NetworkInterface.Parse(name);
-                                if (nodeInterface != null)
+                                NetworkInterface networkInterface = NetworkInterface.Parse(name);
+                                if (networkInterface != null)
                                 {
-                                    string shortName = nodeInterface.ShortName;
+                                    string shortName = networkInterface.ShortName;
                                     if (interfacelive.ContainsKey(shortName))
                                         currentInterface = interfacelive[shortName];
                                 }
@@ -1508,10 +1508,10 @@ namespace Jovice
                             ipv6AddressCtr = 1;
 
                             string name = linetrim.Substring(0, linetrim.IndexOf(' '));
-                            NetworkInterface nodeInterface = NetworkInterface.Parse(name);
-                            if (nodeInterface != null)
+                            NetworkInterface networkInterface = NetworkInterface.Parse(name);
+                            if (networkInterface != null)
                             {
-                                string shortName = nodeInterface.ShortName;
+                                string shortName = networkInterface.ShortName;
                                 if (interfacelive.ContainsKey(shortName))
                                     currentInterface = interfacelive[shortName];
                             }
@@ -1654,21 +1654,21 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
                                     string ifcandidate = lineTrim;
 
-                                    NetworkInterface nodeinterface = NetworkInterface.Parse(ifcandidate);
-                                    if (nodeinterface != null)
+                                    NetworkInterface networkInterface = NetworkInterface.Parse(ifcandidate);
+                                    if (networkInterface != null)
                                     {
-                                        string name = nodeinterface.ShortName;
+                                        string name = networkInterface.ShortName;
                                         if (interfacelive.ContainsKey(name))
                                         {
                                             currentif = name;
 
-                                            if (nodeinterface.IsSubInterface)
+                                            if (networkInterface.IsSubInterface)
                                             {
-                                                string bport = nodeinterface.ShortBaseName;
+                                                string bport = networkInterface.ShortBaseName;
                                                 if (interfacelive.ContainsKey(bport))
                                                 {
                                                     parentPort = bport;
-                                                    typerate = nodeinterface.TypeRate;
+                                                    typerate = networkInterface.TypeRate;
                                                 }
                                             }
                                         }
@@ -1792,23 +1792,23 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                 }
                             }
                             else if (currentpolicy != null)
-                            {
-                                NetworkInterface nodeinterface = NetworkInterface.Parse(lineTrim);
+                            {                                
+                                NetworkInterface networkInterface = NetworkInterface.Parse(lineTrim);
 
-                                if (nodeinterface != null)
+                                if (networkInterface != null)
                                 {
-                                    string name = nodeinterface.ShortName;
+                                    string name = networkInterface.ShortName;
 
                                     if (interfacelive.ContainsKey(name))
                                     {
-                                        string typeif = nodeinterface.ShortType;
-                                        int typerate = nodeinterface.TypeRate;
+                                        string typeif = networkInterface.ShortType;
+                                        int typerate = networkInterface.TypeRate;
 
                                         string parentPort = null;
 
-                                        if (nodeinterface.IsSubInterface)
+                                        if (networkInterface.IsSubInterface)
                                         {
-                                            string bport = nodeinterface.ShortBaseName;
+                                            string bport = networkInterface.ShortBaseName;
                                             if (interfacelive.ContainsKey(bport)) parentPort = bport;
                                         }
 
@@ -1964,19 +1964,19 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
 
                                 if (space > -1)
                                 {
-                                    NetworkInterface nodeinterface = NetworkInterface.Parse(lineTrim.Substring(0, space));
-                                    if (nodeinterface != null)
+                                    NetworkInterface networkInterface = NetworkInterface.Parse(lineTrim.Substring(0, space));
+                                    if (networkInterface != null)
                                     {
                                         parentPort2 = null;
-                                        currentinterface = nodeinterface.ShortName;
+                                        currentinterface = networkInterface.ShortName;
 
-                                        if (nodeinterface.IsSubInterface)
+                                        if (networkInterface.IsSubInterface)
                                         {
-                                            string bport = nodeinterface.ShortBaseName;
+                                            string bport = networkInterface.ShortBaseName;
                                             if (interfacelive.ContainsKey(bport))
                                             {
                                                 parentPort2 = bport;
-                                                typerate2 = nodeinterface.TypeRate;
+                                                typerate2 = networkInterface.TypeRate;
                                             }
                                         }
                                     }
@@ -2019,10 +2019,10 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                             if (linex.IndexOf(' ') > -1)
                             {
                                 string name = linex.Substring(0, linex.IndexOf(' '));
-                                NetworkInterface nodeInterface = NetworkInterface.Parse(name);
-                                if (nodeInterface != null)
+                                NetworkInterface networkInterface = NetworkInterface.Parse(name);
+                                if (networkInterface != null)
                                 {
-                                    string shortName = nodeInterface.ShortName;
+                                    string shortName = networkInterface.ShortName;
                                     if (interfacelive.ContainsKey(shortName))
                                         currentInterface = interfacelive[shortName];
                                 }

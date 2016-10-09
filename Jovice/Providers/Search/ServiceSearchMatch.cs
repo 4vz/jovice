@@ -291,7 +291,7 @@ left join PEQOS qosb on a.PI_PQ_Output = qosb.PQ_ID
 left join PEInterface b on a.PI_PI = b.PI_ID
 left join MEInterface c on b.PI_TO_MI = c.MI_ID
 left join Node d on c.MI_NO = d.NO_ID
-left join PEInterfaceIP e on a.PI_ID = e.PP_PI and e.PP_Type = '1'
+left join PEInterfaceIP e on a.PI_ID = e.PP_PI and e.PP_Order = 1
 where a.PI_SE = {0} and a.PI_NO = n.NO_ID 
 order by a.PI_Status desc, a.PI_Protocol desc", seID);
 
@@ -319,7 +319,7 @@ left join PERouteName rn on a.PI_PN = rn.PN_ID
 left join PEQOS qosa on a.PI_PQ_Input = qosa.PQ_ID
 left join PEQOS qosb on a.PI_PQ_Output = qosb.PQ_ID
 left join PEInterface b on a.PI_PI = b.PI_ID
-left join PEInterfaceIP e on a.PI_ID = e.PP_PI and e.PP_Type = '1'
+left join PEInterfaceIP e on a.PI_ID = e.PP_PI and e.PP_Order = 1
 left join MEInterface mc on c.MI_MI = mc.MI_ID
 left join PEInterface xpi on xpi.PI_ID = mc.MI_TO_PI
 left join Node xpino on xpino.NO_ID = xpi.PI_NO
@@ -349,7 +349,7 @@ left join PERouteName rn on a.PI_PN = rn.PN_ID
 left join PEQOS qosa on a.PI_PQ_Input = qosa.PQ_ID
 left join PEQOS qosb on a.PI_PQ_Output = qosb.PQ_ID
 left join PEInterface b on a.PI_PI = b.PI_ID
-left join PEInterfaceIP e on a.PI_ID = e.PP_PI and e.PP_Type = '1'
+left join PEInterfaceIP e on a.PI_ID = e.PP_PI and e.PP_Order = 1
 left join MEInterface mc on c.MI_MI = mc.MI_ID
 left join PEInterface xpi on xpi.PI_ID = mc.MI_TO_PI
 left join Node xpino on xpino.NO_ID = xpi.PI_NO

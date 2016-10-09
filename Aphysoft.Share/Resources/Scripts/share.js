@@ -27,7 +27,7 @@
     $.isBoolean = function (arg1) {
         return $.type(arg1) === "boolean";
     };
-    $.isNumber = function (arg1) {:
+    $.isNumber = function (arg1) {
         return $.type(arg1) === "number";
     };
     $.isDate = function (arg1) {

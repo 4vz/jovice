@@ -55,22 +55,6 @@ namespace Jovice
             set { updateCircuit = value; }
         }
 
-        private string interfaceType = null;
-
-        public string InterfaceType
-        {
-            get { return interfaceType; }
-            set { interfaceType = value; }
-        }
-
-        private bool updateInterfaceType = false;
-
-        public bool UpdateInterfaceType
-        {
-            get { return updateInterfaceType; }
-            set { updateInterfaceType = value; }
-        }
-
         private string ingressID = null;
 
         public string IngressID
@@ -127,12 +111,12 @@ namespace Jovice
             set { updateInfo = value; }
         }
 
-        private bool adjacentIDChecked = false;
+        private bool physicalNeighborChecked = false;
 
-        public bool AdjacentIDChecked
+        public bool PhysicalNeighborChecked
         {
-            get { return adjacentIDChecked; }
-            set { adjacentIDChecked = value; }
+            get { return physicalNeighborChecked; }
+            set { physicalNeighborChecked = value; }
         }
     }
 
@@ -1264,8 +1248,8 @@ namespace Jovice
                                 if (lineValue.Length > 0)
                                 {
                                     string[] linex2 = lineValue.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                                    NodeInterface inf = NodeInterface.Parse(linex2[0]);
-                                    if (inf != null) cinterface = inf.GetShort();
+                                    NetworkInterface inf = NetworkInterface.Parse(linex2[0]);
+                                    if (inf != null) cinterface = inf.ShortName;
 
                                     if (linex2.Length >= 3)
                                     {
@@ -2432,8 +2416,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 //012345678901234567890123456789012345678901234567
                                 //          1         2         3         4
                                 string inf = line.Substring(0, 30).Trim();
-                                NodeInterface nif = NodeInterface.Parse(inf);
-                                if (nif != null) port = nif.GetShort();
+                                NetworkInterface nif = NetworkInterface.Parse(inf);
+                                if (nif != null) port = nif.ShortName;
 
                                 if (port != null)
                                 {
@@ -2486,10 +2470,10 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             string pot = null;
                             bool issif = false;
 
-                            NodeInterface nif = NodeInterface.Parse(linex3[0]);
+                            NetworkInterface nif = NetworkInterface.Parse(linex3[0]);
                             if (nif != null)
                             {
-                                poe = nif.GetShort();
+                                poe = nif.ShortName;
                                 pot = nif.ShortType;
                                 issif = nif.IsSubInterface;
                             }
@@ -2523,10 +2507,10 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             {
                                 string[] linex = line.Trim().Split(new char[] { '(', ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
-                                NodeInterface nif2 = NodeInterface.Parse(linex[0]);
+                                NetworkInterface nif2 = NetworkInterface.Parse(linex[0]);
                                 if (nif2 != null)
                                 {
-                                    string portnif = nif2.GetShort();
+                                    string portnif = nif2.ShortName;
                                     if (interfacelive.ContainsKey(portnif))
                                     {
                                         int agr;
@@ -2556,10 +2540,10 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     {
                         currentInterfaceToDatabase = null;
                         string[] splits = line.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-                        NodeInterface nif = NodeInterface.Parse(splits[0]);
+                        NetworkInterface nif = NetworkInterface.Parse(splits[0]);
                         if (nif != null)
                         {
-                            string nifshort = nif.GetShort();
+                            string nifshort = nif.ShortName;
                             if (interfacelive.ContainsKey(nifshort)) currentInterfaceToDatabase = interfacelive[nifshort];
                         }
                     }
@@ -2619,11 +2603,11 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
                     if (circuitdb.ContainsKey(vcidname))
                     {
-                        NodeInterface nif1 = NodeInterface.Parse(inf1);
+                        NetworkInterface nif1 = NetworkInterface.Parse(inf1);
 
                         if (nif1 != null)
                         {
-                            string inf = nif1.GetShort();
+                            string inf = nif1.ShortName;
                             if (interfacelive.ContainsKey(inf))
                             {
                                 string cid = circuitdb[vcidname]["MC_ID"].ToString();
@@ -2631,11 +2615,11 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             }
                         }
 
-                        NodeInterface nif2 = NodeInterface.Parse(inf2);
+                        NetworkInterface nif2 = NetworkInterface.Parse(inf2);
 
                         if (nif2 != null)
                         {
-                            string inf = nif2.GetShort();
+                            string inf = nif2.ShortName;
                             if (interfacelive.ContainsKey(inf))
                             {
                                 string cid = circuitdb[vcidname]["MC_ID"].ToString();
@@ -2659,11 +2643,11 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     if (line.Length >= 68)
                     {
                         string se = line.Substring(0, 36).Trim();
-                        NodeInterface nif = NodeInterface.Parse(se);
+                        NetworkInterface nif = NetworkInterface.Parse(se);
 
                         if (nif != null)
                         {
-                            string portnif = nif.GetShort();
+                            string portnif = nif.ShortName;
                             string vsi = line.Substring(36, 31).Trim();
 
                             if (interfacelive.ContainsKey(portnif))
@@ -2696,20 +2680,20 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         typerate = -1;
 
                         string nifc = lineTrim.Substring(10);
-                        NodeInterface nif = NodeInterface.Parse(nifc);
+                        NetworkInterface nif = NetworkInterface.Parse(nifc);
                         if (nif != null)
                         {                            
-                            string portnif = nif.GetShort();
+                            string portnif = nif.ShortName;
                             if (interfacelive.ContainsKey(portnif))
                             {
                                 currentInterface = portnif;
                                 if (nif.IsSubInterface)
                                 {
-                                    string bport = nif.GetBase();
+                                    string bport = nif.ShortBaseName;
                                     if (interfacelive.ContainsKey(bport))
                                     {
                                         currentParent = bport;
-                                        typerate = nif.GetTypeRate();
+                                        typerate = nif.TypeRate;
                                     }
                                 }
                             }
@@ -2817,13 +2801,13 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
             {
                 MEInterfaceToDatabase li = pair.Value;
-                NodeInterface inf = NodeInterface.Parse(li.Name);
+                NetworkInterface inf = NetworkInterface.Parse(li.Name);
 
                 if (inf != null)
                 {
                     if (inf.IsSubInterface)
                     {
-                        string parent = inf.GetBase();
+                        string parent = inf.ShortBaseName;
                         if (interfacelive.ContainsKey(parent))
                         {
                             int count = interfacelive[parent].SubInterfaceCount;
@@ -2842,7 +2826,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
             {
                 MEInterfaceToDatabase li = pair.Value;
-                NodeInterface inf = NodeInterface.Parse(li.Name);
+                NetworkInterface inf = NetworkInterface.Parse(li.Name);
                 string parentPort = null;
 
                 // TOPOLOGY
@@ -2853,7 +2837,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
                     if (inf.IsSubInterface)
                     {
-                        parentPort = inf.GetBase();
+                        parentPort = inf.ShortBaseName;
 
                         ssubinf++;
                         if (li.Status)
@@ -2904,10 +2888,10 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
                                 // anaknya duluan ya
                                 foreach (MEInterfaceToDatabase mi in li.AggrChilds)
-                                    FindMEPhysicalAdjacent(mi);
+                                    FindPhysicalNeighbor(mi);
                             }
                         }
-                        FindMEPhysicalAdjacent(li);
+                        FindPhysicalNeighbor(li);
 
                         if (inftype == "Ag" && li.AdjacentID == null) // jika ini ag, dan ga punya adjacent id, maka...
                         {

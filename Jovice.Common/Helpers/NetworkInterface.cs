@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Jovice
 {
-    internal class NodeInterface
+    internal class NetworkInterface
     {
         #region Fields
 
@@ -17,7 +17,6 @@ namespace Jovice
         public string Type
         {
             get { return type; }
-            set { type = value; }
         }
 
         private string shortType;
@@ -28,7 +27,6 @@ namespace Jovice
         public string ShortType
         {
             get { return shortType; }
-            set { shortType = value; }
         }
 
         private string codeType;
@@ -39,7 +37,6 @@ namespace Jovice
         public string CodeType
         {
             get { return codeType; }
-            set { codeType = value; }
         }
 
         private string port;
@@ -50,7 +47,6 @@ namespace Jovice
         public string Port
         {
             get { return port; }
-            set { port = value; }
         }
 
         private int channel = -1;
@@ -61,10 +57,7 @@ namespace Jovice
         public int Channel
         {
             get { return channel; }
-            set { channel = value; }
         }
-
-        private int subInterface = -1;
 
         public bool IsChannel
         {
@@ -78,6 +71,8 @@ namespace Jovice
         {
             get { return subInterface == 0 ? true : false; }
         }
+        
+        private int subInterface = -1;
 
         /// <summary>
         /// For ethernet interface, 3456, 4094, etc...
@@ -85,7 +80,6 @@ namespace Jovice
         public int SubInterface
         {
             get { return subInterface; }
-            set { subInterface = value; }
         }
 
         private int subSubInterface = -1;
@@ -93,14 +87,53 @@ namespace Jovice
         public int SubSubInterface
         {
             get { return subSubInterface; }
-            set { subSubInterface = value; }
+        }
+
+        /// <summary>
+        /// Gi0/1, Se4/3:2, Te0/0/0/1.502
+        /// </summary>
+        public string ShortName
+        {
+            get { return shortType + port + "" + (IsChannel ? ":" + channel.ToString() : "") + (IsSubInterface ? "." + subInterface.ToString() : ""); }
+        }
+
+        /// <summary>
+        /// Gi0/1.456 -> Gi0/1, Se4/3:2.456 -> Se4/3:2, Te0/0/0/1.502 -> Te0/0/0/1
+        /// </summary>
+        public string ShortBaseName
+        {
+            get { return shortType +port + "" + (IsChannel ? ":" + channel.ToString() : ""); }
+        }
+
+        /// <summary>
+        /// GigabitEthernet0/1, Serial4/3:2, TenGigabitEthernet0/0/0/1.502
+        /// </summary>
+        public string FullName
+        {
+            get { return type + port + "" + (IsChannel ? ":" + channel.ToString() : "") + (IsSubInterface ? "." + subInterface.ToString() : ""); }
+        }
+
+        public int TypeRate
+        {
+            get
+            {
+                int typerate = -1;
+
+                if (ShortType == "Hu") typerate = 104857600;
+                else if (ShortType == "Te") typerate = 10485760;
+                else if (ShortType == "Ge") typerate = 1048576;
+                else if (ShortType == "Fa") typerate = 102400;
+                else if (ShortType == "Et") typerate = 10240;
+
+                return typerate;
+            }
         }
 
         #endregion
 
         #region Constructors
 
-        internal NodeInterface()
+        private NetworkInterface()
         {
 
         }
@@ -109,40 +142,7 @@ namespace Jovice
 
         #region Methods
 
-        public string GetShort()
-        {
-            return shortType + port + "" + (IsChannel ? ":" + channel.ToString() : "") + (IsSubInterface ? "." + subInterface.ToString() : "");
-        }
-
-        public string GetBase()
-        {
-            return shortType + port + "" + (IsChannel ? ":" + channel.ToString() : "");
-        }
-        
-        public string GetFull()
-        {
-            return type + port + "" + (IsChannel ? ":" + channel.ToString() : "") + (IsSubInterface ? "." + subInterface.ToString() : "");
-        }
-
-        public string GetFullType()
-        {
-            return type;
-        }
-
-        public int GetTypeRate()
-        {
-            int typerate = -1;
-
-            if (ShortType == "Hu") typerate = 104857600;
-            else if (ShortType == "Te") typerate = 10485760;
-            else if (ShortType == "Ge") typerate = 1048576;
-            else if (ShortType == "Fa") typerate = 102400;
-            else if (ShortType == "Et") typerate = 10240;
-
-            return typerate;
-        }
-
-        public static NodeInterface Parse(string input)
+        public static NetworkInterface Parse(string input)
         {
             if (input == null) return null;
 
@@ -227,71 +227,65 @@ namespace Jovice
                         port = portfix.ToString();
 
 
-                        NodeInterface ci = new NodeInterface();
+                        NetworkInterface ci = new NetworkInterface();
 
                         bool interfaceIdentified = true;
                         if (interfaceType == "g" || interfaceType == "gi" || interfaceType == "gigabitethernet" || interfaceType == "ge")
                         {
-                            ci.Type = "GigabitEthernet";
-                            ci.ShortType = "Gi";
-                            ci.CodeType = "G";
+                            ci.type = "GigabitEthernet";
+                            ci.shortType = "Gi";
+                            ci.codeType = "G";
                         }
                         else if (interfaceType == "f" || interfaceType == "fa" || interfaceType == "fastethernet" || interfaceType == "fe")
                         {
-                            ci.Type = "FastEthernet";
-                            ci.ShortType = "Fa";
-                            ci.CodeType = "F";
+                            ci.type = "FastEthernet";
+                            ci.shortType = "Fa";
+                            ci.codeType = "F";
                         }
                         else if (interfaceType == "e" || interfaceType == "et" || interfaceType == "ethernet")
                         {
-                            ci.Type = "Ethernet";
-                            ci.ShortType = "Et";
-                            ci.CodeType = "E";
+                            ci.type = "Ethernet";
+                            ci.shortType = "Et";
+                            ci.codeType = "E";
                         }
                         else if (interfaceType == "s" || interfaceType == "se" || interfaceType == "serial")
                         {
-                            ci.Type = "Serial";
-                            ci.ShortType = "Se";
-                            ci.CodeType = "S";
-                        }
-                        else if (interfaceType == "l" || interfaceType == "lo" || interfaceType == "loopback" || interfaceType == "loop")
-                        {
-                            ci.Type = "Loopback";
-                            ci.ShortType = "Lo";
-                            ci.CodeType = "L";
+                            ci.type = "Serial";
+                            ci.shortType = "Se";
+                            ci.codeType = "S";
                         }
                         else if (interfaceType == "t" || interfaceType == "te" || interfaceType == "tengige" || interfaceType == "xe")
                         {
-                            ci.Type = "TenGigE";
-                            ci.ShortType = "Te";
-                            ci.CodeType = "T";
+                            ci.type = "TenGigE";
+                            ci.shortType = "Te";
+                            ci.codeType = "T";
                         }
                         else if (interfaceType == "h" || interfaceType == "hu" || interfaceType == "hundredgige")
                         {
-                            ci.Type = "HundredGigE";
-                            ci.ShortType = "Hu";
-                            ci.CodeType = "H";
+                            ci.type = "HundredGigE";
+                            ci.shortType = "Hu";
+                            ci.codeType = "H";
                         }
                         else if (interfaceType == "ag" || interfaceType == "eth-trunk")
                         {
-                            ci.Type = "AggregatedInterface";
-                            ci.ShortType = "Ag";
-                            ci.CodeType = "A";
+                            ci.type = "AggregatedInterface";
+                            ci.shortType = "Ag";
+                            ci.codeType = "A";
                         }
                         else if (interfaceType == "ex")
                         {
-                            ci.Type = "UnspecifiedInterface";
-                            ci.ShortType = "Ex";
-                            ci.CodeType = "U";
+                            ci.type = "UnspecifiedInterface";
+                            ci.shortType = "Ex";
+                            ci.codeType = "U";
                         }
                         else interfaceIdentified = false;
 
                         if (interfaceIdentified)
                         {
-                            ci.Port = port;
-                            ci.Channel = channel;
-                            ci.SubInterface = subif;
-                            ci.SubSubInterface = subsubif;
+                            ci.port = port;
+                            ci.channel = channel;
+                            ci.subInterface = subif;
+                            ci.subSubInterface = subsubif;
 
                             return ci;
                         }

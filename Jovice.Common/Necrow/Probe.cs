@@ -122,6 +122,22 @@ namespace Jovice
             get { return updateDescription; }
             set { updateDescription = value; }
         }
+        
+        private string interfaceType = null;
+
+        public string InterfaceType
+        {
+            get { return interfaceType; }
+            set { interfaceType = value; }
+        }
+
+        private bool updateInterfaceType = false;
+
+        public bool UpdateInterfaceType
+        {
+            get { return updateInterfaceType; }
+            set { updateInterfaceType = value; }
+        }
 
         private int dot1q = -1;
 
@@ -916,7 +932,7 @@ namespace Jovice
                         if (nodeType == "P")
                         {
                             PEProcess();
-                            findMEPhysicalAdjacentLoaded = false;
+                            findPhysicalNeighborLoaded = false;
                         }
                         else if (nodeType == "M")
                         {
@@ -3598,26 +3614,23 @@ namespace Jovice
             Event(result, EventActions.Update, EventElements.Service, false);
         }
 
-        private bool findMEPhysicalAdjacentLoaded = false;
-        private List<Tuple<string, List<Tuple<string, string, string, string, string>>>> MEPEAdjacent = null;
+        private bool findPhysicalNeighborLoaded = false;
+
+        private List<Tuple<string, List<Tuple<string, string, string, string, string>>>> peNeighbors = null;
         private Dictionary<string, List<string>> meAlias = null;
         private Dictionary<string, string[]> MEInterfaceTestPrefix = null;
 
-        private void FindMEPhysicalAdjacent(MEInterfaceToDatabase li)
+        private void FindPhysicalNeighbor(MEInterfaceToDatabase li)
         {
-            int exid;
+            if (li.PhysicalNeighborChecked) return;
+            li.PhysicalNeighborChecked = true;
 
-            if (li.AdjacentIDChecked == true) return;
-
-            string description = li.Description;
+            string description = CleanDescription(li.Description);
             if (description == null) return;
-            else description = description.ToUpper().Replace('_', ' ');
-
-            li.AdjacentIDChecked = true;
 
             #region Loader
 
-            if (!findMEPhysicalAdjacentLoaded)
+            if (!findPhysicalNeighborLoaded)
             {
                 Result result = Query(@"
 select NO_Name, LEN(NO_Name) as NO_LEN, PI_Name, LEN(PI_Name) as PI_LEN, PI_ID, PI_Description, PI_PI, PI_TO_MI from (
@@ -3630,8 +3643,9 @@ where NO_ID = PI_NO and PI_Description is not null and ltrim(rtrim(PI_Descriptio
 order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
 ");
 
-                MEPEAdjacent = new List<Tuple<string, List<Tuple<string, string, string, string, string>>>>();
+                peNeighbors = new List<Tuple<string, List<Tuple<string, string, string, string, string>>>>();
                 List<Tuple<string, string, string, string, string>> curlist = new List<Tuple<string, string, string, string, string>>();
+
                 string curnoname = null;
                 foreach (Row row in result)
                 {
@@ -3646,7 +3660,7 @@ order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
                     {
                         if (curnoname != null)
                         {
-                            MEPEAdjacent.Add(new Tuple<string, List<Tuple<string, string, string, string, string>>>(curnoname,
+                            peNeighbors.Add(new Tuple<string, List<Tuple<string, string, string, string, string>>>(curnoname,
                                 new List<Tuple<string, string, string, string, string>>(curlist)));
                             curlist.Clear();
                         }
@@ -3655,7 +3669,7 @@ order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
 
                     curlist.Add(new Tuple<string, string, string, string, string>(piname, pidesc, piid, pipi, piToMi));
                 }
-                MEPEAdjacent.Add(new Tuple<string, List<Tuple<string, string, string, string, string>>>(curnoname, curlist));
+                peNeighbors.Add(new Tuple<string, List<Tuple<string, string, string, string, string>>>(curnoname, curlist));
 
                 result = Query(@"
 select NO_ID, NA_Name from Node, NodeAlias where NA_NO = NO_ID and NO_Type = 'M'
@@ -3678,21 +3692,16 @@ order by NO_ID asc
                 MEInterfaceTestPrefix.Add("Et", new string[] { "E", "ET", "ETH" });
                 MEInterfaceTestPrefix.Add("Ag", new string[] { "LAG", "ETH-TRUNK", "BE" });
 
-                findMEPhysicalAdjacentLoaded = true;
+                findPhysicalNeighborLoaded = true;
             }
-
-            #endregion
-
-            #region Bekas/Ex/X dsb, remove hingga akhir
-
-            exid = description.IndexOf(" EX ", " EKS ", "(EX", "(EKS", "[EX", "[EKS", " EX-", " EKS-", " BEKAS ");
-            if (exid > -1) description = description.Remove(exid);
 
             #endregion
 
             bool foundnode = false;
 
-            foreach (Tuple<string, List<Tuple<string, string, string, string, string>>> pe in MEPEAdjacent)
+            #region MI_TO_PI
+
+            foreach (Tuple<string, List<Tuple<string, string, string, string, string>>> pe in peNeighbors)
             {
                 string peName = pe.Item1;
 
@@ -3752,10 +3761,7 @@ order by NO_ID asc
                         if (miType == "Ex") miType = li.InterfaceType;
                         string miDetail = miName.Substring(2);
 
-                        #region Bekas/Ex/X dsb, remove hingga akhir
-                        exid = piDesc.IndexOf(" EX ", " EKS ", "(EX", "(EKS", "[EX", "[EKS", " EX-", " EKS-", " BEKAS ");
-                        if (exid > -1) piDesc = piDesc.Remove(exid);
-                        #endregion
+                        piDesc = CleanDescription(piDesc);
 
                         int meNamePart = piDesc.IndexOf(nodeName);
 
@@ -3842,10 +3848,42 @@ order by NO_ID asc
                 }
             }
 
-            if (foundnode == false)
-            {
-                FindNodeCandidate(description);
-            }
+            if (foundnode) return;
+
+            #endregion
+
+            #region MI_TO_MI
+
+
+            #endregion
+
+            #region MI_TO_MI
+
+            #endregion
+        }
+
+        private readonly char[] cleanDescriptionAllowedCharacterForTrimStart = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z' };
+        private readonly char[] cleanDescriptionAllowedCharacterForTrimEnd = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
+
+        private readonly string[] cleanDescriptionStartsWith = { "EKS ", "EKS.", "EX ", "EX-", "BEKAS ", "MIGRASI", "MIGRATED", "PINDAH", "GANTI" };
+        private readonly string[] cleanDescriptionUnnecessaryInfo = { "(EX", "(EKS", "[EX", "[EKS", " EX-", " EKS-", " BEKAS ", " PINDAHAN "  };
+
+        private string CleanDescription(string description)
+        {
+            // ends if null or empty
+            if (string.IsNullOrEmpty(description)) return null;
+
+            // make all description upper case, remove leading and trailing characters except allowed characters, and replace underscores with space
+            description = description.ToUpper().TrimStartExcept(cleanDescriptionAllowedCharacterForTrimStart).TrimEndExcept(cleanDescriptionAllowedCharacterForTrimEnd).Replace('_', ' ');
+
+            // ends if migrated or moved somewhere elese
+            if (description.StartsWith(cleanDescriptionStartsWith)) return null;
+
+            // removes unnecessary info after specified point
+            int unid = description.IndexOf(cleanDescriptionUnnecessaryInfo);
+            if (unid > -1) description = description.Remove(unid);
+
+            return description;
         }
 
         private Dictionary<string, string> nodeCandidates = null;

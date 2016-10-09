@@ -57,7 +57,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Helpers\NodeQOS.cs" />
-    <Compile Include="Helpers\NodeInterface.cs" />
+    <Compile Include="Helpers\NetworkInterface.cs" />
     <Compile Include="Jovice.cs" />
     <Compile Include="Necrow\Necrow.cs" />
     <Compile Include="Necrow\Probe.cs" />

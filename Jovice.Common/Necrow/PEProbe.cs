@@ -179,7 +179,6 @@ namespace Jovice
             get { return deleteIPID; }
             set { deleteIPID = value; }
         }
-
     }
 
     class PERouteUseToDatabase : ToDatabase
@@ -2431,7 +2430,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                             string adjID = interfacedb[pair.Key]["PI_TO_MI"].ToString();
                             if (adjID != null)
                             {
-                                li.AdjacentIDList = new Dictionary<int, Tuple<string, string>>();
+                                li.NeighborChildren = new Dictionary<int, Tuple<string, string>>();
                                 result = Query("select MI_ID, MI_DOT1Q, MI_TO_PI from MEInterface where MI_MI = {0}", adjID);
                                 foreach (Row row in result)
                                 {
@@ -2440,7 +2439,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                         string smiid = row["MI_ID"].ToString();
                                         string spiid = row["MI_TO_PI"].ToString();
                                         int dot1q = row["MI_DOT1Q"].ToIntShort();
-                                        if (!li.AdjacentIDList.ContainsKey(dot1q)) li.AdjacentIDList.Add(dot1q, new Tuple<string, string>(smiid, spiid));
+                                        if (!li.NeighborChildren.ContainsKey(dot1q)) li.NeighborChildren.Add(dot1q, new Tuple<string, string>(smiid, spiid));
                                     }
                                     //string spiname = row["MI_Name"].ToString();
                                     //int dot = spiname.IndexOf('.');
@@ -2460,10 +2459,10 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                         if (dot1q > -1)
                         {
                             PEInterfaceToDatabase parent = interfacelive[parentPort];
-                            if (parent.AdjacentIDList != null)
+                            if (parent.NeighborChildren != null)
                             {
-                                if (parent.AdjacentIDList.ContainsKey(dot1q))
-                                    li.AdjacentID = parent.AdjacentIDList[dot1q].Item1;
+                                if (parent.NeighborChildren.ContainsKey(dot1q))
+                                    li.TopologyMEInterfaceID = parent.NeighborChildren[dot1q].Item1;
                             }
                         }
 
@@ -2522,11 +2521,11 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     }
                     if (li.ParentID != null && li.Aggr == -1) // update adjacent ID jika berupa subinterface dan bukan anak aggregator
                     {
-                        if (db["PI_TO_MI"].ToString() != li.AdjacentID)
+                        if (db["PI_TO_MI"].ToString() != li.TopologyMEInterfaceID)
                         {
                             update = true;
-                            u.UpdateAdjacentID = true;
-                            u.AdjacentID = li.AdjacentID;
+                            u.UpdateTopologyMEInterfaceID = true;
+                            u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
                             updateinfo.Append("adj ");
                         }
                     }
@@ -2798,7 +2797,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                 insert.Value("PI_PQ_Output", s.OutputQOSID);
                 insert.Value("PI_SE", s.ServiceID);
                 insert.Value("PI_PI", s.ParentID);
-                insert.Value("PI_TO_MI", s.AdjacentID);
+                insert.Value("PI_TO_MI", s.TopologyMEInterfaceID);
                 insert.Value("PI_Rate_Input", s.RateInput.Nullable(-1));
                 insert.Value("PI_Rate_Output", s.RateOutput.Nullable(-1));
                 insert.Value("PI_Summary_CIRConfigTotalInput", s.CirConfigTotalInput.Nullable(-1));
@@ -2808,7 +2807,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                 insert.Value("PI_Summary_SubInterfaceCount", s.SubInterfaceCount.Nullable(-1));
                 batch.Execute(insert);
 
-                interfacereferenceupdate.Add(new Tuple<string, string>(s.AdjacentID, s.ID));
+                interfacereferenceupdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
                 if (s.IP != null) ipinsert.Add(s.ID, s.IP);
             }
             result = batch.Commit();
@@ -2820,10 +2819,10 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
             {
                 Update update = Update("PEInterface");
                 update.Set("PI_PI", s.ParentID, s.UpdateParentID);
-                if (s.UpdateAdjacentID)
+                if (s.UpdateTopologyMEInterfaceID)
                 {
-                    update.Set("PI_TO_MI", s.AdjacentID);
-                    interfacereferenceupdate.Add(new Tuple<string, string>(s.AdjacentID, s.ID));
+                    update.Set("PI_TO_MI", s.TopologyMEInterfaceID);
+                    interfacereferenceupdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
                 }
                 if (s.UpdateDescription)
                 {

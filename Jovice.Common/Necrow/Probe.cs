@@ -566,6 +566,11 @@ namespace Jovice
             return j.QueryDictionary(sql, callback, duplicate, args);
         }
 
+        public List<string> QueryList(string sql, string key, params object[] args)
+        {
+            return j.QueryList(sql, key, args);
+        }
+
         public string Format(string sql, params object[] args)
         {
             return j.Format(sql, args);
@@ -1275,7 +1280,7 @@ namespace Jovice
 
         private void Summary(string key, string value)
         {
-            if (key != null)
+            if (key != null && value != null)
             {
                 if (summaries.ContainsKey(key)) summaries[key] = value;
                 else summaries.Add(key, value);
@@ -1678,84 +1683,109 @@ namespace Jovice
 
         private void Save()
         {
-            StringBuilder sb;
-
-            sb = new StringBuilder();
-            foreach (KeyValuePair<string, object> pair in updates)
-            {
-                if (sb.Length > 0) sb.Append(", ");
-                sb.Append(j.Format(pair.Key + " = {0}", pair.Value));
-            }
-
-            if (sb.Length > 0)
-            {
-                string sql = "update Node set " +
-                    StringHelper.EscapeFormat(sb.ToString()) +
-                    " where NO_ID = {0}";
-
-                Result r = j.Execute(sql, nodeID);
-            }
-
-            sb = new StringBuilder();
-
-            Result nsr = Query("select * from NodeSummary where NS_NO = {0}", nodeID);
-            Dictionary<string, string[]> nsd = new Dictionary<string, string[]>();
-            foreach (Row ns in nsr)
-            {
-                string nsk = ns["NS_Key"].ToString();
-                string nsid = ns["NS_ID"].ToString();
-                string nsv = ns["NS_Value"].ToString();
-
-                if (nsd.ContainsKey(nsk))
-                {
-                    // Duplicated summary key, remove this
-                    sb.Append(j.Format("delete from NodeSummary where NS_ID = {0};", nsid));
-                }
-                else
-                    nsd.Add(nsk, new string[] { nsid, nsv });
-            }
-
+            Insert insert;
+            Update update;
+            Result result;
+            Batch batch = Batch();
+            
+            update = Update("Node");
+            foreach (KeyValuePair<string, object> pair in updates) update.Set(pair.Key, pair.Value);
+            update.Where("NO_ID", nodeID);
+            update.Execute();
+            
             // end node
-            Result idr = ExecuteIdentity("insert into ProbeHistory(XH_NO, XH_StartTime, XH_EndTime) values({0}, {1}, {2})", nodeID, nodeProbeStartTime, DateTime.UtcNow);
-            long probeHistoryID = idr.Identity;
+            result = ExecuteIdentity("insert into ProbeHistory(XH_NO, XH_StartTime, XH_EndTime) values({0}, {1}, {2})", nodeID, nodeProbeStartTime, DateTime.UtcNow);
+            long probeHistoryID = result.Identity;
+            
+            // nodesummary
+            result = Query("select * from NodeSummary where NS_NO = {0}", nodeID);
+            Dictionary<string, Tuple<string, string>> dbsummaries = new Dictionary<string, Tuple<string, string>>();
 
+            batch.Begin();
+            foreach (Row row in result)
+            {
+                string key = row["NS_Key"].ToString();
+                string id = row["NS_ID"].ToString();
+                string value = row["NS_Value"].ToString();
+
+                if (dbsummaries.ContainsKey(key)) batch.Execute("delete from NodeSummary where NS_ID = {0}", id); // Duplicated summary key, remove this
+                else dbsummaries.Add(key, new Tuple<string, string>(id, value));
+            }
+            batch.Commit();
+
+            // old nodesummaryarchive (for migration purpose build 21)
+            List<string> availablearchives = QueryList("select NS_Key from NodeSummaryArchive, NodeSummary where NSX_NS = NS_ID and NS_NO = {0}", "NS_KEY", nodeID);
+
+            batch.Begin();
             foreach (KeyValuePair<string, string> pair in summaries)
             {
-                string[] db = null;
-                if (nsd.ContainsKey(pair.Key)) db = nsd[pair.Key];
+                if (pair.Value == null) continue; // were not accepting null summary
+
+                Tuple<string, string> db = null;
+                if (dbsummaries.ContainsKey(pair.Key)) db = dbsummaries[pair.Key];
 
                 if (db == null)
                 {
-                    if (pair.Value == null)
-                    {
+                    string id = Database.ID();
 
-                    }
-                    else
-                    {
-                        // insert
-                        sb.Append(j.Format("insert into NodeSummary(NS_ID, NS_NO, NS_Key, NS_Value) values({0}, {1}, {2}, {3});",
-                            Database.ID(), nodeID, pair.Key, pair.Value));
-                    }
+                    insert = Insert("NodeSummary");
+                    insert.Value("NS_ID", id);
+                    insert.Value("NS_NO", nodeID);
+                    insert.Value("NS_Key", pair.Key);
+                    insert.Value("NS_Value", pair.Value);
+                    batch.Execute(insert);
+
+                    insert = Insert("NodeSummaryArchive");
+                    insert.Value("NSX_XH", probeHistoryID);
+                    insert.Value("NSX_NS", id);
+                    insert.Value("NSX_Value", pair.Value);
+                    batch.Execute(insert);
+
+                    Event("Summary " + pair.Key + " NEW: " + pair.Value);
                 }
                 else
                 {
-                    string dbi = db[0];
-                    string dbv = db[1];
+                    string id = db.Item1;
+                    string value = db.Item2;
 
-                    if (pair.Value == null) sb.Append(j.Format("delete from NodeSummary where NS_ID = {0};", dbi));
-                    else if (pair.Value != dbv) sb.Append(j.Format("update NodeSummary set NS_Value = {0} where NS_ID = {1};", pair.Value, dbi));
+                    if (pair.Value != value)
+                    {
+                        // summary has changed
+                        // insert archive
+                        insert = Insert("NodeSummaryArchive");
+                        insert.Value("NSX_XH", probeHistoryID);
+                        insert.Value("NSX_NS", id);
+                        insert.Value("NSX_Value", pair.Value);
+                        batch.Execute(insert);
+                        // update nodesummary
+                        update = Update("NodeSummary");
+                        update.Set("NS_Value", pair.Value);
+                        update.Where("NS_ID", id);
+                        batch.Execute(update);
+
+                        Event("Summary " + pair.Key + " CHANGED: " + value + " -> " + pair.Value);
+                    }
+                    else
+                    {
+                        // no change
+                        // check if we dont have archive before, make one
+                        if (availablearchives.IndexOf(pair.Key) == -1)
+                        {
+                            insert = Insert("NodeSummaryArchive");
+                            insert.Value("NSX_XH", probeHistoryID); // current probehistory
+                            insert.Value("NSX_NS", id);
+                            insert.Value("NSX_Value", value); // current value
+                            batch.Execute(insert);
+                        }
+                    }
                 }
             }
+            batch.Commit();
 
             if (probeProgressID != -1)
             {
                 Execute("delete from ProbeProgress where XP_ID = {0}", probeProgressID);
                 probeProgressID = -1;
-            }
-
-            if (sb.Length > 0)
-            {
-                j.Execute(sb.ToString());
             }
         }
 

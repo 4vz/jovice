@@ -2145,6 +2145,50 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                     }
                 }
 
+                // last down
+                //display interface main | in current state|down time
+                if (Request("display interface main | in current state|down time", out lines)) return;
+
+                PEInterfaceToDatabase currentInterfaceToDatabase = null;
+
+                foreach (string line in lines)
+                {
+                    if (line.IndexOf("current state") > -1 && !line.StartsWith("Line protocol"))
+                    {
+                        currentInterfaceToDatabase = null;
+                        string[] splits = line.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                        NetworkInterface nif = NetworkInterface.Parse(splits[0]);
+                        if (nif != null)
+                        {
+                            string nifshort = nif.ShortName;
+                            if (interfacelive.ContainsKey(nifshort)) currentInterfaceToDatabase = interfacelive[nifshort];
+                        }
+                    }
+                    else if (currentInterfaceToDatabase != null && line.StartsWith("Last physical down time"))
+                    {
+                        //Last physical down time : 2013-11-07 01:05:24 UTC+07:00
+                        //01234567890123456789012345678901234567890123456789
+                        //                          1234567890123456789
+                        //                          0123456789012345678
+                        if (currentInterfaceToDatabase.Status == false)
+                        {
+                            string dtim = line.Substring(26, 19);
+                            int year, month, day;
+                            int hour, min, sec;
+                            if (int.TryParse(dtim.Substring(0, 4), out year) &&
+                                int.TryParse(dtim.Substring(5, 2), out month) &&
+                                int.TryParse(dtim.Substring(8, 2), out day) &&
+                                int.TryParse(dtim.Substring(11, 2), out hour) &&
+                                int.TryParse(dtim.Substring(14, 2), out min) &&
+                                int.TryParse(dtim.Substring(17, 2), out sec))
+                            {
+                                currentInterfaceToDatabase.LastDown = (new DateTime(year, month, day, hour, min, sec)) - nodeTimeOffset;
+                            }
+                        }
+                        currentInterfaceToDatabase = null;
+                    }
+                }
+
                 if (Request(@"disp cur int | in interface|vlan-type\ dot1q|qos\ car\ cir|ip\ address|ipv6\ address", out lines)) return;
 
                 //interface Eth-Trunk25.3648

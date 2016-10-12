@@ -3831,7 +3831,6 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID
             #endregion
 
             bool done = false;
-            bool nodeFound = false;
 
             string miName = li.Name;
             string miType = li.InterfaceType;
@@ -3971,18 +3970,17 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID
                                                 }
                                             }
                                         }
-
-                                        done = true;
+                                        
                                         break;
                                     }
                                 }
                             }
                         }
 
-                        #endregion
-
-                        break;
+                        #endregion                        
                     }
+                    done = true;
+                    break;
                 }
             }
 
@@ -4026,8 +4024,6 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID
 
                 if (findNode > -1)
                 {
-                    nodeFound = true;
-
                     string neighborPart = description.Substring(findNode + findNodeLength);
                     Tuple<string, string, string, string> matchedInterface = null;
 
@@ -4124,8 +4120,6 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID
                                     if (descMEPart.IndexOf(test) > -1)
                                     {
                                         li.TopologyMEInterfaceID = matchedInterface.Item3;
-
-                                        done = true;
                                         break;
                                     }
                                 }
@@ -4133,14 +4127,13 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID
                         }
 
                         #endregion
-
-                        break;
                     }
+                    done = true;
+                    break;
                 }
             }
 
             if (done) return;
-            if (nodeFound) return;
 
             #endregion
 
@@ -4185,15 +4178,16 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID
                     {
                         string niID = ni.Item1;
                         string niName = ni.Item2;
-                        string niType = niName.Substring(0, 2);
-                        string niPort = niName.Substring(2);
 
                         if (niName == "UNSPECIFIED") continue;
 
                         List<string> testIf = new List<string>();
 
-                        if (niType != "Ex")
+                        if (niName.StartsWith(new string[] { "Hu", "Te", "Gi", "Fa", "Et" }))
                         {
+                            string niType = niName.Substring(0, 2);
+                            string niPort = niName.Substring(2);
+
                             string[] prefixs = interfaceTestPrefix[niType];
 
                             foreach (string prefix in prefixs)
@@ -4205,9 +4199,17 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID
                                 testIf.Add(prefix + "/" + niPort);
                             }
                         }
-                        else
+                        else if (niName.StartsWith("Ex"))
                         {
+                            string niPort = niName.Substring(2);
+
+                            if (niPort.IndexOf("/") == -1) continue; // prevent faulty entry to database (like Ex23, lol) being checked againts
+
                             testIf.Add(niPort);
+                        }
+                        else if (niName.StartsWith("PKT"))
+                        {
+                            testIf.Add(niName);
                         }
 
                         testIf = List.Sort(testIf, SortMethods.LengthDescending);
@@ -4231,10 +4233,9 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID
                     if (matchedInterface != null)
                     {
                         li.TopologyNeighborInterfaceID = matchedInterface.Item1;
-
                         done = true;
-                        break;
                     }
+                    break;
                 }
             }
 
@@ -4331,8 +4332,8 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID
         private readonly string[] cleanDescriptionStartsWith = { "EKS ", "EKS.", "EXS ", "EXS. ", "EX ", "EX-", "BEKAS ", "MIGRASI", "MIGRATED", "PINDAH", "GANTI" };
         private readonly string[] cleanDescriptionUnnecessaryInfo = { "(EX", "(EKS", "[EX", "[EKS", " EX-", " EKS-", " EXS.", " EKS.", " BEKAS ", " PINDAHAN ", " MOVE " };
 
-        private readonly Regex findNodeRegex = new Regex(@"^(?:MSAN|DSL(?:AM)?|ME|PE|CES|WAC|WAG|GPON|DCN|SW(?:C)?|T|BRAS)\d{0,2}(?:-[A-Z\d]+)+$");
-        private static readonly Regex findInterfaceRegex = new Regex(@"^(?:\/)*(?:(?:F(?:A(?:ST)?)?|(?:(?:TE(?:NGIG(?:ABIT)?)?|HU(?:NDRED)?){0,1}(?:G(?:I(?:GABIT)?)?)?)){0,1}(?:E(?:T(?:HERNET)?)?)?|XE)?(?:\/|-)*(?:[0-9]{1,2})(?:\/[0-9]{1,2}){0,3}$");
+        private readonly Regex findNodeRegex = new Regex(@"^(?:MSAN|DSL(?:AM)?|ME|PE|CES|WAC|WAG|GPON|DCN|SW(?:C)?|T|BRAS|CE|SBC)\d{0,2}(?:-[A-Z\d]+)+$");
+        private readonly Regex findInterfaceRegex = new Regex(@"^(?:(?:\/)*(?:(?:F(?:A(?:ST)?)?|(?:(?:TE(?:NGIG(?:ABIT)?)?|HU(?:NDRED)?){0,1}(?:G(?:I(?:GABIT)?)?)?)){0,1}(?:E(?:T(?:HERNET)?)?)?|XE)?(?:\/|-)*(?:[0-9]{1,2})(?:\/[0-9]{1,2}){1,3}|PKT[0-9])$");
 
         private string CleanDescription(string description, string originNodeName)
         {
@@ -4359,7 +4360,7 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID
         {
             string[] splits = description.Split(new string[] {
                 " ", "(", ")", "_", "[", "]", ";", ".", "=", ":", "@", "/", "\\",
-                " L2-", " TO-"
+                " L2-", " TO-", " "
             }, StringSplitOptions.RemoveEmptyEntries);
 
             foreach (string split in splits)
@@ -4370,7 +4371,7 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID
             return null;
         }
 
-        public static string FindInterface(string description)
+        private string FindInterface(string description)
         {
             string[] splits = description.Split(new string[] {
                 " ", "(", ")", "_", "[", "]", ";", "=", ":", "@", "\\"
@@ -4388,15 +4389,19 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID
                         if (char.IsDigit(c)) break;
                         ic++;
                     }
+
+                    if (ic == 3 & iclean.StartsWith("PKT")) return iclean;
+                    
                     string port = iclean.Substring(ic);
                     string utype = iclean.Substring(0, 1);
 
-                    string gtype = "Ex";
+                    string gtype;
                     if (utype == "H") gtype = "Hu";
                     else if (utype == "T") gtype = "Te";
                     else if (utype == "G") gtype = "Gi";
                     else if (utype == "F") gtype = "Fa";
                     else if (utype == "E") gtype = "Et";
+                    else gtype = "Ex";
 
                     return gtype + port;
                 }

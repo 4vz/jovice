@@ -1194,84 +1194,144 @@ namespace Jovice
             {
                 #region cso    
 
+                /*
+IOS
+GigabitEthernet0/1.3546 is administratively down, line protocol is down
+Description: ASTINET PEMDA TK I PAPUA SID 4703328-23028 MOVE TO PE-D7-JAP-INET
+Encapsulation 802.1Q Virtual LAN, Vlan ID  3546.
+Last input 0:00:00, output 0:00:00, output hang never
+Last input never, output never, output hang never
+Last input 3y0w, output 3y0w, output hang never
+ASR
+GigabitEthernet0/0/0/1.3131 is up, line protocol is up
+Description: VPNIP BANK MANDIRI Gedung Pusri Jl. Taman Anggrek-Kemanggisan Jaya CID 21573500 SID 4700037-38261
+Encapsulation 802.1Q Virtual LAN, VLAN Id 3131,  loopback not set,
+Last input 00:00:00, output 00:00:00
+
+*/
+
                 if (nodeVersion == xr)
                 {
                     #region xr
 
                     // interface
-                    if (Request("show int desc", out lines)) return;
+                    if (Request("show interface | in \"line protocol|Description|802.1Q|Last input\"", out lines)) return;
+                    
+                    PEInterfaceToDatabase current = null;
+                    StringBuilder descriptionBuffer = null;
 
                     foreach (string line in lines)
                     {
-                        //Gi0/0/0/0          up          up          TRUNK_PE-D2-JT2-VPN_Gi0/0/0/0_TO_ME4-D2-JT_4/1/1_1G_MAIN_VPN_GB
-                        //012345678901234567890123456789012345678901234567890123456789
-                        //          1         2         3         4         5    5
-                        //123456789012345678901234567890123456789012345678901234567890
-                        //         1         2         3         4         5         6
-                        string lineTrim = line.TrimStart();
-                        int length = lineTrim.Length;
-
-                        if (!lineTrim.StartsWith("Interface") && !lineTrim.StartsWith("show") && !lineTrim.StartsWith("-"))
+                        if (line.Length > 0)
                         {
-                            string ifname = length >= 43 ? lineTrim.Substring(0, 19).Trim() : null;
-                            string status = length >= 43 ? lineTrim.Substring(19, 12).Trim() : null;
-                            string protocol = length >= 43 ? lineTrim.Substring(31, 12).Trim() : null;
-                            string description = length >= 44 ? lineTrim.Substring(43).Trim() : null;
-
-                            NetworkInterface networkInterface = NetworkInterface.Parse(ifname);
-                            if (networkInterface != null)
+                            string[] firstLineTokens = line.Split(new string[] { " is " }, StringSplitOptions.None);
+                            if (firstLineTokens.Length == 3)
                             {
-                                PEInterfaceToDatabase i = new PEInterfaceToDatabase();
-                                i.Name = networkInterface.ShortName;
-                                i.Status = status == "up";
-                                i.Protocol = protocol == "up";
-                                i.Enable = !status.StartsWith("admin");
-                                i.Description = description == String.Empty ? null : description;
-                                interfacelive.Add(i.Name, i);
-                            }
-                        }
-                    }
-
-                    // dot1q
-                    if (Request("show run int | in \"interface|encapsulation\"", out lines)) return;
-
-                    //interface GigabitEthernet0/0/0/0.852
-                    // encapsulation dot1q 852
-                    // 012345678901234567890123456789
-                    //interface GigabitEthernet0/0/0/0.855
-                    //interface GigabitEthernet0/0/0/0.877
-                    // encapsulation dot1q 877
-
-                    string currentPIName = null;
-                    foreach (string line in lines)
-                    {
-                        if (line.StartsWith("interface"))
-                        {
-                            currentPIName = null;
-                            string[] linex = line.Split(StringSplitTypes.Space);
-                            if (linex.Length == 2)
-                            {
-                                NetworkInterface networkInterface = NetworkInterface.Parse(linex[1]);
-                                if (networkInterface != null) currentPIName = networkInterface.ShortName;
-                            }
-                        }
-                        else if (currentPIName != null)
-                        {
-                            string linetrim = line.Trim();
-                            if (linetrim.StartsWith("encapsulation dot1q"))
-                            {
-                                if (interfacelive.ContainsKey(currentPIName))
+                                string name = firstLineTokens[0].Trim();
+                                NetworkInterface inf = NetworkInterface.Parse(name);
+                                if (inf != null)
                                 {
-                                    int dot1q;
-                                    if (int.TryParse(linetrim.Substring(20), out dot1q))
+                                    string mid = firstLineTokens[1].Trim();
+                                    string last = firstLineTokens[2].Trim();
+
+                                    if (current != null && descriptionBuffer != null) current.Description = descriptionBuffer.ToString().Trim();
+                                    descriptionBuffer = null;
+
+                                    if (!mid.StartsWith("delete")) // skip deleted interface
                                     {
-                                        interfacelive[currentPIName].Dot1Q = dot1q;
-                                        currentPIName = null; // null after consumed by encap dot1q
+                                        current = new PEInterfaceToDatabase();
+                                        current.Name = inf.ShortName;
+
+                                        if (mid.StartsWith("up")) current.Status = true;
+                                        else current.Status = false;
+                                        if (mid.StartsWith("admin")) current.Enable = false;
+                                        else current.Enable = true;
+
+                                        if (last.StartsWith("up")) current.Protocol = true;
+                                        else current.Protocol = false;
+
+                                        interfacelive.Add(current.Name, current);
                                     }
+                                    else current = null;
                                 }
                             }
+                            else if (current != null)
+                            {
+                                string linets = line.TrimStart();
+                                if (linets.StartsWith("Description: "))
+                                    descriptionBuffer = new StringBuilder(line.Substring(line.IndexOf("Description: ") + 13).TrimStart());
+                                else if (linets.StartsWith("Encapsulation "))
+                                {                                    
+                                    //  Encapsulation 802.1Q Virtual LAN, VLAN Id 55,  loopback not set,
+                                    //                                    0123456789
+                                    int vlanIdIndex = line.IndexOf("VLAN Id ");
+                                    if (vlanIdIndex > -1)
+                                    {
+                                        int dot1q;
+                                        string vlanid = line.Substring(vlanIdIndex + 7, line.IndexOf(',', vlanIdIndex) - (vlanIdIndex + 7)).Trim('.', ' ');
+                                        if (int.TryParse(vlanid, out dot1q)) current.Dot1Q = dot1q;
+                                    }
+                                }
+                                else if (linets.StartsWith("Last input"))
+                                {
+                                    /*
+  Last input 0:00:00,
+  Last input never,
+  Last input 3y0w,
+  01234567890123456
+                                    */
+
+                                    // catet if physical dan protocol down
+                                    if (current.Protocol == false && current.Name.IndexOf(".") == -1)
+                                    {
+                                        string lastInput = linets.Substring(11, linets.IndexOf(", ") - 11).Trim();
+                                        if (lastInput == "never") current.LastDown = null;
+                                        else if (lastInput.IndexOf(":") > -1)
+                                        {
+                                            //0:00:00
+                                            string[] hpc = lastInput.Split(new char[] { ':' });
+                                            int hourago = int.Parse(hpc[0]);
+                                            int minuteago = int.Parse(hpc[1]);
+                                            int secondago = int.Parse(hpc[2]);
+                                            current.LastDown = DateTime.UtcNow - new TimeSpan(hourago, minuteago, secondago);
+                                        }
+                                        else if (lastInput.IndexOf("w") > -1)
+                                        {
+                                            //0w2d
+                                            //12w3d
+                                            //1y51w
+                                            TimeSpan yearsago = TimeSpan.Zero;
+                                            TimeSpan weeksago = TimeSpan.Zero;
+                                            TimeSpan daysago = TimeSpan.Zero;
+
+                                            StringBuilder sb = new StringBuilder();
+                                            foreach (char c in lastInput)
+                                            {
+                                                if (char.IsDigit(c)) sb.Append(c);
+                                                else
+                                                {
+                                                    string sbs = sb.ToString();
+                                                    sb.Clear();
+                                                    int sbi = int.Parse(sbs);
+                                                    if (c == 'y') yearsago = new TimeSpan(sbi * 365, 0, 0, 0);
+                                                    else if (c == 'w') weeksago = new TimeSpan(sbi * 7, 0, 0, 0);
+                                                    else if (c == 'd') daysago = new TimeSpan(sbi, 0, 0, 0);
+                                                }
+                                            }
+
+                                            DateTime lastDown = (DateTime.UtcNow - yearsago - weeksago - daysago).Date;
+
+                                            if (daysago == TimeSpan.Zero) lastDown = new DateTime(lastDown.Year, lastDown.Month, 1);
+
+                                            current.LastDown = lastDown;
+                                        }
+                                    }
+                                }
+                                else if (descriptionBuffer != null) descriptionBuffer.Append(line);
+                            }
                         }
                     }
+                    if (current != null && descriptionBuffer != null) current.Description = descriptionBuffer.ToString().Trim();
 
                     // vrf to interface
                     if (Request("show vrf all detail", out lines)) return;
@@ -1532,17 +1592,10 @@ namespace Jovice
                 else
                 {
                     #region ios
-
+                    
                     // interface
                     if (Request("show interface | in line protocol|Description|802.1Q|Last input", out lines)) return;
-
-                    /*
-GigabitEthernet0/1.3546 is administratively down, line protocol is down
-  Description: ASTINET PEMDA TK I PAPUA SID 4703328-23028 MOVE TO PE-D7-JAP-INET
-  Encapsulation 802.1Q Virtual LAN, Vlan ID  3546.
-  Last input 0:00:00, output 0:00:00, output hang never
-                    */
-
+                    
                     PEInterfaceToDatabase current = null;
                     StringBuilder descriptionBuffer = null;
 
@@ -1590,8 +1643,66 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                 {
                                     int dot1q;
                                     //  Encapsulation 802.1Q Virtual LAN, Vlan ID  3546.
+                                    //                                    0123456789
                                     string vlanid = line.Substring(line.IndexOf("Vlan ID") + 7).Trim('.', ' ');
                                     if (int.TryParse(vlanid, out dot1q)) current.Dot1Q = dot1q;
+                                }
+                                else if (linets.StartsWith("Last input"))
+                                {
+                                    /*
+  Last input 0:00:00, output 0:00:00, output hang never
+  Last input never, output never, output hang never
+  Last input 3y0w, output 3y0w, output hang never
+  012345678901234567890123456789
+
+
+                                    */
+
+                                    // catet if physical dan protocol down
+                                    if (current.Protocol == false && current.Name.IndexOf(".") == -1)
+                                    {
+                                        string lastInput = linets.Substring(11, linets.IndexOf(", ") - 11).Trim();
+                                        if (lastInput == "never") current.LastDown = null;
+                                        else if (lastInput.IndexOf(":") > -1)
+                                        {
+                                            //0:00:00
+                                            string[] hpc = lastInput.Split(new char[] { ':' });
+                                            int hourago = int.Parse(hpc[0]);
+                                            int minuteago = int.Parse(hpc[1]);
+                                            int secondago = int.Parse(hpc[2]);
+                                            current.LastDown = DateTime.UtcNow - new TimeSpan(hourago, minuteago, secondago);
+                                        }
+                                        else if (lastInput.IndexOf("w") > -1)
+                                        {
+                                            //0w2d
+                                            //12w3d
+                                            //1y51w
+                                            TimeSpan yearsago = TimeSpan.Zero;
+                                            TimeSpan weeksago = TimeSpan.Zero;
+                                            TimeSpan daysago = TimeSpan.Zero;
+
+                                            StringBuilder sb = new StringBuilder();
+                                            foreach (char c in lastInput)
+                                            {
+                                                if (char.IsDigit(c)) sb.Append(c);
+                                                else
+                                                {
+                                                    string sbs = sb.ToString();
+                                                    sb.Clear();
+                                                    int sbi = int.Parse(sbs);
+                                                    if (c == 'y') yearsago = new TimeSpan(sbi * 365, 0, 0, 0);
+                                                    else if (c == 'w') weeksago = new TimeSpan(sbi * 7, 0, 0, 0);
+                                                    else if (c == 'd') daysago = new TimeSpan(sbi, 0, 0, 0);
+                                                }
+                                            }
+
+                                            DateTime lastDown = (DateTime.UtcNow - yearsago - weeksago - daysago).Date;
+
+                                            if (daysago == TimeSpan.Zero) lastDown = new DateTime(lastDown.Year, lastDown.Month, 1);
+
+                                            current.LastDown = lastDown;                                        
+                                        }
+                                    }
                                 }
                                 else if (descriptionBuffer != null) descriptionBuffer.Append(line);
                             }
@@ -2171,7 +2282,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                         //01234567890123456789012345678901234567890123456789
                         //                          1234567890123456789
                         //                          0123456789012345678
-                        if (currentInterfaceToDatabase.Status == false)
+                        if (currentInterfaceToDatabase.Protocol == false)
                         {
                             string dtim = line.Substring(26, 19);
                             int year, month, day;
@@ -2186,6 +2297,9 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                 currentInterfaceToDatabase.LastDown = (new DateTime(year, month, day, hour, min, sec)) - nodeTimeOffset;
                             }
                         }
+                        else
+                            currentInterfaceToDatabase.LastDown = null;
+
                         currentInterfaceToDatabase = null;
                     }
                 }
@@ -2661,6 +2775,13 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                         u.RateOutput = li.RateOutput;
                         updateinfo.Append("rout ");
                     }
+                    if (db["PI_LastDown"].ToNullabelDateTime() != li.LastDown)
+                    {
+                        update = true;
+                        u.UpdateLastDown = true;
+                        u.LastDown = li.LastDown;
+                        updateinfo.Append("lastdown ");
+                    }
                     if (db["PI_Summary_CIRConfigTotalInput"].ToInt(-1) != li.CirConfigTotalInput)
                     {
                         update = true;
@@ -2845,6 +2966,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                 insert.Value("PI_TO_MI", s.TopologyMEInterfaceID);
                 insert.Value("PI_Rate_Input", s.RateInput.Nullable(-1));
                 insert.Value("PI_Rate_Output", s.RateOutput.Nullable(-1));
+                insert.Value("PI_LastDown", s.LastDown);
                 insert.Value("PI_Summary_CIRConfigTotalInput", s.CirConfigTotalInput.Nullable(-1));
                 insert.Value("PI_Summary_CIRConfigTotalOutput", s.CirConfigTotalOutput.Nullable(-1));
                 insert.Value("PI_Summary_CIRTotalInput", s.CirTotalInput.Nullable(-1));
@@ -2885,6 +3007,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                 update.Set("PI_PQ_Output", s.OutputQOSID, s.UpdateOutputQOSID);
                 update.Set("PI_Rate_Input", s.RateInput.Nullable(-1), s.UpdateRateInput);
                 update.Set("PI_Rate_Output", s.RateOutput.Nullable(-1), s.UpdateRateOutput);
+                update.Set("PI_LastDown", s.LastDown, s.UpdateLastDown);
                 update.Set("PI_Summary_CIRConfigTotalInput", s.CirConfigTotalInput.Nullable(-1), s.UpdateCirConfigTotalInput);
                 update.Set("PI_Summary_CIRConfigTotalOutput", s.CirConfigTotalOutput.Nullable(-1), s.UpdateCirConfigTotalOutput);
                 update.Set("PI_Summary_CIRTotalInput", s.CirTotalInput.Nullable(-1), s.UpdateCirTotalInput);

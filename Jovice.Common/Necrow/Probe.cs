@@ -4359,7 +4359,7 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID
         {
             string[] splits = description.Split(new string[] {
                 " ", "(", ")", "_", "[", "]", ";", ".", "=", ":", "@", "/", "\\",
-                " L2-"
+                " L2-", " TO-"
             }, StringSplitOptions.RemoveEmptyEntries);
 
             foreach (string split in splits)

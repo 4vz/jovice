@@ -1534,12 +1534,13 @@ namespace Jovice
                     #region ios
 
                     // interface
-                    if (Request("show interface | in line protocol|Description|802.1Q", out lines)) return;
+                    if (Request("show interface | in line protocol|Description|802.1Q|Last input", out lines)) return;
 
                     /*
 GigabitEthernet0/1.3546 is administratively down, line protocol is down
   Description: ASTINET PEMDA TK I PAPUA SID 4703328-23028 MOVE TO PE-D7-JAP-INET
   Encapsulation 802.1Q Virtual LAN, Vlan ID  3546.
+  Last input 0:00:00, output 0:00:00, output hang never
                     */
 
                     PEInterfaceToDatabase current = null;
@@ -2494,7 +2495,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                                     //}
                                 }
                             }
-                            else FindNodeCandidate(li.Description);
+                            //else FindNodeCandidate(li.Description);
                         }
                     }
                     else if (inf.IsSubInterface) // subinterface
@@ -2570,7 +2571,7 @@ GigabitEthernet0/1.3546 is administratively down, line protocol is down
                             update = true;
                             u.UpdateTopologyMEInterfaceID = true;
                             u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
-                            updateinfo.Append("adj ");
+                            updateinfo.Append("pi-to-mi ");
                         }
                     }
                     if (db["PI_Description"].ToString() != li.Description)

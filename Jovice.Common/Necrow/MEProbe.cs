@@ -3057,6 +3057,13 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
                         updateinfo.Append("mi-to-mi ");
                     }
+                    if (db["MI_TO_NI"].ToString() != li.TopologyNeighborInterfaceID)
+                    {
+                        update = true;
+                        u.UpdateTopologyNeighborInterfaceID = true;
+                        u.TopologyNeighborInterfaceID = li.TopologyNeighborInterfaceID;
+                        updateinfo.Append("mi-to-ni ");
+                    }
                     if (db["MI_Description"].ToString() != li.Description)
                     {
                         update = true;
@@ -3270,6 +3277,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 insert.Value("MI_MI", s.ParentID);
                 insert.Value("MI_TO_PI", s.TopologyPEInterfaceID);
                 insert.Value("MI_TO_MI", s.TopologyMEInterfaceID);
+                insert.Value("MI_TO_NI", s.TopologyNeighborInterfaceID);
                 insert.Value("MI_LastDown", s.LastDown);
                 insert.Value("MI_Summary_CIRConfigTotalInput", s.CirConfigTotalInput.Nullable(-1));
                 insert.Value("MI_Summary_CIRConfigTotalOutput", s.CirConfigTotalOutput.Nullable(-1));
@@ -3304,6 +3312,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     update.Set("MI_TO_MI", s.TopologyMEInterfaceID);
                     interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
                 }
+                update.Set("MI_TO_NI", s.TopologyNeighborInterfaceID, s.UpdateTopologyNeighborInterfaceID);
                 if (s.UpdateDescription)
                 {
                     update.Set("MI_Description", s.Description);

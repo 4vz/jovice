@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using Aphysoft.Common;
 using Aphysoft.Share;
+using System.Text.RegularExpressions;
 
 namespace Jovice
 {
@@ -265,6 +266,22 @@ namespace Jovice
         {
             get { return updateTopologyMEInterfaceID; }
             set { updateTopologyMEInterfaceID = value; }
+        }
+
+        private string topologyNeighborInterfaceID = null;
+
+        public string TopologyNeighborInterfaceID
+        {
+            get { return topologyNeighborInterfaceID; }
+            set { topologyNeighborInterfaceID = value; }
+        }
+
+        private bool updateTopologyNeighborInterfaceID = false;
+
+        public bool UpdateTopologyNeighborInterfaceID
+        {
+            get { return updateTopologyNeighborInterfaceID; }
+            set { updateTopologyNeighborInterfaceID = value; }
         }
 
         #endregion
@@ -1714,7 +1731,7 @@ namespace Jovice
             batch.Commit();
 
             // old nodesummaryarchive (for migration purpose build 21)
-            List<string> availablearchives = QueryList("select NS_Key from NodeSummaryArchive, NodeSummary where NSX_NS = NS_ID and NS_NO = {0}", "NS_KEY", nodeID);
+            List<string> availablearchives = QueryList("select NS_Key from NodeSummaryArchive, NodeSummary where NSX_NS = NS_ID and NS_NO = {0}", "NS_Key", nodeID);
 
             batch.Begin();
             foreach (KeyValuePair<string, string> pair in summaries)
@@ -3631,14 +3648,16 @@ namespace Jovice
         private bool findPhysicalNeighborLoaded = false;
 
         private List<Tuple<string, List<Tuple<string, string, string, string, string>>>> peNeighbors = null;
-        private Dictionary<string, List<string>> meAlias = null;
-        private Dictionary<string, string[]> MEInterfaceTestPrefix = null;
-
-        private List<Tuple<string, List<Tuple<string, string, string>>>> meNeighbors = null;
+        private List<Tuple<string, List<Tuple<string, string, string, string>>>> meNeighbors = null;
+        private Dictionary<string, Tuple<string, List<Tuple<string, string>>>> neighbors = null;
+        private Dictionary<string, List<string>> nodeAliases = null;
+        private Dictionary<string, string[]> interfaceTestPrefix = null;
 
         private void FindPhysicalNeighbor(MEInterfaceToDatabase li)
         {
             Result result;
+            Batch batch = Batch();
+            Insert insert;
 
             if (li.PhysicalNeighborChecked) return;
             li.PhysicalNeighborChecked = true;
@@ -3700,8 +3719,8 @@ where NO_ID = MI_NO and MI_Description is not null and ltrim(rtrim(MI_Descriptio
 order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
 ");
 
-                meNeighbors = new List<Tuple<string, List<Tuple<string, string, string>>>>();
-                List<Tuple<string, string, string>> meNeighborInterfaces = new List<Tuple<string, string, string>>();
+                meNeighbors = new List<Tuple<string, List<Tuple<string, string, string, string>>>>();
+                List<Tuple<string, string, string, string>> meNeighborInterfaces = new List<Tuple<string, string, string, string>>();
 
                 currentNode = null;
                 foreach (Row row in result)
@@ -3710,42 +3729,101 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
                     string miname = row["MI_Name"].ToString();
                     string midesc = row["MI_Description"].ToString();
                     string miid = row["MI_ID"].ToString();
+                    string mitype = row["MI_Type"].ToString();
 
                     if (currentNode != noname)
                     {
                         if (currentNode != null)
                         {
-                            meNeighbors.Add(new Tuple<string, List<Tuple<string, string, string>>>(currentNode,
-                                new List<Tuple<string, string, string>>(meNeighborInterfaces)));
+                            meNeighbors.Add(new Tuple<string, List<Tuple<string, string, string, string>>>(currentNode,
+                                new List<Tuple<string, string, string, string>>(meNeighborInterfaces)));
                             meNeighborInterfaces.Clear();
                         }
                         currentNode = noname;
                     }
 
-                    meNeighborInterfaces.Add(new Tuple<string, string, string>(miname, midesc, miid));
+                    meNeighborInterfaces.Add(new Tuple<string, string, string, string>(miname, midesc, miid, mitype));
                 }
-                meNeighbors.Add(new Tuple<string, List<Tuple<string, string, string>>>(currentNode, meNeighborInterfaces));
+                meNeighbors.Add(new Tuple<string, List<Tuple<string, string, string, string>>>(currentNode, meNeighborInterfaces));
                 
                 result = Query(@"
-select NO_ID, NA_Name from Node, NodeAlias where NA_NO = NO_ID and NO_Type = 'M'
-order by NO_ID asc
+select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID
 ");
-                meAlias = new Dictionary<string, List<string>>();
+                nodeAliases = new Dictionary<string, List<string>>();
 
                 foreach (Row row in result)
                 {
-                    string noid = row["NO_ID"].ToString();
-                    if (!meAlias.ContainsKey(noid)) meAlias.Add(noid, new List<string>());
-                    meAlias[noid].Add(row["NA_Name"].ToString());
+                    string noName = row["NO_Name"].ToString();
+
+                    if (!nodeAliases.ContainsKey(noName))
+                        nodeAliases.Add(noName, new List<string>());
+
+                    nodeAliases[noName].Add(row["NA_Name"].ToString());
                 }
 
-                MEInterfaceTestPrefix = new Dictionary<string, string[]>();
-                MEInterfaceTestPrefix.Add("Hu", new string[] { "H", "HU" });
-                MEInterfaceTestPrefix.Add("Te", new string[] { "T", "TE", "TENGIGE", "GI" }); // kadang Te-gig direfer sebagai Gi dammit people
-                MEInterfaceTestPrefix.Add("Gi", new string[] { "G", "GI", "GE", "GIGAE", "GIGABITETHERNET", "TE" }); // kadang Te-gig direfer sebagai Gi dammit people
-                MEInterfaceTestPrefix.Add("Fa", new string[] { "F", "FA", "FE", "FASTE" });
-                MEInterfaceTestPrefix.Add("Et", new string[] { "E", "ET", "ETH" });
-                MEInterfaceTestPrefix.Add("Ag", new string[] { "LAG", "ETH-TRUNK", "BE" });
+                result = Query("select * from NodeNeighbor");
+
+                neighbors = new Dictionary<string, Tuple<string, List<Tuple<string, string>>>>();
+
+                foreach (Row row in result)
+                {
+                    string id = row["NN_ID"].ToString();
+                    string name = row["NN_Name"].ToString();
+
+                    if (!neighbors.ContainsKey(name)) neighbors.Add(name, new Tuple<string, List<Tuple<string, string>>>(id, new List<Tuple<string, string>>()));
+                }
+
+                result = Query("select NN_Name, NI_ID, NI_Name from NodeNeighbor, NeighborInterface where NI_NN = NN_ID order by NN_Name, NI_Name");
+
+                foreach (Row row in result)
+                {
+                    string id = row["NI_ID"].ToString();
+                    string name = row["NI_Name"].ToString();
+                    string node = row["NN_Name"].ToString();
+
+                    neighbors[node].Item2.Add(new Tuple<string, string>(id, name));
+                }
+
+                // check if UNSPECIFIED interface exist in each nodeneighbor
+                batch.Begin();
+                foreach (KeyValuePair<string, Tuple<string, List<Tuple<string, string>>>> pair in neighbors)
+                {
+                    bool exists = false;
+
+                    string neighborID = pair.Value.Item1;
+
+                    foreach (Tuple<string, string> tuple in pair.Value.Item2)
+                    {
+                        if (tuple.Item2 == "UNSPECIFIED")
+                        {
+                            exists = true;
+                            break;
+                        }
+                    }
+
+                    if (!exists)
+                    {
+                        // insert new UNSPECIFIED interface
+                        string id = Database.ID();
+
+                        insert = Insert("NeighborInterface");
+                        insert.Value("NI_ID", id);
+                        insert.Value("NI_NN", neighborID);
+                        insert.Value("NI_Name", "UNSPECIFIED");
+                        batch.Execute(insert);
+
+                        pair.Value.Item2.Add(new Tuple<string, string>(id, "UNSPECIFIED"));
+                    }
+                }
+                batch.Commit();
+
+                interfaceTestPrefix = new Dictionary<string, string[]>();
+                interfaceTestPrefix.Add("Hu", new string[] { "H", "HU" });
+                interfaceTestPrefix.Add("Te", new string[] { "T", "TE", "TENGIGE", "GI", "XE" }); // kadang Te-gig direfer sebagai Gi dammit people
+                interfaceTestPrefix.Add("Gi", new string[] { "G", "GI", "GE", "GIGAE", "GIGABITETHERNET", "TE" }); // kadang Te-gig direfer sebagai Gi dammit people
+                interfaceTestPrefix.Add("Fa", new string[] { "F", "FA", "FE", "FASTE" });
+                interfaceTestPrefix.Add("Et", new string[] { "E", "ET", "ETH" });
+                interfaceTestPrefix.Add("Ag", new string[] { "LAG", "ETH-TRUNK", "BE" });
 
                 findPhysicalNeighborLoaded = true;
             }
@@ -3753,11 +3831,11 @@ order by NO_ID asc
             #endregion
 
             bool done = false;
+            bool nodeFound = false;
 
             string miName = li.Name;
-            string miType = miName.Substring(0, 2);
-            if (miType == "Ex") miType = li.InterfaceType;
-            string miDetail = miName.Substring(2);
+            string miType = li.InterfaceType;
+            string miPort = miName.Substring(2);
 
             #region MI_TO_PI
 
@@ -3767,30 +3845,46 @@ order by NO_ID asc
                 List<Tuple<string, string, string, string, string>> pis = pe.Item2;
 
                 int findNode = description.IndexOf(peName);
+                int findNodeLength = peName.Length;
+
+                if (findNode == -1 && nodeAliases.ContainsKey(peName))
+                {
+                    // search with alias
+                    foreach (string alias in nodeAliases[peName])
+                    {
+                        findNode = description.IndexOf(alias);
+                        if (findNode > -1)
+                        {
+                            findNodeLength = alias.Length;
+                            break;
+                        }
+                    }
+                }
 
                 if (findNode > -1)
                 {
-                    string neighborPart = description.Substring(findNode);
+                    string neighborPart = description.Substring(findNode + findNodeLength);
                     Tuple<string, string, string, string, string> matchedInterface = null;
 
-                    #region Finding...
+                    #region Find Interface
 
                     int locPI = neighborPart.Length;
                     foreach (Tuple<string, string, string, string, string> pi in pis)
                     {
                         string piName = pi.Item1;
                         string piType = piName.Substring(0, 2);
-                        string piDetail = piName.Substring(2);
+                        string piPort = piName.Substring(2);
 
                         List<string> testIf = new List<string>();
-                        string[] prefixs = MEInterfaceTestPrefix[piType];
+                        string[] prefixs = interfaceTestPrefix[piType];
 
                         foreach (string prefix in prefixs)
                         {
-                            testIf.Add(prefix + piDetail);
-                            testIf.Add(prefix + "-" + piDetail);
-                            testIf.Add(prefix + " " + piDetail);
-                            testIf.Add(prefix + "/" + piDetail);
+                            testIf.Add(piPort);
+                            testIf.Add(prefix + piPort);
+                            testIf.Add(prefix + "-" + piPort);
+                            testIf.Add(prefix + " " + piPort);
+                            testIf.Add(prefix + "/" + piPort);
                         }
 
                         testIf = List.Sort(testIf, SortMethods.LengthDescending);
@@ -3802,8 +3896,11 @@ order by NO_ID asc
                             {
                                 locPI = pos;
                                 matchedInterface = pi;
+                                break;
                             }
                         }
+
+                        if (matchedInterface != null) break;
                     }
 
                     #endregion
@@ -3816,36 +3913,37 @@ order by NO_ID asc
 
                         if (piDesc != null)
                         {
-                            int meNamePart = piDesc.IndexOf(nodeName);
+                            findNode = piDesc.IndexOf(nodeName);
+                            findNodeLength = nodeName.Length;
 
-                            if (meNamePart == -1)
+                            if (findNode == -1 && nodeAliases.ContainsKey(nodeName))
                             {
-                                // if -1, test with alias
-                                if (meAlias.ContainsKey(nodeID))
+                                // search with alias
+                                foreach (string alias in nodeAliases[nodeName])
                                 {
-                                    List<string> aliases = meAlias[nodeID];
-                                    foreach (string alias in aliases)
+                                    findNode = piDesc.IndexOf(alias);
+                                    if (findNode > -1)
                                     {
-                                        meNamePart = piDesc.IndexOf(alias);
-                                        if (meNamePart > -1) break;
+                                        findNodeLength = alias.Length;
+                                        break;
                                     }
                                 }
                             }
 
-                            if (meNamePart > -1) // at least we can find me name or the alias in pi description
+                            if (findNode > -1) // at least we can find me name or the alias in pi description
                             {
-                                string descMEPart = piDesc.Substring(meNamePart);
+                                string descMEPart = piDesc.Substring(findNode + findNodeLength);
 
                                 List<string> testIf = new List<string>();
-                                string[] prefixs = MEInterfaceTestPrefix[miType];
+                                string[] prefixs = interfaceTestPrefix[miType];
 
                                 foreach (string prefix in prefixs)
                                 {
-                                    testIf.Add(miDetail);
-                                    testIf.Add(prefix + miDetail);
-                                    testIf.Add(prefix + "-" + miDetail);
-                                    testIf.Add(prefix + " " + miDetail);
-                                    testIf.Add(prefix + "/" + miDetail);
+                                    testIf.Add(miPort);
+                                    testIf.Add(prefix + miPort);
+                                    testIf.Add(prefix + "-" + miPort);
+                                    testIf.Add(prefix + " " + miPort); 
+                                    testIf.Add(prefix + "/" + miPort);
                                 }
                                 testIf = List.Sort(testIf, SortMethods.LengthDescending);
 
@@ -3894,36 +3992,64 @@ order by NO_ID asc
 
             #region MI_TO_MI
 
-            foreach (Tuple<string, List<Tuple<string, string, string>>> me in meNeighbors)
+            foreach (Tuple<string, List<Tuple<string, string, string, string>>> me in meNeighbors)
             {
                 string me2Name = me.Item1;
-                List<Tuple<string, string, string>> mis = me.Item2;
+                if (me2Name == nodeName) continue;
+
+                List<Tuple<string, string, string, string>> mis = me.Item2;
 
                 int findNode = description.IndexOf(me2Name);
+                int findNodeLength = me2Name.Length;
+
+                if (findNode == -1 && nodeAliases.ContainsKey(me2Name))
+                {
+                    // search with alias
+                    foreach (string alias in nodeAliases[me2Name])
+                    {
+                        findNode = description.IndexOf(alias);
+                        if (findNode > -1)
+                        {
+                            findNodeLength = alias.Length;
+                            break;
+                        }
+                    }
+                }
+
+                if (findNode == -1 && me2Name.StartsWith("ME-"))
+                {
+                    // coba pake ME1-
+                    string me2NameAlternate = me2Name.Replace("ME-", "ME1-");
+                    findNode = description.IndexOf(me2NameAlternate);
+                    if (findNode > -1) findNodeLength = me2NameAlternate.Length;
+                }
 
                 if (findNode > -1)
                 {
-                    string neighborPart = description.Substring(findNode);
-                    Tuple<string, string, string> matchedInterface = null;
+                    nodeFound = true;
 
-                    #region Finding...
+                    string neighborPart = description.Substring(findNode + findNodeLength);
+                    Tuple<string, string, string, string> matchedInterface = null;
+
+                    #region Find Interface
 
                     int locMI = neighborPart.Length;
-                    foreach (Tuple<string, string, string> mi in mis)
+                    foreach (Tuple<string, string, string, string> mi in mis)
                     {
                         string mi2Name = mi.Item1;
-                        string mi2Type = mi2Name.Substring(0, 2);
-                        string mi2Detail = mi2Name.Substring(2);
+                        string mi2Type = mi.Item4;
+                        string mi2Port = mi2Name.Substring(2);
 
                         List<string> testIf = new List<string>();
-                        string[] prefixs = MEInterfaceTestPrefix[mi2Type];
+                        string[] prefixs = interfaceTestPrefix[mi2Type];
 
                         foreach (string prefix in prefixs)
                         {
-                            testIf.Add(prefix + mi2Detail);
-                            testIf.Add(prefix + "-" + mi2Detail);
-                            testIf.Add(prefix + " " + mi2Detail);
-                            testIf.Add(prefix + "/" + mi2Detail);
+                            testIf.Add(mi2Port);
+                            testIf.Add(prefix + mi2Port);
+                            testIf.Add(prefix + "-" + mi2Port);
+                            testIf.Add(prefix + " " + mi2Port);
+                            testIf.Add(prefix + "/" + mi2Port);
                         }
 
                         testIf = List.Sort(testIf, SortMethods.LengthDescending);
@@ -3935,8 +4061,11 @@ order by NO_ID asc
                             {
                                 locMI = pos;
                                 matchedInterface = mi;
+                                break;
                             }
                         }
+
+                        if (matchedInterface != null) break;
                     }
 
                     #endregion
@@ -3949,36 +4078,44 @@ order by NO_ID asc
 
                         if (mi2Desc != null)
                         {
-                            int meNamePart = mi2Desc.IndexOf(nodeName);
+                            findNode = mi2Desc.IndexOf(nodeName);
+                            findNodeLength = nodeName.Length;
 
-                            if (meNamePart == -1)
+                            if (findNode == -1 && nodeAliases.ContainsKey(nodeName))
                             {
-                                // if -1, test with alias
-                                if (meAlias.ContainsKey(nodeID))
+                                // search with alias
+                                foreach (string alias in nodeAliases[nodeName])
                                 {
-                                    List<string> aliases = meAlias[nodeID];
-                                    foreach (string alias in aliases)
+                                    findNode = mi2Desc.IndexOf(alias);
+                                    if (findNode > -1)
                                     {
-                                        meNamePart = mi2Desc.IndexOf(alias);
-                                        if (meNamePart > -1) break;
+                                        findNodeLength = alias.Length;
+                                        break;
                                     }
                                 }
                             }
-
-                            if (meNamePart > -1)
+                            if (findNode == -1 && nodeName.StartsWith("ME-"))
                             {
-                                string descMEPart = mi2Desc.Substring(meNamePart);
+                                // coba pake ME1-
+                                string nodeNameAlternate = nodeName.Replace("ME-", "ME1-");
+                                findNode = description.IndexOf(nodeNameAlternate);
+                                if (findNode > -1) findNodeLength = nodeNameAlternate.Length;
+                            }
+
+                            if (findNode > -1)
+                            {
+                                string descMEPart = mi2Desc.Substring(findNode + findNodeLength);
 
                                 List<string> testIf = new List<string>();
-                                string[] prefixs = MEInterfaceTestPrefix[miType];
+                                string[] prefixs = interfaceTestPrefix[miType];
 
                                 foreach (string prefix in prefixs)
                                 {
-                                    testIf.Add(miDetail);
-                                    testIf.Add(prefix + miDetail);
-                                    testIf.Add(prefix + "-" + miDetail);
-                                    testIf.Add(prefix + " " + miDetail);
-                                    testIf.Add(prefix + "/" + miDetail);
+                                    testIf.Add(miPort);
+                                    testIf.Add(prefix + miPort);
+                                    testIf.Add(prefix + "-" + miPort);
+                                    testIf.Add(prefix + " " + miPort);
+                                    testIf.Add(prefix + "/" + miPort);
                                 }
                                 testIf = List.Sort(testIf, SortMethods.LengthDescending);
 
@@ -4003,10 +4140,187 @@ order by NO_ID asc
             }
 
             if (done) return;
+            if (nodeFound) return;
 
             #endregion
 
-            #region MI_TO_MI
+            #region MI_TO_NI
+
+            string neighborNode = null;
+            string neighborInterface = null;
+            string neighborInterfaceUnspecifiedID = null;
+            string descriptionNeighborPart = null;
+
+            foreach (KeyValuePair<string, Tuple<string, List<Tuple<string, string>>>> pair in neighbors)
+            {
+                string neighbor = pair.Key;
+                string neighborID = pair.Value.Item1;
+                List<Tuple<string, string>> interfaces = pair.Value.Item2;
+
+                int findNode = description.IndexOf(neighbor);
+                int findNodeLength = neighbor.Length;
+
+                if (findNode > -1)
+                {
+                    neighborNode = neighbor;
+
+                    foreach (Tuple<string, string> tuple in interfaces)
+                    {
+                        if (tuple.Item2 == "UNSPECIFIED")
+                        {
+                            neighborInterfaceUnspecifiedID = tuple.Item1;
+                            break;
+                        }
+                    }
+
+                    string neighborPart = description.Substring(findNode + findNodeLength);
+                    descriptionNeighborPart = neighborPart;
+
+                    Tuple<string, string> matchedInterface = null;
+
+                    #region Find Interface
+
+                    int locMI = neighborPart.Length;
+                    foreach (Tuple<string, string> ni in interfaces)
+                    {
+                        string niID = ni.Item1;
+                        string niName = ni.Item2;
+                        string niType = niName.Substring(0, 2);
+                        string niPort = niName.Substring(2);
+
+                        if (niName == "UNSPECIFIED") continue;
+
+                        List<string> testIf = new List<string>();
+
+                        if (niType != "Ex")
+                        {
+                            string[] prefixs = interfaceTestPrefix[niType];
+
+                            foreach (string prefix in prefixs)
+                            {
+                                testIf.Add(niPort);
+                                testIf.Add(prefix + niPort);
+                                testIf.Add(prefix + "-" + niPort);
+                                testIf.Add(prefix + " " + niPort);
+                                testIf.Add(prefix + "/" + niPort);
+                            }
+                        }
+                        else
+                        {
+                            testIf.Add(niPort);
+                        }
+
+                        testIf = List.Sort(testIf, SortMethods.LengthDescending);
+
+                        foreach (string test in testIf)
+                        {
+                            int pos = neighborPart.IndexOf(test);
+                            if (pos > -1 && pos < locMI)
+                            {
+                                locMI = pos;
+                                matchedInterface = ni;
+                                break;
+                            }
+                        }
+
+                        if (matchedInterface != null) break;
+                    }
+
+                    #endregion
+
+                    if (matchedInterface != null)
+                    {
+                        li.TopologyNeighborInterfaceID = matchedInterface.Item1;
+
+                        done = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!done)
+            {
+                if (neighborNode == null)
+                {
+                    // find neighbor node in description
+                    neighborNode = FindNode(description);
+
+                    if (neighborNode != null)
+                        descriptionNeighborPart = description.Substring(description.IndexOf(neighborNode) + neighborNode.Length).Trim();
+                }
+
+                if (neighborNode != null)
+                {
+                    string neighborNodeID = null;
+
+                    if (neighbors.ContainsKey(neighborNode)) neighborNodeID = neighbors[neighborNode].Item1;
+                    else
+                    {
+                        batch.Begin();
+
+                        // insert neighbor node
+                        neighborNodeID = Database.ID();
+                        insert = Insert("NodeNeighbor");
+                        insert.Value("NN_ID", neighborNodeID);
+                        insert.Value("NN_Name", neighborNode);
+                        batch.Execute(insert);
+
+                        // insert neighbor interface unspecified
+                        neighborInterfaceUnspecifiedID = Database.ID();
+                        insert = Insert("NeighborInterface");
+                        insert.Value("NI_ID", neighborInterfaceUnspecifiedID);
+                        insert.Value("NI_NN", neighborNodeID);
+                        insert.Value("NI_Name", "UNSPECIFIED");
+                        batch.Execute(insert);
+
+                        batch.Commit();
+
+                        // tambah ke collection neighbors
+                        neighbors.Add(neighborNode, new Tuple<string, List<Tuple<string, string>>>(neighborNodeID, new List<Tuple<string, string>>()));
+                        neighbors[neighborNode].Item2.Add(new Tuple<string, string>(neighborInterfaceUnspecifiedID, "UNSPECIFIED"));
+                    }
+                    
+                    // find interface
+                    neighborInterface = FindInterface(descriptionNeighborPart);
+
+                    if (neighborInterface == null)
+                    {
+                        // pake unspecified
+                        li.TopologyNeighborInterfaceID = neighborInterfaceUnspecifiedID;
+                    }
+                    else
+                    {
+                        List<Tuple<string, string>> neighborInterfaces = neighbors[neighborNode].Item2;
+
+                        bool exists = false;
+                        foreach (Tuple<string, string> ni in neighborInterfaces)
+                        {
+                            if (ni.Item2 == neighborInterface)
+                            {
+                                exists = true;
+                                li.TopologyNeighborInterfaceID = ni.Item1;
+                                break;
+                            }
+                        }
+
+                        if (!exists)
+                        {
+                            // new interface under neighborNode
+                            string neighborInterfaceID = Database.ID();
+                            insert = Insert("NeighborInterface");
+                            insert.Value("NI_ID", neighborInterfaceID);
+                            insert.Value("NI_NN", neighborNodeID);
+                            insert.Value("NI_Name", neighborInterface);
+                            insert.Execute();
+
+                            li.TopologyNeighborInterfaceID = neighborInterfaceID;
+
+                            // tambah ke collection neighbors
+                            neighbors[neighborNode].Item2.Add(new Tuple<string, string>(neighborInterfaceID, neighborInterface));
+                        }
+                    }
+                }
+            }
 
             #endregion
         }
@@ -4014,8 +4328,11 @@ order by NO_ID asc
         private readonly char[] cleanDescriptionAllowedCharacterForTrimStart = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z' };
         private readonly char[] cleanDescriptionAllowedCharacterForTrimEnd = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
-        private readonly string[] cleanDescriptionStartsWith = { "EKS ", "EKS.", "EX ", "EX-", "BEKAS ", "MIGRASI", "MIGRATED", "PINDAH", "GANTI" };
-        private readonly string[] cleanDescriptionUnnecessaryInfo = { "(EX", "(EKS", "[EX", "[EKS", " EX-", " EKS-", " BEKAS ", " PINDAHAN "  };
+        private readonly string[] cleanDescriptionStartsWith = { "EKS ", "EKS.", "EXS ", "EXS. ", "EX ", "EX-", "BEKAS ", "MIGRASI", "MIGRATED", "PINDAH", "GANTI" };
+        private readonly string[] cleanDescriptionUnnecessaryInfo = { "(EX", "(EKS", "[EX", "[EKS", " EX-", " EKS-", " EXS.", " EKS.", " BEKAS ", " PINDAHAN ", " MOVE " };
+
+        private readonly Regex findNodeRegex = new Regex(@"^(?:MSAN|DSL(?:AM)?|ME|PE|CES|WAC|WAG|GPON|DCN|SW(?:C)?|T|BRAS)\d{0,2}(?:-[A-Z\d]+)+$");
+        private static readonly Regex findInterfaceRegex = new Regex(@"^(?:\/)*(?:(?:F(?:A(?:ST)?)?|(?:(?:TE(?:NGIG(?:ABIT)?)?|HU(?:NDRED)?){0,1}(?:G(?:I(?:GABIT)?)?)?)){0,1}(?:E(?:T(?:HERNET)?)?)?|XE)?(?:\/|-)*(?:[0-9]{1,2})(?:\/[0-9]{1,2}){0,3}$");
 
         private string CleanDescription(string description, string originNodeName)
         {
@@ -4038,81 +4355,54 @@ order by NO_ID asc
             return description;
         }
 
-        private Dictionary<string, string> nodeCandidates = null;
-        private List<string> nodes = null;
-
-        private void FindNodeCandidate(string description)
+        private string FindNode(string description)
         {
-            if (description == null) return;
+            string[] splits = description.Split(new string[] {
+                " ", "(", ")", "_", "[", "]", ";", ".", "=", ":", "@", "/", "\\",
+                " L2-"
+            }, StringSplitOptions.RemoveEmptyEntries);
 
-            if (nodeCandidates == null)
+            foreach (string split in splits)
             {
-                nodeCandidates = new Dictionary<string, string>();
-
-                Result result = Query("select * from NodeCandidate");
-                foreach (Row row in result)
-                {
-                    string ncid = row["NC_ID"].ToString();
-                    string ncname = row["NC_Name"].ToString();
-                    if (!nodeCandidates.ContainsKey(ncname)) nodeCandidates.Add(ncname, ncid);
-                }
-
-                nodes = new List<string>();
-
-                result = Query("select NO_Name from Node");
-                foreach (Row row in result)
-                {
-                    string noname = row["NO_Name"].ToString();
-                    nodes.Add(noname);
-                }
+                if (findNodeRegex.IsMatch(split)) return split;
             }
 
-            // lets find some new node here
-            string[] descs = description.Split(new char[] { ' ', '(', ')', '_', '[', ']', ';', '.', '=', ':', '@', '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+            return null;
+        }
 
-            foreach (string des in descs)
+        public static string FindInterface(string description)
+        {
+            string[] splits = description.Split(new string[] {
+                " ", "(", ")", "_", "[", "]", ";", "=", ":", "@", "\\"
+            }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (string split in splits)
             {
-                if (des.Length >= 8 && des.IndexOf('-') > -1 && (des.StartsWith("PE") || des.StartsWith("ME") || des.StartsWith("CES")) && !des.EndsWith("-"))
+                if (findInterfaceRegex.IsMatch(split))
                 {
-                    string[] dess = des.Split(new char[] { '-' });
-                    if (dess.Length >= 3)
+                    string iclean = split.TrimStart(new char[] { '/' }).Replace("-", "").Replace("XE", "TE");
+
+                    int ic = 0;
+                    foreach (char c in iclean)
                     {
-                        if (dess[0].StartsWith("ME") && dess[0].Length > 2 && !char.IsDigit(dess[0][2])) continue;
-                        else if (dess[0].StartsWith("PE") && dess[0].Length > 2 && !char.IsDigit(dess[0][2])) continue;
-                        else if (dess[0].StartsWith("CES") && dess[0].Length > 3 && !char.IsDigit(dess[0][3])) continue;
-
-                        bool illegal = false;
-                        foreach (char c in des)
-                        {
-                            if (c == '-' || char.IsDigit(c) || (char.IsLetter(c) && char.IsUpper(c))) { }
-                            else { illegal = true; break; }
-                        }
-
-                        if (illegal == false)
-                        {
-                            string thisdes = des.ToUpper();
-
-                            // last check if ending with -<numeric> its fail
-                            string[] lxcp = thisdes.Split('-');
-                            if (!char.IsDigit(lxcp[lxcp.Length - 1][0]))
-                            {
-                                if (!nodes.Contains(thisdes))
-                                {
-                                    if (!nodeCandidates.ContainsKey(thisdes))
-                                    {
-                                        Event("Node Candidate: " + thisdes);
-
-                                        string ncid = Database.ID();
-                                        nodeCandidates.Add(thisdes, ncid);
-                                        Execute("insert into NodeCandidate values({0}, {1})", ncid, thisdes);
-                                    }
-                                    break;
-                                }
-                            }
-                        }
+                        if (char.IsDigit(c)) break;
+                        ic++;
                     }
+                    string port = iclean.Substring(ic);
+                    string utype = iclean.Substring(0, 1);
+
+                    string gtype = "Ex";
+                    if (utype == "H") gtype = "Hu";
+                    else if (utype == "T") gtype = "Te";
+                    else if (utype == "G") gtype = "Gi";
+                    else if (utype == "F") gtype = "Fa";
+                    else if (utype == "E") gtype = "Et";
+
+                    return gtype + port;
                 }
             }
+
+            return null;
         }
     }
 

@@ -1274,57 +1274,12 @@ Last input 00:00:00, output 00:00:00
                                 }
                                 else if (linets.StartsWith("Last input"))
                                 {
-                                    /*
-  Last input 0:00:00,
-  Last input never,
-  Last input 3y0w,
-  01234567890123456
-                                    */
-
                                     // catet if physical dan protocol down
                                     if (current.Protocol == false && current.Name.IndexOf(".") == -1)
                                     {
-                                        string lastInput = linets.Substring(11, linets.IndexOf(", ") - 11).Trim();
-                                        if (lastInput == "never") current.LastDown = null;
-                                        else if (lastInput.IndexOf(":") > -1)
-                                        {
-                                            //0:00:00
-                                            string[] hpc = lastInput.Split(new char[] { ':' });
-                                            int hourago = int.Parse(hpc[0]);
-                                            int minuteago = int.Parse(hpc[1]);
-                                            int secondago = int.Parse(hpc[2]);
-                                            current.LastDown = DateTime.UtcNow - new TimeSpan(hourago, minuteago, secondago);
-                                        }
-                                        else if (lastInput.IndexOf("w") > -1)
-                                        {
-                                            //0w2d
-                                            //12w3d
-                                            //1y51w
-                                            TimeSpan yearsago = TimeSpan.Zero;
-                                            TimeSpan weeksago = TimeSpan.Zero;
-                                            TimeSpan daysago = TimeSpan.Zero;
-
-                                            StringBuilder sb = new StringBuilder();
-                                            foreach (char c in lastInput)
-                                            {
-                                                if (char.IsDigit(c)) sb.Append(c);
-                                                else
-                                                {
-                                                    string sbs = sb.ToString();
-                                                    sb.Clear();
-                                                    int sbi = int.Parse(sbs);
-                                                    if (c == 'y') yearsago = new TimeSpan(sbi * 365, 0, 0, 0);
-                                                    else if (c == 'w') weeksago = new TimeSpan(sbi * 7, 0, 0, 0);
-                                                    else if (c == 'd') daysago = new TimeSpan(sbi, 0, 0, 0);
-                                                }
-                                            }
-
-                                            DateTime lastDown = (DateTime.UtcNow - yearsago - weeksago - daysago).Date;
-
-                                            if (daysago == TimeSpan.Zero) lastDown = new DateTime(lastDown.Year, lastDown.Month, 1);
-
-                                            current.LastDown = lastDown;
-                                        }
+                                        //  Last input 3y0w,
+                                        //  01234567890123456
+                                        current.LastDown = ParseLastInput(linets.Substring(11, linets.IndexOf(", ") - 11).Trim());
                                     }
                                 }
                                 else if (descriptionBuffer != null) descriptionBuffer.Append(line);
@@ -1649,59 +1604,12 @@ Last input 00:00:00, output 00:00:00
                                 }
                                 else if (linets.StartsWith("Last input"))
                                 {
-                                    /*
-  Last input 0:00:00, output 0:00:00, output hang never
-  Last input never, output never, output hang never
-  Last input 3y0w, output 3y0w, output hang never
-  012345678901234567890123456789
-
-
-                                    */
-
                                     // catet if physical dan protocol down
                                     if (current.Protocol == false && current.Name.IndexOf(".") == -1)
                                     {
-                                        string lastInput = linets.Substring(11, linets.IndexOf(", ") - 11).Trim();
-                                        if (lastInput == "never") current.LastDown = null;
-                                        else if (lastInput.IndexOf(":") > -1)
-                                        {
-                                            //0:00:00
-                                            string[] hpc = lastInput.Split(new char[] { ':' });
-                                            int hourago = int.Parse(hpc[0]);
-                                            int minuteago = int.Parse(hpc[1]);
-                                            int secondago = int.Parse(hpc[2]);
-                                            current.LastDown = DateTime.UtcNow - new TimeSpan(hourago, minuteago, secondago);
-                                        }
-                                        else if (lastInput.IndexOf("w") > -1)
-                                        {
-                                            //0w2d
-                                            //12w3d
-                                            //1y51w
-                                            TimeSpan yearsago = TimeSpan.Zero;
-                                            TimeSpan weeksago = TimeSpan.Zero;
-                                            TimeSpan daysago = TimeSpan.Zero;
-
-                                            StringBuilder sb = new StringBuilder();
-                                            foreach (char c in lastInput)
-                                            {
-                                                if (char.IsDigit(c)) sb.Append(c);
-                                                else
-                                                {
-                                                    string sbs = sb.ToString();
-                                                    sb.Clear();
-                                                    int sbi = int.Parse(sbs);
-                                                    if (c == 'y') yearsago = new TimeSpan(sbi * 365, 0, 0, 0);
-                                                    else if (c == 'w') weeksago = new TimeSpan(sbi * 7, 0, 0, 0);
-                                                    else if (c == 'd') daysago = new TimeSpan(sbi, 0, 0, 0);
-                                                }
-                                            }
-
-                                            DateTime lastDown = (DateTime.UtcNow - yearsago - weeksago - daysago).Date;
-
-                                            if (daysago == TimeSpan.Zero) lastDown = new DateTime(lastDown.Year, lastDown.Month, 1);
-
-                                            current.LastDown = lastDown;                                        
-                                        }
+                                        //  Last input 3y0w,
+                                        //  01234567890123456
+                                        current.LastDown = ParseLastInput(linets.Substring(11, linets.IndexOf(", ") - 11).Trim());
                                     }
                                 }
                                 else if (descriptionBuffer != null) descriptionBuffer.Append(line);
@@ -5070,6 +4978,49 @@ Last input 00:00:00, output 00:00:00
             Event(result, EventActions.Delete, EventElements.VRF, false);
 
             #endregion
+        }
+
+        private DateTime? ParseLastInput(string lastInput)
+        {
+            if (lastInput == "never") return null;
+            else if (lastInput.IndexOf(":") > -1)
+            {
+                //0:00:00
+                string[] hpc = lastInput.Split(new char[] { ':' });
+                int hourago = int.Parse(hpc[0]);
+                int minuteago = int.Parse(hpc[1]);
+                int secondago = int.Parse(hpc[2]);
+                return DateTime.UtcNow - new TimeSpan(hourago, minuteago, secondago);
+            }
+            else if (lastInput.IndexOf("w") > -1)
+            {
+                //0w2d
+                //12w3d
+                //1y51w
+                TimeSpan yearsago = TimeSpan.Zero;
+                TimeSpan weeksago = TimeSpan.Zero;
+                TimeSpan daysago = TimeSpan.Zero;
+
+                StringBuilder sb = new StringBuilder();
+                foreach (char c in lastInput)
+                {
+                    if (char.IsDigit(c)) sb.Append(c);
+                    else
+                    {
+                        string sbs = sb.ToString();
+                        sb.Clear();
+                        int sbi = int.Parse(sbs);
+                        if (c == 'y') yearsago = new TimeSpan(sbi * 365, 0, 0, 0);
+                        else if (c == 'w') weeksago = new TimeSpan(sbi * 7, 0, 0, 0);
+                        else if (c == 'd') daysago = new TimeSpan(sbi, 0, 0, 0);
+                    }
+                }
+
+                DateTime lastDown = (DateTime.UtcNow - yearsago - weeksago - daysago).Date;
+                if (daysago == TimeSpan.Zero) lastDown = new DateTime(lastDown.Year, lastDown.Month, 1);
+                return lastDown;
+            }
+            else return null;
         }
     }
 }

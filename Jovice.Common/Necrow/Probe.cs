@@ -284,6 +284,14 @@ namespace Jovice
             set { updateTopologyNeighborInterfaceID = value; }
         }
 
+        private bool physicalNeighborChecked = false;
+
+        public bool PhysicalNeighborChecked
+        {
+            get { return physicalNeighborChecked; }
+            set { physicalNeighborChecked = value; }
+        }
+
         #endregion
 
         #region Summary
@@ -938,12 +946,14 @@ namespace Jovice
                         if (nodeType == "P")
                         {
                             PEProcess();
-                            findPhysicalNeighborLoaded = false;
                         }
                         else if (nodeType == "M")
                         {
                             MEProcess();
                         }
+
+                        findPhysicalNeighborLoaded = false;
+
                         Necrow.SupportedNodeVersion(nodeManufacture, nodeVersion, nodeSubVersion);
 #if !DEBUG
                         }
@@ -3653,19 +3663,11 @@ namespace Jovice
         private Dictionary<string, List<string>> nodeAliases = null;
         private Dictionary<string, string[]> interfaceTestPrefix = null;
 
-        private void FindPhysicalNeighbor(MEInterfaceToDatabase li)
+        private void LoadFindPhysicalNeighbor()
         {
             Result result;
             Batch batch = Batch();
             Insert insert;
-
-            if (li.PhysicalNeighborChecked) return;
-            li.PhysicalNeighborChecked = true;
-
-            string description = CleanDescription(li.Description, nodeName);
-            if (description == null) return;
-
-            #region Loader
 
             if (!findPhysicalNeighborLoaded)
             {
@@ -3745,7 +3747,7 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
                     meNeighborInterfaces.Add(new Tuple<string, string, string, string>(miname, midesc, miid, mitype));
                 }
                 meNeighbors.Add(new Tuple<string, List<Tuple<string, string, string, string>>>(currentNode, meNeighborInterfaces));
-                
+
                 result = Query(@"
 select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID
 ");
@@ -3827,8 +3829,368 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID
 
                 findPhysicalNeighborLoaded = true;
             }
+        }
+
+        private void FindTopologyNeighbor(InterfaceToDatabase li, string description)
+        {
+            bool done = false;
+
+            Batch batch = Batch();
+            Insert insert;
+
+            string interfaceName = li.Name;
+            string interfaceType = li.InterfaceType;
+            string interfacePort = interfaceName.Substring(2);
+
+            #region TO_MI
+
+            foreach (Tuple<string, List<Tuple<string, string, string, string>>> me in meNeighbors)
+            {
+                string me2Name = me.Item1;
+                if (me2Name == nodeName) continue;
+
+                List<Tuple<string, string, string, string>> mis = me.Item2;
+
+                int findNode = description.IndexOf(me2Name);
+                int findNodeLength = me2Name.Length;
+
+                if (findNode == -1 && nodeAliases.ContainsKey(me2Name))
+                {
+                    // search with alias
+                    foreach (string alias in nodeAliases[me2Name])
+                    {
+                        findNode = description.IndexOf(alias);
+                        if (findNode > -1)
+                        {
+                            findNodeLength = alias.Length;
+                            break;
+                        }
+                    }
+                }
+
+                if (findNode == -1 && me2Name.StartsWith("ME-"))
+                {
+                    // coba pake ME1-
+                    string me2NameAlternate = me2Name.Replace("ME-", "ME1-");
+                    findNode = description.IndexOf(me2NameAlternate);
+                    if (findNode > -1) findNodeLength = me2NameAlternate.Length;
+                }
+
+                if (findNode > -1)
+                {
+                    string neighborPart = description.Substring(findNode + findNodeLength);
+                    Tuple<string, string, string, string> matchedInterface = null;
+
+                    #region Find Interface
+
+                    int locMI = neighborPart.Length;
+                    foreach (Tuple<string, string, string, string> mi in mis)
+                    {
+                        string mi2Name = mi.Item1;
+                        string mi2Type = mi.Item4;
+                        string mi2Port = mi2Name.Substring(2);
+
+                        List<string> testIf = new List<string>();
+                        string[] prefixs = interfaceTestPrefix[mi2Type];
+
+                        foreach (string prefix in prefixs)
+                        {
+                            testIf.Add(mi2Port);
+                            testIf.Add(prefix + mi2Port);
+                            testIf.Add(prefix + "-" + mi2Port);
+                            testIf.Add(prefix + " " + mi2Port);
+                            testIf.Add(prefix + "/" + mi2Port);
+                        }
+
+                        testIf = List.Sort(testIf, SortMethods.LengthDescending);
+
+                        foreach (string test in testIf)
+                        {
+                            int pos = neighborPart.IndexOf(test);
+                            if (pos > -1 && pos < locMI)
+                            {
+                                locMI = pos;
+                                matchedInterface = mi;
+                                break;
+                            }
+                        }
+
+                        if (matchedInterface != null) break;
+                    }
+
+                    #endregion
+
+                    if (matchedInterface != null)
+                    {
+                        #region Crosscheck with matched interface description
+
+                        string mi2Desc = CleanDescription(matchedInterface.Item2, me2Name);
+
+                        if (mi2Desc != null)
+                        {
+                            findNode = mi2Desc.IndexOf(nodeName);
+                            findNodeLength = nodeName.Length;
+
+                            if (findNode == -1 && nodeAliases.ContainsKey(nodeName))
+                            {
+                                // search with alias
+                                foreach (string alias in nodeAliases[nodeName])
+                                {
+                                    findNode = mi2Desc.IndexOf(alias);
+                                    if (findNode > -1)
+                                    {
+                                        findNodeLength = alias.Length;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (findNode == -1 && nodeName.StartsWith("ME-"))
+                            {
+                                // coba pake ME1-
+                                string nodeNameAlternate = nodeName.Replace("ME-", "ME1-");
+                                findNode = description.IndexOf(nodeNameAlternate);
+                                if (findNode > -1) findNodeLength = nodeNameAlternate.Length;
+                            }
+
+                            if (findNode > -1)
+                            {
+                                string descMEPart = mi2Desc.Substring(findNode + findNodeLength);
+
+                                List<string> testIf = new List<string>();
+                                string[] prefixs = interfaceTestPrefix[interfaceType];
+
+                                foreach (string prefix in prefixs)
+                                {
+                                    testIf.Add(interfacePort);
+                                    testIf.Add(prefix + interfacePort);
+                                    testIf.Add(prefix + "-" + interfacePort);
+                                    testIf.Add(prefix + " " + interfacePort);
+                                    testIf.Add(prefix + "/" + interfacePort);
+                                }
+                                testIf = List.Sort(testIf, SortMethods.LengthDescending);
+
+                                foreach (string test in testIf)
+                                {
+                                    if (descMEPart.IndexOf(test) > -1)
+                                    {
+                                        li.TopologyMEInterfaceID = matchedInterface.Item3;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        #endregion
+                    }
+                    done = true;
+                    break;
+                }
+            }
+
+            if (done) return;
 
             #endregion
+
+            #region TO_NI
+
+            string neighborNode = null;
+            string neighborInterface = null;
+            string neighborInterfaceUnspecifiedID = null;
+            string descriptionNeighborPart = null;
+
+            foreach (KeyValuePair<string, Tuple<string, List<Tuple<string, string>>>> pair in neighbors)
+            {
+                string neighbor = pair.Key;
+                string neighborID = pair.Value.Item1;
+                List<Tuple<string, string>> interfaces = pair.Value.Item2;
+
+                int findNode = description.IndexOf(neighbor);
+                int findNodeLength = neighbor.Length;
+
+                if (findNode > -1)
+                {
+                    neighborNode = neighbor;
+
+                    foreach (Tuple<string, string> tuple in interfaces)
+                    {
+                        if (tuple.Item2 == "UNSPECIFIED")
+                        {
+                            neighborInterfaceUnspecifiedID = tuple.Item1;
+                            break;
+                        }
+                    }
+
+                    string neighborPart = description.Substring(findNode + findNodeLength);
+                    descriptionNeighborPart = neighborPart;
+
+                    Tuple<string, string> matchedInterface = null;
+
+                    #region Find Interface
+
+                    int locMI = neighborPart.Length;
+                    foreach (Tuple<string, string> ni in interfaces)
+                    {
+                        string niID = ni.Item1;
+                        string niName = ni.Item2;
+
+                        if (niName == "UNSPECIFIED") continue;
+
+                        List<string> testIf = new List<string>();
+
+                        if (niName.StartsWith(new string[] { "Hu", "Te", "Gi", "Fa", "Et" }))
+                        {
+                            string niType = niName.Substring(0, 2);
+                            string niPort = niName.Substring(2);
+
+                            string[] prefixs = interfaceTestPrefix[niType];
+
+                            foreach (string prefix in prefixs)
+                            {
+                                testIf.Add(niPort);
+                                testIf.Add(prefix + niPort);
+                                testIf.Add(prefix + "-" + niPort);
+                                testIf.Add(prefix + " " + niPort);
+                                testIf.Add(prefix + "/" + niPort);
+                            }
+                        }
+                        else if (niName.StartsWith("Ex"))
+                        {
+                            string niPort = niName.Substring(2);
+
+                            if (niPort.IndexOf("/") == -1) continue; // prevent faulty entry to database (like Ex23, lol) being checked againts
+
+                            testIf.Add(niPort);
+                        }
+                        else if (niName.StartsWith("PKT"))
+                        {
+                            testIf.Add(niName);
+                        }
+
+                        testIf = List.Sort(testIf, SortMethods.LengthDescending);
+
+                        foreach (string test in testIf)
+                        {
+                            int pos = neighborPart.IndexOf(test);
+                            if (pos > -1 && pos < locMI)
+                            {
+                                locMI = pos;
+                                matchedInterface = ni;
+                                break;
+                            }
+                        }
+
+                        if (matchedInterface != null) break;
+                    }
+
+                    #endregion
+
+                    if (matchedInterface != null)
+                    {
+                        li.TopologyNeighborInterfaceID = matchedInterface.Item1;
+                        done = true;
+                    }
+                    break;
+                }
+            }
+
+            if (!done)
+            {
+                if (neighborNode == null)
+                {
+                    // find neighbor node in description
+                    neighborNode = FindNode(description);
+
+                    if (neighborNode != null)
+                        descriptionNeighborPart = description.Substring(description.IndexOf(neighborNode) + neighborNode.Length).Trim();
+                }
+
+                if (neighborNode != null)
+                {
+                    string neighborNodeID = null;
+
+                    if (neighbors.ContainsKey(neighborNode)) neighborNodeID = neighbors[neighborNode].Item1;
+                    else
+                    {
+                        batch.Begin();
+
+                        // insert neighbor node
+                        neighborNodeID = Database.ID();
+                        insert = Insert("NodeNeighbor");
+                        insert.Value("NN_ID", neighborNodeID);
+                        insert.Value("NN_Name", neighborNode);
+                        batch.Execute(insert);
+
+                        // insert neighbor interface unspecified
+                        neighborInterfaceUnspecifiedID = Database.ID();
+                        insert = Insert("NeighborInterface");
+                        insert.Value("NI_ID", neighborInterfaceUnspecifiedID);
+                        insert.Value("NI_NN", neighborNodeID);
+                        insert.Value("NI_Name", "UNSPECIFIED");
+                        batch.Execute(insert);
+
+                        batch.Commit();
+
+                        // tambah ke collection neighbors
+                        neighbors.Add(neighborNode, new Tuple<string, List<Tuple<string, string>>>(neighborNodeID, new List<Tuple<string, string>>()));
+                        neighbors[neighborNode].Item2.Add(new Tuple<string, string>(neighborInterfaceUnspecifiedID, "UNSPECIFIED"));
+                    }
+
+                    // find interface
+                    neighborInterface = FindInterface(descriptionNeighborPart);
+
+                    if (neighborInterface == null)
+                    {
+                        // pake unspecified
+                        li.TopologyNeighborInterfaceID = neighborInterfaceUnspecifiedID;
+                    }
+                    else
+                    {
+                        List<Tuple<string, string>> neighborInterfaces = neighbors[neighborNode].Item2;
+
+                        bool exists = false;
+                        foreach (Tuple<string, string> ni in neighborInterfaces)
+                        {
+                            if (ni.Item2 == neighborInterface)
+                            {
+                                exists = true;
+                                li.TopologyNeighborInterfaceID = ni.Item1;
+                                break;
+                            }
+                        }
+
+                        if (!exists)
+                        {
+                            // new interface under neighborNode
+                            string neighborInterfaceID = Database.ID();
+                            insert = Insert("NeighborInterface");
+                            insert.Value("NI_ID", neighborInterfaceID);
+                            insert.Value("NI_NN", neighborNodeID);
+                            insert.Value("NI_Name", neighborInterface);
+                            insert.Execute();
+
+                            li.TopologyNeighborInterfaceID = neighborInterfaceID;
+
+                            // tambah ke collection neighbors
+                            neighbors[neighborNode].Item2.Add(new Tuple<string, string>(neighborInterfaceID, neighborInterface));
+                        }
+                    }
+                }
+            }
+
+            #endregion
+        }
+
+        private void FindPhysicalNeighbor(MEInterfaceToDatabase li)
+        {
+            Result result;
+
+            if (li.PhysicalNeighborChecked) return;
+            li.PhysicalNeighborChecked = true;
+
+            string description = CleanDescription(li.Description, nodeName);
+            if (description == null) return;
+
+            LoadFindPhysicalNeighbor();
 
             bool done = false;
 
@@ -3988,342 +4350,20 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID
 
             #endregion
 
-            #region MI_TO_MI
+            FindTopologyNeighbor(li, description);
+        }
 
-            foreach (Tuple<string, List<Tuple<string, string, string, string>>> me in meNeighbors)
-            {
-                string me2Name = me.Item1;
-                if (me2Name == nodeName) continue;
+        private void FindPhysicalNeighbor(PEInterfaceToDatabase li)
+        {
+            if (li.PhysicalNeighborChecked) return;
+            li.PhysicalNeighborChecked = true;
 
-                List<Tuple<string, string, string, string>> mis = me.Item2;
+            string description = CleanDescription(li.Description, nodeName);
+            if (description == null) return;
 
-                int findNode = description.IndexOf(me2Name);
-                int findNodeLength = me2Name.Length;
+            LoadFindPhysicalNeighbor();
 
-                if (findNode == -1 && nodeAliases.ContainsKey(me2Name))
-                {
-                    // search with alias
-                    foreach (string alias in nodeAliases[me2Name])
-                    {
-                        findNode = description.IndexOf(alias);
-                        if (findNode > -1)
-                        {
-                            findNodeLength = alias.Length;
-                            break;
-                        }
-                    }
-                }
-
-                if (findNode == -1 && me2Name.StartsWith("ME-"))
-                {
-                    // coba pake ME1-
-                    string me2NameAlternate = me2Name.Replace("ME-", "ME1-");
-                    findNode = description.IndexOf(me2NameAlternate);
-                    if (findNode > -1) findNodeLength = me2NameAlternate.Length;
-                }
-
-                if (findNode > -1)
-                {
-                    string neighborPart = description.Substring(findNode + findNodeLength);
-                    Tuple<string, string, string, string> matchedInterface = null;
-
-                    #region Find Interface
-
-                    int locMI = neighborPart.Length;
-                    foreach (Tuple<string, string, string, string> mi in mis)
-                    {
-                        string mi2Name = mi.Item1;
-                        string mi2Type = mi.Item4;
-                        string mi2Port = mi2Name.Substring(2);
-
-                        List<string> testIf = new List<string>();
-                        string[] prefixs = interfaceTestPrefix[mi2Type];
-
-                        foreach (string prefix in prefixs)
-                        {
-                            testIf.Add(mi2Port);
-                            testIf.Add(prefix + mi2Port);
-                            testIf.Add(prefix + "-" + mi2Port);
-                            testIf.Add(prefix + " " + mi2Port);
-                            testIf.Add(prefix + "/" + mi2Port);
-                        }
-
-                        testIf = List.Sort(testIf, SortMethods.LengthDescending);
-
-                        foreach (string test in testIf)
-                        {
-                            int pos = neighborPart.IndexOf(test);
-                            if (pos > -1 && pos < locMI)
-                            {
-                                locMI = pos;
-                                matchedInterface = mi;
-                                break;
-                            }
-                        }
-
-                        if (matchedInterface != null) break;
-                    }
-
-                    #endregion
-
-                    if (matchedInterface != null)
-                    {
-                        #region Crosscheck with matched interface description
-
-                        string mi2Desc = CleanDescription(matchedInterface.Item2, me2Name);
-
-                        if (mi2Desc != null)
-                        {
-                            findNode = mi2Desc.IndexOf(nodeName);
-                            findNodeLength = nodeName.Length;
-
-                            if (findNode == -1 && nodeAliases.ContainsKey(nodeName))
-                            {
-                                // search with alias
-                                foreach (string alias in nodeAliases[nodeName])
-                                {
-                                    findNode = mi2Desc.IndexOf(alias);
-                                    if (findNode > -1)
-                                    {
-                                        findNodeLength = alias.Length;
-                                        break;
-                                    }
-                                }
-                            }
-                            if (findNode == -1 && nodeName.StartsWith("ME-"))
-                            {
-                                // coba pake ME1-
-                                string nodeNameAlternate = nodeName.Replace("ME-", "ME1-");
-                                findNode = description.IndexOf(nodeNameAlternate);
-                                if (findNode > -1) findNodeLength = nodeNameAlternate.Length;
-                            }
-
-                            if (findNode > -1)
-                            {
-                                string descMEPart = mi2Desc.Substring(findNode + findNodeLength);
-
-                                List<string> testIf = new List<string>();
-                                string[] prefixs = interfaceTestPrefix[miType];
-
-                                foreach (string prefix in prefixs)
-                                {
-                                    testIf.Add(miPort);
-                                    testIf.Add(prefix + miPort);
-                                    testIf.Add(prefix + "-" + miPort);
-                                    testIf.Add(prefix + " " + miPort);
-                                    testIf.Add(prefix + "/" + miPort);
-                                }
-                                testIf = List.Sort(testIf, SortMethods.LengthDescending);
-
-                                foreach (string test in testIf)
-                                {
-                                    if (descMEPart.IndexOf(test) > -1)
-                                    {
-                                        li.TopologyMEInterfaceID = matchedInterface.Item3;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-
-                        #endregion
-                    }
-                    done = true;
-                    break;
-                }
-            }
-
-            if (done) return;
-
-            #endregion
-
-            #region MI_TO_NI
-
-            string neighborNode = null;
-            string neighborInterface = null;
-            string neighborInterfaceUnspecifiedID = null;
-            string descriptionNeighborPart = null;
-
-            foreach (KeyValuePair<string, Tuple<string, List<Tuple<string, string>>>> pair in neighbors)
-            {
-                string neighbor = pair.Key;
-                string neighborID = pair.Value.Item1;
-                List<Tuple<string, string>> interfaces = pair.Value.Item2;
-
-                int findNode = description.IndexOf(neighbor);
-                int findNodeLength = neighbor.Length;
-
-                if (findNode > -1)
-                {
-                    neighborNode = neighbor;
-
-                    foreach (Tuple<string, string> tuple in interfaces)
-                    {
-                        if (tuple.Item2 == "UNSPECIFIED")
-                        {
-                            neighborInterfaceUnspecifiedID = tuple.Item1;
-                            break;
-                        }
-                    }
-
-                    string neighborPart = description.Substring(findNode + findNodeLength);
-                    descriptionNeighborPart = neighborPart;
-
-                    Tuple<string, string> matchedInterface = null;
-
-                    #region Find Interface
-
-                    int locMI = neighborPart.Length;
-                    foreach (Tuple<string, string> ni in interfaces)
-                    {
-                        string niID = ni.Item1;
-                        string niName = ni.Item2;
-
-                        if (niName == "UNSPECIFIED") continue;
-
-                        List<string> testIf = new List<string>();
-
-                        if (niName.StartsWith(new string[] { "Hu", "Te", "Gi", "Fa", "Et" }))
-                        {
-                            string niType = niName.Substring(0, 2);
-                            string niPort = niName.Substring(2);
-
-                            string[] prefixs = interfaceTestPrefix[niType];
-
-                            foreach (string prefix in prefixs)
-                            {
-                                testIf.Add(niPort);
-                                testIf.Add(prefix + niPort);
-                                testIf.Add(prefix + "-" + niPort);
-                                testIf.Add(prefix + " " + niPort);
-                                testIf.Add(prefix + "/" + niPort);
-                            }
-                        }
-                        else if (niName.StartsWith("Ex"))
-                        {
-                            string niPort = niName.Substring(2);
-
-                            if (niPort.IndexOf("/") == -1) continue; // prevent faulty entry to database (like Ex23, lol) being checked againts
-
-                            testIf.Add(niPort);
-                        }
-                        else if (niName.StartsWith("PKT"))
-                        {
-                            testIf.Add(niName);
-                        }
-
-                        testIf = List.Sort(testIf, SortMethods.LengthDescending);
-
-                        foreach (string test in testIf)
-                        {
-                            int pos = neighborPart.IndexOf(test);
-                            if (pos > -1 && pos < locMI)
-                            {
-                                locMI = pos;
-                                matchedInterface = ni;
-                                break;
-                            }
-                        }
-
-                        if (matchedInterface != null) break;
-                    }
-
-                    #endregion
-
-                    if (matchedInterface != null)
-                    {
-                        li.TopologyNeighborInterfaceID = matchedInterface.Item1;
-                        done = true;
-                    }
-                    break;
-                }
-            }
-
-            if (!done)
-            {
-                if (neighborNode == null)
-                {
-                    // find neighbor node in description
-                    neighborNode = FindNode(description);
-
-                    if (neighborNode != null)
-                        descriptionNeighborPart = description.Substring(description.IndexOf(neighborNode) + neighborNode.Length).Trim();
-                }
-
-                if (neighborNode != null)
-                {
-                    string neighborNodeID = null;
-
-                    if (neighbors.ContainsKey(neighborNode)) neighborNodeID = neighbors[neighborNode].Item1;
-                    else
-                    {
-                        batch.Begin();
-
-                        // insert neighbor node
-                        neighborNodeID = Database.ID();
-                        insert = Insert("NodeNeighbor");
-                        insert.Value("NN_ID", neighborNodeID);
-                        insert.Value("NN_Name", neighborNode);
-                        batch.Execute(insert);
-
-                        // insert neighbor interface unspecified
-                        neighborInterfaceUnspecifiedID = Database.ID();
-                        insert = Insert("NeighborInterface");
-                        insert.Value("NI_ID", neighborInterfaceUnspecifiedID);
-                        insert.Value("NI_NN", neighborNodeID);
-                        insert.Value("NI_Name", "UNSPECIFIED");
-                        batch.Execute(insert);
-
-                        batch.Commit();
-
-                        // tambah ke collection neighbors
-                        neighbors.Add(neighborNode, new Tuple<string, List<Tuple<string, string>>>(neighborNodeID, new List<Tuple<string, string>>()));
-                        neighbors[neighborNode].Item2.Add(new Tuple<string, string>(neighborInterfaceUnspecifiedID, "UNSPECIFIED"));
-                    }
-                    
-                    // find interface
-                    neighborInterface = FindInterface(descriptionNeighborPart);
-
-                    if (neighborInterface == null)
-                    {
-                        // pake unspecified
-                        li.TopologyNeighborInterfaceID = neighborInterfaceUnspecifiedID;
-                    }
-                    else
-                    {
-                        List<Tuple<string, string>> neighborInterfaces = neighbors[neighborNode].Item2;
-
-                        bool exists = false;
-                        foreach (Tuple<string, string> ni in neighborInterfaces)
-                        {
-                            if (ni.Item2 == neighborInterface)
-                            {
-                                exists = true;
-                                li.TopologyNeighborInterfaceID = ni.Item1;
-                                break;
-                            }
-                        }
-
-                        if (!exists)
-                        {
-                            // new interface under neighborNode
-                            string neighborInterfaceID = Database.ID();
-                            insert = Insert("NeighborInterface");
-                            insert.Value("NI_ID", neighborInterfaceID);
-                            insert.Value("NI_NN", neighborNodeID);
-                            insert.Value("NI_Name", neighborInterface);
-                            insert.Execute();
-
-                            li.TopologyNeighborInterfaceID = neighborInterfaceID;
-
-                            // tambah ke collection neighbors
-                            neighbors[neighborNode].Item2.Add(new Tuple<string, string>(neighborInterfaceID, neighborInterface));
-                        }
-                    }
-                }
-            }
-
-            #endregion
+            FindTopologyNeighbor(li, description);
         }
 
         private readonly char[] cleanDescriptionAllowedCharacterForTrimStart = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z' };

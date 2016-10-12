@@ -2489,16 +2489,23 @@ Last input 00:00:00, output 00:00:00
                             li.ParentID = interfaceinsert[parentPort].ID;
                     }
 
-
                     if (li.ParentID == null) // aka jika physical interface, dan bukan anak aggregator
                     {
                         if (interfacedb.ContainsKey(pair.Key)) // cek di existing db
                         {
-                            string adjID = interfacedb[pair.Key]["PI_TO_MI"].ToString();
-                            if (adjID != null)
+                            string topologyMEInterfaceID = interfacedb[pair.Key]["PI_TO_MI"].ToString();
+
+                            if (topologyMEInterfaceID == null)
                             {
+                                FindPhysicalNeighbor(li);
+                                topologyMEInterfaceID = li.TopologyMEInterfaceID;
+                            }
+
+                            if (topologyMEInterfaceID != null)
+                            {
+                                li.TopologyMEInterfaceID = topologyMEInterfaceID;
                                 li.NeighborChildren = new Dictionary<int, Tuple<string, string>>();
-                                result = Query("select MI_ID, MI_DOT1Q, MI_TO_PI from MEInterface where MI_MI = {0}", adjID);
+                                result = Query("select MI_ID, MI_DOT1Q, MI_TO_PI from MEInterface where MI_MI = {0}", topologyMEInterfaceID);
                                 foreach (Row row in result)
                                 {
                                     if (!row["MI_DOT1Q"].IsNull)
@@ -2508,16 +2515,8 @@ Last input 00:00:00, output 00:00:00
                                         int dot1q = row["MI_DOT1Q"].ToIntShort();
                                         if (!li.NeighborChildren.ContainsKey(dot1q)) li.NeighborChildren.Add(dot1q, new Tuple<string, string>(smiid, spiid));
                                     }
-                                    //string spiname = row["MI_Name"].ToString();
-                                    //int dot = spiname.IndexOf('.');
-                                    //if (dot > -1 && spiname.Length > (dot + 1))
-                                    //{
-                                    //    string sifname = spiname.Substring(dot + 1);
-                                    //    if (!li.AdjacentSubifID.ContainsKey(sifname)) li.AdjacentSubifID.Add(sifname, spiid);
-                                    //}
                                 }
                             }
-                            //else FindNodeCandidate(li.Description);
                         }
                     }
                     else if (inf.IsSubInterface) // subinterface
@@ -2532,18 +2531,6 @@ Last input 00:00:00, output 00:00:00
                                     li.TopologyMEInterfaceID = parent.NeighborChildren[dot1q].Item1;
                             }
                         }
-
-                        //int dot = li.Name.IndexOf('.');
-                        //if (dot > -1 && li.Name.Length > (dot + 1))
-                        //{
-                        //    string sifname = li.Name.Substring(dot + 1);
-                        //    PEInterfaceToDatabase parent = interfacelive[parentPort];
-                        //    if (parent.AdjacentSubifID != null)
-                        //    {
-                        //        if (parent.AdjacentSubifID.ContainsKey(sifname))
-                        //            li.AdjacentID = parent.AdjacentSubifID[sifname];
-                        //    }
-                        //}
                     }
                 }
 
@@ -2586,15 +2573,19 @@ Last input 00:00:00, output 00:00:00
                         u.ParentID = li.ParentID;
                         updateinfo.Append(li.ParentID == null ? "parent " : "child ");
                     }
-                    if (li.ParentID != null && li.Aggr == -1) // update adjacent ID jika berupa subinterface dan bukan anak aggregator
+                    if (db["PI_TO_MI"].ToString() != li.TopologyMEInterfaceID)
                     {
-                        if (db["PI_TO_MI"].ToString() != li.TopologyMEInterfaceID)
-                        {
-                            update = true;
-                            u.UpdateTopologyMEInterfaceID = true;
-                            u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
-                            updateinfo.Append("pi-to-mi ");
-                        }
+                        update = true;
+                        u.UpdateTopologyMEInterfaceID = true;
+                        u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
+                        updateinfo.Append("pi-to-mi ");
+                    }
+                    if (db["PI_TO_NI"].ToString() != li.TopologyNeighborInterfaceID)
+                    {
+                        update = true;
+                        u.UpdateTopologyNeighborInterfaceID = true;
+                        u.TopologyNeighborInterfaceID = li.TopologyNeighborInterfaceID;
+                        updateinfo.Append("pi-to-ni ");
                     }
                     if (db["PI_Description"].ToString() != li.Description)
                     {
@@ -2851,7 +2842,7 @@ Last input 00:00:00, output 00:00:00
 
             // ADD
             batch.Begin();
-            List<Tuple<string, string>> interfacereferenceupdate = new List<Tuple<string, string>>();
+            List<Tuple<string, string>> interfaceTopologyMIUpdate = new List<Tuple<string, string>>();
             foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfaceinsert)
             {
                 PEInterfaceToDatabase s = pair.Value;
@@ -2869,11 +2860,12 @@ Last input 00:00:00, output 00:00:00
                 insert.Value("PI_PN", s.RouteID);
                 insert.Value("PI_PQ_Input", s.InputQOSID);
                 insert.Value("PI_PQ_Output", s.OutputQOSID);
+                insert.Value("PI_Rate_Input", s.RateInput.Nullable(-1));
+                insert.Value("PI_Rate_Output", s.RateOutput.Nullable(-1));
                 insert.Value("PI_SE", s.ServiceID);
                 insert.Value("PI_PI", s.ParentID);
                 insert.Value("PI_TO_MI", s.TopologyMEInterfaceID);
-                insert.Value("PI_Rate_Input", s.RateInput.Nullable(-1));
-                insert.Value("PI_Rate_Output", s.RateOutput.Nullable(-1));
+                insert.Value("PI_TO_NI", s.TopologyNeighborInterfaceID);
                 insert.Value("PI_LastDown", s.LastDown);
                 insert.Value("PI_Summary_CIRConfigTotalInput", s.CirConfigTotalInput.Nullable(-1));
                 insert.Value("PI_Summary_CIRConfigTotalOutput", s.CirConfigTotalOutput.Nullable(-1));
@@ -2882,7 +2874,7 @@ Last input 00:00:00, output 00:00:00
                 insert.Value("PI_Summary_SubInterfaceCount", s.SubInterfaceCount.Nullable(-1));
                 batch.Execute(insert);
 
-                interfacereferenceupdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
+                interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
                 if (s.IP != null) ipinsert.Add(s.ID, s.IP);
             }
             result = batch.Commit();
@@ -2897,8 +2889,9 @@ Last input 00:00:00, output 00:00:00
                 if (s.UpdateTopologyMEInterfaceID)
                 {
                     update.Set("PI_TO_MI", s.TopologyMEInterfaceID);
-                    interfacereferenceupdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
+                    interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
                 }
+                update.Set("PI_TO_NI", s.TopologyNeighborInterfaceID, s.UpdateTopologyNeighborInterfaceID);
                 if (s.UpdateDescription)
                 {
                     update.Set("PI_Description", s.Description);
@@ -2933,7 +2926,7 @@ Last input 00:00:00, output 00:00:00
             Event(result, EventActions.Update, EventElements.Interface, false);
 
             batch.Begin();
-            foreach (Tuple<string, string> tuple in interfacereferenceupdate)
+            foreach (Tuple<string, string> tuple in interfaceTopologyMIUpdate)
             {
                 if (tuple.Item1 != null)
                     batch.Execute("update MEInterface set MI_TO_PI = {0} where MI_ID = {1}", tuple.Item2, tuple.Item1);

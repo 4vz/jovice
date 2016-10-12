@@ -146,14 +146,6 @@ namespace Jovice
             get { return updateInfo; }
             set { updateInfo = value; }
         }
-
-        private bool physicalNeighborChecked = false;
-
-        public bool PhysicalNeighborChecked
-        {
-            get { return physicalNeighborChecked; }
-            set { physicalNeighborChecked = value; }
-        }
     }
 
     class MEQOSToDatabase : StatusToDatabase

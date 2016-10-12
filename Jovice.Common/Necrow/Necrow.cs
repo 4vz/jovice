@@ -116,6 +116,10 @@ namespace Jovice
         }
 
 #if DEBUG
+        public static void Debug()
+        {
+        }
+
         public static void Test(string name)
         {
             prioritize.Enqueue(name + "*");

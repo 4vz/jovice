@@ -1452,16 +1452,16 @@ namespace Jovice
                         }
 
                         Thread.Sleep(100);
-                        if (wait == 400)
+                        if (wait == 800)
                         {
                             timeout = true;
                             Event("Reading timeout, cancel the reading...");
                         }
-                        if (wait >= 400 && wait % 50 == 0)
+                        if (wait >= 800 && wait % 50 == 0)
                         {
                             SendControlC();
                         }
-                        if (wait == 800)
+                        if (wait == 1200)
                         {
                             Failure();
                         }

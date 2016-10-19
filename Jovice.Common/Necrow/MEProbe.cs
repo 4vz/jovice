@@ -1897,7 +1897,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 Event(result, EventActions.Delete, EventElements.Interface, true);
             }
 
-            ServiceReference interfaceservicereference = new ServiceReference();
+            ServiceReference interfaceServiceReference = new ServiceReference();
 
             #region Live
 
@@ -2847,6 +2847,22 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
             }
 
+            List<Tuple<string, string, string, string>> vMEPhysicalInterfaces = null;
+            bool vExists = false;
+            foreach (Tuple<string, List<Tuple<string, string, string, string>>> v in Necrow.MEPhysicalInterfaces)
+            {
+                if (v.Item1 == nodeName)
+                {
+                    vMEPhysicalInterfaces = v.Item2;
+                    vExists = true;
+                }
+            }
+            if (!vExists)
+            {
+                vMEPhysicalInterfaces = new List<Tuple<string, string, string, string>>();
+                Necrow.MEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string>>>(nodeName, vMEPhysicalInterfaces));
+            }
+
             int sinf = 0, sinfup = 0, sinfag = 0, sinfhu = 0, sinfhuup = 0, sinfte = 0, sinfteup = 0, sinfgi = 0, sinfgiup = 0, sinffa = 0, sinffaup = 0, sinfet = 0, sinfetup = 0,
                 ssubinf = 0, ssubinfup = 0, ssubinfupup = 0, ssubinfag = 0, ssubinfagup = 0, ssubinfagupup = 0, ssubinfhu = 0, ssubinfhuup = 0, ssubinfhuupup = 0, ssubinfte = 0, ssubinfteup = 0, ssubinfteupup = 0, ssubinfgi = 0, ssubinfgiup = 0, ssubinfgiupup = 0, ssubinffa = 0, ssubinffaup = 0, ssubinffaupup = 0, ssubinfet = 0, ssubinfetup = 0, ssubinfetupup = 0;
 
@@ -3005,11 +3021,18 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 {
                     Event("Interface ADD: " + pair.Key);
 
-                    // Service
-                    if (li.Description != null) interfaceservicereference.Add(li, li.Description);
-
                     li.ID = Database.ID();
                     interfaceinsert.Add(li.Name, li);
+
+                    // Virtualizations
+                    NetworkInterface nif = NetworkInterface.Parse(li.Name);
+                    if (!nif.IsSubInterface)
+                    {
+                        vMEPhysicalInterfaces.Add(new Tuple<string, string, string, string>(li.Name, li.Description, li.ID, li.InterfaceType));
+                    }
+
+                    // Service
+                    if (li.Description != null) interfaceServiceReference.Add(li, li.Description);
                 }
                 else
                 {
@@ -3064,7 +3087,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         updateinfo.Append("desc ");
 
                         u.ServiceID = null;
-                        if (u.Description != null) interfaceservicereference.Add(u, u.Description);
+                        if (u.Description != null) interfaceServiceReference.Add(u, u.Description);
                     }
                     if (db["MI_Status"].ToBool() != li.Status)
                     {
@@ -3197,6 +3220,26 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     {
                         Event("Interface UPDATE: " + pair.Key + " " + updateinfo.ToString());
                         interfaceupdate.Add(u);
+
+                        if (u.UpdateDescription || u.UpdateInterfaceType)
+                        {
+                            // Virtualizations
+                            Tuple<string, string, string, string> vUpdate = null;
+                            foreach (Tuple<string, string, string, string> find in vMEPhysicalInterfaces)
+                            {
+                                if (find.Item3 == u.ID)
+                                {
+                                    vUpdate = find;
+                                    break;
+                                }
+                            }
+                            if (vUpdate != null)
+                            {
+                                vMEPhysicalInterfaces.Remove(vUpdate);
+                                vUpdate = new Tuple<string, string, string, string>(li.Name, li.Description, u.ID, li.InterfaceType);
+                                vMEPhysicalInterfaces.Add(vUpdate);
+                            }
+                        }
                     }
                 }
             }
@@ -3236,7 +3279,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             #region Execute
 
             // SERVICE REFERENCE
-            ServiceExecute(interfaceservicereference);
+            ServiceExecute(interfaceServiceReference);
 
             // ADD
             batch.Begin();
@@ -3357,6 +3400,19 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 {
                     Event("Interface DELETE: " + pair.Key);
                     string id = pair.Value["MI_ID"].ToString();
+
+                    // Virtualizations
+                    Tuple<string, string, string, string> remove = null;
+                    foreach (Tuple<string, string, string, string> find in vMEPhysicalInterfaces)
+                    {
+                        if (find.Item3 == id)
+                        {
+                            remove = find;
+                            break;
+                        }
+                    }
+                    if (remove != null) vMEPhysicalInterfaces.Remove(remove);
+                    
                     batch.Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI = {0}", id);
                     batch.Execute("update MEInterface set MI_MI = NULL where MI_MI = {0}", id);
                     interfacedelete.Add(id);

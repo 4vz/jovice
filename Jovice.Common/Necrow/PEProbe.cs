@@ -2438,7 +2438,7 @@ Last input 00:00:00, output 00:00:00
 
             List<Tuple<string, string, string, string, string, string>> vPEPhysicalInterfaces = null;
             bool vExists = false;
-            foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> v in Necrow.PEPhysicalInterfaces)
+            foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> v in NecrowVirtualization.PEPhysicalInterfaces)
             {
                 if (v.Item1 == nodeName)
                 {
@@ -2449,7 +2449,7 @@ Last input 00:00:00, output 00:00:00
             if (!vExists)
             {
                 vPEPhysicalInterfaces = new List<Tuple<string, string, string, string, string, string>>();
-                Necrow.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(nodeName, vPEPhysicalInterfaces));
+                NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(nodeName, vPEPhysicalInterfaces));
             }
 
             int sinf = 0, sinfup = 0, sinfhu = 0, sinfag = 0, sinfhuup = 0, sinfte = 0, sinfteup = 0, sinfgi = 0, sinfgiup = 0, sinffa = 0, sinffaup = 0, sinfet = 0, sinfetup = 0, sinfse = 0, sinfseup = 0,
@@ -2549,8 +2549,7 @@ Last input 00:00:00, output 00:00:00
                         }
                     }
                 }
-
-
+                
                 if (!interfacedb.ContainsKey(pair.Key))
                 {
                     Event("Interface ADD: " + pair.Key);
@@ -2573,6 +2572,7 @@ Last input 00:00:00, output 00:00:00
                     if (!nif.IsSubInterface)
                     {
                         vPEPhysicalInterfaces.Add(new Tuple<string, string, string, string, string, string>(li.Name, li.Description, li.ID, li.InterfaceType, li.ParentID, li.TopologyMEInterfaceID));
+                        //vPEPhysicalInterfaces.Sort()
                     }
 
                     // Service
@@ -3039,6 +3039,9 @@ Last input 00:00:00, output 00:00:00
                 }
             }
             batch.Commit();
+
+            NecrowVirtualization.PEPhysicalInterfacesSort();
+
             batch.Begin();
             foreach (string id in interfacedelete)
             {

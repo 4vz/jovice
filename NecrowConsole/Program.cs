@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using Jovice;
 using System.IO;
-
 namespace NecrowConsole
 {
     class Program
@@ -14,9 +13,14 @@ namespace NecrowConsole
             Console.WriteLine("NecrowConsole");
 
 #if DEBUG
-            Necrow.Test("pe2-d5-kbl-transit");
+            if (Necrow.Debug())
+            {
+                Necrow.Test("ME4-D5-RKT");
 #endif
             Necrow.Start();
+#if DEBUG
+            }
+#endif
             Necrow.Console();
         }
     }

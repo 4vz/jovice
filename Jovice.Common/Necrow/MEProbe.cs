@@ -2849,7 +2849,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
             List<Tuple<string, string, string, string>> vMEPhysicalInterfaces = null;
             bool vExists = false;
-            foreach (Tuple<string, List<Tuple<string, string, string, string>>> v in Necrow.MEPhysicalInterfaces)
+            foreach (Tuple<string, List<Tuple<string, string, string, string>>> v in NecrowVirtualization.MEPhysicalInterfaces)
             {
                 if (v.Item1 == nodeName)
                 {
@@ -2860,12 +2860,11 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             if (!vExists)
             {
                 vMEPhysicalInterfaces = new List<Tuple<string, string, string, string>>();
-                Necrow.MEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string>>>(nodeName, vMEPhysicalInterfaces));
+                NecrowVirtualization.MEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string>>>(nodeName, vMEPhysicalInterfaces));
             }
 
             int sinf = 0, sinfup = 0, sinfag = 0, sinfhu = 0, sinfhuup = 0, sinfte = 0, sinfteup = 0, sinfgi = 0, sinfgiup = 0, sinffa = 0, sinffaup = 0, sinfet = 0, sinfetup = 0,
                 ssubinf = 0, ssubinfup = 0, ssubinfupup = 0, ssubinfag = 0, ssubinfagup = 0, ssubinfagupup = 0, ssubinfhu = 0, ssubinfhuup = 0, ssubinfhuupup = 0, ssubinfte = 0, ssubinfteup = 0, ssubinfteupup = 0, ssubinfgi = 0, ssubinfgiup = 0, ssubinfgiupup = 0, ssubinffa = 0, ssubinffaup = 0, ssubinffaupup = 0, ssubinfet = 0, ssubinfetup = 0, ssubinfetupup = 0;
-
 
             foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
             {
@@ -2931,8 +2930,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 li.AggrChilds = agPhysicals.ToArray();
 
                                 // anaknya duluan ya
-                                foreach (MEInterfaceToDatabase mi in li.AggrChilds)
-                                    FindPhysicalNeighbor(mi);
+                                foreach (MEInterfaceToDatabase mi in li.AggrChilds) FindPhysicalNeighbor(mi);
                             }
                         }
                         FindPhysicalNeighbor(li);
@@ -3419,6 +3417,9 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
             }
             batch.Commit();
+
+            NecrowVirtualization.MEPhysicalInterfacesSort();
+
             batch.Begin();
             foreach (string id in interfacedelete)
             {

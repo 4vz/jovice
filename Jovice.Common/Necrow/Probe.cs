@@ -1815,78 +1815,6 @@ namespace Jovice
             }
         }
 
-        private void FlushNode(string id)
-        {
-            Result result = Query("select * from Node where NO_ID = {0}", id);
-            if (result.Count > 0)
-            {
-                Event("Flushing " + result[0]["NO_Name"].ToString() + "...");
-                string type = result[0]["NO_Type"].ToString();
-
-                result = Execute("delete from ReservedInterface where RI_NO = {0}", id);
-                Event(result, EventActions.Delete, EventElements.InterfaceReference, false);
-                result = Execute("delete from NodeSummaryArchive where NSX_NS in (select NS_ID from NodeSummary where NS_NO = {0})", id);
-                Event(result, EventActions.Delete, EventElements.NodeSummary, false);
-                //result = Execute("delete from ProbeHistory ")
-
-
-                result = Execute("delete from NodeAlias where NA_NO = {0}", id);
-                Event(result, EventActions.Delete, EventElements.NodeAlias, false);
-
-                result = Execute("delete from NodeSummary where NS_NO = {0}", id);
-                Event(result, EventActions.Delete, EventElements.NodeSummary, false);
-
-                if (type == "P")
-                {
-                    result = Execute("update POP set OO_PI = NULL where OO_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
-                    Event(result, EventActions.Remove, EventElements.InterfaceReference, false);
-                    result = Execute("delete from PEInterfacePI where PP_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
-                    Event(result, EventActions.Delete, EventElements.InterfaceIP, false);
-                    result = Execute("update MEInterface set MI_TO_PI = NULL where MI_TO_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
-                    Event(result, EventActions.Remove, EventElements.InterfaceReference, false);
-                    result = Execute("update PEInterface set PI_PI = NULL where PI_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
-                    Event(result, EventActions.Remove, EventElements.InterfaceReference, false);
-                    result = Execute("update PERoute set PR_PI = NULL where PR_PI in (select PI_ID from PEInterface where PI_NO = {0})", id);
-                    Event(result, EventActions.Remove, EventElements.InterfaceReference, false);
-                    result = Execute("delete from PEInterface where PI_NO = {0}", id);
-                    Event(result, EventActions.Delete, EventElements.Interface, false);
-                    result = Execute("delete from PERouteName where PN_NO = {0}", id);
-                    Event(result, EventActions.Delete, EventElements.VRFReference, false);
-                    result = Execute("delete from PEQOS where PQ_NO = {0}", id);
-                    Event(result, EventActions.Delete, EventElements.QOS, false);
-                    result = Execute("delete from PERouteUse where PU_PN in (select PN_ID from PERouteName where PN_NO = {0})", id);
-                    Event(result, EventActions.Delete, EventElements.Routing, false);
-                    result = Execute("delete from PERouteName where PN_NO = {0}", id);
-                    Event(result, EventActions.Delete, EventElements.VRF, false);
-                }
-                else if (type == "M")
-                {
-                    result = Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI in (select MI_ID from MEInterface where MI_NO = {0})", id);
-                    Event(result, EventActions.Remove, EventElements.InterfaceReference, false);
-                    result = Execute("update MEInterface set MI_TO_MI = NULL where MI_TO_MI in (select MI_ID from MEInterface where MI_NO = {0})", id);
-                    Event(result, EventActions.Remove, EventElements.InterfaceReference, false);
-                    result = Execute("update MEInterface set MI_MI = NULL where MI_MI in (select MI_ID from MEInterface where MI_NO = {0})", id);
-                    Event(result, EventActions.Remove, EventElements.InterfaceReference, false);
-                    result = Execute("delete from MEInterface where MI_NO = {0}", id);
-                    Event(result, EventActions.Delete, EventElements.Interface, false);                    
-                    result = Execute("update MESDP set MS_TO_NO = NULL where MS_TO_NO = {0}", id);
-                    Event(result, EventActions.Remove, EventElements.NodeReference, false);
-                    result = Execute("delete from MEQOS where MQ_NO = {0}", id);
-                    Event(result, EventActions.Delete, EventElements.QOS, false);
-                    result = Execute("update MEPeer set MP_TO_MC = NULL where MP_TO_MC in (select MC_ID from MECircuit where MC_NO = {0})", id);
-                    Event(result, EventActions.Remove, EventElements.CircuitReference, false);
-                    result = Execute("delete from MEPeer where MP_MC in (select MC_ID from MECircuit where MC_NO = {0})", id);
-                    Event(result, EventActions.Delete, EventElements.Peer, false);
-                    result = Execute("delete from MESDP where MS_NO = {0}", id);
-                    Event(result, EventActions.Delete, EventElements.SDP, false);
-                    result = Execute("delete from MECircuit where MC_NO = {0}", id);
-                    Event(result, EventActions.Delete, EventElements.Circuit, false);
-                    result = Execute("delete from MECustomer where MU_NO = {0}", id);
-                    Event(result, EventActions.Delete, EventElements.ALUCustomer, false);
-                }
-            }
-        }
-
         private void Enter(Row row, int probeProgressID, out bool continueProcess, bool prioritizeProcess)
         {
             string[] lines = null;
@@ -2042,57 +1970,14 @@ namespace Jovice
                         }
                         else
                         {
-                            Event("Node " + nodeName + " has new name " + hostName);
-                            Event(hostName + " is already exists, checking for potential conflicts");
+                            Event("Node " + nodeName + " has new name " + hostName + ". " + hostName + " is already exists. TODO: resolve the conflicts");
+                            Event("Mark this node as inactive");
 
-                            string existingType = result[0]["NO_Type"].ToString();
-                            string existingNodeID = result[0]["NO_ID"].ToString();
-                            bool existingActive = result[0]["NO_Active"].ToBool();
-                            bool existinghasentries = false;
+                            Update(UpdateTypes.Active, 0);
 
-                            if (existingType == "P")
-                            {
-                                int existinginterfacecount = Scalar("select count(PI_ID) from PEInterface where PI_NO = {0}", existingNodeID).ToInt();
-                                existinghasentries = existinginterfacecount > 0;
-                            }
-                            else if (existingType == "M")
-                            {
-                                int existinginterfacecount = Scalar("select count(MI_ID) from MEInterface where MI_NO = {0}", existingNodeID).ToInt();
-                                existinghasentries = existinginterfacecount > 0;
-                            }
-
-                            if (existingActive && existinghasentries)
-                            {
-                                Event("Keep " + hostName + ", delete " + nodeName);
-                                Execute("update NodeAlias set NA_NO = {0} where NA_NO = {1}", existingNodeID, nodeID); // move alias to existing
-
-                                FlushNode(nodeID); // flush current node                                    
-                                Execute("delete from Node where NO_ID = {0}", nodeID); // delete node
-
-                                if (!NecrowVirtualization.AliasExists(nodeName))
-                                    Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})", Database.ID(), existingNodeID, nodeName); // new alias to existing node
-                                else
-                                    Execute("update NodeAlias set NA_NO = {0} where NA_Name = {1}", existingNodeID, nodeName);
-
-                                NecrowVirtualization.AliasReload();
-
-                                return;
-                            }
-                            else
-                            {
-                                Event("Keep " + nodeName + ", delete " + hostName);
-                                Execute("update NodeAlias set NA_NO = {0} where NA_NO = {1}", nodeID, existingNodeID); // move existing alias to current
-
-                                FlushNode(existingNodeID);
-                                Execute("delete from Node where NO_ID = {0}", existingNodeID); // delete existing node
-                                Update(UpdateTypes.Name, hostName); // update current name to the existing
-
-                                NecrowVirtualization.AliasReload();
-
-                                nodeName = hostName;
-                            }
-                        }
-                        
+                            Save();
+                            return;
+                        }                        
                     }
                     else
                     {
@@ -2104,7 +1989,10 @@ namespace Jovice
                             Update(UpdateTypes.Active, 0);
                         }
                         else
+                        {
+                            Event("Will check again in next iteration");
                             Update(UpdateTypes.Remark, "UNRESOLVED");
+                        }
 
                         Save();
                         return;

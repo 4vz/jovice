@@ -60,6 +60,7 @@
     <Compile Include="Helpers\NetworkInterface.cs" />
     <Compile Include="Jovice.cs" />
     <Compile Include="Necrow\Necrow.cs" />
+    <Compile Include="Necrow\NecrowVirtualization.cs" />
     <Compile Include="Necrow\Probe.cs" />
     <Compile Include="Necrow\MEProbe.cs" />
     <Compile Include="Necrow\PEProbe.cs" />

@@ -3934,9 +3934,8 @@ namespace Jovice
                     if (matchedInterface != null)
                     {
                         li.TopologyNeighborInterfaceID = matchedInterface.Item2;
+                        done = true;
                     }
-
-                    done = true;
 
                     break;
                 }

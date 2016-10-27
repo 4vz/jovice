@@ -65,12 +65,20 @@ namespace Aphysoft.Common
             internal set { attemptNumber = value; }
         }
 
+        private DatabaseException exception;
+
+        public DatabaseException Exception
+        {
+            get { return exception; }
+            set { exception = value; }
+        }
+
         #endregion
     }
     
     public delegate void DatabaseExceptionEventHandler(object sender, DatabaseExceptionEventArgs eventArgs);
 
-    public delegate void QueryFailedEventHandler(object sender, QueryFailedEventArgs eventArgs);
+    public delegate bool QueryFailedEventHandler(object sender, QueryFailedEventArgs eventArgs);
 
     public delegate string QueryDictionaryKeyCallback(Row row);
 
@@ -448,14 +456,18 @@ namespace Aphysoft.Common
             }
         }
 
-        internal void OnQueryFailed(Exception e, int attemptNumber)
+        internal bool OnQueryFailed(Exception e, DatabaseException exception, int attemptNumber)
         {
             if (QueryFailed != null)
             {
                 QueryFailedEventArgs eventArgs = new QueryFailedEventArgs();
                 eventArgs.AttemptNumber = attemptNumber;
-                QueryFailed(this, eventArgs);
+                eventArgs.Exception = exception;
+
+                return QueryFailed(this, eventArgs);
             }
+
+            return false;
         }
 
         public Batch Batch()
@@ -772,14 +784,24 @@ namespace Aphysoft.Common
 
         public void Exception(Exception e, string sql)
         {
-            string message = e.Message;
+            string message = e.Message.ToLower();
 
-            if (message.IndexOf("Login failed") > -1)
+            if (message.IndexOf("login failed") > -1)
                 database.OnException(e, DatabaseException.LoginFailed, sql);
-            else if (message.IndexOf("The server was not found") > -1)
+            else if (message.IndexOf("the server was not found") > -1)
                 database.OnException(e, DatabaseException.Timeout, sql);
             else
                 database.OnException(e, DatabaseException.Other, sql);
+        }
+
+        public bool QueryFailed(Exception e, int attempt)
+        {
+            string message = e.Message.ToLower();
+
+            if (message.IndexOf("timeout expired") > -1)
+                return database.OnQueryFailed(e, DatabaseException.Timeout, attempt);
+            else
+                return database.OnQueryFailed(e, DatabaseException.Other, attempt);
         }
 
         public override bool Test()
@@ -869,8 +891,9 @@ namespace Aphysoft.Common
                     {
                         if (!cancelling)
                         {
-                            database.OnQueryFailed(e, attempt);
-                            if (attempt == attempts - 1)
+                            bool then = QueryFailed(e, attempt);
+
+                            if (attempt == attempts - 1 || !then)
                             {
                                 result.isExceptionThrown = true;
                                 Exception(e, sql);
@@ -917,8 +940,11 @@ namespace Aphysoft.Common
                     {
                         if (!cancelling)
                         {
-                            database.OnQueryFailed(e, attempt);
-                            if (attempt == attempts - 1) Exception(e, sql);
+                            bool then = QueryFailed(e, attempt);
+                            if (attempt == attempts - 1 || !then)
+                            {
+                                Exception(e, sql);
+                            }
                         }
                         else ok = true;
                     }
@@ -974,8 +1000,8 @@ namespace Aphysoft.Common
                     {
                         if (!cancelling)
                         {
-                            database.OnQueryFailed(e, attempt);
-                            if (attempt == attempts - 1)
+                            bool then = QueryFailed(e, attempt);
+                            if (attempt == attempts - 1 || !then)
                             {
                                 result.isExceptionThrown = true;
                                 Exception(e, sql);

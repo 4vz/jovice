@@ -190,10 +190,15 @@ namespace Jovice
                     Event("Database exception: " + eventArgs.Message, "JOVICE");                    
                     throw new Exception(eventArgs.Message + "\r\nSQL:\r\n" + eventArgs.Sql);          
                 };
-                jovice.QueryFailed += delegate (object sender, QueryFailedEventArgs e)
+                jovice.QueryFailed += delegate (object sender, QueryFailedEventArgs eventArgs)
                 {
-                    Event("#" + (e.AttemptNumber + 1) + " database query has failed, retry in 10 seconds");
-                    Thread.Sleep(10000);
+                    if (eventArgs.Exception == DatabaseException.Timeout)
+                    {
+                        Event("Database query has timed out, retry in 10 seconds (attempt #" + (eventArgs.AttemptNumber + 1) + ")");
+                        Thread.Sleep(10000);
+                        return true;
+                    }
+                    else return false; // bypass attempt if other exceptions
                 };
                 jovice.Attempts = 5;
 

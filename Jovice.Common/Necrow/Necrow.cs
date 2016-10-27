@@ -140,7 +140,7 @@ namespace Jovice
 #else
         internal static void Log(string source, string log)
         {
-            Insert insert = JoviceDatabase.Insert("Log");
+            Insert insert = Necrow.Jovice.Insert("Log");
             insert.Value("LO_TimeStamp", DateTime.UtcNow);
             insert.Value("LO_Source", source);
             insert.Value("LO_Log", log);
@@ -192,7 +192,7 @@ namespace Jovice
                 };
                 jovice.QueryFailed += delegate (object sender, QueryFailedEventArgs e)
                 {
-                    Event("#" + e.AttemptNumber + " database query has failed, retry in 10 seconds");
+                    Event("#" + (e.AttemptNumber + 1) + " database query has failed, retry in 10 seconds");
                     Thread.Sleep(10000);
                 };
                 jovice.Attempts = 5;

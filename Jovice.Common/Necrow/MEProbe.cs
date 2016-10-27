@@ -2926,7 +2926,11 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             {
                                 // cari child di interfacelive yg aggr-nya myaggr
                                 List<MEInterfaceToDatabase> agPhysicals = new List<MEInterfaceToDatabase>();
-                                foreach (KeyValuePair<string, MEInterfaceToDatabase> spair in interfacelive) { if (spair.Value.Aggr == myaggr) agPhysicals.Add(spair.Value); }
+                                foreach (KeyValuePair<string, MEInterfaceToDatabase> spair in interfacelive)
+                                {
+                                    if (spair.Value.Aggr == myaggr)
+                                        agPhysicals.Add(spair.Value);
+                                }
                                 li.AggrChilds = agPhysicals.ToArray();
 
                                 // anaknya duluan ya
@@ -2968,14 +2972,6 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                         int dot1q = row["PI_DOT1Q"].ToIntShort();
                                         if (!li.NeighborChildren.ContainsKey(dot1q)) li.NeighborChildren.Add(dot1q, new Tuple<string, string>(row["PI_ID"].ToString(), row["PI_TO_MI"].ToString()));
                                     }
-
-                                    //string spiname = row["PI_Name"].ToString();
-                                    //int dot = spiname.IndexOf('.');
-                                    //if (dot > -1 && spiname.Length > (dot + 1))
-                                    //{
-                                    //    string sifname = spiname.Substring(dot + 1);
-                                    //    if (!li.AdjacentSubifID.ContainsKey(sifname)) li.AdjacentSubifID.Add(sifname, row["PI_ID"].ToString());
-                                    //}
                                 }
                             }
                         }
@@ -2995,21 +2991,6 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 }
                             }
                         }
-
-                        //int dot = li.Name.IndexOf('.');
-                        //if (dot > -1 && li.Name.Length > (dot + 1))
-                        //{
-                        //    string sifname = li.Name.Substring(dot + 1);
-                        //    if (sifname != "DIRECT")
-                        //    {
-                        //        MEInterfaceToDatabase parent = interfacelive[parentPort];
-                        //        if (parent.AdjacentSubifID != null)
-                        //        {
-                        //            if (parent.AdjacentSubifID.ContainsKey(sifname))
-                        //                li.AdjacentID = parent.AdjacentSubifID[sifname];
-                        //        }
-                        //    }
-                        //}
                     }
 
                 }

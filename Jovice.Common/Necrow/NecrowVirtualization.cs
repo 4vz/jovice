@@ -10,9 +10,9 @@ namespace Jovice
     {
         #region Fields
 
-        private static List<Tuple<string, List<Tuple<string, string, string, string, string, string>>>> pePhysicalInterfaces = null;
+        private static List<Tuple<string, List<Tuple<string, string, string, string, string>>>> pePhysicalInterfaces = null;
 
-        internal static List<Tuple<string, List<Tuple<string, string, string, string, string, string>>>> PEPhysicalInterfaces
+        internal static List<Tuple<string, List<Tuple<string, string, string, string, string>>>> PEPhysicalInterfaces
         {
             get { return pePhysicalInterfaces; }
         }
@@ -67,12 +67,12 @@ namespace Jovice
             int count;
 
             result = jovice.Query(@"
-select NO_Name, LEN(NO_Name) as NO_LEN, PI_Name, LEN(PI_Name) as PI_LEN, PI_Type, PI_ID, PI_Description, PI_PI, PI_TO_MI from
+select NO_Name, LEN(NO_Name) as NO_LEN, PI_Name, LEN(PI_Name) as PI_LEN, PI_Type, PI_ID, PI_Description, PI_PI from
 (select NO_Name, NO_ID from Node where NO_Type = 'P' and NO_Active = 1) n left join PEInterface on PI_NO = NO_ID and PI_Type in ('Hu', 'Te', 'Gi', 'Fa', 'Et')
 order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
 ");
-            pePhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string, string, string, string, string>>>>();
-            List<Tuple<string, string, string, string, string, string>> currentPEInterfaces = new List<Tuple<string, string, string, string, string, string>>();
+            pePhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string, string, string, string>>>>();
+            List<Tuple<string, string, string, string, string>> currentPEInterfaces = new List<Tuple<string, string, string, string, string>>();
 
             currentNode = null;
             count = 0;
@@ -85,8 +85,8 @@ order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
                 {
                     if (currentNode != null)
                     {
-                        pePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(currentNode,
-                            new List<Tuple<string, string, string, string, string, string>>(currentPEInterfaces)));
+                        pePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string>>>(currentNode,
+                            new List<Tuple<string, string, string, string, string>>(currentPEInterfaces)));
                         currentPEInterfaces.Clear();
                     }
                     currentNode = node;
@@ -96,12 +96,12 @@ order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
 
                 if (piName != null)
                 {
-                    currentPEInterfaces.Add(new Tuple<string, string, string, string, string, string>(
-                        piName, row["PI_Description"].ToString(), row["PI_ID"].ToString(), row["PI_Type"].ToString(), row["PI_PI"].ToString(), row["PI_TO_MI"].ToString()));
+                    currentPEInterfaces.Add(new Tuple<string, string, string, string, string>(
+                        piName, row["PI_Description"].ToString(), row["PI_ID"].ToString(), row["PI_Type"].ToString(), row["PI_PI"].ToString()));
                     count++;
                 }
             }
-            pePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(currentNode, currentPEInterfaces));
+            pePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string>>>(currentNode, currentPEInterfaces));
 
             Necrow.Event("Loaded " + count + " PE physical interfaces");
 
@@ -169,10 +169,23 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID order by NA_Nam
 
             nodeNeighbors = new Dictionary<string, string>();
 
+            batch.Begin();
             foreach (Row row in result)
             {
-                nodeNeighbors.Add(row["NN_Name"].ToString(), row["NN_ID"].ToString());
+                string name = row["NN_Name"].ToString();
+                string id = row["NN_ID"].ToString();
+                if (!nodeNeighbors.ContainsKey(name))
+                    nodeNeighbors.Add(name, id);
+                else
+                {
+                    Necrow.Event("Duplicated NodeNeighbor " + name + " removed ID " + id);
+                    batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
+                    batch.Execute("update MEInterface set MI_TO_NI = NULL where MI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
+                    batch.Execute("delete from NeighborInterface where NI_NN = {0}", id);
+                    batch.Execute("delete from NodeNeighbor where NN_ID = {0}", id);
+                }
             }
+            batch.Commit();
 
             Necrow.Event("Loaded " + nodeNeighbors.Count + " neighbors");
 
@@ -267,8 +280,8 @@ select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NeighborInterface on NI
         internal static void PEPhysicalInterfacesSort()
         {
             pePhysicalInterfaces.Sort(delegate (
-                Tuple<string, List<Tuple<string, string, string, string, string, string>>> a, 
-                Tuple<string, List<Tuple<string, string, string, string, string, string>>> b)
+                Tuple<string, List<Tuple<string, string, string, string, string>>> a, 
+                Tuple<string, List<Tuple<string, string, string, string, string>>> b)
             {
                 string nodeA = a.Item1;
                 string nodeB = b.Item1;
@@ -279,13 +292,13 @@ select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NeighborInterface on NI
                 else return nodeA.CompareTo(nodeB); // NO_Name
             });
 
-            foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> c in pePhysicalInterfaces)
+            foreach (Tuple<string, List<Tuple<string, string, string, string, string>>> c in pePhysicalInterfaces)
             {
-                List<Tuple<string, string, string, string, string, string>> list = c.Item2;
+                List<Tuple<string, string, string, string, string>> list = c.Item2;
 
                 list.Sort(delegate (
-                    Tuple<string, string, string, string, string, string> a,
-                    Tuple<string, string, string, string, string, string> b
+                    Tuple<string, string, string, string, string> a,
+                    Tuple<string, string, string, string, string> b
                     )
                 {
                     string nameA = a.Item1;

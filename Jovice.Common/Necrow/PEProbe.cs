@@ -2436,9 +2436,9 @@ Last input 00:00:00, output 00:00:00
                 }
             }
 
-            List<Tuple<string, string, string, string, string, string>> vPEPhysicalInterfaces = null;
+            List<Tuple<string, string, string, string, string>> vPEPhysicalInterfaces = null;
             bool vExists = false;
-            foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> v in NecrowVirtualization.PEPhysicalInterfaces)
+            foreach (Tuple<string, List<Tuple<string, string, string, string, string>>> v in NecrowVirtualization.PEPhysicalInterfaces)
             {
                 if (v.Item1 == nodeName)
                 {
@@ -2448,8 +2448,8 @@ Last input 00:00:00, output 00:00:00
             }
             if (!vExists)
             {
-                vPEPhysicalInterfaces = new List<Tuple<string, string, string, string, string, string>>();
-                NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(nodeName, vPEPhysicalInterfaces));
+                vPEPhysicalInterfaces = new List<Tuple<string, string, string, string, string>>();
+                NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string>>>(nodeName, vPEPhysicalInterfaces));
             }
 
             int sinf = 0, sinfup = 0, sinfhu = 0, sinfag = 0, sinfhuup = 0, sinfte = 0, sinfteup = 0, sinfgi = 0, sinfgiup = 0, sinffa = 0, sinffaup = 0, sinfet = 0, sinfetup = 0, sinfse = 0, sinfseup = 0,
@@ -2571,7 +2571,7 @@ Last input 00:00:00, output 00:00:00
                     NetworkInterface nif = NetworkInterface.Parse(li.Name);
                     if (!nif.IsSubInterface)
                     {
-                        vPEPhysicalInterfaces.Add(new Tuple<string, string, string, string, string, string>(li.Name, li.Description, li.ID, li.InterfaceType, li.ParentID, li.TopologyMEInterfaceID));
+                        vPEPhysicalInterfaces.Add(new Tuple<string, string, string, string, string>(li.Name, li.Description, li.ID, li.InterfaceType, li.ParentID));
                         //vPEPhysicalInterfaces.Sort()
                     }
 
@@ -2824,8 +2824,8 @@ Last input 00:00:00, output 00:00:00
                         if (u.UpdateDescription || u.UpdateInterfaceType || u.UpdateParentID || u.UpdateTopologyMEInterfaceID)
                         {
                             // Virtualizations
-                            Tuple<string, string, string, string, string, string> vUpdate = null;
-                            foreach (Tuple<string, string, string, string, string, string> find in vPEPhysicalInterfaces)
+                            Tuple<string, string, string, string, string> vUpdate = null;
+                            foreach (Tuple<string, string, string, string, string> find in vPEPhysicalInterfaces)
                             {
                                 if (find.Item3 == u.ID)
                                 {
@@ -2836,7 +2836,7 @@ Last input 00:00:00, output 00:00:00
                             if (vUpdate != null)
                             {
                                 vPEPhysicalInterfaces.Remove(vUpdate);
-                                vUpdate = new Tuple<string, string, string, string, string, string>(li.Name, li.Description, u.ID, li.InterfaceType, li.ParentID, li.TopologyMEInterfaceID);
+                                vUpdate = new Tuple<string, string, string, string, string>(li.Name, li.Description, u.ID, li.InterfaceType, li.ParentID);
                                 vPEPhysicalInterfaces.Add(vUpdate);
                             }
                         }
@@ -3021,8 +3021,8 @@ Last input 00:00:00, output 00:00:00
                     string id = pair.Value["PI_ID"].ToString();
 
                     // Virtualizations
-                    Tuple<string, string, string, string, string, string> remove = null;
-                    foreach (Tuple<string, string, string, string, string, string> find in vPEPhysicalInterfaces)
+                    Tuple<string, string, string, string, string> remove = null;
+                    foreach (Tuple<string, string, string, string, string> find in vPEPhysicalInterfaces)
                     {
                         if (find.Item3 == id)
                         {

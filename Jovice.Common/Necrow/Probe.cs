@@ -1923,9 +1923,9 @@ namespace Jovice
                             // Update interface virtualizations
                             if (nodeType == "P")
                             {
-                                Tuple<string, List<Tuple<string, string, string, string, string, string>>> changeThis = null;
-                                List<Tuple<string, string, string, string, string, string>> interfaces = null;
-                                foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> entry in NecrowVirtualization.PEPhysicalInterfaces)
+                                Tuple<string, List<Tuple<string, string, string, string, string>>> changeThis = null;
+                                List<Tuple<string, string, string, string, string>> interfaces = null;
+                                foreach (Tuple<string, List<Tuple<string, string, string, string, string>>> entry in NecrowVirtualization.PEPhysicalInterfaces)
                                 {
                                     if (entry.Item1 == nodeName)
                                     {
@@ -1938,9 +1938,9 @@ namespace Jovice
                                     NecrowVirtualization.PEPhysicalInterfaces.Remove(changeThis);
                                     interfaces = changeThis.Item2;
                                 }
-                                else interfaces = new List<Tuple<string, string, string, string, string, string>>();
+                                else interfaces = new List<Tuple<string, string, string, string, string>>();
 
-                                NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(hostName, interfaces));
+                                NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string>>>(hostName, interfaces));
                                 NecrowVirtualization.PEPhysicalInterfacesSort();
                             }
                             else if (nodeType == "M")
@@ -3705,9 +3705,9 @@ namespace Jovice
 
                 string neighborPEName = null;
                 string neighborPEPart = null;
-                List<Tuple<string, string, string, string, string, string>> currentNeighborPEInterfaces = null;
+                List<Tuple<string, string, string, string, string>> currentNeighborPEInterfaces = null;
 
-                foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> pe in NecrowVirtualization.PEPhysicalInterfaces)
+                foreach (Tuple<string, List<Tuple<string, string, string, string, string>>> pe in NecrowVirtualization.PEPhysicalInterfaces)
                 {
                     neighborPEName = pe.Item1;
                     currentNeighborPEInterfaces = pe.Item2;
@@ -3716,7 +3716,7 @@ namespace Jovice
                 }
                 if (neighborPEPart == null)
                 {
-                    foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> pe in NecrowVirtualization.PEPhysicalInterfaces)
+                    foreach (Tuple<string, List<Tuple<string, string, string, string, string>>> pe in NecrowVirtualization.PEPhysicalInterfaces)
                     {
                         neighborPEName = pe.Item1;
                         currentNeighborPEInterfaces = pe.Item2;
@@ -3726,13 +3726,13 @@ namespace Jovice
                 }
                 if (neighborPEPart != null)
                 {
-                    Tuple<string, string, string, string, string, string> matchedInterface = null;
+                    Tuple<string, string, string, string, string> matchedInterface = null;
 
                     #region Find Interface
 
                     int leftMostFinding = neighborPEPart.Length;
 
-                    foreach (Tuple<string, string, string, string, string, string> currentNeighborInterface in currentNeighborPEInterfaces)
+                    foreach (Tuple<string, string, string, string, string> currentNeighborInterface in currentNeighborPEInterfaces)
                     {
                         string neighborInterfaceName = currentNeighborInterface.Item1;
                         string neighborInterfaceType = currentNeighborInterface.Item4;

@@ -3412,6 +3412,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     if (remove != null) vMEPhysicalInterfaces.Remove(remove);
                     
                     batch.Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI = {0}", id);
+                    batch.Execute("update MEInterface set MI_TO_MI = NULL where MI_TO_MI = {0}", id);
                     batch.Execute("update MEInterface set MI_MI = NULL where MI_MI = {0}", id);
                     interfacedelete.Add(id);
                 }

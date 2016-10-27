@@ -3773,7 +3773,7 @@ namespace Jovice
 
                                         // anak agregator ga mgkn punya anak sendiri
                                         // daftar parentnya juga untuk ditangkap di aggr pencari anak
-                                        if (li.Aggr != -1) mi.AggrAdjacentParentID = matchedInterface.Item4;
+                                        if (li.Aggr != -1) mi.AggrAdjacentParentID = matchedInterface.Item3;
                                         else
                                         {
                                             // find pi child

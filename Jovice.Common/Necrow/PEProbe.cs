@@ -4003,12 +4003,15 @@ Last input 00:00:00, output 00:00:00
                                 string[] networkx = linetrim.Split(StringSplitTypes.Space);
                                 if (currentRouter == "E")
                                 {
+                                    #region EIGRP
                                     //network 10.0.0.0
                                     //0123456789
                                     //currentNetwork = linetrim.Substring(8);
+                                    #endregion
                                 }
                                 else if (currentRouter == "R" && currentRouteNameID != null)
                                 {
+                                    #region RIP
                                     if (networkx.Length > 1)
                                     {
                                         //network 172.30.0.0
@@ -4023,9 +4026,11 @@ Last input 00:00:00, output 00:00:00
                                         string key = currentRouteNameID + "_R__" + network;
                                         routeuselive.Add(key, i);
                                     }
+                                    #endregion
                                 }
                                 else if (currentRouter == "O" && currentRouteNameID != null)
                                 {
+                                    #region OSPF
                                     //network 172.20.243.96 0.0.0.3 area 0
                                     //0       1             2       3    4
                                     if (networkx.Length == 5 && networkx[3] == "area")
@@ -4047,13 +4052,15 @@ Last input 00:00:00, output 00:00:00
                                         string key = currentRouteNameID + "_O_" + currentProcess + "_" + area + "__" + network + "_" + wcmask;
                                         routeuselive.Add(key, i);
                                     }
+                                    #endregion
                                 }
                             }
-                            else if (linetrim.StartsWith("neighbor "))
+                            else if (linetrim.StartsWith("neighbor ") && currentRouteNameID != null)
                             {
                                 string[] neighborx = linetrim.Split(StringSplitTypes.Space);
-                                if (currentRouter == "E" && currentRouteNameID != null)
+                                if (currentRouter == "E")
                                 {
+                                    #region EIGRP
                                     //neighbor 10.98.1.10 GigabitEthernet2/2/0.2989
                                     NetworkInterface nif = NetworkInterface.Parse(neighborx[2]);
                                     if (nif != null)
@@ -4078,10 +4085,13 @@ Last input 00:00:00, output 00:00:00
                                         string key = currentRouteNameID + "_E_" + (interfaceID != null ? interfaceID : dif != null ? dif : "");
                                         routeuselive.Add(key, i);
                                     }
+                                    #endregion
                                 }
-                                else if (currentRouter == "B" && currentRouteNameID != null)
+                                else if (currentRouter == "B")
                                 {
+                                    #region BGP
                                     string thisneighbor = neighborx[1];
+
                                     if (currentNeighbor != null && thisneighbor != currentNeighbor)
                                     {
                                         // save current neighbor
@@ -4143,6 +4153,7 @@ Last input 00:00:00, output 00:00:00
                                             if (neighborx[5] == "warning-only") currentMaximumPrefixWO = "warning-only";
                                         }
                                     }
+                                    #endregion
                                 }
                             }
                             else if (linetrim.StartsWith("address-family ipv4 vrf"))
@@ -4166,10 +4177,12 @@ Last input 00:00:00, output 00:00:00
                                     currentMaximumPrefixWO = null;
                                 }
                             }
-                            else if (linetrim.StartsWith("exit-address-family"))
+                            else if (linetrim.StartsWith("exit-address-family") && currentRouteNameID != null)
                             {
                                 if (currentRouter == "B")
                                 {
+                                    #region BGP
+
                                     if (currentNeighbor != null)
                                     {
                                         PERouteUseToDatabase i = new PERouteUseToDatabase();
@@ -4177,6 +4190,22 @@ Last input 00:00:00, output 00:00:00
                                         i.Type = "B";
                                         i.Neighbor = currentNeighbor;
                                         i.BGPAS = currentBGPAS;
+                                        i.PrefixListInID = currentPrefixListIN;
+                                        i.PrefixListOutID = currentPrefixListOUT;
+
+                                        if (currentMaximumPrefix != null)
+                                        {
+                                            int mp;
+                                            if (int.TryParse(currentMaximumPrefix, out mp))
+                                            {
+                                                i.MaximumPrefix = mp;
+                                                if (currentMaximumPrefixThres != null)
+                                                {
+                                                    if (int.TryParse(currentMaximumPrefixThres, out mp)) i.MaximumPrefixThreshold = mp;
+                                                    if (currentMaximumPrefixWO == "warning-only") i.MaximumPrefixWarningOnly = true;
+                                                }
+                                            }
+                                        }
 
                                         int ras = -1;
                                         if (int.TryParse(currentRemoteAS, out ras)) i.RemoteAS = ras;
@@ -4184,6 +4213,8 @@ Last input 00:00:00, output 00:00:00
                                         string key = currentRouteNameID + "_B_" + currentNeighbor + "_" + currentBGPAS;
                                         routeuselive.Add(key, i);
                                     }
+
+                                    #endregion
                                 }
 
                                 currentRouteNameID = null;

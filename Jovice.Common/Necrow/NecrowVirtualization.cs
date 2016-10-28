@@ -279,6 +279,11 @@ select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NeighborInterface on NI
 
         internal static void PEPhysicalInterfacesSort()
         {
+            PEPhysicalInterfacesSort(false);
+        }
+
+        internal static void PEPhysicalInterfacesSort(bool onlyNodes)
+        {
             pePhysicalInterfaces.Sort(delegate (
                 Tuple<string, List<Tuple<string, string, string, string, string>>> a, 
                 Tuple<string, List<Tuple<string, string, string, string, string>>> b)
@@ -292,27 +297,39 @@ select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NeighborInterface on NI
                 else return nodeA.CompareTo(nodeB); // NO_Name
             });
 
-            foreach (Tuple<string, List<Tuple<string, string, string, string, string>>> c in pePhysicalInterfaces)
+            if (!onlyNodes)
             {
-                List<Tuple<string, string, string, string, string>> list = c.Item2;
-
-                list.Sort(delegate (
-                    Tuple<string, string, string, string, string> a,
-                    Tuple<string, string, string, string, string> b
-                    )
+                foreach (Tuple<string, List<Tuple<string, string, string, string, string>>> c in pePhysicalInterfaces)
                 {
-                    string nameA = a.Item1;
-                    string nameB = b.Item1;
-
-                    // Name_LEN desc
-                    if (nameA.Length < nameB.Length) return 1;
-                    else if (nameA.Length > nameB.Length) return -1;
-                    else return nameA.CompareTo(nameB); // Name
-                });
+                    List<Tuple<string, string, string, string, string>> list = c.Item2;
+                    PEPhysicalInterfacesSort(list);
+                }
             }
         }
 
+        internal static void PEPhysicalInterfacesSort(List<Tuple<string, string, string, string, string>> list)
+        {
+            list.Sort(delegate (
+                    Tuple<string, string, string, string, string> a,
+                    Tuple<string, string, string, string, string> b
+                    )
+            {
+                string nameA = a.Item1;
+                string nameB = b.Item1;
+
+                // Name_LEN desc
+                if (nameA.Length < nameB.Length) return 1;
+                else if (nameA.Length > nameB.Length) return -1;
+                else return nameA.CompareTo(nameB); // Name
+            });
+        }
+
         internal static void MEPhysicalInterfacesSort()
+        {
+            MEPhysicalInterfacesSort(false);
+        }
+
+        internal static void MEPhysicalInterfacesSort(bool onlyNodes)
         {
             mePhysicalInterfaces.Sort(delegate (
                 Tuple<string, List<Tuple<string, string, string, string>>> a,
@@ -327,24 +344,31 @@ select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NeighborInterface on NI
                 else return nodeA.CompareTo(nodeB); // NO_Name
             });
 
-            foreach (Tuple<string, List<Tuple<string, string, string, string>>> c in mePhysicalInterfaces)
+            if (!onlyNodes)
             {
-                List<Tuple<string, string, string, string>> list = c.Item2;
+                foreach (Tuple<string, List<Tuple<string, string, string, string>>> c in mePhysicalInterfaces)
+                {
+                    List<Tuple<string, string, string, string>> list = c.Item2;
+                    MEPhysicalInterfacesSort(list);
+                }
+            }
+        }
 
-                list.Sort(delegate (
+        internal static void MEPhysicalInterfacesSort(List<Tuple<string, string, string, string>> list)
+        {
+            list.Sort(delegate (
                     Tuple<string, string, string, string> a,
                     Tuple<string, string, string, string> b
                     )
-                {
-                    string nameA = a.Item1;
-                    string nameB = b.Item1;
+            {
+                string nameA = a.Item1;
+                string nameB = b.Item1;
 
-                    // Name_LEN desc
-                    if (nameA.Length < nameB.Length) return 1;
-                    else if (nameA.Length > nameB.Length) return -1;
-                    else return nameA.CompareTo(nameB); // Name
-                });
-            }
+                // Name_LEN desc
+                if (nameA.Length < nameB.Length) return 1;
+                else if (nameA.Length > nameB.Length) return -1;
+                else return nameA.CompareTo(nameB); // Name
+            });
         }
 
         internal static bool AliasExists(string name)

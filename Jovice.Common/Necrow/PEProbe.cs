@@ -2450,6 +2450,7 @@ Last input 00:00:00, output 00:00:00
             {
                 vPEPhysicalInterfaces = new List<Tuple<string, string, string, string, string>>();
                 NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string>>>(nodeName, vPEPhysicalInterfaces));
+                NecrowVirtualization.PEPhysicalInterfacesSort(true);
             }
 
             int sinf = 0, sinfup = 0, sinfhu = 0, sinfag = 0, sinfhuup = 0, sinfte = 0, sinfteup = 0, sinfgi = 0, sinfgiup = 0, sinffa = 0, sinffaup = 0, sinfet = 0, sinfetup = 0, sinfse = 0, sinfseup = 0,
@@ -2565,14 +2566,6 @@ Last input 00:00:00, output 00:00:00
                             string[] ipx = ip.Split(StringSplitTypes.Underscore);
                             Event("+ " + (ipx[0] == "0" ? "IPv4" : "IPv6") + " " + (ipx[1] == "1" ? "" : "secondary ") + ipx[2]);
                         }
-                    }
-
-                    // Virtualizations
-                    NetworkInterface nif = NetworkInterface.Parse(li.Name);
-                    if (!nif.IsSubInterface)
-                    {
-                        vPEPhysicalInterfaces.Add(new Tuple<string, string, string, string, string>(li.Name, li.Description, li.ID, li.InterfaceType, li.ParentID));
-                        //vPEPhysicalInterfaces.Sort()
                     }
 
                     // Service
@@ -2820,26 +2813,6 @@ Last input 00:00:00, output 00:00:00
                                 Event("- " + (ipx[0] == "0" ? "IPv4" : "IPv6") + " " + (ipx[1] == "1" ? "" : "secondary ") + ipx[2]);
                             }
                         }
-
-                        if (u.UpdateDescription || u.UpdateInterfaceType || u.UpdateParentID || u.UpdateTopologyMEInterfaceID)
-                        {
-                            // Virtualizations
-                            Tuple<string, string, string, string, string> vUpdate = null;
-                            foreach (Tuple<string, string, string, string, string> find in vPEPhysicalInterfaces)
-                            {
-                                if (find.Item3 == u.ID)
-                                {
-                                    vUpdate = find;
-                                    break;
-                                }
-                            }
-                            if (vUpdate != null)
-                            {
-                                vPEPhysicalInterfaces.Remove(vUpdate);
-                                vUpdate = new Tuple<string, string, string, string, string>(li.Name, li.Description, u.ID, li.InterfaceType, li.ParentID);
-                                vPEPhysicalInterfaces.Add(vUpdate);
-                            }
-                        }
                     }
                 }
             }
@@ -3020,27 +2993,23 @@ Last input 00:00:00, output 00:00:00
                     Event("Interface DELETE: " + pair.Key);
                     string id = pair.Value["PI_ID"].ToString();
 
-                    // Virtualizations
-                    Tuple<string, string, string, string, string> remove = null;
-                    foreach (Tuple<string, string, string, string, string> find in vPEPhysicalInterfaces)
-                    {
-                        if (find.Item3 == id)
-                        {
-                            remove = find;
-                            break;
-                        }
-                    }
-                    if (remove != null) vPEPhysicalInterfaces.Remove(remove);
-
                     batch.Execute("update MEInterface set MI_TO_PI = NULL where MI_TO_PI = {0}", id);
                     batch.Execute("update PERoute set PR_PI = NULL where PR_PI = {0}", id);
                     batch.Execute("update PEInterface set PI_PI = NULL where PI_PI = {0}", id);
                     interfacedelete.Add(id);
                 }
             }
-            batch.Commit();
+            result = batch.Commit();
+            Event(result, EventActions.Delete, EventElements.Interface, false);
 
-            NecrowVirtualization.PEPhysicalInterfacesSort();
+            // redone vPEPhysicalInterfaces
+            vPEPhysicalInterfaces.Clear();
+            foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
+            {
+                PEInterfaceToDatabase li = pair.Value;
+                vPEPhysicalInterfaces.Add(new Tuple<string, string, string, string, string>(li.Name, li.Description, li.ID, li.InterfaceType, li.ParentID));
+            }
+            NecrowVirtualization.PEPhysicalInterfacesSort(vPEPhysicalInterfaces);
 
             batch.Begin();
             foreach (string id in interfacedelete)

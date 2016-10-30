@@ -2939,7 +2939,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 foreach (MEInterfaceToDatabase mi in li.AggrChilds) FindPhysicalNeighbor(mi);
                             }
                         }
-                        FindPhysicalNeighbor(li);
+                        else
+                            FindPhysicalNeighbor(li);
 
                         if (inftype == "Ag" && li.TopologyPEInterfaceID == null) // jika ini ag, dan ga punya adjacent id, maka...
                         {

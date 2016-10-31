@@ -958,10 +958,12 @@ namespace Jovice
                         }
                         catch (Exception ex)
                         {
-                            Necrow.Log("MAINLOOP", "NODE:" + nodeName + " MESSAGE:" + ex.Message + " STACKTRACE:" + ex.StackTrace);
-                            Event("Caught error: " + ex.Message + ", exiting current node...");
-                        
-                            Update(UpdateTypes.Remark, "PROBEFAILED");
+                            if (ex.Message.IndexOf("Thread was being aborted") == -1)
+                            {
+                                Necrow.Log("MAINLOOP", "NODE:" + nodeName + " MESSAGE:" + ex.Message + " STACKTRACE:" + ex.StackTrace);
+                                Event("Caught error: " + ex.Message + ", exiting current node...");
+                                Update(UpdateTypes.Remark, "PROBEFAILED");
+                            }
                         }
 #endif
 

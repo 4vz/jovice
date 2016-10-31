@@ -2080,7 +2080,7 @@ Last input 00:00:00, output 00:00:00
                                     {
                                         PEInterfaceToDatabase pid = new PEInterfaceToDatabase();
                                         pid.Name = port;
-                                        pid.Description = description.ToString();
+                                        pid.Description = description.Length > 0 ? description.ToString() : null;
                                         pid.Status = (status == "up" || status == "up(s)");
                                         pid.Protocol = (status == "up" || status == "up(s)");
                                         interfacelive.Add(port, pid);

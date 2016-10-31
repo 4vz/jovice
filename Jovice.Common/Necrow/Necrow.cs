@@ -87,8 +87,11 @@ namespace Jovice
             get { return jovice; }
         }
 
+#if DEBUG
+        private static bool console = true;
+#else
         private static bool console = false;
-
+#endif
         private static Queue<Tuple<int, string>> list = null;
 
         private static Queue<string> prioritize = new Queue<string>();
@@ -130,6 +133,9 @@ namespace Jovice
 #if DEBUG
         public static bool Debug()
         {
+            //JoviceGraph.Update();
+
+
             return true;
         }
 
@@ -200,7 +206,7 @@ namespace Jovice
                     }
                     else return false; // bypass attempt if other exceptions
                 };
-                jovice.Attempts = 5;
+                jovice.QueryAttempts = 5;
 
                 if (joviceDatabaseConnected)
                 {
@@ -268,6 +274,12 @@ namespace Jovice
                     {
                         Event("Loaded " + accounts.Count + " account" + ((accounts.Count > 1) ? "s" : ""));
 
+                        #region Graph
+
+                        //JoviceGraph.Update();
+
+                        #endregion
+
                         #region Virtualizations
 
                         Event("Starting database virtualizations...");
@@ -277,7 +289,7 @@ namespace Jovice
                         Event("Database virtualizations completed");
 
                         NecrowVirtualization.FlushNeighborInterface();
-
+                        
                         #endregion
 
                         #region Etc

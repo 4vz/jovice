@@ -394,15 +394,15 @@ namespace Aphysoft.Common
             get { return connectionString; }
         }
 
-        private int attempts = 1;
+        private int queryAttempts = 1;
 
         /// <summary>
         /// Gets or sets how many query attempts shall be done until the current execution throws exception if none success.
         /// </summary>
-        public int Attempts
+        public int QueryAttempts
         {
-            get { return attempts; }
-            set { attempts = value; }
+            get { return queryAttempts; }
+            set { queryAttempts = value; }
         }
 
         private int timeout = 0;
@@ -845,7 +845,7 @@ namespace Aphysoft.Common
         public override Result Query(string sql)
         {
             Result result = new Result(sql);
-            int attempts = database.Attempts;
+            int attempts = database.QueryAttempts;
 
             using (SqlConnection connection = new SqlConnection(database.ConnectionString))
             {
@@ -917,7 +917,7 @@ namespace Aphysoft.Common
         public override Column Scalar(string sql)
         {
             Column column = null;
-            int attempts = database.Attempts;
+            int attempts = database.QueryAttempts;
 
             using (SqlConnection connection = new SqlConnection(database.ConnectionString))
             {
@@ -963,7 +963,7 @@ namespace Aphysoft.Common
         private Result Execute(string sql, bool returnIdentity)
         {
             Result result = new Result(sql);
-            int attempts = database.Attempts;
+            int attempts = database.QueryAttempts;
 
             using (SqlConnection connection = new SqlConnection(database.ConnectionString))
             {
@@ -1000,12 +1000,8 @@ namespace Aphysoft.Common
                     {
                         if (!cancelling)
                         {
-                            bool then = QueryFailed(e, attempt);
-                            if (attempt == attempts - 1 || !then)
-                            {
-                                result.isExceptionThrown = true;
-                                Exception(e, sql);
-                            }
+                            result.isExceptionThrown = true;
+                            Exception(e, sql);
                         }
                         else ok = true;
                     }

@@ -41,6 +41,14 @@ namespace Aphysoft.Common
             set { exception = value; }
         }
 
+        private bool noRetry = false;
+
+        public bool NoRetry
+        {
+            get { return NoRetry; }
+            set { noRetry = value; }
+        }
+
         #endregion
 
         #region Constructor
@@ -53,32 +61,9 @@ namespace Aphysoft.Common
         #endregion
     }
 
-    public class QueryFailedEventArgs : EventArgs
-    {
-        #region Fields
-
-        private int attemptNumber = 0;
-
-        public int AttemptNumber
-        {
-            get { return attemptNumber; }
-            internal set { attemptNumber = value; }
-        }
-
-        private DatabaseException exception;
-
-        public DatabaseException Exception
-        {
-            get { return exception; }
-            set { exception = value; }
-        }
-
-        #endregion
-    }
-    
     public delegate void DatabaseExceptionEventHandler(object sender, DatabaseExceptionEventArgs eventArgs);
 
-    public delegate bool QueryFailedEventHandler(object sender, QueryFailedEventArgs eventArgs);
+    public delegate void DatabaseRetryEventHandler(object sender, DatabaseExceptionEventArgs eventArgs);
 
     public delegate string QueryDictionaryKeyCallback(Row row);
 
@@ -135,30 +120,38 @@ namespace Aphysoft.Common
             {
                 int index = 0;
                 StringBuilder batch = new StringBuilder();
+
+                bool ok = true;
                 while (index < count)
                 {
                     string line = lines[index];
                     batch.Append(line + ";\r\n");
                     index++;
 
-                    if (index % 50 == 0)
+                    if (index % 25 == 0)
                     {
                         Result currentResult = database.Execute(batch.ToString());
                         if (!currentResult.OK)
                         {
-                            result.ThrowException();
+                            result.isExceptionThrown = true;
+                            ok = false;
                             break;
                         }
-                        batch.Clear();
-                        result.AffectedRows = result.AffectedRows + currentResult.AffectedRows;
+                        else
+                        {
+                            batch.Clear();
+                            result.AffectedRows = result.AffectedRows + currentResult.AffectedRows;
+                        }
                     }
                 }
 
-                if (batch.Length > 0)
+                if (ok && batch.Length > 0)
                 {
                     Result currentResult = database.Execute(batch.ToString());
-                    if (!currentResult.OK) result.ThrowException();
-                    result.AffectedRows = result.AffectedRows + currentResult.AffectedRows;
+                    if (!currentResult.OK)
+                        result.isExceptionThrown = true;
+                    else
+                        result.AffectedRows = result.AffectedRows + currentResult.AffectedRows;
                 }
             }
 
@@ -419,7 +412,7 @@ namespace Aphysoft.Common
 
         public event DatabaseExceptionEventHandler Exception;
 
-        public event QueryFailedEventHandler QueryFailed;
+        public event DatabaseRetryEventHandler Retry;
 
         #endregion
 
@@ -442,31 +435,37 @@ namespace Aphysoft.Common
 
         #region Methods
 
-        internal void OnException(Exception e, DatabaseException exception, string sql)
+        internal void OnException(Exception e, string sql)
         {
             if (Exception != null)
             {
                 DatabaseExceptionEventArgs eventArgs = new DatabaseExceptionEventArgs();
 
+                eventArgs.Exception = connection.ParseMessage(e.Message);
                 eventArgs.Message = e.Message;
-                eventArgs.Exception = exception;
                 eventArgs.Sql = sql;
 
                 Exception(this, eventArgs);
             }
         }
 
-        internal bool OnQueryFailed(Exception e, DatabaseException exception, int attemptNumber)
+        internal bool OnRetry(Exception e, string sql)
         {
-            if (QueryFailed != null)
+            if (Retry != null)
             {
-                QueryFailedEventArgs eventArgs = new QueryFailedEventArgs();
-                eventArgs.AttemptNumber = attemptNumber;
-                eventArgs.Exception = exception;
+                DatabaseExceptionEventArgs eventArgs = new DatabaseExceptionEventArgs();
 
-                return QueryFailed(this, eventArgs);
+                eventArgs.Exception = connection.ParseMessage(e.Message);
+                eventArgs.Message = e.Message;
+                eventArgs.Sql = sql;
+
+                Retry(this, eventArgs);
+
+                if (eventArgs.NoRetry)
+                {
+                    return true;
+                }
             }
-
             return false;
         }
 
@@ -738,6 +737,8 @@ namespace Aphysoft.Common
 
         #region Methods
 
+        public virtual DatabaseException ParseMessage(string message) { return DatabaseException.Other; }
+
         public virtual bool Test() { return false; }
 
         public virtual string Escape(string str) { return str; }
@@ -775,26 +776,11 @@ namespace Aphysoft.Common
 
         #region Methods
 
-        public void Exception(Exception e, string sql)
+        public override DatabaseException ParseMessage(string message)
         {
-            string message = e.Message.ToLower();
-
-            if (message.IndexOf("login failed") > -1)
-                database.OnException(e, DatabaseException.LoginFailed, sql);
-            else if (message.IndexOf("the server was not found") > -1)
-                database.OnException(e, DatabaseException.Timeout, sql);
-            else
-                database.OnException(e, DatabaseException.Other, sql);
-        }
-
-        public bool QueryFailed(Exception e, int attempt)
-        {
-            string message = e.Message.ToLower();
-
-            if (message.IndexOf("timeout expired") > -1)
-                return database.OnQueryFailed(e, DatabaseException.Timeout, attempt);
-            else
-                return database.OnQueryFailed(e, DatabaseException.Other, attempt);
+            if (message.IndexOf("login failed") > -1) return DatabaseException.LoginFailed;
+            else if (message.IndexOf("the server was not found") > -1) return DatabaseException.Timeout;
+            else return DatabaseException.Other;
         }
 
         public override bool Test()
@@ -848,7 +834,7 @@ namespace Aphysoft.Common
                     commands.Add(command);
                 }
 
-                bool ok = false;
+                bool doBreak = false;
                 for (int attempt = 0; attempt < attempts; attempt++)
                 {
                     SqlDataReader reader = null;
@@ -878,24 +864,30 @@ namespace Aphysoft.Common
                             if (result.Count >= 200000) break;
                         }
 
-                        ok = true;
+                        doBreak = true;
                     }
                     catch (Exception e)
                     {
                         if (!cancelling)
                         {
-                            bool then = QueryFailed(e, attempt);
-
-                            if (attempt == attempts - 1 || !then)
+                            if (attempt == attempts - 1)
                             {
                                 result.isExceptionThrown = true;
-                                Exception(e, sql);
+                                database.OnException(e, sql);
                             }
+                            else if (database.OnRetry(e, sql))
+                            {                                
+                                result.isExceptionThrown = true;
+                                database.OnException(e, sql);
+                                doBreak = true;
+                                break;
+                            }
+                                
                         }
-                        else ok = true;
+                        else doBreak = true;
                     }
                     finally { if (reader != null) reader.Close(); }
-                    if (ok) break;
+                    if (doBreak) break;
                 }
 
                 End(connection, command);
@@ -920,28 +912,33 @@ namespace Aphysoft.Common
                     commands.Add(command);
                 }
 
-                bool ok = false;
+                bool doBreak = false;
                 for (int attempt = 0; attempt < attempts; attempt++)
                 {
                     try
                     {
                         object data = command.ExecuteScalar();
                         if (data != null) column = new Column(null, data, false);
-                        ok = true;
+                        doBreak = true;
                     }
                     catch (Exception e)
                     {
                         if (!cancelling)
                         {
-                            bool then = QueryFailed(e, attempt);
-                            if (attempt == attempts - 1 || !then)
+                            if (attempt == attempts - 1)
                             {
-                                Exception(e, sql);
+                                database.OnException(e, sql);
+                            }
+                            else if (database.OnRetry(e, sql))
+                            {
+                                database.OnException(e, sql);
+                                doBreak = true;
+                                break;
                             }
                         }
-                        else ok = true;
+                        else doBreak = true;
                     }
-                    if (ok) break;
+                    if (doBreak) break;
                 }
 
                 End(connection, command);
@@ -966,7 +963,7 @@ namespace Aphysoft.Common
                     commands.Add(command);
                 }
 
-                bool ok = false;
+                bool doBreak = false;
                 for (int attempt = 0; attempt < attempts; attempt++)
                 {
                     SqlCommand identityCommand = null;
@@ -987,16 +984,26 @@ namespace Aphysoft.Common
 
                             result.Identity = (Int64)identityCommand.ExecuteScalar();                            
                         }
-                        ok = true;
+                        doBreak = true;
                     }
                     catch (Exception e)
                     {
                         if (!cancelling)
                         {
-                            result.isExceptionThrown = true;
-                            Exception(e, sql);
+                            if (attempt == attempts - 1)
+                            {
+                                result.isExceptionThrown = true;
+                                database.OnException(e, sql);
+                            }
+                            else if (database.OnRetry(e, sql))
+                            {
+                                result.isExceptionThrown = true;
+                                database.OnException(e, sql);
+                                doBreak = true;
+                                break;
+                            }
                         }
-                        else ok = true;
+                        else doBreak = true;
                     }
                     finally
                     {
@@ -1009,7 +1016,7 @@ namespace Aphysoft.Common
                             }
                         }
                     }
-                    if (ok) break;
+                    if (doBreak) break;
                 }
 
                 End(connection, command);
@@ -1067,18 +1074,6 @@ namespace Aphysoft.Common
 
         #region Methods
 
-        public void Exception(Exception e, string sql)
-        {
-            string message = e.Message;
-
-            if (message.IndexOf("logon denied") > -1)
-                database.OnException(e, DatabaseException.LoginFailed, sql);
-            else if (message.IndexOf("Connect timeout occurred") > -1)
-                database.OnException(e, DatabaseException.Timeout, sql);
-            else
-                database.OnException(e, DatabaseException.Other, sql);
-        }
-
         public override string Escape(string str)
         {
             return str.Replace("'", @"\'");
@@ -1127,7 +1122,6 @@ namespace Aphysoft.Common
                 catch (Exception e)
                 {
                     result.isExceptionThrown = true;
-                    Exception(e, sql);
                 }
                 finally
                 {
@@ -1158,7 +1152,6 @@ namespace Aphysoft.Common
                 }
                 catch (Exception e)
                 {
-                    Exception(e, sql);
                 }
                 finally
                 {
@@ -1193,7 +1186,6 @@ namespace Aphysoft.Common
                 catch (Exception e)
                 {
                     result.isExceptionThrown = true;
-                    Exception(e, sql);
                 }
                 finally
                 {
@@ -1222,8 +1214,6 @@ namespace Aphysoft.Common
         public void Exception(Exception e, string sql)
         {
             string message = e.Message;
-            
-            database.OnException(e, DatabaseException.Other, sql);
         }
 
         public override string Escape(string str)
@@ -1493,11 +1483,6 @@ namespace Aphysoft.Common
         IEnumerator IEnumerable.GetEnumerator()
         {
             return (IEnumerator)rows.GetEnumerator();
-        }
-
-        internal void ThrowException()
-        {
-            isExceptionThrown = true;
         }
 
         #endregion

@@ -45,7 +45,7 @@ namespace Aphysoft.Common
 
         public bool NoRetry
         {
-            get { return NoRetry; }
+            get { return noRetry; }
             set { noRetry = value; }
         }
 

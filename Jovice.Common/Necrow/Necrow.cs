@@ -133,9 +133,6 @@ namespace Jovice
 #if DEBUG
         public static bool Debug()
         {
-            //JoviceGraph.Update();
-
-
             return true;
         }
 
@@ -144,13 +141,19 @@ namespace Jovice
             prioritize.Enqueue(name + "*");
         }
 #else
-        internal static void Log(string source, string log)
+        internal static void Log(string source, string message, string stacktrace)
         {
-            Insert insert = Necrow.Jovice.Insert("Log");
-            insert.Value("LO_TimeStamp", DateTime.UtcNow);
-            insert.Value("LO_Source", source);
-            insert.Value("LO_Log", log);
+            Insert insert = Jovice.Insert("ProbeLog");
+            insert.Value("PL_TimeStamp", DateTime.UtcNow);
+            insert.Value("PL_Source", source);
+            insert.Value("PL_Message", message);
+            insert.Value("PL_StackTrace", stacktrace);
             insert.Execute();
+        }
+
+        internal static void Log(string source, string message)
+        {
+            Log(source, message, null);
         }
 #endif
 
@@ -193,18 +196,20 @@ namespace Jovice
 
                 jovice.Exception += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
                 {
-                    Event("Database exception: " + eventArgs.Message, "JOVICE");                    
-                    throw new Exception(eventArgs.Message + "\r\nSQL:\r\n" + eventArgs.Sql);          
+                    Event("Database exception has been caught: " + eventArgs.Message);
+                    throw new Exception(eventArgs.Message);
                 };
-                jovice.QueryFailed += delegate (object sender, QueryFailedEventArgs eventArgs)
+                jovice.Retry += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
                 {
                     if (eventArgs.Exception == DatabaseException.Timeout)
                     {
-                        Event("Database query has timed out, retry in 10 seconds (attempt #" + (eventArgs.AttemptNumber + 1) + ")");
+                        Event("Database query has timed out, retry in 10 seconds");
                         Thread.Sleep(10000);
-                        return true;
                     }
-                    else return false; // bypass attempt if other exceptions
+                    else
+                    {
+                        eventArgs.NoRetry = true;
+                    }
                 };
                 jovice.QueryAttempts = 5;
 

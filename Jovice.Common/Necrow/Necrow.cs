@@ -197,7 +197,7 @@ namespace Jovice
                 jovice.Exception += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
                 {
                     Event("Database exception has been caught: " + eventArgs.Message);
-                    throw new Exception(eventArgs.Message);
+                    throw new Exception(eventArgs.Message.Trim() + "\r\n\r\nSQL:\r\n\r\n" + eventArgs.Sql);
                 };
                 jovice.Retry += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
                 {

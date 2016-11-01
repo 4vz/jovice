@@ -285,6 +285,16 @@ namespace Jovice
 
                         #endregion
 
+                        #region Database Check
+
+                        Event("Checking database...");
+
+                        DatabaseCheck();
+
+                        Event("Database checks completed");
+
+                        #endregion
+
                         #region Virtualizations
 
                         Event("Starting database virtualizations...");
@@ -293,8 +303,6 @@ namespace Jovice
 
                         Event("Database virtualizations completed");
 
-                        NecrowVirtualization.FlushNeighborInterface();
-                        
                         #endregion
 
                         #region Etc
@@ -451,6 +459,79 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             }
         }
 
+        private static void DatabaseCheck()
+        {
+            Database jovice = Necrow.Jovice;
+            Result result;
+            Batch batch = jovice.Batch();
+
+            bool neighborAffected = false;
+
+            #region Neighbor already exists in node
+
+            result = jovice.Query("select NO_ID, NN_ID from Node left join NodeNeighbor on NN_Name = NO_Name where NN_ID is not null and NO_Type in ('M', 'P')");
+
+            if (result.Count > 0)
+            {
+                Event("Removing " + result.Count + " duplicated neighbor nodes...");
+
+                batch.Begin();
+                foreach (Row row in result)
+                {
+                    string nnid = row["NN_ID"].ToString();
+                    batch.Execute("update MEInterface set MI_TO_NI = NULL where MI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", nnid);
+                    batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", nnid);
+                    batch.Execute("delete from NeighborInterface where NI_NN = {0}", nnid);
+                    batch.Execute("delete from NodeNeighbor where NN_ID = {0}", nnid);
+                }
+                result = batch.Commit();
+                Event("Affected " + result.AffectedRows + " rows");
+
+                neighborAffected = true;
+            }
+
+            #endregion
+
+            #region Removing unused interfaces on Node Neighbors
+
+            result = jovice.Query(@"
+select NI_ID from NeighborInterface 
+left join MEInterface on MI_TO_NI = NI_ID 
+left join PEInterface on PI_TO_NI = NI_ID
+left join NodeNeighbor on NN_ID = NI_NN
+where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
+");
+            if (result.Count > 0)
+            {
+                Event("Removing " + result.Count + " unused interfaces on Node Neighbors...");
+
+                batch.Begin();
+                foreach (Row row in result)
+                {
+                    string nn = row["NN_Name"].ToString();
+                    string ni = row["NI_ID"].ToString();
+
+                    batch.Execute("delete from NeighborInterface where NI_ID = {0}", ni);
+                }
+                result = batch.Commit();
+
+                Event("Removed " + result.AffectedRows + " interfaces");
+
+                neighborAffected = true;
+            }
+
+            #endregion
+
+            if (NecrowVirtualization.IsReady && neighborAffected)
+            {
+                Event("Reloading neighbor virtualizations...");
+
+                NecrowVirtualization.NeighborLoad();
+
+                Event("Virtualization reloaded");
+            }
+        }
+
         internal static Tuple<int, string> NextNode()
         {
             Tuple<int, string> noded = null;
@@ -459,8 +540,10 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             {
                 if (list.Count == 0)
                 {
-                    NecrowVirtualization.FlushNeighborInterface();
+                    // here were do things every loop
+                    DatabaseCheck();
 
+                    // create new list
                     CreateNodeQueue();
                 }
 

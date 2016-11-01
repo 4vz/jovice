@@ -10,6 +10,13 @@ namespace Jovice
     {
         #region Fields
 
+        private static bool ready = false;
+
+        public static bool IsReady
+        {
+            get { return ready; }
+        }
+
         private static List<Tuple<string, List<Tuple<string, string, string, string, string>>>> pePhysicalInterfaces = null;
 
         internal static List<Tuple<string, List<Tuple<string, string, string, string, string>>>> PEPhysicalInterfaces
@@ -61,10 +68,11 @@ namespace Jovice
             Database jovice = Necrow.Jovice;
             Result result;
             Batch batch = jovice.Batch();
-            Insert insert;
 
             string currentNode;
             int count;
+
+            #region PE Interfaces
 
             result = jovice.Query(@"
 select NO_Name, LEN(NO_Name) as NO_LEN, PI_Name, LEN(PI_Name) as PI_LEN, PI_Type, PI_ID, PI_Description, PI_PI from
@@ -104,6 +112,10 @@ order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
             pePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string>>>(currentNode, currentPEInterfaces));
 
             Necrow.Event("Loaded " + count + " PE physical interfaces");
+
+            #endregion
+
+            #region ME Interfaces
 
             result = jovice.Query(@"
 select NO_Name, LEN(NO_Name) as NO_LEN, MI_Name, LEN(MI_Name) as MI_LEN, MI_Type, MI_ID, MI_Description from 
@@ -145,136 +157,26 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
 
             Necrow.Event("Loaded " + count + " ME physical interfaces");
 
-            result = jovice.Query(@"
-select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID order by NA_Name
-");
-            aliases = new Dictionary<string, List<string>>();
+            #endregion
 
-            count = 0;
+            #region Node Alias
 
-            foreach (Row row in result)
-            {
-                string noName = row["NO_Name"].ToString();
-
-                if (!aliases.ContainsKey(noName))
-                    aliases.Add(noName, new List<string>());
-
-                aliases[noName].Add(row["NA_Name"].ToString());
-                count++;
-            }
+            count = AliasLoad();
 
             Necrow.Event("Loaded " + count + " node aliases");
 
-            result = jovice.Query("select * from NodeNeighbor");
+            #endregion
 
-            nodeNeighbors = new Dictionary<string, string>();
+            #region Neighbor
 
-            batch.Begin();
-            foreach (Row row in result)
-            {
-                string name = row["NN_Name"].ToString();
-                string id = row["NN_ID"].ToString();
-                if (!nodeNeighbors.ContainsKey(name))
-                    nodeNeighbors.Add(name, id);
-                else
-                {
-                    Necrow.Event("Duplicated NodeNeighbor " + name + " removed ID " + id);
-                    batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
-                    batch.Execute("update MEInterface set MI_TO_NI = NULL where MI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
-                    batch.Execute("delete from NeighborInterface where NI_NN = {0}", id);
-                    batch.Execute("delete from NodeNeighbor where NN_ID = {0}", id);
-                }
-            }
-            batch.Commit();
+            Tuple<int, int, int> counts = NeighborLoad();
+            Necrow.Event("Loaded " + counts.Item1 + " neighbors");
+            Necrow.Event("Loaded " + counts.Item2 + " neighbor interfaces");
+            Necrow.Event("Loaded " + counts.Item3 + " neighbor references");
 
-            Necrow.Event("Loaded " + nodeNeighbors.Count + " neighbors");
+            #endregion
 
-            result = jovice.Query(@"
-select NN_Name, LEN(NN_Name) as NN_LEN, NI_Name, LEN(NI_Name) as NI_LEN, NI_ID from 
-(select NN_Name, NN_ID from NodeNeighbor
-) n left join NeighborInterface on NI_NN = NN_ID and NI_Name <> 'UNSPECIFIED'
-order by NN_LEN desc, NN_Name, NI_LEN desc, NI_Name
-");
-
-            nnPhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string>>>>();
-            List<Tuple<string, string>> currentNNInterfaces = new List<Tuple<string, string>>();
-
-            currentNode = null;
-            count = 0;
-
-            foreach (Row row in result)
-            {
-                string node = row["NN_Name"].ToString();
-
-                if (currentNode != node)
-                {
-                    if (currentNode != null)
-                    {
-                        nnPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string>>>(currentNode,
-                            new List<Tuple<string, string>>(currentNNInterfaces)));
-                        currentNNInterfaces.Clear();
-                    }
-                    currentNode = node;
-                }
-
-                string niName = row["NI_Name"].ToString();
-
-                if (niName != null)
-                {
-                    currentNNInterfaces.Add(new Tuple<string, string>(
-                        niName, row["NI_ID"].ToString()));
-                    count++;
-                }
-            }
-            nnPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string>>>(currentNode, currentNNInterfaces));
-
-            Necrow.Event("Loaded " + count + " neighbor interfaces");
-
-            result = jovice.Query(@"
-select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NeighborInterface on NI_NN = NN_ID and NI_Name = 'UNSPECIFIED'
-");
-            batch.Begin();
-
-            nnUnspecifiedInterfaces = new Dictionary<string, string>();
-
-            foreach (Row row in result)
-            {
-                string id = row["NN_ID"].ToString();
-                string node = row["NN_Name"].ToString();
-                string unid = row["NI_ID"].ToString();
-
-                if (unid != null)
-                {
-                    if (!nnUnspecifiedInterfaces.ContainsKey(node))
-                        nnUnspecifiedInterfaces.Add(node, unid);
-                    else
-                    {
-                        batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
-                        batch.Execute("update MEInterface set MI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
-                        batch.Execute("delete from NeighborInterface where NI_NN = {0}", id);
-                        batch.Execute("delete from NodeNeighbor where NN_ID = {0}", id);
-                        Necrow.Event("Removed duplicated neighbor key: " + node);
-                    }
-                }
-                else
-                {
-                    unid = Database.ID();
-
-                    insert = jovice.Insert("NeighborInterface");
-                    insert.Value("NI_ID", unid);
-                    insert.Value("NI_NN", id);
-                    insert.Value("NI_Name", "UNSPECIFIED");
-
-                    batch.Execute(insert);
-                    nnUnspecifiedInterfaces.Add(node, unid);
-
-                    Necrow.Event("Added missing UNSPECIFIED interface to neighbor node " + node);
-                }
-            }
-
-            batch.Commit();
-
-            Necrow.Event("Loaded " + nnUnspecifiedInterfaces.Count + " neighbor references");
+            ready = true;
         }
 
         internal static void PEPhysicalInterfacesSort()
@@ -394,7 +296,7 @@ select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NeighborInterface on NI
             return exists;
         }
 
-        internal static void AliasReload()
+        internal static int AliasLoad()
         {
             aliases = null;
 
@@ -402,6 +304,8 @@ select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NeighborInterface on NI
 select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID order by NA_Name
 ");
             aliases = new Dictionary<string, List<string>>();
+
+            int count = 0;
 
             foreach (Row row in result)
             {
@@ -411,59 +315,145 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID order by NA_Nam
                     aliases.Add(noName, new List<string>());
 
                 aliases[noName].Add(row["NA_Name"].ToString());
+
+                count++;
             }
+
+            return count;
         }
 
-        internal static void FlushNeighborInterface()
+        internal static Tuple<int, int, int> NeighborLoad()
         {
             Database jovice = Necrow.Jovice;
+            Result result;
+            Batch batch = jovice.Batch();
+            Insert insert;
 
-            // interfaces is interfaces that have been removed its references from mi_to_ni or pi_to_no
-            // wat do?
+            string currentNode;
+            int count1 = 0, count2 = 0, count3 = 0;
+            
+            #region Node Neighbor
 
-            Result result = jovice.Query(@"
-select NN_Name, NI_ID from NeighborInterface 
-left join MEInterface on MI_TO_NI = NI_ID 
-left join PEInterface on PI_TO_NI = NI_ID
-left join NodeNeighbor on NN_ID = NI_NN
-where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
-");
-            if (result.Count > 0)
+            result = jovice.Query("select * from NodeNeighbor");
+
+            nodeNeighbors = new Dictionary<string, string>();
+
+            batch.Begin();
+            foreach (Row row in result)
             {
-                Necrow.Event("Removing unused interfaces on Node Neighbors...");
-
-                Batch batch = jovice.Batch();
-
-                batch.Begin();
-                foreach (Row row in result)
+                string name = row["NN_Name"].ToString();
+                string id = row["NN_ID"].ToString();
+                if (!nodeNeighbors.ContainsKey(name))
+                    nodeNeighbors.Add(name, id);
+                else
                 {
-                    string nn = row["NN_Name"].ToString();
-                    string ni = row["NI_ID"].ToString();
+                    Necrow.Event("Duplicated NodeNeighbor " + name + " removed ID " + id);
+                    batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
+                    batch.Execute("update MEInterface set MI_TO_NI = NULL where MI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
+                    batch.Execute("delete from NeighborInterface where NI_NN = {0}", id);
+                    batch.Execute("delete from NodeNeighbor where NN_ID = {0}", id);
+                }
+            }
+            batch.Commit();
 
-                    batch.Execute("delete from NeighborInterface where NI_ID = {0}", ni);
+            count1 = nodeNeighbors.Count;
 
-                    foreach (Tuple<string, List<Tuple<string, string>>> entry in NecrowVirtualization.NNPhysicalInterfaces)
+            #endregion
+
+            #region Neighbor Interface
+
+            result = jovice.Query(@"
+select NN_Name, LEN(NN_Name) as NN_LEN, NI_Name, LEN(NI_Name) as NI_LEN, NI_ID from 
+(select NN_Name, NN_ID from NodeNeighbor
+) n left join NeighborInterface on NI_NN = NN_ID and NI_Name <> 'UNSPECIFIED'
+order by NN_LEN desc, NN_Name, NI_LEN desc, NI_Name
+");
+
+            nnPhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string>>>>();
+            List<Tuple<string, string>> currentNNInterfaces = new List<Tuple<string, string>>();
+
+            currentNode = null;
+            count2 = 0;
+
+            foreach (Row row in result)
+            {
+                string node = row["NN_Name"].ToString();
+
+                if (currentNode != node)
+                {
+                    if (currentNode != null)
                     {
-                        if (entry.Item1 == nn)
-                        {
-                            Tuple<string, string> nitoremove = null;
-                            foreach (Tuple<string, string> nix in entry.Item2)
-                            {
-                                if (nix.Item2 == ni)
-                                {
-                                    nitoremove = nix;
-                                    break;
-                                }
-                            }
-                            if (nitoremove != null) entry.Item2.Remove(nitoremove);
-                            break;
-                        }
+                        nnPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string>>>(currentNode,
+                            new List<Tuple<string, string>>(currentNNInterfaces)));
+                        currentNNInterfaces.Clear();
+                    }
+                    currentNode = node;
+                }
+
+                string niName = row["NI_Name"].ToString();
+
+                if (niName != null)
+                {
+                    currentNNInterfaces.Add(new Tuple<string, string>(
+                        niName, row["NI_ID"].ToString()));
+                    count2++;
+                }
+            }
+            nnPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string>>>(currentNode, currentNNInterfaces));
+
+            #endregion
+
+            #region Neighbor Unspecified Reference
+
+            result = jovice.Query(@"
+select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NeighborInterface on NI_NN = NN_ID and NI_Name = 'UNSPECIFIED'
+");
+            batch.Begin();
+
+            nnUnspecifiedInterfaces = new Dictionary<string, string>();
+
+            foreach (Row row in result)
+            {
+                string id = row["NN_ID"].ToString();
+                string node = row["NN_Name"].ToString();
+                string unid = row["NI_ID"].ToString();
+
+                if (unid != null)
+                {
+                    if (!nnUnspecifiedInterfaces.ContainsKey(node))
+                        nnUnspecifiedInterfaces.Add(node, unid);
+                    else
+                    {
+                        batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
+                        batch.Execute("update MEInterface set MI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
+                        batch.Execute("delete from NeighborInterface where NI_NN = {0}", id);
+                        batch.Execute("delete from NodeNeighbor where NN_ID = {0}", id);
+                        Necrow.Event("Removed duplicated neighbor key: " + node);
                     }
                 }
-                result = batch.Commit();
+                else
+                {
+                    unid = Database.ID();
 
-                Necrow.Event("Removed " + result.AffectedRows + " interfaces");
+                    insert = jovice.Insert("NeighborInterface");
+                    insert.Value("NI_ID", unid);
+                    insert.Value("NI_NN", id);
+                    insert.Value("NI_Name", "UNSPECIFIED");
+
+                    batch.Execute(insert);
+                    nnUnspecifiedInterfaces.Add(node, unid);
+
+                    Necrow.Event("Added missing UNSPECIFIED interface to neighbor node " + node);
+                }
             }
+
+            batch.Commit();
+
+            count3 = nnUnspecifiedInterfaces.Count;
+
+            #endregion
+            
+            return new Tuple<int, int, int>(count1, count2, count3);
         }
 
         #endregion

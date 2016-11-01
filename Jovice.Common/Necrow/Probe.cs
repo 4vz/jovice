@@ -1912,7 +1912,7 @@ namespace Jovice
                             if (!NecrowVirtualization.AliasExists(nodeName))
                             {
                                 Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})", Database.ID(), nodeID, nodeName);
-                                NecrowVirtualization.AliasReload();
+                                NecrowVirtualization.AliasLoad();
                             }
 
                             Update(UpdateTypes.Name, hostName);

@@ -622,11 +622,6 @@ namespace Jovice
             return j.ExecuteIdentity(sql, args);
         }
 
-        public bool Exists(string table, string key, string id)
-        {
-            return j.Exists(table, key, id);
-        }
-
         #endregion
 
         #region Static
@@ -958,9 +953,9 @@ namespace Jovice
                         }
                         catch (Exception ex)
                         {
-                            if (ex.Message.IndexOf("Thread was being aborted") == -1)
+                            if (ex.Message.IndexOf("was being aborted") == -1)
                             {
-                                Necrow.Log("MAINLOOP", "NODE:" + nodeName + " MESSAGE:" + ex.Message + " STACKTRACE:" + ex.StackTrace);
+                                Necrow.Log(nodeName, ex.Message, ex.StackTrace);
                                 Event("Caught error: " + ex.Message + ", exiting current node...");
                                 Update(UpdateTypes.Remark, "PROBEFAILED");
                             }

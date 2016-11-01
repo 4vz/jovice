@@ -779,7 +779,7 @@ namespace Aphysoft.Common
         public override DatabaseException ParseMessage(string message)
         {
             if (message.IndexOf("login failed") > -1) return DatabaseException.LoginFailed;
-            else if (message.IndexOf("the server was not found") > -1) return DatabaseException.Timeout;
+            else if (message.IndexOf("timeout period elapsed") > -1) return DatabaseException.Timeout;
             else return DatabaseException.Other;
         }
 

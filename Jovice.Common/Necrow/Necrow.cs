@@ -144,10 +144,10 @@ namespace Jovice
         internal static void Log(string source, string message, string stacktrace)
         {
             Insert insert = Jovice.Insert("ProbeLog");
-            insert.Value("PL_TimeStamp", DateTime.UtcNow);
-            insert.Value("PL_Source", source);
-            insert.Value("PL_Message", message);
-            insert.Value("PL_StackTrace", stacktrace);
+            insert.Value("XL_TimeStamp", DateTime.UtcNow);
+            insert.Value("XL_Source", source);
+            insert.Value("XL_Message", message);
+            insert.Value("XL_StackTrace", stacktrace);
             insert.Execute();
         }
 
@@ -196,8 +196,8 @@ namespace Jovice
 
                 jovice.Exception += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
                 {
-                    Event("Database exception has been caught: " + eventArgs.Message);
-                    throw new Exception(eventArgs.Message.Trim() + "\r\n\r\nSQL:\r\n\r\n" + eventArgs.Sql);
+                    Event("Database exception has been caught: " + eventArgs.Message.Trim(new char[] { '\r', '\n', ' ' }));
+                    throw new Exception(eventArgs.Message.Trim(new char[] { '\r', '\n', ' ' }) + "\n" + eventArgs.Sql);
                 };
                 jovice.Retry += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
                 {

@@ -671,11 +671,6 @@ namespace Aphysoft.Common
             return connection.ExecuteIdentity(fsql);
         }
 
-        public bool Exists(string table, string key, object value)
-        {
-            return connection.Exists(table, key, Format("{0}", value));
-        }
-
         /// <summary>
         /// Cancels all current query/transactions.
         /// </summary>
@@ -756,8 +751,6 @@ namespace Aphysoft.Common
         public virtual Result Execute(string sql) { return new Result(sql); }
 
         public virtual Result ExecuteIdentity(string sql) { return new Result(sql); }
-
-        public virtual bool Exists(string table, string key, object value) { return false; }
 
         public virtual int Cancel() { return 0; }
 
@@ -1037,13 +1030,6 @@ namespace Aphysoft.Common
         public override Result ExecuteIdentity(string sql)
         {
             return Execute(sql, true);
-        }
-
-        public override bool Exists(string table, string key, object value)
-        {
-            Result result = Query("select top 1 * from " + table + " where " + key + " = " + value);
-            if (result.Count == 1) return true;
-            else return false;
         }
 
         public override int Cancel()

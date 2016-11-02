@@ -3879,10 +3879,11 @@ namespace Jovice
                             {
                                 if (matchedNeighborPart.IndexOf(test) > -1)
                                 {
-                                    PEInterfaceToDatabase pi = (PEInterfaceToDatabase)li;
-
                                     li.TopologyMEInterfaceID = matchedInterface.Item3;
-                                    pi.NeighborCheckMITOPI = matchedInterface.Item7;
+                                    if (li.GetType() == typeof(PEInterfaceToDatabase))
+                                        ((PEInterfaceToDatabase)li).NeighborCheckMITOPI = matchedInterface.Item7;
+                                    else
+                                        ((MEInterfaceToDatabase)li).NeighborCheckMITOMI = matchedInterface.Item6;
 
                                     // anak agregator ga mgkn punya anak sendiri
                                     // daftar parentnya juga untuk ditangkap di aggr pencari anak
@@ -3890,14 +3891,14 @@ namespace Jovice
                                     else
                                     {
                                         // find mi child
-                                        pi.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
+                                        li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
                                         result = Query("select MI_ID, MI_DOT1Q, MI_TO_MI, MI_TO_PI from MEInterface where MI_MI = {0}", li.TopologyMEInterfaceID);
                                         foreach (Row row in result)
                                         {
                                             if (!row["MI_DOT1Q"].IsNull)
                                             {
                                                 int dot1q = row["MI_DOT1Q"].ToIntShort();
-                                                if (!pi.ChildrenNeighbor.ContainsKey(dot1q)) pi.ChildrenNeighbor.Add(dot1q, 
+                                                if (!li.ChildrenNeighbor.ContainsKey(dot1q)) li.ChildrenNeighbor.Add(dot1q, 
                                                     new Tuple<string, string, string>(row["MI_ID"].ToString(), row["MI_TO_MI"].ToString(), row["MI_TO_PI"].ToString()));
                                             }
                                         }

@@ -3030,7 +3030,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                     if (parent.ChildrenNeighbor.ContainsKey(dot1q))
                                     {
                                         Tuple<string, string, string> parentChildrenNeighbor = parent.ChildrenNeighbor[dot1q];
-                                        if (parentChildrenNeighbor.Item3 == null) // berarti lawannya PE
+                                        if (parent.TopologyPEInterfaceID != null) // berarti lawannya PE
                                         {
                                             li.TopologyPEInterfaceID = parentChildrenNeighbor.Item1;
                                             li.NeighborCheckPITOMI = parentChildrenNeighbor.Item2;

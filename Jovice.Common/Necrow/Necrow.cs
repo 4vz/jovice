@@ -508,7 +508,6 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
                 batch.Begin();
                 foreach (Row row in result)
                 {
-                    string nn = row["NN_Name"].ToString();
                     string ni = row["NI_ID"].ToString();
 
                     batch.Execute("delete from NeighborInterface where NI_ID = {0}", ni);

@@ -40,25 +40,7 @@ namespace Jovice
             get { return updateTopologyPEInterfaceID; }
             set { updateTopologyPEInterfaceID = value; }
         }
-
-        private string neighborTopologyMEInterfaceID = null;
-
-        public string NeighborTopologyMEInterfaceID
-        {
-            get { return neighborTopologyMEInterfaceID; }
-            set { neighborTopologyMEInterfaceID = value; }
-        }
-
-        private bool updateNeighborTopologyMEInterfaceID = false;
-
-        public bool UpdateNeighborTopologyMEInterfaceID
-        {
-            get { return updateNeighborTopologyMEInterfaceID; }
-            set { updateNeighborTopologyMEInterfaceID = value; }
-        }
-
-        #endregion
-
+        
         private MEInterfaceToDatabase[] aggrChilds = null;
 
         public MEInterfaceToDatabase[] AggrChilds
@@ -67,13 +49,39 @@ namespace Jovice
             set { aggrChilds = value; }
         }
 
-        private string aggrAdjacentParentID = null;
+        private string neighborCheckPITOMI = null;
 
-        public string AggrAdjacentParentID
+        public string NeighborCheckPITOMI
         {
-            get { return aggrAdjacentParentID; }
-            set { aggrAdjacentParentID = value; }
+            get { return neighborCheckPITOMI; }
+            set { neighborCheckPITOMI = value; }
         }
+
+        private bool updateNeighborCheckPITOMI = false;
+
+        public bool UpdateNeighborCheckPITOMI
+        {
+            get { return updateNeighborCheckPITOMI; }
+            set { updateNeighborCheckPITOMI = value; }
+        }
+
+        private string neighborCheckMITOMI = null;
+
+        public string NeighborCheckMITOMI
+        {
+            get { return neighborCheckMITOMI; }
+            set { neighborCheckMITOMI = value; }
+        }
+
+        private bool updateNeighborCheckMITOMI = false;
+
+        public bool UpdateNeighborCheckMITOMI
+        {
+            get { return updateNeighborCheckMITOMI; }
+            set { updateNeighborCheckMITOMI = value; }
+        }
+
+        #endregion
 
         private string circuitID;
 
@@ -970,6 +978,9 @@ namespace Jovice
 
             #endregion
 
+            
+             
+            
             #region Execute
 
             // ADD
@@ -2847,9 +2858,9 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
             }
 
-            List<Tuple<string, string, string, string>> vMEPhysicalInterfaces = null;
+            List<Tuple<string, string, string, string, string, string, string>> vMEPhysicalInterfaces = null;
             bool vExists = false;
-            foreach (Tuple<string, List<Tuple<string, string, string, string>>> v in NecrowVirtualization.MEPhysicalInterfaces)
+            foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> v in NecrowVirtualization.MEPhysicalInterfaces)
             {
                 if (v.Item1 == nodeName)
                 {
@@ -2860,8 +2871,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             }
             if (!vExists)
             {
-                vMEPhysicalInterfaces = new List<Tuple<string, string, string, string>>();
-                NecrowVirtualization.MEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string>>>(nodeName, vMEPhysicalInterfaces));
+                vMEPhysicalInterfaces = new List<Tuple<string, string, string, string, string, string, string>>();
+                NecrowVirtualization.MEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(nodeName, vMEPhysicalInterfaces));
                 NecrowVirtualization.MEPhysicalInterfacesSort(true);
             }
 
@@ -2935,49 +2946,76 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 }
                                 li.AggrChilds = agPhysicals.ToArray();
 
-                                // anaknya duluan ya
-                                foreach (MEInterfaceToDatabase mi in li.AggrChilds) FindPhysicalNeighbor(mi);
-                            }
-                        }
-                        else
-                            FindPhysicalNeighbor(li);
-
-                        if (inftype == "Ag" && li.TopologyPEInterfaceID == null) // jika ini ag, dan ga punya adjacent id, maka...
-                        {
-                            string adjacentParentID = null; // cek apakah setiap anak punya adjacentParentID jika tidak = null
-                            foreach (MEInterfaceToDatabase mi in li.AggrChilds)
-                            {
-                                if (mi.AggrAdjacentParentID == null)
+                                // cari neighbor per anak
+                                // jika setiap anak memiliki neighbor YANG PARENT IDNYA TIDAK NULL DAN SAMA, maka set ke adjacentParentID
+                                string childNeighborParentID = null;
+                                int neighborType = 0; // 1: PE, 2: ME
+                                foreach (MEInterfaceToDatabase mi in li.AggrChilds)
                                 {
-                                    adjacentParentID = null;
-                                    break;
-                                }
-                                else if (adjacentParentID == null) adjacentParentID = mi.AggrAdjacentParentID;
-                                else if (adjacentParentID != mi.AggrAdjacentParentID)
-                                {
-                                    adjacentParentID = null;
-                                    break;
-                                }
-                            }
+                                    FindPhysicalNeighbor(mi); // find topology anaknya dulu
 
-                            // adjacentParentID adalah parentID (aggr) dari lawannya interface aggr ini di PE.
-                            if (adjacentParentID != null)
-                            {
-                                li.TopologyPEInterfaceID = adjacentParentID;
-
-                                // query lawan
-                                li.NeighborChildren = new Dictionary<int, Tuple<string, string>>();
-                                result = Query("select PI_ID, PI_DOT1Q, PI_TO_MI from PEInterface where PI_PI = {0}", li.TopologyPEInterfaceID);
-                                foreach (Row row in result)
-                                {
-                                    if (!row["PI_DOT1Q"].IsNull)
+                                    if (mi.AggrNeighborParentID == null)
                                     {
-                                        int dot1q = row["PI_DOT1Q"].ToIntShort();
-                                        if (!li.NeighborChildren.ContainsKey(dot1q)) li.NeighborChildren.Add(dot1q, new Tuple<string, string>(row["PI_ID"].ToString(), row["PI_TO_MI"].ToString()));
+                                        childNeighborParentID = null;
+                                        break;
+                                    }
+                                    else if (childNeighborParentID == null)
+                                    {
+                                        childNeighborParentID = mi.AggrNeighborParentID;
+
+                                        if (mi.TopologyPEInterfaceID != null) neighborType = 1;
+                                        else if (mi.TopologyMEInterfaceID != null) neighborType = 2;
+                                    }
+                                    else if (childNeighborParentID != mi.AggrNeighborParentID)
+                                    {
+                                        childNeighborParentID = null;
+                                        break;
+                                    }
+                                }
+
+                                // adjacentParentID adalah parentID (aggr) dari lawannya interface aggr ini di PE.
+                                if (childNeighborParentID != null)
+                                {
+                                    // if topology to PE
+                                    if (neighborType == 1)
+                                    {
+                                        li.TopologyPEInterfaceID = childNeighborParentID;
+
+                                        // query lawan
+                                        li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
+                                        result = Query("select PI_ID, PI_DOT1Q, PI_TO_MI from PEInterface where PI_PI = {0}", li.TopologyPEInterfaceID);
+                                        foreach (Row row in result)
+                                        {
+                                            if (!row["PI_DOT1Q"].IsNull)
+                                            {
+                                                int dot1q = row["PI_DOT1Q"].ToIntShort();
+                                                if (!li.ChildrenNeighbor.ContainsKey(dot1q)) li.ChildrenNeighbor.Add(dot1q,
+                                                    new Tuple<string, string, string>(row["PI_ID"].ToString(), row["PI_TO_MI"].ToString(), null));
+                                            }
+                                        }
+                                    }
+                                    else if (neighborType == 2) // to ME
+                                    {
+                                        li.TopologyMEInterfaceID = childNeighborParentID;
+
+                                        // query lawan
+                                        li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
+                                        result = Query("select MI_ID, MI_DOT1Q, MI_TO_MI, MI_TO_PI from MEInterface where MI_MI = {0}", li.TopologyMEInterfaceID);
+                                        foreach (Row row in result)
+                                        {
+                                            if (!row["MI_DOT1Q"].IsNull)
+                                            {
+                                                int dot1q = row["MI_DOT1Q"].ToIntShort();
+                                                if (!li.ChildrenNeighbor.ContainsKey(dot1q)) li.ChildrenNeighbor.Add(dot1q,
+                                                    new Tuple<string, string, string>(row["MI_ID"].ToString(), row["MI_TO_MI"].ToString(), row["MI_TO_PI"].ToString()));
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
+                        else
+                            FindPhysicalNeighbor(li);
                     }
                     else if (li.ParentID != null)
                     {
@@ -2987,15 +3025,26 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             if (interfacelive.ContainsKey(parentPort))
                             {
                                 MEInterfaceToDatabase parent = interfacelive[parentPort];
-                                if (parent.NeighborChildren != null)
+                                if (parent.ChildrenNeighbor != null)
                                 {
-                                    if (parent.NeighborChildren.ContainsKey(dot1q))
-                                        li.TopologyPEInterfaceID = parent.NeighborChildren[dot1q].Item1;
+                                    if (parent.ChildrenNeighbor.ContainsKey(dot1q))
+                                    {
+                                        Tuple<string, string, string> parentChildrenNeighbor = parent.ChildrenNeighbor[dot1q];
+                                        if (parentChildrenNeighbor.Item3 == null) // berarti lawannya PE
+                                        {
+                                            li.TopologyPEInterfaceID = parentChildrenNeighbor.Item1;
+                                            li.NeighborCheckPITOMI = parentChildrenNeighbor.Item2;
+                                        }
+                                        else // lawannya ME
+                                        {
+                                            li.TopologyMEInterfaceID = parentChildrenNeighbor.Item1;
+                                            li.NeighborCheckMITOMI = parentChildrenNeighbor.Item2;
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
-
                 }
 
 
@@ -3033,12 +3082,12 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.TopologyPEInterfaceID = li.TopologyPEInterfaceID;
                         updateinfo.Append("mi-to-pi ");
                     }
-                    else if (li.TopologyPEInterfaceID != null && li.NeighborTopologyMEInterfaceID != u.ID)
+                    else if (li.TopologyPEInterfaceID != null && li.NeighborCheckPITOMI != u.ID)
                     {
                         update = true;
-                        u.UpdateNeighborTopologyMEInterfaceID = true;
+                        u.UpdateNeighborCheckPITOMI = true;
                         u.TopologyPEInterfaceID = li.TopologyPEInterfaceID;
-                        updateinfo.Append("pi-to-mi ");
+                        updateinfo.Append("neighbor-pi-to-mi ");
                     }
                     if (db["MI_TO_MI"].ToString() != li.TopologyMEInterfaceID)
                     {
@@ -3046,6 +3095,13 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.UpdateTopologyMEInterfaceID = true;
                         u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
                         updateinfo.Append("mi-to-mi ");
+                    }
+                    else if (li.TopologyMEInterfaceID != null && li.NeighborCheckMITOMI != u.ID)
+                    {
+                        update = true;
+                        u.UpdateNeighborCheckMITOMI = true;
+                        u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
+                        updateinfo.Append("neighbor-mi-to-mi ");
                     }
                     if (db["MI_TO_NI"].ToString() != li.TopologyNeighborInterfaceID)
                     {
@@ -3277,6 +3333,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 batch.Execute(insert);
 
                 interfaceTopologyPIUpdate.Add(new Tuple<string, string>(s.TopologyPEInterfaceID, s.ID));
+                interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
             }
             result = batch.Commit();
             Event(result, EventActions.Add, EventElements.Interface, false);
@@ -3293,13 +3350,17 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     update.Set("MI_TO_PI", s.TopologyPEInterfaceID);
                     interfaceTopologyPIUpdate.Add(new Tuple<string, string>(s.TopologyPEInterfaceID, s.ID));
                 }
-                else if (s.UpdateNeighborTopologyMEInterfaceID)
+                else if (s.UpdateNeighborCheckPITOMI)
                 {
                     interfaceTopologyPIUpdate.Add(new Tuple<string, string>(s.TopologyPEInterfaceID, s.ID));
                 }
                 if (s.UpdateTopologyMEInterfaceID)
                 {
                     update.Set("MI_TO_MI", s.TopologyMEInterfaceID);
+                    interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
+                }
+                else if (s.UpdateNeighborCheckMITOMI)
+                {
                     interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
                 }
                 update.Set("MI_TO_NI", s.TopologyNeighborInterfaceID, s.UpdateTopologyNeighborInterfaceID);
@@ -3370,7 +3431,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
             {
                 MEInterfaceToDatabase li = pair.Value;
-                vMEPhysicalInterfaces.Add(new Tuple<string, string, string, string>(li.Name, li.Description, li.ID, li.InterfaceType));
+                vMEPhysicalInterfaces.Add(new Tuple<string, string, string, string, string, string, string>(li.Name, li.Description, li.ID, li.InterfaceType, li.ParentID, li.TopologyMEInterfaceID, li.TopologyPEInterfaceID));
             }
             NecrowVirtualization.MEPhysicalInterfacesSort(vMEPhysicalInterfaces);
 

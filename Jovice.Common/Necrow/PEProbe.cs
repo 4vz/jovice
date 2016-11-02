@@ -108,6 +108,30 @@ namespace Jovice
 
     class PEInterfaceToDatabase : InterfaceToDatabase
     {
+        private PEInterfaceToDatabase[] aggrChilds = null;
+
+        public PEInterfaceToDatabase[] AggrChilds
+        {
+            get { return aggrChilds; }
+            set { aggrChilds = value; }
+        }
+
+        private string neighborCheckMITOPI = null;
+
+        public string NeighborCheckMITOPI
+        {
+            get { return neighborCheckMITOPI; }
+            set { neighborCheckMITOPI = value; }
+        }
+
+        private bool updateNeighborCheckMITOPI = false;
+
+        public bool UpdateNeighborCheckMITOPI
+        {
+            get { return updateNeighborCheckMITOPI; }
+            set { updateNeighborCheckMITOPI = value; }
+        }
+
         private string routeID;
 
         public string RouteID
@@ -2436,9 +2460,9 @@ Last input 00:00:00, output 00:00:00
                 }
             }
 
-            List<Tuple<string, string, string, string, string>> vPEPhysicalInterfaces = null;
+            List<Tuple<string, string, string, string, string, string>> vPEPhysicalInterfaces = null;
             bool vExists = false;
-            foreach (Tuple<string, List<Tuple<string, string, string, string, string>>> v in NecrowVirtualization.PEPhysicalInterfaces)
+            foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> v in NecrowVirtualization.PEPhysicalInterfaces)
             {
                 if (v.Item1 == nodeName)
                 {
@@ -2448,8 +2472,8 @@ Last input 00:00:00, output 00:00:00
             }
             if (!vExists)
             {
-                vPEPhysicalInterfaces = new List<Tuple<string, string, string, string, string>>();
-                NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string>>>(nodeName, vPEPhysicalInterfaces));
+                vPEPhysicalInterfaces = new List<Tuple<string, string, string, string, string, string>>();
+                NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(nodeName, vPEPhysicalInterfaces));
                 NecrowVirtualization.PEPhysicalInterfacesSort(true);
             }
 
@@ -2506,46 +2530,85 @@ Last input 00:00:00, output 00:00:00
                             li.ParentID = interfaceinsert[parentPort].ID;
                     }
 
-                    if (li.ParentID == null) // aka jika physical interface, dan bukan anak aggregator
+
+                    if (!inf.IsSubInterface)
                     {
-                        if (interfacedb.ContainsKey(pair.Key)) // cek di existing db
+                        if (inftype == "Ag")
                         {
-                            string topologyMEInterfaceID = interfacedb[pair.Key]["PI_TO_MI"].ToString();
-
-                            if (topologyMEInterfaceID == null)
+                            // we need support with child
+                            int myaggr;
+                            if (int.TryParse(inf.Port, out myaggr))
                             {
-                                FindPhysicalNeighbor(li);
-                                topologyMEInterfaceID = li.TopologyMEInterfaceID;
-                            }
-
-                            if (topologyMEInterfaceID != null)
-                            {
-                                li.TopologyMEInterfaceID = topologyMEInterfaceID;
-                                li.NeighborChildren = new Dictionary<int, Tuple<string, string>>();
-                                result = Query("select MI_ID, MI_DOT1Q, MI_TO_PI from MEInterface where MI_MI = {0}", topologyMEInterfaceID);
-                                foreach (Row row in result)
+                                // cari child di interfacelive yg aggr-nya myaggr
+                                List<PEInterfaceToDatabase> agPhysicals = new List<PEInterfaceToDatabase>();
+                                foreach (KeyValuePair<string, PEInterfaceToDatabase> spair in interfacelive)
                                 {
-                                    if (!row["MI_DOT1Q"].IsNull)
+                                    if (spair.Value.Aggr == myaggr)
+                                        agPhysicals.Add(spair.Value);
+                                }
+                                li.AggrChilds = agPhysicals.ToArray();
+
+                                // cari neighbor per anak
+                                // jika setiap anak memiliki neighbor YANG PARENT IDNYA TIDAK NULL DAN SAMA, maka set ke adjacentParentID
+                                string childNeighborParentID = null;
+                                foreach (PEInterfaceToDatabase pi in li.AggrChilds)
+                                {
+                                    FindPhysicalNeighbor(pi); // find topology anaknya dulu
+
+                                    if (pi.AggrNeighborParentID == null)
                                     {
-                                        string smiid = row["MI_ID"].ToString();
-                                        string spiid = row["MI_TO_PI"].ToString();
-                                        int dot1q = row["MI_DOT1Q"].ToIntShort();
-                                        if (!li.NeighborChildren.ContainsKey(dot1q)) li.NeighborChildren.Add(dot1q, new Tuple<string, string>(smiid, spiid));
+                                        childNeighborParentID = null;
+                                        break;
+                                    }
+                                    else if (childNeighborParentID == null) childNeighborParentID = pi.AggrNeighborParentID;
+                                    else if (childNeighborParentID != pi.AggrNeighborParentID)
+                                    {
+                                        childNeighborParentID = null;
+                                        break;
+                                    }
+                                }
+
+                                // adjacentParentID adalah parentID (aggr) dari lawannya interface aggr ini di ME.
+                                if (childNeighborParentID != null)
+                                {
+                                    li.TopologyMEInterfaceID = childNeighborParentID;
+
+                                    // query lawan
+                                    li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
+                                    result = Query("select MI_ID, MI_DOT1Q, MI_TO_MI, MI_TO_PI from MEInterface where MI_MI = {0}", li.TopologyMEInterfaceID);
+                                    foreach (Row row in result)
+                                    {
+                                        if (!row["MI_DOT1Q"].IsNull)
+                                        {
+                                            int dot1q = row["MI_DOT1Q"].ToIntShort();
+                                            if (!li.ChildrenNeighbor.ContainsKey(dot1q)) li.ChildrenNeighbor.Add(dot1q, 
+                                                new Tuple<string, string, string>(row["MI_ID"].ToString(), row["MI_TO_MI"].ToString(), row["MI_TO_PI"].ToString()));
+                                        }
                                     }
                                 }
                             }
                         }
+                        else
+                            FindPhysicalNeighbor(li);
                     }
-                    else if (inf.IsSubInterface) // subinterface
+                    else if (li.ParentID != null) 
                     {
                         int dot1q = li.Dot1Q;
                         if (dot1q > -1)
                         {
-                            PEInterfaceToDatabase parent = interfacelive[parentPort];
-                            if (parent.NeighborChildren != null)
+                            if (interfacelive.ContainsKey(parentPort))
                             {
-                                if (parent.NeighborChildren.ContainsKey(dot1q))
-                                    li.TopologyMEInterfaceID = parent.NeighborChildren[dot1q].Item1;
+                                PEInterfaceToDatabase parent = interfacelive[parentPort];
+                                if (parent.ChildrenNeighbor != null)
+                                {
+                                    if (parent.ChildrenNeighbor.ContainsKey(dot1q))
+                                    {
+                                        Tuple<string, string, string> parentChildrenNeighbor = parent.ChildrenNeighbor[dot1q];
+
+                                        li.TopologyMEInterfaceID = parentChildrenNeighbor.Item1;
+                                        li.NeighborCheckMITOPI = parentChildrenNeighbor.Item3;
+                                    }
+                                }
                             }
                         }
                     }
@@ -2595,6 +2658,13 @@ Last input 00:00:00, output 00:00:00
                         u.UpdateTopologyMEInterfaceID = true;
                         u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
                         updateinfo.Append("pi-to-mi ");
+                    }
+                    else if (li.TopologyMEInterfaceID != null && li.NeighborCheckMITOPI != u.ID)
+                    {
+                        update = true;
+                        u.UpdateNeighborCheckMITOPI = true;
+                        u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
+                        updateinfo.Append("neighbor-mi-to-pi ");
                     }
                     if (db["PI_TO_NI"].ToString() != li.TopologyNeighborInterfaceID)
                     {
@@ -2907,6 +2977,10 @@ Last input 00:00:00, output 00:00:00
                     update.Set("PI_TO_MI", s.TopologyMEInterfaceID);
                     interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
                 }
+                else if (s.UpdateNeighborCheckMITOPI)
+                {
+                    interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
+                }
                 update.Set("PI_TO_NI", s.TopologyNeighborInterfaceID, s.UpdateTopologyNeighborInterfaceID);
                 if (s.UpdateDescription)
                 {
@@ -3007,7 +3081,7 @@ Last input 00:00:00, output 00:00:00
             foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
             {
                 PEInterfaceToDatabase li = pair.Value;
-                vPEPhysicalInterfaces.Add(new Tuple<string, string, string, string, string>(li.Name, li.Description, li.ID, li.InterfaceType, li.ParentID));
+                vPEPhysicalInterfaces.Add(new Tuple<string, string, string, string, string, string>(li.Name, li.Description, li.ID, li.InterfaceType, li.ParentID, li.TopologyMEInterfaceID));
             }
             NecrowVirtualization.PEPhysicalInterfacesSort(vPEPhysicalInterfaces);
 

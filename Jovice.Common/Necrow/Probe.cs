@@ -244,14 +244,6 @@ namespace Jovice
             set { updateParentID = value; }
         }
 
-        private Dictionary<int, Tuple<string, string>> neighborChildren = null;
-
-        public Dictionary<int, Tuple<string, string>> NeighborChildren
-        {
-            get { return neighborChildren; }
-            set { neighborChildren = value; }
-        }
-
         private string topologyMEInterfaceID = null;
 
         public string TopologyMEInterfaceID
@@ -290,6 +282,22 @@ namespace Jovice
         {
             get { return physicalNeighborChecked; }
             set { physicalNeighborChecked = value; }
+        }
+
+        private string aggrNeighborParentID = null;
+
+        public string AggrNeighborParentID
+        {
+            get { return aggrNeighborParentID; }
+            set { aggrNeighborParentID = value; }
+        }
+
+        private Dictionary<int, Tuple<string, string, string>> childrenNeighbor = null;
+
+        public Dictionary<int, Tuple<string, string, string>> ChildrenNeighbor
+        {
+            get { return childrenNeighbor; }
+            set { childrenNeighbor = value; }
         }
 
         #endregion
@@ -1920,9 +1928,9 @@ namespace Jovice
                             // Update interface virtualizations
                             if (nodeType == "P")
                             {
-                                Tuple<string, List<Tuple<string, string, string, string, string>>> changeThis = null;
-                                List<Tuple<string, string, string, string, string>> interfaces = null;
-                                foreach (Tuple<string, List<Tuple<string, string, string, string, string>>> entry in NecrowVirtualization.PEPhysicalInterfaces)
+                                Tuple<string, List<Tuple<string, string, string, string, string, string>>> changeThis = null;
+                                List<Tuple<string, string, string, string, string, string>> interfaces = null;
+                                foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> entry in NecrowVirtualization.PEPhysicalInterfaces)
                                 {
                                     if (entry.Item1 == nodeName)
                                     {
@@ -1935,16 +1943,16 @@ namespace Jovice
                                     NecrowVirtualization.PEPhysicalInterfaces.Remove(changeThis);
                                     interfaces = changeThis.Item2;
                                 }
-                                else interfaces = new List<Tuple<string, string, string, string, string>>();
+                                else interfaces = new List<Tuple<string, string, string, string, string, string>>();
 
-                                NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string>>>(hostName, interfaces));
+                                NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(hostName, interfaces));
                                 NecrowVirtualization.PEPhysicalInterfacesSort();
                             }
                             else if (nodeType == "M")
                             {
-                                Tuple<string, List<Tuple<string, string, string, string>>> changeThis = null;
-                                List<Tuple<string, string, string, string>> interfaces = null;
-                                foreach (Tuple<string, List<Tuple<string, string, string, string>>> entry in NecrowVirtualization.MEPhysicalInterfaces)
+                                Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> changeThis = null;
+                                List<Tuple<string, string, string, string, string, string, string>> interfaces = null;
+                                foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> entry in NecrowVirtualization.MEPhysicalInterfaces)
                                 {
                                     if (entry.Item1 == nodeName)
                                     {
@@ -1957,9 +1965,9 @@ namespace Jovice
                                     NecrowVirtualization.MEPhysicalInterfaces.Remove(changeThis);
                                     interfaces = changeThis.Item2;
                                 }
-                                else interfaces = new List<Tuple<string, string, string, string>>();
+                                else interfaces = new List<Tuple<string, string, string, string, string, string, string>>();
 
-                                NecrowVirtualization.MEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string>>>(hostName, interfaces));
+                                NecrowVirtualization.MEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(hostName, interfaces));
                                 NecrowVirtualization.MEPhysicalInterfacesSort();
                             }
                             
@@ -3702,9 +3710,9 @@ namespace Jovice
 
                 string neighborPEName = null;
                 string neighborPEPart = null;
-                List<Tuple<string, string, string, string, string>> currentNeighborPEInterfaces = null;
+                List<Tuple<string, string, string, string, string, string>> currentNeighborPEInterfaces = null;
 
-                foreach (Tuple<string, List<Tuple<string, string, string, string, string>>> pe in NecrowVirtualization.PEPhysicalInterfaces)
+                foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> pe in NecrowVirtualization.PEPhysicalInterfaces)
                 {
                     neighborPEName = pe.Item1;
                     currentNeighborPEInterfaces = pe.Item2;
@@ -3713,7 +3721,7 @@ namespace Jovice
                 }
                 if (neighborPEPart == null)
                 {
-                    foreach (Tuple<string, List<Tuple<string, string, string, string, string>>> pe in NecrowVirtualization.PEPhysicalInterfaces)
+                    foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> pe in NecrowVirtualization.PEPhysicalInterfaces)
                     {
                         neighborPEName = pe.Item1;
                         currentNeighborPEInterfaces = pe.Item2;
@@ -3723,13 +3731,13 @@ namespace Jovice
                 }
                 if (neighborPEPart != null)
                 {
-                    Tuple<string, string, string, string, string> matchedInterface = null;
+                    Tuple<string, string, string, string, string, string> matchedInterface = null;
 
                     #region Find Interface
 
                     int leftMostFinding = neighborPEPart.Length;
 
-                    foreach (Tuple<string, string, string, string, string> currentNeighborInterface in currentNeighborPEInterfaces)
+                    foreach (Tuple<string, string, string, string, string, string> currentNeighborInterface in currentNeighborPEInterfaces)
                     {
                         string neighborInterfaceName = currentNeighborInterface.Item1;
                         string neighborInterfaceType = currentNeighborInterface.Item4;
@@ -3766,22 +3774,23 @@ namespace Jovice
                                     if (matchedNeighborPart.IndexOf(test) > -1)
                                     {
                                         mi.TopologyPEInterfaceID = matchedInterface.Item3;
-                                        mi.NeighborTopologyMEInterfaceID = matchedInterface.Item5;
+                                        mi.NeighborCheckPITOMI = matchedInterface.Item6;
 
                                         // anak agregator ga mgkn punya anak sendiri
                                         // daftar parentnya juga untuk ditangkap di aggr pencari anak
-                                        if (li.Aggr != -1) mi.AggrAdjacentParentID = matchedInterface.Item3;
+                                        if (li.Aggr != -1) li.AggrNeighborParentID = matchedInterface.Item5;
                                         else
                                         {
                                             // find pi child
-                                            li.NeighborChildren = new Dictionary<int, Tuple<string, string>>();
+                                            li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
                                             result = Query("select PI_ID, PI_DOT1Q, PI_TO_MI from PEInterface where PI_PI = {0}", mi.TopologyPEInterfaceID);
                                             foreach (Row row in result)
                                             {
                                                 if (!row["PI_DOT1Q"].IsNull)
                                                 {
                                                     int dot1q = row["PI_DOT1Q"].ToIntShort();
-                                                    if (!li.NeighborChildren.ContainsKey(dot1q)) li.NeighborChildren.Add(dot1q, new Tuple<string, string>(row["PI_ID"].ToString(), row["PI_TO_MI"].ToString()));
+                                                    if (!li.ChildrenNeighbor.ContainsKey(dot1q)) li.ChildrenNeighbor.Add(dot1q, 
+                                                        new Tuple<string, string, string>(row["PI_ID"].ToString(), row["PI_TO_MI"].ToString(), null));
                                                 }
                                             }
                                         }
@@ -3807,9 +3816,9 @@ namespace Jovice
 
             string neighborMEName = null;
             string neighborMEPart = null;
-            List<Tuple<string, string, string, string>> currentNeighborMEInterfaces = null;
+            List<Tuple<string, string, string, string, string, string, string>> currentNeighborMEInterfaces = null;
 
-            foreach (Tuple<string, List<Tuple<string, string, string, string>>> me in NecrowVirtualization.MEPhysicalInterfaces)
+            foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> me in NecrowVirtualization.MEPhysicalInterfaces)
             {
                 neighborMEName = me.Item1;
                 currentNeighborMEInterfaces = me.Item2;
@@ -3818,7 +3827,7 @@ namespace Jovice
             }
             if (neighborMEPart == null)
             {
-                foreach (Tuple<string, List<Tuple<string, string, string, string>>> me in NecrowVirtualization.MEPhysicalInterfaces)
+                foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> me in NecrowVirtualization.MEPhysicalInterfaces)
                 {
                     neighborMEName = me.Item1;
                     currentNeighborMEInterfaces = me.Item2;
@@ -3828,13 +3837,13 @@ namespace Jovice
             }
             if (neighborMEPart != null)
             {
-                Tuple<string, string, string, string> matchedInterface = null;
+                Tuple<string, string, string, string, string, string, string> matchedInterface = null;
 
                 #region Find Interface
 
                 int leftMostFinding = neighborMEPart.Length;
 
-                foreach (Tuple<string, string, string, string> currentNeighborInterface in currentNeighborMEInterfaces)
+                foreach (Tuple<string, string, string, string, string, string, string> currentNeighborInterface in currentNeighborMEInterfaces)
                 {
                     string neighborInterfaceName = currentNeighborInterface.Item1;
                     string neighborInterfaceType = currentNeighborInterface.Item4;
@@ -3870,7 +3879,30 @@ namespace Jovice
                             {
                                 if (matchedNeighborPart.IndexOf(test) > -1)
                                 {
+                                    PEInterfaceToDatabase pi = (PEInterfaceToDatabase)li;
+
                                     li.TopologyMEInterfaceID = matchedInterface.Item3;
+                                    pi.NeighborCheckMITOPI = matchedInterface.Item7;
+
+                                    // anak agregator ga mgkn punya anak sendiri
+                                    // daftar parentnya juga untuk ditangkap di aggr pencari anak
+                                    if (li.Aggr != -1) li.AggrNeighborParentID = matchedInterface.Item5;
+                                    else
+                                    {
+                                        // find mi child
+                                        pi.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
+                                        result = Query("select MI_ID, MI_DOT1Q, MI_TO_MI, MI_TO_PI from MEInterface where MI_MI = {0}", li.TopologyMEInterfaceID);
+                                        foreach (Row row in result)
+                                        {
+                                            if (!row["MI_DOT1Q"].IsNull)
+                                            {
+                                                int dot1q = row["MI_DOT1Q"].ToIntShort();
+                                                if (!pi.ChildrenNeighbor.ContainsKey(dot1q)) pi.ChildrenNeighbor.Add(dot1q, 
+                                                    new Tuple<string, string, string>(row["MI_ID"].ToString(), row["MI_TO_MI"].ToString(), row["MI_TO_PI"].ToString()));
+                                            }
+                                        }
+                                    }
+
                                     break;
                                 }
                             }

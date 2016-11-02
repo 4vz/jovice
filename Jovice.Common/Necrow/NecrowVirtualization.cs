@@ -17,16 +17,22 @@ namespace Jovice
             get { return ready; }
         }
 
-        private static List<Tuple<string, List<Tuple<string, string, string, string, string>>>> pePhysicalInterfaces = null;
+        private static List<Tuple<string, List<Tuple<string, string, string, string, string, string>>>> pePhysicalInterfaces = null;
 
-        internal static List<Tuple<string, List<Tuple<string, string, string, string, string>>>> PEPhysicalInterfaces
+        /// <summary>
+        /// 1 PI_Name 2 PI_Description 3 PI_ID 4 PI_Type 5 PI_PI 6 PI_TO_MI
+        /// </summary>
+        internal static List<Tuple<string, List<Tuple<string, string, string, string, string, string>>>> PEPhysicalInterfaces
         {
             get { return pePhysicalInterfaces; }
         }
 
-        private static List<Tuple<string, List<Tuple<string, string, string, string>>>> mePhysicalInterfaces = null;
+        private static List<Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>> mePhysicalInterfaces = null;
 
-        internal static List<Tuple<string, List<Tuple<string, string, string, string>>>> MEPhysicalInterfaces
+        /// <summary>
+        /// 1 MI_Name 2 MI_Description 3 MI_ID 4 MI_Type 5 MI_MI 6 MI_TO_MI 7 MI_TO_PI
+        /// </summary>
+        internal static List<Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>> MEPhysicalInterfaces
         {
             get { return mePhysicalInterfaces; }
         }
@@ -75,12 +81,12 @@ namespace Jovice
             #region PE Interfaces
 
             result = jovice.Query(@"
-select NO_Name, LEN(NO_Name) as NO_LEN, PI_Name, LEN(PI_Name) as PI_LEN, PI_Type, PI_ID, PI_Description, PI_PI from
+select NO_Name, LEN(NO_Name) as NO_LEN, PI_Name, LEN(PI_Name) as PI_LEN, PI_Type, PI_ID, PI_Description, PI_PI, PI_TO_MI from
 (select NO_Name, NO_ID from Node where NO_Type = 'P' and NO_Active = 1) n left join PEInterface on PI_NO = NO_ID and PI_Type in ('Hu', 'Te', 'Gi', 'Fa', 'Et')
 order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
 ");
-            pePhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string, string, string, string>>>>();
-            List<Tuple<string, string, string, string, string>> currentPEInterfaces = new List<Tuple<string, string, string, string, string>>();
+            pePhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string, string, string, string, string>>>>();
+            List<Tuple<string, string, string, string, string, string>> currentPEInterfaces = new List<Tuple<string, string, string, string, string, string>>();
 
             currentNode = null;
             count = 0;
@@ -93,8 +99,8 @@ order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
                 {
                     if (currentNode != null)
                     {
-                        pePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string>>>(currentNode,
-                            new List<Tuple<string, string, string, string, string>>(currentPEInterfaces)));
+                        pePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(currentNode,
+                            new List<Tuple<string, string, string, string, string, string>>(currentPEInterfaces)));
                         currentPEInterfaces.Clear();
                     }
                     currentNode = node;
@@ -104,12 +110,12 @@ order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
 
                 if (piName != null)
                 {
-                    currentPEInterfaces.Add(new Tuple<string, string, string, string, string>(
-                        piName, row["PI_Description"].ToString(), row["PI_ID"].ToString(), row["PI_Type"].ToString(), row["PI_PI"].ToString()));
+                    currentPEInterfaces.Add(new Tuple<string, string, string, string, string, string>(
+                        piName, row["PI_Description"].ToString(), row["PI_ID"].ToString(), row["PI_Type"].ToString(), row["PI_PI"].ToString(), row["PI_TO_MI"].ToString()));
                     count++;
                 }
             }
-            pePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string>>>(currentNode, currentPEInterfaces));
+            pePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(currentNode, currentPEInterfaces));
 
             Necrow.Event("Loaded " + count + " PE physical interfaces");
 
@@ -118,13 +124,13 @@ order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
             #region ME Interfaces
 
             result = jovice.Query(@"
-select NO_Name, LEN(NO_Name) as NO_LEN, MI_Name, LEN(MI_Name) as MI_LEN, MI_Type, MI_ID, MI_Description from 
+select NO_Name, LEN(NO_Name) as NO_LEN, MI_Name, LEN(MI_Name) as MI_LEN, MI_Type, MI_ID, MI_Description, MI_MI, MI_TO_MI, MI_TO_PI from 
 (select NO_Name, NO_ID from Node where NO_Type = 'M' and NO_Active = 1) n left join MEInterface on MI_NO = NO_ID and MI_Type in ('Hu', 'Te', 'Gi', 'Fa', 'Et')
 order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
 ");
 
-            mePhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string, string, string>>>>();
-            List<Tuple<string, string, string, string>> currentMEInterfaces = new List<Tuple<string, string, string, string>>();
+            mePhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>>();
+            List<Tuple<string, string, string, string, string, string, string>> currentMEInterfaces = new List<Tuple<string, string, string, string, string, string, string>>();
 
             currentNode = null;
             count = 0;
@@ -137,8 +143,8 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
                 {
                     if (currentNode != null)
                     {
-                        mePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string>>>(currentNode,
-                            new List<Tuple<string, string, string, string>>(currentMEInterfaces)));
+                        mePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(currentNode,
+                            new List<Tuple<string, string, string, string, string, string, string>>(currentMEInterfaces)));
                         currentMEInterfaces.Clear();
                     }
                     currentNode = node;
@@ -148,12 +154,12 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
 
                 if (miName != null)
                 {
-                    currentMEInterfaces.Add(new Tuple<string, string, string, string>(
-                        miName, row["MI_Description"].ToString(), row["MI_ID"].ToString(), row["MI_Type"].ToString()));
+                    currentMEInterfaces.Add(new Tuple<string, string, string, string, string, string, string>(
+                        miName, row["MI_Description"].ToString(), row["MI_ID"].ToString(), row["MI_Type"].ToString(), row["MI_MI"].ToString(), row["MI_TO_MI"].ToString(), row["MI_TO_PI"].ToString()));
                     count++;
                 }
             }
-            mePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string>>>(currentNode, currentMEInterfaces));
+            mePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(currentNode, currentMEInterfaces));
 
             Necrow.Event("Loaded " + count + " ME physical interfaces");
 
@@ -187,8 +193,8 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
         internal static void PEPhysicalInterfacesSort(bool onlyNodes)
         {
             pePhysicalInterfaces.Sort(delegate (
-                Tuple<string, List<Tuple<string, string, string, string, string>>> a, 
-                Tuple<string, List<Tuple<string, string, string, string, string>>> b)
+                Tuple<string, List<Tuple<string, string, string, string, string, string>>> a, 
+                Tuple<string, List<Tuple<string, string, string, string, string, string>>> b)
             {
                 string nodeA = a.Item1;
                 string nodeB = b.Item1;
@@ -201,19 +207,19 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
 
             if (!onlyNodes)
             {
-                foreach (Tuple<string, List<Tuple<string, string, string, string, string>>> c in pePhysicalInterfaces)
+                foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> c in pePhysicalInterfaces)
                 {
-                    List<Tuple<string, string, string, string, string>> list = c.Item2;
+                    List<Tuple<string, string, string, string, string, string>> list = c.Item2;
                     PEPhysicalInterfacesSort(list);
                 }
             }
         }
 
-        internal static void PEPhysicalInterfacesSort(List<Tuple<string, string, string, string, string>> list)
+        internal static void PEPhysicalInterfacesSort(List<Tuple<string, string, string, string, string, string>> list)
         {
             list.Sort(delegate (
-                    Tuple<string, string, string, string, string> a,
-                    Tuple<string, string, string, string, string> b
+                    Tuple<string, string, string, string, string, string> a,
+                    Tuple<string, string, string, string, string, string> b
                     )
             {
                 string nameA = a.Item1;
@@ -234,8 +240,8 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
         internal static void MEPhysicalInterfacesSort(bool onlyNodes)
         {
             mePhysicalInterfaces.Sort(delegate (
-                Tuple<string, List<Tuple<string, string, string, string>>> a,
-                Tuple<string, List<Tuple<string, string, string, string>>> b)
+                Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> a,
+                Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> b)
             {
                 string nodeA = a.Item1;
                 string nodeB = b.Item1;
@@ -248,19 +254,19 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
 
             if (!onlyNodes)
             {
-                foreach (Tuple<string, List<Tuple<string, string, string, string>>> c in mePhysicalInterfaces)
+                foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> c in mePhysicalInterfaces)
                 {
-                    List<Tuple<string, string, string, string>> list = c.Item2;
+                    List<Tuple<string, string, string, string, string, string, string>> list = c.Item2;
                     MEPhysicalInterfacesSort(list);
                 }
             }
         }
 
-        internal static void MEPhysicalInterfacesSort(List<Tuple<string, string, string, string>> list)
+        internal static void MEPhysicalInterfacesSort(List<Tuple<string, string, string, string, string, string, string>> list)
         {
             list.Sort(delegate (
-                    Tuple<string, string, string, string> a,
-                    Tuple<string, string, string, string> b
+                    Tuple<string, string, string, string, string, string, string> a,
+                    Tuple<string, string, string, string, string, string, string> b
                     )
             {
                 string nameA = a.Item1;

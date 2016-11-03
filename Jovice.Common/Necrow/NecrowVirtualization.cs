@@ -17,6 +17,8 @@ namespace Jovice
             get { return ready; }
         }
 
+        internal static object PESync = new object();
+
         private static List<Tuple<string, List<Tuple<string, string, string, string, string, string>>>> pePhysicalInterfaces = null;
 
         /// <summary>
@@ -27,6 +29,8 @@ namespace Jovice
             get { return pePhysicalInterfaces; }
         }
 
+        internal static object MESync = new object();
+
         private static List<Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>> mePhysicalInterfaces = null;
 
         /// <summary>
@@ -36,6 +40,8 @@ namespace Jovice
         {
             get { return mePhysicalInterfaces; }
         }
+
+        internal static object NNSync = new object();
 
         private static List<Tuple<string, List<Tuple<string, string>>>> nnPhysicalInterfaces = null;
 
@@ -80,42 +86,45 @@ namespace Jovice
 
             #region PE Interfaces
 
-            result = jovice.Query(@"
+            lock (PESync)
+            {
+                result = jovice.Query(@"
 select NO_Name, LEN(NO_Name) as NO_LEN, PI_Name, LEN(PI_Name) as PI_LEN, PI_Type, PI_ID, PI_Description, PI_PI, PI_TO_MI from
 (select NO_Name, NO_ID from Node where NO_Type = 'P' and NO_Active = 1) n left join PEInterface on PI_NO = NO_ID and PI_Type in ('Hu', 'Te', 'Gi', 'Fa', 'Et')
 order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
 ");
-            pePhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string, string, string, string, string>>>>();
-            List<Tuple<string, string, string, string, string, string>> currentPEInterfaces = new List<Tuple<string, string, string, string, string, string>>();
+                pePhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string, string, string, string, string>>>>();
+                List<Tuple<string, string, string, string, string, string>> currentPEInterfaces = new List<Tuple<string, string, string, string, string, string>>();
 
-            currentNode = null;
-            count = 0;
+                currentNode = null;
+                count = 0;
 
-            foreach (Row row in result)
-            {
-                string node = row["NO_Name"].ToString();
-
-                if (currentNode != node)
+                foreach (Row row in result)
                 {
-                    if (currentNode != null)
+                    string node = row["NO_Name"].ToString();
+
+                    if (currentNode != node)
                     {
-                        pePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(currentNode,
-                            new List<Tuple<string, string, string, string, string, string>>(currentPEInterfaces)));
-                        currentPEInterfaces.Clear();
+                        if (currentNode != null)
+                        {
+                            pePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(currentNode,
+                                new List<Tuple<string, string, string, string, string, string>>(currentPEInterfaces)));
+                            currentPEInterfaces.Clear();
+                        }
+                        currentNode = node;
                     }
-                    currentNode = node;
-                }
 
-                string piName = row["PI_Name"].ToString();
+                    string piName = row["PI_Name"].ToString();
 
-                if (piName != null)
-                {
-                    currentPEInterfaces.Add(new Tuple<string, string, string, string, string, string>(
-                        piName, row["PI_Description"].ToString(), row["PI_ID"].ToString(), row["PI_Type"].ToString(), row["PI_PI"].ToString(), row["PI_TO_MI"].ToString()));
-                    count++;
+                    if (piName != null)
+                    {
+                        currentPEInterfaces.Add(new Tuple<string, string, string, string, string, string>(
+                            piName, row["PI_Description"].ToString(), row["PI_ID"].ToString(), row["PI_Type"].ToString(), row["PI_PI"].ToString(), row["PI_TO_MI"].ToString()));
+                        count++;
+                    }
                 }
+                pePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(currentNode, currentPEInterfaces));
             }
-            pePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(currentNode, currentPEInterfaces));
 
             Necrow.Event("Loaded " + count + " PE physical interfaces");
 
@@ -123,43 +132,46 @@ order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
 
             #region ME Interfaces
 
-            result = jovice.Query(@"
+            lock (MESync)
+            {
+                result = jovice.Query(@"
 select NO_Name, LEN(NO_Name) as NO_LEN, MI_Name, LEN(MI_Name) as MI_LEN, MI_Type, MI_ID, MI_Description, MI_MI, MI_TO_MI, MI_TO_PI from 
 (select NO_Name, NO_ID from Node where NO_Type = 'M' and NO_Active = 1) n left join MEInterface on MI_NO = NO_ID and MI_Type in ('Hu', 'Te', 'Gi', 'Fa', 'Et')
 order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
 ");
 
-            mePhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>>();
-            List<Tuple<string, string, string, string, string, string, string>> currentMEInterfaces = new List<Tuple<string, string, string, string, string, string, string>>();
+                mePhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>>();
+                List<Tuple<string, string, string, string, string, string, string>> currentMEInterfaces = new List<Tuple<string, string, string, string, string, string, string>>();
 
-            currentNode = null;
-            count = 0;
+                currentNode = null;
+                count = 0;
 
-            foreach (Row row in result)
-            {
-                string node = row["NO_Name"].ToString();
-
-                if (currentNode != node)
+                foreach (Row row in result)
                 {
-                    if (currentNode != null)
+                    string node = row["NO_Name"].ToString();
+
+                    if (currentNode != node)
                     {
-                        mePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(currentNode,
-                            new List<Tuple<string, string, string, string, string, string, string>>(currentMEInterfaces)));
-                        currentMEInterfaces.Clear();
+                        if (currentNode != null)
+                        {
+                            mePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(currentNode,
+                                new List<Tuple<string, string, string, string, string, string, string>>(currentMEInterfaces)));
+                            currentMEInterfaces.Clear();
+                        }
+                        currentNode = node;
                     }
-                    currentNode = node;
-                }
 
-                string miName = row["MI_Name"].ToString();
+                    string miName = row["MI_Name"].ToString();
 
-                if (miName != null)
-                {
-                    currentMEInterfaces.Add(new Tuple<string, string, string, string, string, string, string>(
-                        miName, row["MI_Description"].ToString(), row["MI_ID"].ToString(), row["MI_Type"].ToString(), row["MI_MI"].ToString(), row["MI_TO_MI"].ToString(), row["MI_TO_PI"].ToString()));
-                    count++;
+                    if (miName != null)
+                    {
+                        currentMEInterfaces.Add(new Tuple<string, string, string, string, string, string, string>(
+                            miName, row["MI_Description"].ToString(), row["MI_ID"].ToString(), row["MI_Type"].ToString(), row["MI_MI"].ToString(), row["MI_TO_MI"].ToString(), row["MI_TO_PI"].ToString()));
+                        count++;
+                    }
                 }
+                mePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(currentNode, currentMEInterfaces));
             }
-            mePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(currentNode, currentMEInterfaces));
 
             Necrow.Event("Loaded " + count + " ME physical interfaces");
 
@@ -192,44 +204,50 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
 
         internal static void PEPhysicalInterfacesSort(bool onlyNodes)
         {
-            pePhysicalInterfaces.Sort(delegate (
-                Tuple<string, List<Tuple<string, string, string, string, string, string>>> a, 
-                Tuple<string, List<Tuple<string, string, string, string, string, string>>> b)
+            lock (PESync)
             {
-                string nodeA = a.Item1;
-                string nodeB = b.Item1;
-
-                // NO_LEN desc
-                if (nodeA.Length < nodeB.Length) return 1;
-                else if (nodeA.Length > nodeB.Length) return -1;
-                else return nodeA.CompareTo(nodeB); // NO_Name
-            });
-
-            if (!onlyNodes)
-            {
-                foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> c in pePhysicalInterfaces)
+                pePhysicalInterfaces.Sort(delegate (
+                    Tuple<string, List<Tuple<string, string, string, string, string, string>>> a,
+                    Tuple<string, List<Tuple<string, string, string, string, string, string>>> b)
                 {
-                    List<Tuple<string, string, string, string, string, string>> list = c.Item2;
-                    PEPhysicalInterfacesSort(list);
+                    string nodeA = a.Item1;
+                    string nodeB = b.Item1;
+
+                    // NO_LEN desc
+                    if (nodeA.Length < nodeB.Length) return 1;
+                    else if (nodeA.Length > nodeB.Length) return -1;
+                    else return nodeA.CompareTo(nodeB); // NO_Name
+                });
+
+                if (!onlyNodes)
+                {
+                    foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> c in pePhysicalInterfaces)
+                    {
+                        List<Tuple<string, string, string, string, string, string>> list = c.Item2;
+                        PEPhysicalInterfacesSort(list);
+                    }
                 }
             }
         }
 
         internal static void PEPhysicalInterfacesSort(List<Tuple<string, string, string, string, string, string>> list)
         {
-            list.Sort(delegate (
-                    Tuple<string, string, string, string, string, string> a,
-                    Tuple<string, string, string, string, string, string> b
-                    )
+            lock (list)
             {
-                string nameA = a.Item1;
-                string nameB = b.Item1;
+                list.Sort(delegate (
+                        Tuple<string, string, string, string, string, string> a,
+                        Tuple<string, string, string, string, string, string> b
+                        )
+                {
+                    string nameA = a.Item1;
+                    string nameB = b.Item1;
 
-                // Name_LEN desc
-                if (nameA.Length < nameB.Length) return 1;
-                else if (nameA.Length > nameB.Length) return -1;
-                else return nameA.CompareTo(nameB); // Name
-            });
+                    // Name_LEN desc
+                    if (nameA.Length < nameB.Length) return 1;
+                    else if (nameA.Length > nameB.Length) return -1;
+                    else return nameA.CompareTo(nameB); // Name
+                });
+            }
         }
 
         internal static void MEPhysicalInterfacesSort()
@@ -239,44 +257,50 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
 
         internal static void MEPhysicalInterfacesSort(bool onlyNodes)
         {
-            mePhysicalInterfaces.Sort(delegate (
-                Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> a,
-                Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> b)
+            lock (MESync)
             {
-                string nodeA = a.Item1;
-                string nodeB = b.Item1;
-
-                // NO_LEN desc
-                if (nodeA.Length < nodeB.Length) return 1;
-                else if (nodeA.Length > nodeB.Length) return -1;
-                else return nodeA.CompareTo(nodeB); // NO_Name
-            });
-
-            if (!onlyNodes)
-            {
-                foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> c in mePhysicalInterfaces)
+                mePhysicalInterfaces.Sort(delegate (
+                    Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> a,
+                    Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> b)
                 {
-                    List<Tuple<string, string, string, string, string, string, string>> list = c.Item2;
-                    MEPhysicalInterfacesSort(list);
+                    string nodeA = a.Item1;
+                    string nodeB = b.Item1;
+
+                    // NO_LEN desc
+                    if (nodeA.Length < nodeB.Length) return 1;
+                    else if (nodeA.Length > nodeB.Length) return -1;
+                    else return nodeA.CompareTo(nodeB); // NO_Name
+                });
+
+                if (!onlyNodes)
+                {
+                    foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> c in mePhysicalInterfaces)
+                    {
+                        List<Tuple<string, string, string, string, string, string, string>> list = c.Item2;
+                        MEPhysicalInterfacesSort(list);
+                    }
                 }
             }
         }
 
         internal static void MEPhysicalInterfacesSort(List<Tuple<string, string, string, string, string, string, string>> list)
         {
-            list.Sort(delegate (
-                    Tuple<string, string, string, string, string, string, string> a,
-                    Tuple<string, string, string, string, string, string, string> b
-                    )
+            lock (list)
             {
-                string nameA = a.Item1;
-                string nameB = b.Item1;
+                list.Sort(delegate (
+                        Tuple<string, string, string, string, string, string, string> a,
+                        Tuple<string, string, string, string, string, string, string> b
+                        )
+                {
+                    string nameA = a.Item1;
+                    string nameB = b.Item1;
 
-                // Name_LEN desc
-                if (nameA.Length < nameB.Length) return 1;
-                else if (nameA.Length > nameB.Length) return -1;
-                else return nameA.CompareTo(nameB); // Name
-            });
+                    // Name_LEN desc
+                    if (nameA.Length < nameB.Length) return 1;
+                    else if (nameA.Length > nameB.Length) return -1;
+                    else return nameA.CompareTo(nameB); // Name
+                });
+            }
         }
 
         internal static bool AliasExists(string name)
@@ -337,127 +361,130 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID order by NA_Nam
 
             string currentNode;
             int count1 = 0, count2 = 0, count3 = 0;
-            
-            #region Node Neighbor
 
-            result = jovice.Query("select * from NodeNeighbor");
-
-            nodeNeighbors = new Dictionary<string, string>();
-
-            batch.Begin();
-            foreach (Row row in result)
+            lock (NNSync)
             {
-                string name = row["NN_Name"].ToString();
-                string id = row["NN_ID"].ToString();
-                if (!nodeNeighbors.ContainsKey(name))
-                    nodeNeighbors.Add(name, id);
-                else
+                #region Node Neighbor
+
+                result = jovice.Query("select * from NodeNeighbor");
+
+                nodeNeighbors = new Dictionary<string, string>();
+
+                batch.Begin();
+                foreach (Row row in result)
                 {
-                    Necrow.Event("Duplicated NodeNeighbor " + name + " removed ID " + id);
-                    batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
-                    batch.Execute("update MEInterface set MI_TO_NI = NULL where MI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
-                    batch.Execute("delete from NeighborInterface where NI_NN = {0}", id);
-                    batch.Execute("delete from NodeNeighbor where NN_ID = {0}", id);
+                    string name = row["NN_Name"].ToString();
+                    string id = row["NN_ID"].ToString();
+                    if (!nodeNeighbors.ContainsKey(name))
+                        nodeNeighbors.Add(name, id);
+                    else
+                    {
+                        Necrow.Event("Duplicated NodeNeighbor " + name + " removed ID " + id);
+                        batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
+                        batch.Execute("update MEInterface set MI_TO_NI = NULL where MI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
+                        batch.Execute("delete from NeighborInterface where NI_NN = {0}", id);
+                        batch.Execute("delete from NodeNeighbor where NN_ID = {0}", id);
+                    }
                 }
-            }
-            batch.Commit();
+                batch.Commit();
 
-            count1 = nodeNeighbors.Count;
+                count1 = nodeNeighbors.Count;
 
-            #endregion
+                #endregion
 
-            #region Neighbor Interface
+                #region Neighbor Interface
 
-            result = jovice.Query(@"
+                result = jovice.Query(@"
 select NN_Name, LEN(NN_Name) as NN_LEN, NI_Name, LEN(NI_Name) as NI_LEN, NI_ID from 
 (select NN_Name, NN_ID from NodeNeighbor
 ) n left join NeighborInterface on NI_NN = NN_ID and NI_Name <> 'UNSPECIFIED'
 order by NN_LEN desc, NN_Name, NI_LEN desc, NI_Name
 ");
 
-            nnPhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string>>>>();
-            List<Tuple<string, string>> currentNNInterfaces = new List<Tuple<string, string>>();
+                nnPhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string>>>>();
+                List<Tuple<string, string>> currentNNInterfaces = new List<Tuple<string, string>>();
 
-            currentNode = null;
-            count2 = 0;
+                currentNode = null;
+                count2 = 0;
 
-            foreach (Row row in result)
-            {
-                string node = row["NN_Name"].ToString();
-
-                if (currentNode != node)
+                foreach (Row row in result)
                 {
-                    if (currentNode != null)
+                    string node = row["NN_Name"].ToString();
+
+                    if (currentNode != node)
                     {
-                        nnPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string>>>(currentNode,
-                            new List<Tuple<string, string>>(currentNNInterfaces)));
-                        currentNNInterfaces.Clear();
+                        if (currentNode != null)
+                        {
+                            nnPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string>>>(currentNode,
+                                new List<Tuple<string, string>>(currentNNInterfaces)));
+                            currentNNInterfaces.Clear();
+                        }
+                        currentNode = node;
                     }
-                    currentNode = node;
+
+                    string niName = row["NI_Name"].ToString();
+
+                    if (niName != null)
+                    {
+                        currentNNInterfaces.Add(new Tuple<string, string>(
+                            niName, row["NI_ID"].ToString()));
+                        count2++;
+                    }
                 }
+                nnPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string>>>(currentNode, currentNNInterfaces));
 
-                string niName = row["NI_Name"].ToString();
+                #endregion
 
-                if (niName != null)
-                {
-                    currentNNInterfaces.Add(new Tuple<string, string>(
-                        niName, row["NI_ID"].ToString()));
-                    count2++;
-                }
-            }
-            nnPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string>>>(currentNode, currentNNInterfaces));
+                #region Neighbor Unspecified Reference
 
-            #endregion
-
-            #region Neighbor Unspecified Reference
-
-            result = jovice.Query(@"
+                result = jovice.Query(@"
 select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NeighborInterface on NI_NN = NN_ID and NI_Name = 'UNSPECIFIED'
 ");
-            batch.Begin();
+                batch.Begin();
 
-            nnUnspecifiedInterfaces = new Dictionary<string, string>();
+                nnUnspecifiedInterfaces = new Dictionary<string, string>();
 
-            foreach (Row row in result)
-            {
-                string id = row["NN_ID"].ToString();
-                string node = row["NN_Name"].ToString();
-                string unid = row["NI_ID"].ToString();
-
-                if (unid != null)
+                foreach (Row row in result)
                 {
-                    if (!nnUnspecifiedInterfaces.ContainsKey(node))
-                        nnUnspecifiedInterfaces.Add(node, unid);
+                    string id = row["NN_ID"].ToString();
+                    string node = row["NN_Name"].ToString();
+                    string unid = row["NI_ID"].ToString();
+
+                    if (unid != null)
+                    {
+                        if (!nnUnspecifiedInterfaces.ContainsKey(node))
+                            nnUnspecifiedInterfaces.Add(node, unid);
+                        else
+                        {
+                            batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
+                            batch.Execute("update MEInterface set MI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
+                            batch.Execute("delete from NeighborInterface where NI_NN = {0}", id);
+                            batch.Execute("delete from NodeNeighbor where NN_ID = {0}", id);
+                            Necrow.Event("Removed duplicated neighbor key: " + node);
+                        }
+                    }
                     else
                     {
-                        batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
-                        batch.Execute("update MEInterface set MI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
-                        batch.Execute("delete from NeighborInterface where NI_NN = {0}", id);
-                        batch.Execute("delete from NodeNeighbor where NN_ID = {0}", id);
-                        Necrow.Event("Removed duplicated neighbor key: " + node);
+                        unid = Database.ID();
+
+                        insert = jovice.Insert("NeighborInterface");
+                        insert.Value("NI_ID", unid);
+                        insert.Value("NI_NN", id);
+                        insert.Value("NI_Name", "UNSPECIFIED");
+
+                        batch.Execute(insert);
+                        nnUnspecifiedInterfaces.Add(node, unid);
+
+                        Necrow.Event("Added missing UNSPECIFIED interface to neighbor node " + node);
                     }
                 }
-                else
-                {
-                    unid = Database.ID();
 
-                    insert = jovice.Insert("NeighborInterface");
-                    insert.Value("NI_ID", unid);
-                    insert.Value("NI_NN", id);
-                    insert.Value("NI_Name", "UNSPECIFIED");
+                batch.Commit();
 
-                    batch.Execute(insert);
-                    nnUnspecifiedInterfaces.Add(node, unid);
+                count3 = nnUnspecifiedInterfaces.Count;
 
-                    Necrow.Event("Added missing UNSPECIFIED interface to neighbor node " + node);
-                }
+                #endregion
             }
-
-            batch.Commit();
-
-            count3 = nnUnspecifiedInterfaces.Count;
-
-            #endregion
             
             return new Tuple<int, int, int>(count1, count2, count3);
         }

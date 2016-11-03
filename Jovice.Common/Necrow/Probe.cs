@@ -1930,45 +1930,51 @@ namespace Jovice
                             {
                                 Tuple<string, List<Tuple<string, string, string, string, string, string>>> changeThis = null;
                                 List<Tuple<string, string, string, string, string, string>> interfaces = null;
-                                foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> entry in NecrowVirtualization.PEPhysicalInterfaces)
+                                lock (NecrowVirtualization.PESync)
                                 {
-                                    if (entry.Item1 == nodeName)
+                                    foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> entry in NecrowVirtualization.PEPhysicalInterfaces)
                                     {
-                                        changeThis = entry;
-                                        break;
+                                        if (entry.Item1 == nodeName)
+                                        {
+                                            changeThis = entry;
+                                            break;
+                                        }
                                     }
-                                }
-                                if (changeThis != null)
-                                {
-                                    NecrowVirtualization.PEPhysicalInterfaces.Remove(changeThis);
-                                    interfaces = changeThis.Item2;
-                                }
-                                else interfaces = new List<Tuple<string, string, string, string, string, string>>();
+                                    if (changeThis != null)
+                                    {
+                                        NecrowVirtualization.PEPhysicalInterfaces.Remove(changeThis);
+                                        interfaces = changeThis.Item2;
+                                    }
+                                    else interfaces = new List<Tuple<string, string, string, string, string, string>>();
 
-                                NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(hostName, interfaces));
-                                NecrowVirtualization.PEPhysicalInterfacesSort();
+                                    NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(hostName, interfaces));
+                                    NecrowVirtualization.PEPhysicalInterfacesSort();
+                                }
                             }
                             else if (nodeType == "M")
                             {
                                 Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> changeThis = null;
                                 List<Tuple<string, string, string, string, string, string, string>> interfaces = null;
-                                foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> entry in NecrowVirtualization.MEPhysicalInterfaces)
+                                lock (NecrowVirtualization.MESync)
                                 {
-                                    if (entry.Item1 == nodeName)
+                                    foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> entry in NecrowVirtualization.MEPhysicalInterfaces)
                                     {
-                                        changeThis = entry;
-                                        break;
+                                        if (entry.Item1 == nodeName)
+                                        {
+                                            changeThis = entry;
+                                            break;
+                                        }
                                     }
-                                }
-                                if (changeThis != null)
-                                {
-                                    NecrowVirtualization.MEPhysicalInterfaces.Remove(changeThis);
-                                    interfaces = changeThis.Item2;
-                                }
-                                else interfaces = new List<Tuple<string, string, string, string, string, string, string>>();
+                                    if (changeThis != null)
+                                    {
+                                        NecrowVirtualization.MEPhysicalInterfaces.Remove(changeThis);
+                                        interfaces = changeThis.Item2;
+                                    }
+                                    else interfaces = new List<Tuple<string, string, string, string, string, string, string>>();
 
-                                NecrowVirtualization.MEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(hostName, interfaces));
-                                NecrowVirtualization.MEPhysicalInterfacesSort();
+                                    NecrowVirtualization.MEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(hostName, interfaces));
+                                    NecrowVirtualization.MEPhysicalInterfacesSort();
+                                }
                             }
                             
                             nodeName = hostName;
@@ -3712,21 +3718,24 @@ namespace Jovice
                 string neighborPEPart = null;
                 List<Tuple<string, string, string, string, string, string>> currentNeighborPEInterfaces = null;
 
-                foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> pe in NecrowVirtualization.PEPhysicalInterfaces)
-                {
-                    neighborPEName = pe.Item1;
-                    currentNeighborPEInterfaces = pe.Item2;
-                    neighborPEPart = FindNeighborPart(description, neighborPEName);
-                    if (neighborPEPart != null) break;
-                }
-                if (neighborPEPart == null)
+                lock (NecrowVirtualization.PESync)
                 {
                     foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> pe in NecrowVirtualization.PEPhysicalInterfaces)
                     {
                         neighborPEName = pe.Item1;
                         currentNeighborPEInterfaces = pe.Item2;
-                        neighborPEPart = FindNeighborPartUsingAlias(description, neighborPEName);
+                        neighborPEPart = FindNeighborPart(description, neighborPEName);
                         if (neighborPEPart != null) break;
+                    }
+                    if (neighborPEPart == null)
+                    {
+                        foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> pe in NecrowVirtualization.PEPhysicalInterfaces)
+                        {
+                            neighborPEName = pe.Item1;
+                            currentNeighborPEInterfaces = pe.Item2;
+                            neighborPEPart = FindNeighborPartUsingAlias(description, neighborPEName);
+                            if (neighborPEPart != null) break;
+                        }
                     }
                 }
                 if (neighborPEPart != null)
@@ -3818,21 +3827,24 @@ namespace Jovice
             string neighborMEPart = null;
             List<Tuple<string, string, string, string, string, string, string>> currentNeighborMEInterfaces = null;
 
-            foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> me in NecrowVirtualization.MEPhysicalInterfaces)
-            {
-                neighborMEName = me.Item1;
-                currentNeighborMEInterfaces = me.Item2;
-                neighborMEPart = FindNeighborPart(description, neighborMEName);
-                if (neighborMEPart != null) break;
-            }
-            if (neighborMEPart == null)
+            lock (NecrowVirtualization.MESync)
             {
                 foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> me in NecrowVirtualization.MEPhysicalInterfaces)
                 {
                     neighborMEName = me.Item1;
                     currentNeighborMEInterfaces = me.Item2;
-                    neighborMEPart = FindNeighborPartUsingAlias(description, neighborMEName);
+                    neighborMEPart = FindNeighborPart(description, neighborMEName);
                     if (neighborMEPart != null) break;
+                }
+                if (neighborMEPart == null)
+                {
+                    foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> me in NecrowVirtualization.MEPhysicalInterfaces)
+                    {
+                        neighborMEName = me.Item1;
+                        currentNeighborMEInterfaces = me.Item2;
+                        neighborMEPart = FindNeighborPartUsingAlias(description, neighborMEName);
+                        if (neighborMEPart != null) break;
+                    }
                 }
             }
             if (neighborMEPart != null)
@@ -3925,49 +3937,52 @@ namespace Jovice
             string findNeighborNode = null;
             string findNeighborPart = null;
 
-            foreach (Tuple<string, List<Tuple<string, string>>> nn in NecrowVirtualization.NNPhysicalInterfaces)
+            lock (NecrowVirtualization.NNSync)
             {
-                string neighborName = nn.Item1;
-                List<Tuple<string, string>> currentNeighborInterfaces = nn.Item2;
-
-                string neighborPart = FindNeighborPart(description, neighborName);
-
-                if (neighborPart != null)
+                foreach (Tuple<string, List<Tuple<string, string>>> nn in NecrowVirtualization.NNPhysicalInterfaces)
                 {
-                    findNeighborNode = neighborName;
-                    findNeighborPart = neighborPart;
+                    string neighborName = nn.Item1;
+                    List<Tuple<string, string>> currentNeighborInterfaces = nn.Item2;
 
-                    Tuple<string, string> matchedInterface = null;
+                    string neighborPart = FindNeighborPart(description, neighborName);
 
-                    #region Find Interface
-
-                    int leftMostFinding = neighborPart.Length;
-
-                    foreach (Tuple<string, string> currentNeighborInterface in currentNeighborInterfaces)
+                    if (neighborPart != null)
                     {
-                        string neighborInterfaceName = currentNeighborInterface.Item1;
+                        findNeighborNode = neighborName;
+                        findNeighborPart = neighborPart;
 
-                        foreach (string test in GenerateTestInterface(null, neighborInterfaceName))
+                        Tuple<string, string> matchedInterface = null;
+
+                        #region Find Interface
+
+                        int leftMostFinding = neighborPart.Length;
+
+                        foreach (Tuple<string, string> currentNeighborInterface in currentNeighborInterfaces)
                         {
-                            int pos = neighborPart.IndexOf(test);
+                            string neighborInterfaceName = currentNeighborInterface.Item1;
 
-                            if (pos > -1 && pos < leftMostFinding)
+                            foreach (string test in GenerateTestInterface(null, neighborInterfaceName))
                             {
-                                leftMostFinding = pos;
-                                matchedInterface = currentNeighborInterface;
+                                int pos = neighborPart.IndexOf(test);
+
+                                if (pos > -1 && pos < leftMostFinding)
+                                {
+                                    leftMostFinding = pos;
+                                    matchedInterface = currentNeighborInterface;
+                                }
                             }
                         }
+
+                        #endregion
+
+                        if (matchedInterface != null)
+                        {
+                            li.TopologyNeighborInterfaceID = matchedInterface.Item2;
+                            done = true;
+                        }
+
+                        break;
                     }
-
-                    #endregion
-
-                    if (matchedInterface != null)
-                    {
-                        li.TopologyNeighborInterfaceID = matchedInterface.Item2;
-                        done = true;
-                    }
-
-                    break;
                 }
             }
 
@@ -4009,11 +4024,14 @@ namespace Jovice
                         batch.Commit();
 
                         // tambah ke collection neighbors
-                        NecrowVirtualization.NodeNeighbors.Add(findNeighborNode, neighborNodeID);
-                        NecrowVirtualization.NNPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string>>>(findNeighborNode, new List<Tuple<string, string>>()));
-                        NecrowVirtualization.NNUnspecifiedInterfaces.Add(findNeighborNode, unspecifiedID);
+                        lock (NecrowVirtualization.NNSync)
+                        {
+                            NecrowVirtualization.NodeNeighbors.Add(findNeighborNode, neighborNodeID);
+                            NecrowVirtualization.NNPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string>>>(findNeighborNode, new List<Tuple<string, string>>()));
+                            NecrowVirtualization.NNUnspecifiedInterfaces.Add(findNeighborNode, unspecifiedID);
 
-                        NecrowVirtualization.NNPhysicalInterfaces.Sort((a, b) => b.Item1.Length.CompareTo(a.Item1.Length));
+                            NecrowVirtualization.NNPhysicalInterfaces.Sort((a, b) => b.Item1.Length.CompareTo(a.Item1.Length));
+                        }
                     }
 
                     // find interface
@@ -4028,14 +4046,17 @@ namespace Jovice
                     {
                         List<Tuple<string, string>> interfaces = null;
 
-                        foreach (Tuple<string, List<Tuple<string, string>>> tuple in NecrowVirtualization.NNPhysicalInterfaces)
+                        lock (NecrowVirtualization.NNSync)
                         {
-                            if (tuple.Item1 == findNeighborNode)
+                            foreach (Tuple<string, List<Tuple<string, string>>> tuple in NecrowVirtualization.NNPhysicalInterfaces)
                             {
-                                interfaces = tuple.Item2;
-                                break;
+                                if (tuple.Item1 == findNeighborNode)
+                                {
+                                    interfaces = tuple.Item2;
+                                    break;
+                                }
                             }
-                        } 
+                        }
 
                         bool exists = false;
                         foreach (Tuple<string, string> ni in interfaces)

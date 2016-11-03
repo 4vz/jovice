@@ -977,10 +977,7 @@ namespace Jovice
             }
 
             #endregion
-
-            
-             
-            
+                        
             #region Execute
 
             // ADD
@@ -2860,20 +2857,23 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
             List<Tuple<string, string, string, string, string, string, string>> vMEPhysicalInterfaces = null;
             bool vExists = false;
-            foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> v in NecrowVirtualization.MEPhysicalInterfaces)
+            lock (NecrowVirtualization.MESync)
             {
-                if (v.Item1 == nodeName)
+                foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> v in NecrowVirtualization.MEPhysicalInterfaces)
                 {
-                    vMEPhysicalInterfaces = v.Item2;
-                    vExists = true;
-                    break;
+                    if (v.Item1 == nodeName)
+                    {
+                        vMEPhysicalInterfaces = v.Item2;
+                        vExists = true;
+                        break;
+                    }
                 }
-            }
-            if (!vExists)
-            {
-                vMEPhysicalInterfaces = new List<Tuple<string, string, string, string, string, string, string>>();
-                NecrowVirtualization.MEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(nodeName, vMEPhysicalInterfaces));
-                NecrowVirtualization.MEPhysicalInterfacesSort(true);
+                if (!vExists)
+                {
+                    vMEPhysicalInterfaces = new List<Tuple<string, string, string, string, string, string, string>>();
+                    NecrowVirtualization.MEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(nodeName, vMEPhysicalInterfaces));
+                    NecrowVirtualization.MEPhysicalInterfacesSort(true);
+                }
             }
 
             int sinf = 0, sinfup = 0, sinfag = 0, sinfhu = 0, sinfhuup = 0, sinfte = 0, sinfteup = 0, sinfgi = 0, sinfgiup = 0, sinffa = 0, sinffaup = 0, sinfet = 0, sinfetup = 0,

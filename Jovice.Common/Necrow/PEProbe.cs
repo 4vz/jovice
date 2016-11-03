@@ -2462,19 +2462,22 @@ Last input 00:00:00, output 00:00:00
 
             List<Tuple<string, string, string, string, string, string>> vPEPhysicalInterfaces = null;
             bool vExists = false;
-            foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> v in NecrowVirtualization.PEPhysicalInterfaces)
+            lock (NecrowVirtualization.PESync)
             {
-                if (v.Item1 == nodeName)
+                foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> v in NecrowVirtualization.PEPhysicalInterfaces)
                 {
-                    vPEPhysicalInterfaces = v.Item2;
-                    vExists = true;
+                    if (v.Item1 == nodeName)
+                    {
+                        vPEPhysicalInterfaces = v.Item2;
+                        vExists = true;
+                    }
                 }
-            }
-            if (!vExists)
-            {
-                vPEPhysicalInterfaces = new List<Tuple<string, string, string, string, string, string>>();
-                NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(nodeName, vPEPhysicalInterfaces));
-                NecrowVirtualization.PEPhysicalInterfacesSort(true);
+                if (!vExists)
+                {
+                    vPEPhysicalInterfaces = new List<Tuple<string, string, string, string, string, string>>();
+                    NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(nodeName, vPEPhysicalInterfaces));
+                    NecrowVirtualization.PEPhysicalInterfacesSort(true);
+                }
             }
 
             int sinf = 0, sinfup = 0, sinfhu = 0, sinfag = 0, sinfhuup = 0, sinfte = 0, sinfteup = 0, sinfgi = 0, sinfgiup = 0, sinffa = 0, sinffaup = 0, sinfet = 0, sinfetup = 0, sinfse = 0, sinfseup = 0,

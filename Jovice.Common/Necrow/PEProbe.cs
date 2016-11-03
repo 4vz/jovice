@@ -5058,6 +5058,8 @@ Last input 00:00:00, output 00:00:00
                 if (!prefixlistlive.ContainsKey(pair.Key))
                 {
                     Event("Prefix-List DELETE: " + pair.Key);
+                    // delete left over PEPrefixEntry
+                    batch.Execute("delete from PEPrefixEntry where PY_PX = {0}", pair.Value["PX_ID"].ToString());
                     batch.Execute("delete from PEPrefixList where PX_ID = {0}", pair.Value["PX_ID"].ToString());
                 }
             }

@@ -4551,7 +4551,9 @@ namespace Jovice
 
                     if (end > -1)
                     {
-                        de.SID = d.Substring(rmvn, end - rmv - rle).Trim();
+                        int len = end - rmv - rle;
+                        if (len + rmvn > d.Length) de.SID = d.Substring(rmvn).Trim();
+                        else de.SID = d.Substring(rmvn, len).Trim();
                         d = d.Remove(rmv, end - rmv);
                     }
                     else

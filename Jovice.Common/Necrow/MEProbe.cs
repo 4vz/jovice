@@ -1125,7 +1125,7 @@ namespace Jovice
                     {
                         string[] linex = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
-                        if (linex.Length == 5)
+                        if (linex.Length >= 5)
                         {
                             MECircuitToDatabase service = null;
                             if (circuitlive.ContainsKey(linex[0])) service = circuitlive[linex[0]];

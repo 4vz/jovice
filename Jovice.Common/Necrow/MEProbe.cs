@@ -1079,7 +1079,8 @@ namespace Jovice
                     {
                         if (cservice != null)
                         {
-                            circuitlive.Add(cservice.VCID, cservice);
+                            if (!circuitlive.ContainsKey(cservice.VCID))
+                                circuitlive.Add(cservice.VCID, cservice);
                             cservice = null;
                         }
 
@@ -1112,7 +1113,8 @@ namespace Jovice
                 }
                 if (cservice != null)
                 {
-                    circuitlive.Add(cservice.VCID, cservice);
+                    if (!circuitlive.ContainsKey(cservice.VCID))
+                        circuitlive.Add(cservice.VCID, cservice);
                     cservice = null;
                 }
 
@@ -1136,7 +1138,9 @@ namespace Jovice
                                 service.Type = (linex[1][0] + "").ToUpper();
                                 if (alucustdb.ContainsKey(linex[4])) service.CustomerID = alucustdb[linex[4]]["MU_ID"].ToString();
                                 else service.CustomerID = null;
-                                circuitlive.Add(linex[0], service);
+
+                                if (!circuitlive.ContainsKey(linex[0]))
+                                    circuitlive.Add(linex[0], service);
                             }
                             service.Status = linex[2] == "Up";
                             service.Protocol = linex[3] == "Up";

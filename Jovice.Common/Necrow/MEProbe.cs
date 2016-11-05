@@ -2040,6 +2040,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                             {
                                                 MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                                 mid.Name = "Ag" + agr;
+                                                mid.InterfaceType = "Ag";
                                                 interfacelive.Add("Ag" + agr, mid);
                                             }
                                         }
@@ -3068,6 +3069,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
                     MEInterfaceToDatabase u = new MEInterfaceToDatabase();
                     u.ID = db["MI_ID"].ToString();
+                    li.ID = u.ID;
 
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();

@@ -133,7 +133,13 @@ namespace Jovice
 #if DEBUG
         public static bool Debug()
         {
-            return true;
+            string complete = "TRUNK TO CKA-923 PORT 2/2/4";
+            string part = Probe.FindNeighborPart(complete, "ME9-D2-CKA");
+
+            Event("complete:" + complete);
+            Event("part:" + part);
+
+            return false;
         }
 
         public static void Test(string name)
@@ -437,6 +443,9 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     int total = nids.Count + excluded;
                     Event("Total " + total + " nodes available, " + nids.Count + " nodes eligible, " + excluded + " excluded in this list");
 
+                    // check incompleted probeprogress
+                    List<string> incid = Jovice.QueryList("select XP_ID from ProbeProgress", "XP_ID");
+                    
                     Batch batch = Jovice.Batch();
 
                     batch.Begin();
@@ -444,6 +453,9 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     foreach (string nid in nids)
                     {
                         Insert insert = Jovice.Insert("ProbeProgress");
+
+                        while (incid.Contains((id + ""))) id++; // if id contained in incompleted id, then increase
+
                         insert.Value("XP_ID", id++);
                         insert.Value("XP_NO", nid);
                         batch.Execute(insert);

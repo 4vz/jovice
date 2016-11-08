@@ -1372,7 +1372,6 @@ namespace Jovice
                 StringBuilder lastOutputSB = new StringBuilder();
                 List<string> listlines = new List<string>();
 
-                //Event("Reading...");
                 stopwatch.Start();
 
                 int wait = 0;
@@ -1452,17 +1451,10 @@ namespace Jovice
 
                         wait++;
 
-                        if (wait % 50 == 0 && wait < 400)
+                        if (wait % 100 == 0 && wait < 400)
                         {
                             Event("Waiting...");
                             SendLine("");
-                            //Event("Last Reading Output: ");
-                            //int lp = LastOutput.Length - 200;
-                            //if (lp < 0) lp = 0;
-                            //string lop = LastOutput.Substring(lp);
-                            //lop = lop.Replace("\r", "<CR>");
-                            //lop = lop.Replace("\n", "<NL>");
-                            //Event(lop);
                         }
 
                         Thread.Sleep(100);

@@ -3621,24 +3621,68 @@ namespace Jovice
             Event(result, EventActions.Update, EventElements.Service, false);
         }
 
-        private string FindNeighborPart(string description, string name)
+        public static string FindNeighborPart(string description, string name)
         {
             int find = description.IndexOf(name);
             int findLength = name.Length;
 
-            if (find == -1 && name.StartsWith("ME-"))
+            if (find == -1)
             {
-                // coba pake ME1-
-                string nameAlternate = name.Replace("ME-", "ME1-");
-                find = description.IndexOf(nameAlternate);
-                if (find > -1) findLength = nameAlternate.Length;
+                if (name.StartsWith("ME-"))
+                {
+                    // coba pake ME1-
+                    string nameAlternate = name.Replace("ME-", "ME1-");
+                    find = description.IndexOf(nameAlternate);
+                    if (find > -1) findLength = nameAlternate.Length;
+                }
+                else if (name.StartsWith("PE-"))
+                {
+                    // coba pake PE1-
+                    string nameAlternate = name.Replace("PE-", "PE1-");
+                    find = description.IndexOf(nameAlternate);
+                    if (find > -1) findLength = nameAlternate.Length;
+                }
             }
-            if (find == -1 && name.StartsWith("PE-"))
+            if (find == -1)
             {
-                // coba pake PE1-
-                string nameAlternate = name.Replace("PE-", "PE1-");
-                find = description.IndexOf(nameAlternate);
-                if (find > -1) findLength = nameAlternate.Length;
+                Match m = captureNodeTypeNumberLocation.Match(name);
+
+                if (m.Success && m.Groups[0].Value == name && m.Groups.Count == 4)
+                {
+                    string peme = m.Groups[1].Value;
+                    string number = m.Groups[2].Value;
+                    string loc = m.Groups[3].Value;
+
+                    // ME9-CKA
+                    string pemeNumberStripLoc = " " + peme + number + "-" + loc + " ";
+                    find = description.IndexOf(pemeNumberStripLoc);
+                    if (find > -1) findLength = pemeNumberStripLoc.Length;
+
+                    // ME-CKA9
+                    if (find == -1)
+                    {
+                        string pemeStripLocNumber = " " + peme + "-" + loc + number + " ";
+                        find = description.IndexOf(pemeStripLocNumber);
+                        if (find > -1) findLength = pemeStripLocNumber.Length;
+                    }
+
+                    // CKA-9
+                    if (find == -1)
+                    {
+                        string locStripNumber = " " + loc + "-" + number + " ";
+                        find = description.IndexOf(locStripNumber);
+                        if (find > -1) findLength = locStripNumber.Length;
+                    }
+
+                    // CKA9
+                    if (find == -1)
+                    {
+                        string locNumber = " " + loc + number + " ";
+                        find = description.IndexOf(locNumber);
+                        if (find > -1) findLength = locNumber.Length;
+                    }
+
+                }
             }
 
             if (find > -1) return description.Substring(find + findLength);
@@ -4099,6 +4143,7 @@ namespace Jovice
 
         private readonly Regex findNodeRegex = new Regex(@"^(?:(?:T)\d{0,2}-D[1-7]|(?:GPON|MSAN|DSL(?:AM)?|ME|PE|SW(?:C)?|BRAS|DCN|SBC|HRB|WAC|WAG)\d{0,2})(?:-(?:\d[A-Z\d]+|[A-Z][A-Z\d]*)){1,4}$");
         private readonly Regex findInterfaceRegex = new Regex(@"^(?:(?:\/)*(?:(?:F(?:A(?:ST)?)?|(?:(?:TE(?:NGIG(?:ABIT)?)?|HU(?:NDRED)?){0,1}(?:G(?:I(?:GABIT)?)?)?)){0,1}(?:E(?:T(?:HERNET)?)?)?|XE)?(?:\/|-)*(?:[0-9]{1,2})(?:\/[0-9]{1,2}){1,3}|PKT[0-9])$");
+        private static Regex captureNodeTypeNumberLocation = new Regex(@"^(ME|PE)(\d)-D[1-7]-([A-Z]{3})$");
 
         private string CleanDescription(string description, string originNodeName)
         {

@@ -133,13 +133,13 @@ namespace Jovice
 #if DEBUG
         public static bool Debug()
         {
-            string complete = "TRUNK TO CKA-923 PORT 2/2/4";
-            string part = Probe.FindNeighborPart(complete, "ME9-D2-CKA");
+            //string complete = "TRUNK TO CKA-923 PORT 2/2/4";
+            //string part = Probe.FindNeighborPart(complete, "ME9-D2-CKA");
 
-            Event("complete:" + complete);
-            Event("part:" + part);
+            //Event("complete:" + complete);
+            //Event("part:" + part);
 
-            return false;
+            return true;
         }
 
         public static void Test(string name)

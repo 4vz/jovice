@@ -1211,7 +1211,7 @@ namespace Jovice
                 {
                     Thread.Sleep(50);
                     wait += 1;
-                    if (wait == 100) break;
+                    if (wait == 400) break;
                 }
 
             }

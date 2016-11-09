@@ -486,22 +486,6 @@ namespace Jovice
                         li.ID = Database.ID();
                         alucustinsert.Add(li);
                     }
-                    else
-                    {
-                        Row db = alucustdb[pair.Key];
-
-                        MECustomerToDatabase u = new MECustomerToDatabase();
-                        u.ID = db["MU_ID"].ToString();
-
-                        bool update = false;
-                        StringBuilder updateinfo = new StringBuilder();
-
-                        if (update)
-                        {
-                            Event("ALU-Customer UPDATE: " + pair.Key + " " + updateinfo.ToString());
-                            alucustupdate.Add(u);
-                        }
-                    }
                 }
 
                 #endregion
@@ -660,14 +644,12 @@ namespace Jovice
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
 
-                    int oldbw = -1;
-                    if (!db["MQ_Bandwidth"].IsNull) oldbw = db["MQ_Bandwidth"].ToInt();
-                    if (oldbw != li.Bandwidth)
+                    if (db["MQ_Bandwidth"].ToInt(-1) != li.Bandwidth)
                     {
                         update = true;
                         u.UpdateBandwidth = true;
                         u.Bandwidth = li.Bandwidth;
-                        updateinfo.Append("bw" + ((li.Bandwidth == -1) ? "" : ("(" + li.Bandwidth + "K)")) + " ");
+                        UpdateInfo(updateinfo, "bandwidth", db["MQ_Bandwidth"].ToInt(-1).NullableInfo("{0}K"), li.Bandwidth.NullableInfo("{0}K"));
                     }
                     if (update)
                     {
@@ -770,7 +752,7 @@ namespace Jovice
                             d.SDP = sdp;
                             int iamtu;
                             if (int.TryParse(amtu, out iamtu)) d.AdmMTU = iamtu;
-                            else d.AdmMTU = 0;
+                            else d.AdmMTU = -1;
                             d.FarEnd = farend;
                             d.Status = status;
                             d.Protocol = protocol;
@@ -812,7 +794,7 @@ namespace Jovice
 
                             MESDPToDatabase d = new MESDPToDatabase();
                             d.SDP = farend;
-                            d.AdmMTU = 0;
+                            d.AdmMTU = -1;
                             d.FarEnd = farend;
                             d.Status = active;
                             d.Protocol = active;
@@ -842,7 +824,7 @@ namespace Jovice
                             {
                                 MESDPToDatabase d = new MESDPToDatabase();
                                 d.SDP = farend;
-                                d.AdmMTU = 0;
+                                d.AdmMTU = -1;
                                 d.FarEnd = farend;
                                 d.Status = true;
                                 d.Protocol = true;
@@ -873,7 +855,7 @@ namespace Jovice
                             {
                                 MESDPToDatabase d = new MESDPToDatabase();
                                 d.SDP = farend;
-                                d.AdmMTU = 0;
+                                d.AdmMTU = -1;
                                 d.FarEnd = farend;
                                 d.Status = true;
                                 d.Protocol = true;
@@ -924,49 +906,49 @@ namespace Jovice
                         update = true;
                         u.UpdateStatus = true;
                         u.Status = li.Status;
-                        updateinfo.Append("stat ");
+                        UpdateInfo(updateinfo, "status", db["MS_Status"].ToBool().DescribeUpDown(), li.Status.DescribeUpDown());
                     }
                     if (db["MS_Protocol"].ToBool() != li.Protocol)
                     {
                         update = true;
                         u.UpdateProtocol = true;
                         u.Protocol = li.Protocol;
-                        updateinfo.Append("prot ");
+                        UpdateInfo(updateinfo, "protocol", db["MS_Protocol"].ToBool().DescribeUpDown(), li.Protocol.DescribeUpDown());
                     }
                     if (db["MS_Type"].ToString() != li.Type)
                     {
                         update = true;
                         u.UpdateType = true;
                         u.Type = li.Type;
-                        updateinfo.Append("type ");
+                        UpdateInfo(updateinfo, "type", db["MS_Type"].ToString(), li.Type);
                     }
                     if (db["MS_LSP"].ToString() != li.LSP)
                     {
                         update = true;
                         u.UpdateLSP = true;
                         u.LSP = li.LSP;
-                        updateinfo.Append("lsp ");
+                        UpdateInfo(updateinfo, "lsp", db["MS_LSP"].ToString(), li.LSP);
                     }
-                    if ((db["MS_MTU"].IsNull ? 0 : db["MS_MTU"].ToIntShort()) != li.AdmMTU)
+                    if (db["MS_MTU"].ToIntShort(-1) != li.AdmMTU)
                     {
                         update = true;
                         u.UpdateAdmMTU = true;
                         u.AdmMTU = li.AdmMTU;
-                        updateinfo.Append("mtu ");
+                        UpdateInfo(updateinfo, "mtu", db["MS_MTU"].ToIntShort(-1).NullableInfo(), li.AdmMTU.NullableInfo());
                     }
                     if (db["MS_IP"].ToString() != li.FarEnd)
                     {
                         update = true;
                         u.UpdateFarEnd = true;
                         u.FarEnd = li.FarEnd;
-                        updateinfo.Append("ip ");
+                        UpdateInfo(updateinfo, "remote-ip", db["MS_IP"].ToString(), li.FarEnd);
                     }
                     if (db["MS_TO_NO"].ToString() != li.FarEndNodeID)
                     {
                         update = true;
                         u.UpdateFarEndNodeID = true;
                         u.FarEndNodeID = li.FarEndNodeID;
-                        updateinfo.Append("iptono ");
+                        UpdateInfo(updateinfo, "remote-ip-node", db["MS_TO_NO"].ToString(), li.FarEndNodeID, true);
                     }
                     if (update)
                     {
@@ -991,7 +973,7 @@ namespace Jovice
                 insert.Value("MS_Status", s.Status);
                 insert.Value("MS_Protocol", s.Protocol);
                 insert.Value("MS_IP", s.FarEnd);
-                insert.Value("MS_MTU", s.AdmMTU);
+                insert.Value("MS_MTU", s.AdmMTU.Nullable(0));
                 insert.Value("MS_Type", s.Type);
                 insert.Value("MS_LSP", s.LSP);
                 insert.Value("MS_TO_NO", s.FarEndNodeID);
@@ -1107,7 +1089,7 @@ namespace Jovice
                             string mtu = oline.Substring(11).Trim();
                             int amtu;
                             if (int.TryParse(mtu, out amtu)) cservice.AdmMTU = amtu;
-                            else cservice.AdmMTU = 0;
+                            else cservice.AdmMTU = -1;
                         }
                     }
                 }
@@ -1223,7 +1205,7 @@ namespace Jovice
                                 cu.Protocol = state;
                                 int amtu;
                                 if (int.TryParse(linex[4], out amtu)) cu.AdmMTU = amtu;
-                                else cu.AdmMTU = 0;
+                                else cu.AdmMTU = -1;
                             }
                         }
                     }
@@ -1239,7 +1221,7 @@ namespace Jovice
                 string cinterfaceVCID = null;
                 string cinterfaceSDP = null;
                 bool cinterfacestate = false;
-                int cmtu = 0;
+                int cmtu = -1;
                 bool cinterfacewithstate = false;
 
                 foreach (string line in lines)
@@ -1282,7 +1264,7 @@ namespace Jovice
                                     cinterfaceSDP = null;
                                     cinterfacestate = false;
                                     cinterfacewithstate = false;
-                                    cmtu = 0;
+                                    cmtu = -1;
                                 }
 
                                 if (lineValue.Length > 0)
@@ -1313,7 +1295,7 @@ namespace Jovice
                                     string[] linex2 = lineValue.Trim().Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                                     int amtu;
                                     if (int.TryParse(linex2[0], out amtu)) cmtu = amtu;
-                                    else cmtu = 0;
+                                    else cmtu = -1;
                                 }
                             }
                         }
@@ -1382,7 +1364,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                     cu.CustomerID = null;
                                     cu.Status = custatus;
                                     cu.Protocol = custatus;
-                                    cu.AdmMTU = 0;
+                                    cu.AdmMTU = -1;
 
                                     circuitlive.Add(vcidname, cu);
                                 }
@@ -1422,7 +1404,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                         cu.CustomerID = null;
                         cu.Status = custatus;
                         cu.Protocol = custatus;
-                        cu.AdmMTU = 0;
+                        cu.AdmMTU = -1;
 
                         circuitlive.Add(vcidname, cu);
                     }
@@ -1499,46 +1481,46 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                         update = true;
                         u.UpdateStatus = true;
                         u.Status = li.Status;
-                        updateinfo.Append("stat ");
+                        UpdateInfo(updateinfo, "status", db["MC_Status"].ToBool().DescribeUpDown(), li.Status.DescribeUpDown());
                     }
                     if (db["MC_Protocol"].ToBool() != li.Protocol)
                     {
                         update = true;
                         u.UpdateProtocol = true;
                         u.Protocol = li.Protocol;
-                        updateinfo.Append("prot ");
+                        UpdateInfo(updateinfo, "protocol", db["MC_Protocol"].ToBool().DescribeUpDown(), li.Protocol.DescribeUpDown());
                     }
                     if (db["MC_Type"].ToString() != li.Type)
                     {
                         update = true;
                         u.UpdateType = true;
                         u.Type = li.Type;
-                        updateinfo.Append("type ");
+                        UpdateInfo(updateinfo, "type", db["MC_Type"].ToString(), li.Type);
                     }
                     if (db["MC_MU"].ToString() != li.CustomerID)
                     {
                         update = true;
                         u.UpdateCustomer = true;
                         u.CustomerID = li.CustomerID;
-                        updateinfo.Append("cust ");
+                        UpdateInfo(updateinfo, "customer", db["MC_MU"].ToString(), li.CustomerID, true);
                     }
                     if (db["MC_Description"].ToString() != li.Description)
                     {
                         update = true;
                         u.UpdateDescription = true;
                         u.Description = li.Description;
-                        updateinfo.Append("desc ");
+                        UpdateInfo(updateinfo, "description", db["MC_Description"].ToString(), li.Description, true);
 
                         u.ServiceID = null;
 
                         if (u.Description != null) circuitServiceReference.Add(u, u.Description);
                     }
-                    if ((db["MC_MTU"].IsNull ? 0 : db["MC_MTU"].ToIntShort()) != li.AdmMTU)
+                    if (db["MC_MTU"].ToIntShort(-1) != li.AdmMTU)
                     {
                         update = true;
                         u.UpdateAdmMTU = true;
                         u.AdmMTU = li.AdmMTU;
-                        updateinfo.Append("mtu ");
+                        UpdateInfo(updateinfo, "mtu", db["MC_MTU"].ToIntShort(-1).NullableInfo(), li.AdmMTU.NullableInfo());
                     }
                     if (update)
                     {
@@ -1813,21 +1795,21 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                         update = true;
                         u.UpdateProtocol = true;
                         u.Protocol = li.Protocol;
-                        updateinfo.Append("prot ");
+                        UpdateInfo(updateinfo, "protocol", db["MP_Protocol"].ToBool().DescribeUpDown(), li.Protocol.DescribeUpDown());
                     }
                     if (db["MP_Type"].ToString() != li.Type)
                     {
                         update = true;
                         u.UpdateType = true;
                         u.Type = li.Type;
-                        updateinfo.Append("type ");
+                        UpdateInfo(updateinfo, "type", db["MP_Type"].ToString(), li.Type);
                     }
                     if (db["MP_TO_MC"].ToString() != li.ToCircuitID)
                     {
                         update = true;
                         u.UpdateToCircuitID = true;
                         u.ToCircuitID = li.ToCircuitID;
-                        updateinfo.Append("ref ");
+                        UpdateInfo(updateinfo, "target-circuit", db["MP_TO_MC"].ToString(), li.ToCircuitID, true);
                     }
                     if (update)
                     {
@@ -3079,49 +3061,49 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         update = true;
                         u.UpdateParentID = true;
                         u.ParentID = li.ParentID;
-                        updateinfo.Append(li.ParentID == null ? "parent " : "child ");
+                        UpdateInfo(updateinfo, "parent", db["MI_MI"].ToString(), li.ParentID, true);
                     }
                     if (db["MI_TO_PI"].ToString() != li.TopologyPEInterfaceID)
                     {
                         update = true;
                         u.UpdateTopologyPEInterfaceID = true;
                         u.TopologyPEInterfaceID = li.TopologyPEInterfaceID;
-                        updateinfo.Append("mi-to-pi ");
+                        UpdateInfo(updateinfo, "mi-to-pi", db["MI_TO_PI"].ToString(), li.TopologyPEInterfaceID, true);
                     }
                     else if (li.TopologyPEInterfaceID != null && li.NeighborCheckPITOMI != u.ID)
                     {
                         update = true;
                         u.UpdateNeighborCheckPITOMI = true;
                         u.TopologyPEInterfaceID = li.TopologyPEInterfaceID;
-                        updateinfo.Append("neighbor-pi-to-mi ");
+                        UpdateInfo(updateinfo, "neighbor-pi-to-mi", li.NeighborCheckPITOMI, u.ID, true);
                     }
                     if (db["MI_TO_MI"].ToString() != li.TopologyMEInterfaceID)
                     {
                         update = true;
                         u.UpdateTopologyMEInterfaceID = true;
                         u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
-                        updateinfo.Append("mi-to-mi ");
+                        UpdateInfo(updateinfo, "mi-to-mi", db["MI_TO_MI"].ToString(), li.TopologyMEInterfaceID, true);
                     }
                     else if (li.TopologyMEInterfaceID != null && li.NeighborCheckMITOMI != u.ID)
                     {
                         update = true;
                         u.UpdateNeighborCheckMITOMI = true;
                         u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
-                        updateinfo.Append("neighbor-mi-to-mi ");
+                        UpdateInfo(updateinfo, "neighbor-mi-to-mi", li.NeighborCheckMITOMI, u.ID, true);
                     }
                     if (db["MI_TO_NI"].ToString() != li.TopologyNeighborInterfaceID)
                     {
                         update = true;
                         u.UpdateTopologyNeighborInterfaceID = true;
                         u.TopologyNeighborInterfaceID = li.TopologyNeighborInterfaceID;
-                        updateinfo.Append("mi-to-ni ");
+                        UpdateInfo(updateinfo, "mi-to-ni", db["MI_TO_NI"].ToString(), li.TopologyNeighborInterfaceID, true);
                     }
                     if (db["MI_Description"].ToString() != li.Description)
                     {
                         update = true;
                         u.UpdateDescription = true;
                         u.Description = li.Description;
-                        updateinfo.Append("desc ");
+                        UpdateInfo(updateinfo, "description", db["MI_Description"].ToString(), li.Description, true);
 
                         u.ServiceID = null;
                         if (u.Description != null) interfaceServiceReference.Add(u, u.Description);
@@ -3131,126 +3113,126 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         update = true;
                         u.UpdateStatus = true;
                         u.Status = li.Status;
-                        updateinfo.Append("stat ");
+                        UpdateInfo(updateinfo, "status", db["MI_Status"].ToBool().DescribeUpDown(), li.Status.DescribeUpDown());
                     }
                     if (db["MI_Protocol"].ToBool() != li.Protocol)
                     {
                         update = true;
                         u.UpdateProtocol = true;
                         u.Protocol = li.Protocol;
-                        updateinfo.Append("prot ");
+                        UpdateInfo(updateinfo, "protocol", db["MI_Protocol"].ToBool().DescribeUpDown(), li.Protocol.DescribeUpDown());
                     }
                     if (db["MI_Enable"].ToBool() != li.Enable)
                     {
                         update = true;
                         u.UpdateEnable = true;
                         u.Enable = li.Enable;
-                        updateinfo.Append("ena ");
+                        UpdateInfo(updateinfo, "enable", db["MI_Enable"].ToBool().DescribeTrueFalse(), li.Enable.DescribeTrueFalse());
                     }
                     if (db["MI_DOT1Q"].ToIntShort(-1) != li.Dot1Q)
                     {
                         update = true;
                         u.UpdateDot1Q = true;
                         u.Dot1Q = li.Dot1Q;
-                        updateinfo.Append("dot1q ");
+                        UpdateInfo(updateinfo, "dot1q", db["MI_DOT1Q"].ToIntShort(-1).NullableInfo(), li.Dot1Q.NullableInfo());
                     }
                     if (db["MI_Aggregator"].ToIntShort(-1) != li.Aggr)
                     {
                         update = true;
                         u.UpdateAggr = true;
                         u.Aggr = li.Aggr;
-                        updateinfo.Append("aggr ");
+                        UpdateInfo(updateinfo, "aggr", db["MI_Aggregator"].ToIntShort(-1).NullableInfo(), li.Aggr.NullableInfo());
                     }
                     if (db["MI_MC"].ToString() != li.CircuitID)
                     {
                         update = true;
                         u.UpdateCircuit = true;
                         u.CircuitID = li.CircuitID;
-                        updateinfo.Append("vcid ");
+                        UpdateInfo(updateinfo, "circuit", db["MI_MC"].ToString(), li.CircuitID, true);
                     }
                     if (db["MI_Type"].ToString() != li.InterfaceType)
                     {
                         update = true;
                         u.UpdateInterfaceType = true;
                         u.InterfaceType = li.InterfaceType;
-                        updateinfo.Append("type ");
+                        UpdateInfo(updateinfo, "type", db["MI_Type"].ToString(), li.InterfaceType);
                     }
                     if (db["MI_MQ_Input"].ToString() != li.IngressID)
                     {
                         update = true;
                         u.UpdateIngressID = true;
                         u.IngressID = li.IngressID;
-                        updateinfo.Append("ingress ");
+                        UpdateInfo(updateinfo, "qos-input", db["MI_MQ_Input"].ToString(), li.IngressID, true);
                     }
                     if (db["MI_MQ_Output"].ToString() != li.EgressID)
                     {
                         update = true;
                         u.UpdateEgressID = true;
                         u.EgressID = li.EgressID;
-                        updateinfo.Append("egress ");
+                        UpdateInfo(updateinfo, "qos-output", db["MI_MQ_Output"].ToString(), li.EgressID, true);
                     }
                     if (db["MI_Rate_Input"].ToInt(-1) != li.RateInput)
                     {
                         update = true;
                         u.UpdateRateInput = true;
                         u.RateInput = li.RateInput;
-                        updateinfo.Append("rin ");
+                        UpdateInfo(updateinfo, "rate-input", db["MI_Rate_Input"].ToInt(-1).NullableInfo(), li.RateInput.NullableInfo());
                     }
                     if (db["MI_Rate_Output"].ToInt(-1) != li.RateOutput)
                     {
                         update = true;
                         u.UpdateRateOutput = true;
                         u.RateOutput = li.RateOutput;
-                        updateinfo.Append("rout ");
+                        UpdateInfo(updateinfo, "rate-output", db["MI_Rate_Output"].ToInt(-1).NullableInfo(), li.RateOutput.NullableInfo());
                     }
                     if (db["MI_Info"].ToString() != li.Info)
                     {
                         update = true;
                         u.UpdateInfo = true;
                         u.Info = li.Info;
-                        updateinfo.Append("info ");
+                        UpdateInfo(updateinfo, "info", db["MI_Info"].ToString(), li.Info);
                     }
                     if (db["MI_LastDown"].ToNullabelDateTime() != li.LastDown)
                     {
                         update = true;
                         u.UpdateLastDown = true;
                         u.LastDown = li.LastDown;
-                        updateinfo.Append("lastdown ");
+                        UpdateInfo(updateinfo, "lastdown", db["MI_LastDown"].ToNullabelDateTime().ToString(), li.LastDown.ToString(), true);
                     }
                     if (db["MI_Summary_CIRConfigTotalInput"].ToInt(-1) != li.CirConfigTotalInput)
                     {
                         update = true;
                         u.UpdateCirConfigTotalInput = true;
                         u.CirConfigTotalInput = li.CirConfigTotalInput;
-                        updateinfo.Append("circonfin ");
+                        UpdateInfo(updateinfo, "circonf-input", db["MI_Summary_CIRConfigTotalInput"].ToInt(-1).NullableInfo(), li.CirConfigTotalInput.NullableInfo());
                     }
                     if (db["MI_Summary_CIRConfigTotalOutput"].ToInt(-1) != li.CirConfigTotalOutput)
                     {
                         update = true;
                         u.UpdateCirConfigTotalOutput = true;
                         u.CirConfigTotalOutput = li.CirConfigTotalOutput;
-                        updateinfo.Append("circonfout ");
+                        UpdateInfo(updateinfo, "circonf-output", db["MI_Summary_CIRConfigTotalOutput"].ToInt(-1).NullableInfo(), li.CirConfigTotalOutput.NullableInfo());
                     }
                     if (db["MI_Summary_CIRTotalInput"].ToLong(-1) != li.CirTotalInput)
                     {
                         update = true;
                         u.UpdateCirTotalInput = true;
                         u.CirTotalInput = li.CirTotalInput;
-                        updateinfo.Append("cirin ");
+                        UpdateInfo(updateinfo, "cir-input", db["MI_Summary_CIRTotalInput"].ToLong(-1).NullableInfo(), li.CirTotalInput.NullableInfo());
                     }
                     if (db["MI_Summary_CIRTotalOutput"].ToLong(-1) != li.CirTotalOutput)
                     {
                         update = true;
                         u.UpdateCirTotalOutput = true;
                         u.CirTotalOutput = li.CirTotalOutput;
-                        updateinfo.Append("cirout ");
+                        UpdateInfo(updateinfo, "cir-output", db["MI_Summary_CIRTotalOutput"].ToLong(-1).NullableInfo(), li.CirTotalOutput.NullableInfo());
                     }
                     if (db["MI_Summary_SubInterfaceCount"].ToIntShort(-1) != li.SubInterfaceCount)
                     {
                         update = true;
                         u.UpdateSubInterfaceCount = true;
                         u.SubInterfaceCount = li.SubInterfaceCount;
-                        updateinfo.Append("subifc ");
+                        UpdateInfo(updateinfo, "subif-count", db["MI_Summary_SubInterfaceCount"].ToIntShort(-1).NullableInfo(), li.SubInterfaceCount.NullableInfo());
                     }
 
                     if (update)

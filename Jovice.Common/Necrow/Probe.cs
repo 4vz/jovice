@@ -451,6 +451,20 @@ namespace Jovice
 
     #endregion
 
+    internal static class ProbeExtensions
+    {
+        public static string NullableInfo(this object value, string format)
+        {
+            string strtype = value.ToString();
+            return strtype == "-1" ? null : (format != null && strtype != null) ? string.Format(format, strtype) : strtype;
+        }
+
+        public static string NullableInfo(this object value)
+        {
+            return value.NullableInfo(null);
+        }
+    }
+
     internal sealed partial class Probe : SshConnection
     {
         #region Enums
@@ -3268,6 +3282,57 @@ namespace Jovice
             {
                 SaveExit();
             }
+        }
+
+        private void UpdateInfo(StringBuilder updateInfo, string title, string info)
+        {
+            if (updateInfo.Length > 0) updateInfo.Append(", ");
+            if (info != null)
+            {
+                if (info.Length > 0) info = " " + info;
+            }
+            else info = "";
+            updateInfo.Append(title + info);
+        }
+
+        private void UpdateInfo(StringBuilder updateInfo, string title, string from, string to)
+        {
+            if (updateInfo.Length > 0) updateInfo.Append(", ");
+            if (from != null)
+            {
+                if (from.Length > 10) from = from.Substring(0, 10) + "...";
+                else if (from.Length == 0) from = "<empty>";
+            }
+            else from = "NULL";
+            if (to != null)
+            {
+                if (to.Length > 10) to = to.Substring(0, 10) + "...";
+                else if (to.Length == 0) to = "<empty>";
+            }
+            else to = "NULL";
+            updateInfo.Append(title + " " + from + " -> " + to);
+        }
+
+        private void UpdateInfo(StringBuilder updateInfo, string title, string from, string to, bool changeInfo)
+        {
+            if (changeInfo)
+            {
+                if (updateInfo.Length > 0) updateInfo.Append(", " + title);
+                if (from == null)
+                {
+                    updateInfo.Append(" assigned");
+                }
+                else if (to == null)
+                {
+                    updateInfo.Append(" removed");
+                }
+                else
+                {
+                    updateInfo.Append(" changed");
+                }
+            }
+            else
+                UpdateInfo(updateInfo, title, from, to);
         }
 
         private void ServiceExecute(ServiceReference reference)

@@ -880,14 +880,14 @@ namespace Jovice
                         update = true;
                         u.UpdateRD = true;
                         u.RD = li.RD;
-                        updateinfo.Append("RD ");
+                        UpdateInfo(updateinfo, "RD", db["PN_RD"].ToString(), li.RD);
                     }
                     if (db["PN_RDv6"].ToString() != li.RDIPv6)
                     {
                         update = true;
                         u.UpdateRDIPv6 = true;
-                        u.RDIPv6 = li.RDIPv6;
-                        updateinfo.Append("RDv6 ");
+                        u.RDIPv6 = li.RDIPv6;                        
+                        UpdateInfo(updateinfo, "RDv6", db["PN_RDv6"].ToString(), li.RDIPv6);
                     }
                     if (routeTargets != null)
                     {
@@ -901,7 +901,7 @@ namespace Jovice
                             update = true;
                             u.UpdateRouteTargets = true;
                             u.RouteTargets = li.RouteTargets;
-                            updateinfo.Append("RT ");
+                            UpdateInfo(updateinfo, "RT", routeTargets.Count.ToString() + " rts", li.RouteTargets.Length.ToString() + " rts");
                         }
                     }
 
@@ -2653,35 +2653,35 @@ Last input 00:00:00, output 00:00:00
                         update = true;
                         u.UpdateParentID = true;
                         u.ParentID = li.ParentID;
-                        updateinfo.Append(li.ParentID == null ? "parent " : "child ");
+                        UpdateInfo(updateinfo, "parent", db["PI_PI"].ToString(), li.ParentID, true);
                     }
                     if (db["PI_TO_MI"].ToString() != li.TopologyMEInterfaceID)
                     {
                         update = true;
                         u.UpdateTopologyMEInterfaceID = true;
                         u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
-                        updateinfo.Append("pi-to-mi ");
+                        UpdateInfo(updateinfo, "pi-to-mi", db["PI_TO_MI"].ToString(), li.TopologyMEInterfaceID, true);
                     }
                     else if (li.TopologyMEInterfaceID != null && li.NeighborCheckMITOPI != u.ID)
                     {
                         update = true;
                         u.UpdateNeighborCheckMITOPI = true;
                         u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
-                        updateinfo.Append("neighbor-mi-to-pi ");
+                        UpdateInfo(updateinfo, "neighbor-mi-to-pi", li.NeighborCheckMITOPI, u.ID, true);
                     }
                     if (db["PI_TO_NI"].ToString() != li.TopologyNeighborInterfaceID)
                     {
                         update = true;
                         u.UpdateTopologyNeighborInterfaceID = true;
                         u.TopologyNeighborInterfaceID = li.TopologyNeighborInterfaceID;
-                        updateinfo.Append("pi-to-ni ");
+                        UpdateInfo(updateinfo, "pi-to-ni", db["PI_TO_NI"].ToString(), li.TopologyNeighborInterfaceID, true);
                     }
                     if (db["PI_Description"].ToString() != li.Description)
                     {
                         update = true;
                         u.UpdateDescription = true;
                         u.Description = li.Description;
-                        updateinfo.Append("desc ");
+                        UpdateInfo(updateinfo, "description", db["PI_Description"].ToString(), li.Description, true);
 
                         u.ServiceID = null;
                         if (u.Description != null) interfaceServiceReference.Add(u, u.Description);
@@ -2691,119 +2691,119 @@ Last input 00:00:00, output 00:00:00
                         update = true;
                         u.UpdateStatus = true;
                         u.Status = li.Status;
-                        updateinfo.Append("stat ");
+                        UpdateInfo(updateinfo, "status", db["PI_Status"].ToBool().DescribeUpDown(), li.Status.DescribeUpDown());
                     }
                     if (db["PI_Protocol"].ToBool() != li.Protocol)
                     {
                         update = true;
                         u.UpdateProtocol = true;
                         u.Protocol = li.Protocol;
-                        updateinfo.Append("prot ");
+                        UpdateInfo(updateinfo, "protocol", db["PI_Protocol"].ToBool().DescribeUpDown(), li.Protocol.DescribeUpDown());
                     }
                     if (db["PI_Enable"].ToBool() != li.Enable)
                     {
                         update = true;
                         u.UpdateEnable = true;
                         u.Enable = li.Enable;
-                        updateinfo.Append("ena ");
+                        UpdateInfo(updateinfo, "enable", db["PI_ENABLE"].ToBool().DescribeTrueFalse(), li.Enable.DescribeTrueFalse());
                     }
                     if (db["PI_Type"].ToString() != li.InterfaceType)
                     {
                         update = true;
                         u.UpdateInterfaceType = true;
                         u.InterfaceType = li.InterfaceType;
-                        updateinfo.Append("type ");
+                        UpdateInfo(updateinfo, "type", db["PI_Type"].ToString(), li.InterfaceType);
                     }
                     if (db["PI_DOT1Q"].ToIntShort(-1) != li.Dot1Q)
                     {
                         update = true;
                         u.UpdateDot1Q = true;
                         u.Dot1Q = li.Dot1Q;
-                        updateinfo.Append("dot1q ");
+                        UpdateInfo(updateinfo, "dot1q", db["PI_DOT1Q"].ToIntShort(-1).NullableInfo(), li.Dot1Q.NullableInfo());
                     }
                     if (db["PI_Aggregator"].ToIntShort(-1) != li.Aggr)
                     {
                         update = true;
                         u.UpdateAggr = true;
                         u.Aggr = li.Aggr;
-                        updateinfo.Append("aggr ");
+                        UpdateInfo(updateinfo, "aggr", db["PI_Aggregator"].ToIntShort(-1).NullableInfo(), li.Aggr.NullableInfo());
                     }
                     if (db["PI_PN"].ToString() != li.RouteID)
                     {
                         update = true;
                         u.UpdateRouteID = true;
                         u.RouteID = li.RouteID;
-                        updateinfo.Append("rout ");
+                        UpdateInfo(updateinfo, "routename", db["PI_PN"].ToString(), li.RouteID, true);
                     }
                     if (db["PI_PQ_Input"].ToString() != li.InputQOSID)
                     {
                         update = true;
                         u.UpdateInputQOSID = true;
                         u.InputQOSID = li.InputQOSID;
-                        updateinfo.Append("qin ");
+                        UpdateInfo(updateinfo, "qos-input", db["PI_PQ_Input"].ToString(), li.InputQOSID, true);
                     }
                     if (db["PI_PQ_Output"].ToString() != li.OutputQOSID)
                     {
                         update = true;
                         u.UpdateOutputQOSID = true;
                         u.OutputQOSID = li.OutputQOSID;
-                        updateinfo.Append("qout ");
+                        UpdateInfo(updateinfo, "qos-output", db["PI_PQ_Output"].ToString(), li.OutputQOSID, true);
                     }
                     if (db["PI_Rate_Input"].ToInt(-1) != li.RateInput)
                     {
                         update = true;
                         u.UpdateRateInput = true;
                         u.RateInput = li.RateInput;
-                        updateinfo.Append("rin ");
+                        UpdateInfo(updateinfo, "rate-input", db["PI_Rate_Input"].ToInt(-1).NullableInfo(), li.RateInput.NullableInfo());
                     }
                     if (db["PI_Rate_Output"].ToInt(-1) != li.RateOutput)
                     {
                         update = true;
                         u.UpdateRateOutput = true;
                         u.RateOutput = li.RateOutput;
-                        updateinfo.Append("rout ");
+                        UpdateInfo(updateinfo, "rate-output", db["PI_Rate_Output"].ToInt(-1).NullableInfo(), li.RateOutput.NullableInfo());
                     }
                     if (db["PI_LastDown"].ToNullabelDateTime() != li.LastDown)
                     {
                         update = true;
                         u.UpdateLastDown = true;
                         u.LastDown = li.LastDown;
-                        updateinfo.Append("lastdown ");
+                        UpdateInfo(updateinfo, "lastdown", db["PI_LastDown"].ToNullabelDateTime().ToString(), li.LastDown.ToString(), true);
                     }
                     if (db["PI_Summary_CIRConfigTotalInput"].ToInt(-1) != li.CirConfigTotalInput)
                     {
                         update = true;
                         u.UpdateCirConfigTotalInput = true;
                         u.CirConfigTotalInput = li.CirConfigTotalInput;
-                        updateinfo.Append("circonfin ");
+                        UpdateInfo(updateinfo, "circonf-input", db["PI_Summary_CIRConfigTotalInput"].ToInt(-1).NullableInfo(), li.CirConfigTotalInput.NullableInfo());
                     }
                     if (db["PI_Summary_CIRConfigTotalOutput"].ToInt(-1) != li.CirConfigTotalOutput)
                     {
                         update = true;
                         u.UpdateCirConfigTotalOutput = true;
                         u.CirConfigTotalOutput = li.CirConfigTotalOutput;
-                        updateinfo.Append("circonfout ");
+                        UpdateInfo(updateinfo, "circonf-output", db["PI_Summary_CIRConfigTotalOutput"].ToInt(-1).NullableInfo(), li.CirConfigTotalOutput.NullableInfo());
                     }
                     if (db["PI_Summary_CIRTotalInput"].ToLong(-1) != li.CirTotalInput)
                     {
                         update = true;
                         u.UpdateCirTotalInput = true;
                         u.CirTotalInput = li.CirTotalInput;
-                        updateinfo.Append("cirin ");
+                        UpdateInfo(updateinfo, "cir-input", db["PI_Summary_CIRTotalInput"].ToLong(-1).NullableInfo(), li.CirTotalInput.NullableInfo());
                     }
                     if (db["PI_Summary_CIRTotalOutput"].ToLong(-1) != li.CirTotalOutput)
                     {
                         update = true;
                         u.UpdateCirTotalOutput = true;
                         u.CirTotalOutput = li.CirTotalOutput;
-                        updateinfo.Append("cirout ");
+                        UpdateInfo(updateinfo, "cir-output", db["PI_Summary_CIRTotalOutput"].ToLong(-1).NullableInfo(), li.CirTotalOutput.NullableInfo());
                     }
                     if (db["PI_Summary_SubInterfaceCount"].ToIntShort(-1) != li.SubInterfaceCount)
                     {
                         update = true;
                         u.UpdateSubInterfaceCount = true;
                         u.SubInterfaceCount = li.SubInterfaceCount;
-                        updateinfo.Append("subifc ");
+                        UpdateInfo(updateinfo, "subif-count", db["PI_Summary_SubInterfaceCount"].ToIntShort(-1).NullableInfo(), li.SubInterfaceCount.NullableInfo());
                     }
 
                     // check ip
@@ -2861,7 +2861,7 @@ Last input 00:00:00, output 00:00:00
 
                     if (u.IP != null || u.DeleteIP != null)
                     {
-                        updateinfo.Append("ip ");
+                        UpdateInfo(updateinfo, "ip", null);
                         update = true;
                     }
 
@@ -4593,28 +4593,28 @@ Last input 00:00:00, output 00:00:00
                             update = true;
                             u.UpdateSequence = true;
                             u.Sequence = en.Sequence;
-                            updateinfo.Append("seq ");
+                            UpdateInfo(updateinfo, "seq", db["PY_Sequence"].ToIntShort(-1).NullableInfo(), en.Sequence.NullableInfo());
                         }
                         if (db["PY_Access"].ToString() != en.Access)
                         {
                             update = true;
                             u.UpdateAccess = true;
                             u.Access = en.Access;
-                            updateinfo.Append(en.Access == "D" ? "deny " : "permit ");
+                            UpdateInfo(updateinfo, "access", db["PY_Access"].ToString() == "D" ? "deny" : db["PY_Access"].ToString() != null ? "permit" : null, en.Access == "D" ? "deny" : en.Access != null ? "permit" : null);
                         }
                         if (db["PY_Ge"].ToIntShort(-1) != en.GE)
                         {
                             update = true;
                             u.UpdateGE = true;
                             u.GE = en.GE;
-                            updateinfo.Append("ge ");
+                            UpdateInfo(updateinfo, "ge", db["PY_Ge"].ToIntShort(-1).NullableInfo(), en.GE.NullableInfo());
                         }
                         if (db["PY_Le"].ToIntShort(-1) != en.LE)
                         {
                             update = true;
                             u.UpdateLE = true;
                             u.LE = en.LE;
-                            updateinfo.Append("le ");
+                            UpdateInfo(updateinfo, "le", db["PY_Le"].ToIntShort(-1).NullableInfo(), en.LE.NullableInfo());
                         }
 
                         if (update)
@@ -4762,70 +4762,70 @@ Last input 00:00:00, output 00:00:00
                             update = true;
                             u.UpdateRemoteAS = true;
                             u.RemoteAS = li.RemoteAS;
-                            updateinfo.Append("remote-as ");
+                            UpdateInfo(updateinfo, "remote-as", db["PU_B_RemoteAS"].ToInt(-1).NullableInfo(), li.RemoteAS.NullableInfo());
                         }
                         if (db["PU_B_PX_In"].ToString() != li.PrefixListInID)
                         {
                             update = true;
                             u.UpdatePrefixListInID = true;
                             u.PrefixListInID = li.PrefixListInID;
-                            if (li.PrefixListInGone == null) updateinfo.Append("pl in ");
+                            if (li.PrefixListInGone == null) UpdateInfo(updateinfo, "pl-input", db["PU_B_PX_In"].ToString(), li.PrefixListInID, true);
                         }
                         if (db["PU_B_PX_In_Gone"].ToString() != li.PrefixListInGone)
                         {
                             update = true;
                             u.UpdatePrefixListInGone = true;
                             u.PrefixListInGone = li.PrefixListInGone;
-                            if (li.PrefixListInID == null && li.PrefixListInGone != null) updateinfo.Append("pl in NOTEXISTS ");
+                            if (li.PrefixListInID == null && li.PrefixListInGone != null) UpdateInfo(updateinfo, "pl-input", "notexists");
                         }
                         if (db["PU_B_PX_Out"].ToString() != li.PrefixListOutID)
                         {
                             update = true;
                             u.UpdatePrefixListOutID = true;
                             u.PrefixListOutID = li.PrefixListOutID;
-                            if (li.PrefixListOutGone == null) updateinfo.Append("pl out ");
+                            if (li.PrefixListOutGone == null) UpdateInfo(updateinfo, "pl-output", db["PU_B_PX_Out"].ToString(), li.PrefixListOutID, true);
                         }
                         if (db["PU_B_PX_Out_Gone"].ToString() != li.PrefixListOutGone)
                         {
                             update = true;
                             u.UpdatePrefixListOutGone = true;
                             u.PrefixListOutGone = li.PrefixListOutGone;
-                            if (li.PrefixListOutID == null && li.PrefixListOutGone != null) updateinfo.Append("pl out NOTEXISTS ");
+                            if (li.PrefixListOutID == null && li.PrefixListOutGone != null) UpdateInfo(updateinfo, "pl-output", "notexists");
                         }
                         if (db["PU_B_RPL_In"].ToString() != li.RoutePolicyIn)
                         {
                             update = true;
                             u.UpdateRoutePolicyIn = true;
                             u.RoutePolicyIn = li.RoutePolicyIn;
-                            updateinfo.Append("rpl in ");
+                            UpdateInfo(updateinfo, "rpl-input", db["PU_B_RPL_In"].ToString(), li.RoutePolicyIn);
                         }
                         if (db["PU_B_RPL_Out"].ToString() != li.RoutePolicyOut)
                         {
                             update = true;
                             u.UpdateRoutePolicyOut = true;
                             u.RoutePolicyOut = li.RoutePolicyOut;
-                            updateinfo.Append("rpl out ");
+                            UpdateInfo(updateinfo, "rpl-output", db["PU_B_RPL_Out"].ToString(), li.RoutePolicyOut);
                         }
                         if (db["PU_B_MaximumPrefix"].ToInt(-1) != li.MaximumPrefix)
                         {
                             update = true;
                             u.UpdateMaximumPrefix = true;
                             u.MaximumPrefix = li.MaximumPrefix;
-                            updateinfo.Append("max-prefix ");
+                            UpdateInfo(updateinfo, "max-prefix", db["PU_B_MaximumPrefix"].ToInt(-1).NullableInfo(), li.MaximumPrefix.NullableInfo());
                         }
                         if (db["PU_B_MaximumPrefix_Threshold"].ToIntShort(-1) != li.MaximumPrefixThreshold)
                         {
                             update = true;
                             u.UpdateMaximumPrefixThreshold = true;
                             u.MaximumPrefixThreshold = li.MaximumPrefixThreshold;
-                            updateinfo.Append("max-prefix-th ");
+                            UpdateInfo(updateinfo, "max-prefix-threshold", db["PU_B_MaximumPrefix_Threshold"].ToIntShort(-1).NullableInfo(), li.MaximumPrefixThreshold.NullableInfo());
                         }
                         if (db["PU_B_MaximumPrefix_WarningOnly"].ToNullableBool() != li.MaximumPrefixWarningOnly)
                         {
                             update = true;
                             u.UpdateMaximumPrefixWarningOnly = true;
                             u.MaximumPrefixWarningOnly = li.MaximumPrefixWarningOnly;
-                            updateinfo.Append("max-prefix-wo ");
+                            UpdateInfo(updateinfo, "max-prefix-warning-only", db["PU_B_MaximumPrefix_WarningOnly"].ToNullableBool().ToString(), li.MaximumPrefixWarningOnly.ToString());
                         }
                     }
                     else if (li.Type == "O")
@@ -4835,14 +4835,14 @@ Last input 00:00:00, output 00:00:00
                             update = true;
                             u.UpdateMessageDigestKey = true;
                             u.MessageDigestKey = li.MessageDigestKey;
-                            updateinfo.Append("message-digest-key ");
+                            UpdateInfo(updateinfo, "message-digest-key", db["PU_O_MessageDigestKey"].ToString(), li.MessageDigestKey, true);
                         }
                         if (db["PU_O_InterfaceNetwork"].ToString() != li.InterfaceNetwork)
                         {
                             update = true;
                             u.UpdateInterfaceNetwork = true;
                             u.InterfaceNetwork = li.InterfaceNetwork;
-                            updateinfo.Append("interface-network ");
+                            UpdateInfo(updateinfo, "interface-network", db["PU_O_InterfaceNetwork"].ToString(), li.InterfaceNetwork);
                         }
                     }
 

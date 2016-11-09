@@ -72,5 +72,10 @@ namespace Aphysoft.Common
             if (trimExceptChars == null) return value.Trim(null);
             return value.Trim(TrimCharacters(trimExceptChars));
         }
+
+        public static string ToNull(this string value, string nullIf)
+        {
+            return value == nullIf ? null : value;
+        }
     }
 }

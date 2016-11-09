@@ -520,6 +520,7 @@ namespace Jovice
         private TimeSpan nodeTimeOffset;
         private int probeProgressID = -1;
         private DateTime nodeProbeStartTime = DateTime.MinValue;
+        private bool nodeConnected = false;
 
         private bool noMore = false;
 
@@ -884,8 +885,39 @@ namespace Jovice
                 {
                     bool continueProcess = false;
 
-                    Enter(node, xpID, out continueProcess, prioritizeProcess);
+#if !DEBUG
+                    try
+                    {
+#endif
 
+                    Enter(node, xpID, out continueProcess, prioritizeProcess);
+#if !DEBUG
+                    }
+                    catch (Exception ex)
+                    {
+                        string info = null;
+                        
+                        if (ex.Message.IndexOf("was being aborted") == -1)
+                        {
+                            info = ex.Message;
+                            Necrow.Log(nodeName, ex.Message, ex.StackTrace);
+                            Update(UpdateTypes.Remark, "PROBEFAILED");
+                        }
+
+                        continueProcess = false;
+
+                        Save();
+
+                        if (nodeConnected)
+                        {
+                            if (info != null)
+                                Event("Caught error: " + info + ", exiting current node...");
+                            Exit();
+                        }
+                        else if (info != null)
+                            Event("Caught error: " + info);
+                    }
+#endif
                     if (continueProcess)
                     {
                         idleThread = new Thread(new ThreadStart(delegate ()
@@ -1327,6 +1359,8 @@ namespace Jovice
             }
             outputIdentifier = null;
             Event("Exit!");
+
+            nodeConnected = false;
         }
 
         private void Exit(string manufacture)
@@ -2155,6 +2189,8 @@ namespace Jovice
                 Update(UpdateTypes.ConnectType, connectBy);
 
             Event("Connected!");
+
+            nodeConnected = true;
 
             string terminal = null;
 

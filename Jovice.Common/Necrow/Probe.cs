@@ -2535,8 +2535,9 @@ namespace Jovice
                     {
                         lastModified = true;
                         //Time Last Modified     : 2
+                        //Time Last Modified        : 2016/11/07 17:35:36
                         //01234567890123456789012345
-                        string datetime = line.Substring(25).Trim();
+                        string datetime = line.Substring(25).Trim(new char[] { ' ', ':' });
                         lastConfLive = DateTime.Parse(datetime);
                         lastConfLive = new DateTime(
                             lastConfLive.Ticks - (lastConfLive.Ticks % TimeSpan.TicksPerSecond),

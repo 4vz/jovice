@@ -3113,7 +3113,7 @@ Last input 00:00:00, output 00:00:00
                 if (reservedInterfaces.ContainsKey(pair.Key)) batch.Execute("delete from ReservedInterface where RI_ID = {0}", reservedInterfaces[pair.Key]["RI_ID"].ToString());
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " reserved interface" + (result.AffectedRows > 1 ? "s have " : " has ") + " been found");
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " reserved interface" + (result.AffectedRows > 1 ? "s have" : " has") + " been found");
 
             // POP
             batch.Begin();

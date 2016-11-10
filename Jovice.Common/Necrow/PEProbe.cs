@@ -2705,7 +2705,7 @@ Last input 00:00:00, output 00:00:00
                         update = true;
                         u.UpdateEnable = true;
                         u.Enable = li.Enable;
-                        UpdateInfo(updateinfo, "enable", db["PI_ENABLE"].ToBool().DescribeTrueFalse(), li.Enable.DescribeTrueFalse());
+                        UpdateInfo(updateinfo, "enable", db["PI_Enable"].ToBool().DescribeTrueFalse(), li.Enable.DescribeTrueFalse());
                     }
                     if (db["PI_Type"].ToString() != li.InterfaceType)
                     {

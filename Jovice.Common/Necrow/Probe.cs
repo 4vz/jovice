@@ -3317,18 +3317,18 @@ namespace Jovice
         {
             if (changeInfo)
             {
-                if (updateInfo.Length > 0) updateInfo.Append(", " + title);
+                if (updateInfo.Length > 0) updateInfo.Append(", ");
                 if (from == null)
                 {
-                    updateInfo.Append(" assigned");
+                    updateInfo.Append(title + " assigned");
                 }
                 else if (to == null)
                 {
-                    updateInfo.Append(" removed");
+                    updateInfo.Append(title + " removed");
                 }
                 else
                 {
-                    updateInfo.Append(" changed");
+                    updateInfo.Append(title + " changed");
                 }
             }
             else

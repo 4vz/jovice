@@ -71,14 +71,27 @@ namespace Aphysoft.Common
 
     public class Batch
     {
+        #region Fields
+
         private List<string> lines = new List<string>();
 
         private Database database = null;
+
+        public int Count
+        {
+            get { return lines.Count; }
+        }
+
+        #endregion
+
+        #region Constructors
 
         internal Batch(Database database)
         {
             this.database = database;
         }
+
+        #endregion
 
         #region Methods
 
@@ -1804,6 +1817,17 @@ namespace Aphysoft.Common
         {
             if (IsNull) return null;
             else return new DateTime?(ToDateTime());
+        }
+
+        public TimeSpan ToTimeSpan()
+        {
+            return GetValue<TimeSpan>();
+        }
+
+        public TimeSpan ToTimeSpan(TimeSpan ifNull)
+        {
+            if (IsNull) return ifNull;
+            else return ToTimeSpan();
         }
 
         #endregion

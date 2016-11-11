@@ -11,11 +11,43 @@ using System.IO;
 
 namespace Jovice
 {
-    public class ProbeProperties
+    public class Access
     {
         #region Fields
 
-        string sshUser;
+        private string accessID;
+
+        public string AccessID
+        {
+            get { return accessID; }
+            set { accessID = value; }
+        }
+
+        private int instance;
+
+        public int Instance
+        {
+            get { return instance; }
+            set { instance = value; }
+        }
+
+        private TimeSpan timeStart;
+
+        public TimeSpan TimeStart
+        {
+            get { return timeStart; }
+            set { timeStart = value; }
+        }
+
+        private TimeSpan timeEnd;
+
+        public TimeSpan TimeEnd
+        {
+            get { return timeEnd; }
+            set { timeEnd = value; }
+        }
+
+        private string sshUser;
 
         public string SSHUser
         {
@@ -23,7 +55,7 @@ namespace Jovice
             set { sshUser = value; }
         }
 
-        string sshPassword;
+        private string sshPassword;
 
         public string SSHPassword
         {
@@ -31,7 +63,7 @@ namespace Jovice
             set { sshPassword = value; }
         }
 
-        string tacacUser;
+        private string tacacUser;
 
         public string TacacUser
         {
@@ -39,7 +71,7 @@ namespace Jovice
             set { tacacUser = value; }
         }
 
-        string tacacPassword;
+        private string tacacPassword;
 
         public string TacacPassword
         {
@@ -61,14 +93,6 @@ namespace Jovice
         {
             get { return sshServerAddress; }
             set { sshServerAddress = value; }
-        }
-
-        public bool IsComplete
-        {
-            get
-            {
-                return sshUser != null && sshPassword != null && sshServerAddress != null && sshTerminal != null && tacacUser != null && tacacPassword != null;
-            }
         }
 
         #endregion
@@ -97,6 +121,8 @@ namespace Jovice
         private static Queue<string> prioritize = new Queue<string>();
 
         private static List<Tuple<string, string, string>> supportedVersions = null;
+
+        private static bool mainLoop = true;
 
         #endregion
 
@@ -133,12 +159,6 @@ namespace Jovice
 #if DEBUG
         public static bool Debug()
         {
-            //string complete = "TRUNK TO CKA-923 PORT 2/2/4";
-            //string part = Probe.FindNeighborPart(complete, "ME9-D2-CKA");
-
-            //Event("complete:" + complete);
-            //Event("part:" + part);
-
             return true;
         }
 
@@ -168,6 +188,7 @@ namespace Jovice
             Thread start = new Thread(new ThreadStart(delegate ()
             {
                 Batch batch;
+                Result result;
 
                 Culture.Default();
                 Event("Necrow Starting...");
@@ -203,7 +224,7 @@ namespace Jovice
                 jovice.Exception += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
                 {
                     Event("Database exception has been caught: " + eventArgs.Message.Trim(new char[] { '\r', '\n', ' ' }));
-                    throw new Exception(eventArgs.Message.Trim(new char[] { '\r', '\n', ' ' }) + "\n" + eventArgs.Sql);
+                    //throw new Exception(eventArgs.Message.Trim(new char[] { '\r', '\n', ' ' }) + "\n" + eventArgs.Sql);
                 };
                 jovice.Retry += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
                 {
@@ -223,160 +244,307 @@ namespace Jovice
                 {
                     batch = jovice.Batch();
 
-                    Event("Loading accounts...");
+                    #region Graph
 
-                    int account;
-                    if (!int.TryParse(Configuration.Settings("account", "0"), out account)) account = 0;
+                    //JoviceGraph.Update();
 
-                    List<ProbeProperties> accounts = new List<ProbeProperties>();
+                    #endregion
 
-                    for (int ai = 1; ai <= account; ai++)
+                    #region Database Check
+
+                    Event("Checking database...");
+
+                    DatabaseCheck();
+
+                    Event("Database checks completed");
+
+                    #endregion
+
+                    #region Virtualizations
+
+                    Event("Starting database virtualizations...");
+
+                    NecrowVirtualization.Load();
+
+                    Event("Database virtualizations completed");
+
+                    #endregion
+
+                    #region Etc
+
+                    interfaceTestPrefixes = new Dictionary<string, string[]>();
+                    interfaceTestPrefixes.Add("Hu", new string[] { "H", "HU" });
+                    interfaceTestPrefixes.Add("Te", new string[] { "T", "TE", "TENGIGE", "GI", "XE" }); // kadang Te-gig direfer sebagai Gi dammit people
+                    interfaceTestPrefixes.Add("Gi", new string[] { "G", "GI", "GE", "GIGAE", "GIGABITETHERNET", "TE" }); // kadang Te-gig direfer sebagai Gi dammit people
+                    interfaceTestPrefixes.Add("Fa", new string[] { "F", "FA", "FE", "FASTE" });
+                    interfaceTestPrefixes.Add("Et", new string[] { "E", "ET", "ETH" });
+                    interfaceTestPrefixes.Add("Ag", new string[] { "LAG", "ETH-TRUNK", "BE" });
+
+                    #endregion
+
+                    #region Probe initialization
+
+                    Event("Loading probe list...");
+
+                    list = new Queue<Tuple<int, string>>();
+
+                    foreach (Row xp in jovice.Query("select XP_ID, XP_NO from ProbeProgress order by XP_ID asc"))
                     {
-                        string accconf = Configuration.Settings("account" + ai);
+                        list.Enqueue(new Tuple<int, string>(xp["XP_ID"].ToInt(), xp["XP_NO"].ToString()));
+                    }
 
-                        if (accconf != null)
+                    if (list.Count == 0)
+                    {
+                        CreateNodeQueue();
+                    }
+                    else
+                    {
+                        // set all starttime and status to null
+                        jovice.Execute("update ProbeProgress set XP_StartTime = NULL, XP_Status = NULL");
+                        Event("Using existing list, " + list.Count + " node" + (list.Count > 1 ? "s" : "") + " remaining");
+                    }
+
+                    if (supportedVersions == null)
+                    {
+                        Result sver = jovice.Query("select * from NodeSupport");
+
+                        supportedVersions = new List<Tuple<string, string, string>>();
+
+                        foreach (Row sve in sver)
                         {
-                            string[] confs = accconf.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                            supportedVersions.Add(new Tuple<string, string, string>(sve["NT_Manufacture"].ToString(), sve["NT_Version"].ToString(), sve["NT_SubVersion"].ToString()));
+                        }
+                    }
 
-                            ProbeProperties prop = new ProbeProperties();
+                    #endregion
+                    
 
-                            foreach (string conf in confs)
+                    Dictionary<string, Tuple<Access, List<Probe>>> instances = new Dictionary<string, Tuple<Access, List<Probe>>>();
+
+                    bool modifyingSSH = false;
+
+                    long loops = 0;
+
+                    while (mainLoop)
+                    {
+                        if (loops % 10 == 0)
+                        {
+                            //if (instances.Count == 0) Event("Loading instances...");
+                            //else Event("Reloading instances...");
+
+                            result = jovice.Query(@"
+select XA_ID, XA_Instance, XA_TimeStart, XA_TimeEnd, XU_ServerUser, XU_ServerPassword, XU_TacacUser, XU_TacacPassword, XS_Address, XS_ConsolePrefixFormat
+from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID");
+
+                            foreach (Row row in result)
                             {
-                                string[] pair = conf.Split(new char[] { '=' });
+                                string id = row["XA_ID"].ToString();
 
-                                if (pair.Length == 2)
+                                if (!instances.ContainsKey(id))
                                 {
-                                    if (pair[0] == "ssh")
+                                    // NEW
+
+                                    Access access = new Access();
+                                    access.AccessID = id;
+                                    access.TimeStart = row["XA_TimeStart"].ToTimeSpan(TimeSpan.Zero);
+                                    access.TimeEnd = row["XA_TimeEnd"].ToTimeSpan(TimeSpan.Zero);
+                                    access.SSHUser = row["XU_ServerUser"].ToString();
+                                    access.SSHPassword = row["XU_ServerPassword"].ToString();
+                                    access.TacacUser = row["XU_TacacUser"].ToString();
+                                    access.TacacPassword = row["XU_TacacPassword"].ToString();
+                                    access.SSHServerAddress = row["XS_Address"].ToString();
+
+                                    string format = row["XS_ConsolePrefixFormat"].ToString();
+                                    access.SSHTerminal = string.Format(format, access.SSHUser);
+
+                                    access.Instance = row["XA_Instance"].ToInt();
+
+                                    instances.Add(id, new Tuple<Access, List<Probe>>(access, new List<Probe>()));
+
+                                    for (int i = 0; i < access.Instance; i++)
+                                        instances[id].Item2.Add(Probe.Create(access, access.AccessID.Trim() + "-" + access.TacacUser + "-" + (i + 1)));
+
+                                    Event("ADD PROBE " + access.AccessID.Trim() + "-" + access.TacacUser + ": " + access.SSHUser + "@" + access.SSHServerAddress + " [" + access.TacacUser + "] " + access.Instance + " instance" + ((access.Instance > 1) ? "s" : ""));
+                                }
+                                else
+                                {
+                                    // UPDATE
+                                    Access access = instances[id].Item1;
+
+                                    List<string> updateinfo = new List<string>();
+
+                                    // change timestart
+                                    TimeSpan newstart = row["XA_TimeStart"].ToTimeSpan(TimeSpan.Zero);
+                                    TimeSpan newend = row["XA_TimeEnd"].ToTimeSpan(TimeSpan.Zero);
+
+                                    if (newstart != access.TimeStart)
                                     {
-                                        string[] sshx = pair[1].Split(new char[] { '@', ':' }, 3);
-                                        if (sshx.Length == 3)
+                                        access.TimeStart = newstart;
+                                        updateinfo.Add("timestart changed");
+                                    }
+                                    if (newend != access.TimeEnd)
+                                    {
+                                        access.TimeEnd = newend;
+                                        updateinfo.Add("timeend changed");
+                                    }
+
+                                    // change tacac
+                                    string newtacacuser = row["XU_TacacUser"].ToString();
+                                    string newtacacpassword = row["XU_TacacPassword"].ToString();
+
+                                    if (newtacacuser != access.TacacUser)
+                                    {
+                                        updateinfo.Add("tacacuser " + access.TacacUser + " -> " + newtacacuser);
+                                        access.TacacUser = newtacacuser;
+                                    }
+
+                                    // change ssh
+
+                                    string newsshuser = row["XU_ServerUser"].ToString();
+                                    string newsshpassword = row["XU_ServerPassword"].ToString();
+                                    string newsshserveraddress = row["XS_Address"].ToString();
+                                    int newcount = row["XA_Instance"].ToInt();
+                                    int oldcount = access.Instance;
+
+                                    if (newsshuser != access.SSHUser || newsshpassword != access.SSHPassword || newsshserveraddress != access.SSHServerAddress)
+                                    {
+                                        modifyingSSH = true;
+
+                                        access.SSHUser = newsshuser;
+                                        access.SSHPassword = newsshpassword;
+                                        access.SSHServerAddress = newsshserveraddress;
+
+                                        // requires shutdown entire probes
+                                        List<Probe> removeThis = new List<Probe>();
+                                        int toBeRemovedCount = 0;
+                                        int stoppedCount = 0;
+                                        foreach (Probe probe in instances[id].Item2)
                                         {
-                                            prop.SSHUser = sshx[0];
-                                            prop.SSHServerAddress = sshx[1];
-                                            prop.SSHPassword = sshx[2];
+                                            removeThis.Add(probe);
+                                            probe.BeginStop(delegate ()
+                                            {
+                                                stoppedCount++;
+                                                if (stoppedCount == toBeRemovedCount)
+                                                {                                                    
+                                                    access.Instance = row["XA_Instance"].ToInt();
+                                                    for (int i2 = 0; i2 < access.Instance; i2++)
+                                                        instances[id].Item2.Add(Probe.Create(access, access.AccessID.Trim() + "-" + access.TacacUser + "-" + (i2 + 1)));
+                                                    modifyingSSH = false;
+                                                }
+                                            });
+                                            toBeRemovedCount++;
+                                        }
+                                        foreach (Probe probe in removeThis)
+                                            instances[id].Item2.Remove(probe);
+                                    }
+                                    else
+                                    {
+                                        if (modifyingSSH == false)
+                                        {
+                                            // UPDATE INSTANCES COUNT IF NOT MODIFYING SSH
+
+                                            // change instances count
+                                            if (newcount < oldcount)
+                                            {
+                                                updateinfo.Add("instances " + oldcount + " -> " + newcount);
+                                                access.Instance = newcount;
+
+                                                List<Probe> removeThis = new List<Probe>();
+
+                                                for (int i = newcount; i < oldcount; i++)
+                                                {
+                                                    Probe probe = instances[id].Item2[i];
+                                                    // shutdown this probe
+                                                    probe.BeginStop();
+                                                    // remove from list
+                                                    removeThis.Add(probe);                                                   
+                                                }
+
+                                                foreach (Probe probe in removeThis)
+                                                    instances[id].Item2.Remove(probe);
+                                            }
+                                            else if (newcount > oldcount)
+                                            {
+                                                updateinfo.Add("instances " + oldcount + " -> " + newcount);
+                                                access.Instance = newcount;
+
+                                                for (int i = oldcount; i < newcount; i++)
+                                                    instances[id].Item2.Add(Probe.Create(access, access.AccessID.Trim() + "-" + access.TacacUser + "-" + (i + 1)));
+                                            }
                                         }
                                     }
-                                    else if (pair[0] == "terminal")
+
+                                    if (updateinfo.Count > 0)
                                     {
-                                        prop.SSHTerminal = pair[1];
-                                    }
-                                    else if (pair[0] == "tacac")
-                                    {
-                                        string[] tacacx = pair[1].Split(new char[] { ':' }, 2);
-                                        if (tacacx.Length == 2)
-                                        {
-                                            prop.TacacUser = tacacx[0];
-                                            prop.TacacPassword = tacacx[1];
-                                        }
+                                        Event("UPDATE PROBE " + access.AccessID.Trim() + "-" + access.TacacUser + ": " + string.Join(", ", updateinfo.ToArray()));
                                     }
                                 }
                             }
 
-                            if (prop.IsComplete)
+                            List<string> removeKey = new List<string>();
+                            foreach (KeyValuePair<string, Tuple<Access, List<Probe>>> pair in instances)
                             {
-                                accounts.Add(prop);
+                                bool found = false;
+                                foreach (Row row in result)
+                                {
+                                    string id = row["XA_ID"].ToString();
+                                    if (pair.Key == id)
+                                    {
+                                        found = true;
+                                        break;
+                                    }
+                                }
+
+                                if (!found)
+                                {
+                                    Access access = pair.Value.Item1;
+
+                                    // delete this, remove this, stop this
+                                    Event("DELETE PROBE " + access.AccessID.Trim() + "-" + access.TacacUser);
+
+                                    // requires shutdown entire probes
+                                    List <Probe> removeThis = new List<Probe>();
+                                    foreach (Probe probe in pair.Value.Item2)
+                                    {
+                                        removeThis.Add(probe);
+                                        probe.BeginStop();
+                                    }
+                                    foreach (Probe probe in removeThis)
+                                        pair.Value.Item2.Remove(probe);
+
+                                    removeKey.Add(pair.Key);
+                                }
                             }
-                            else Event("Account #" + ai + " configuration is incomplete");
-                        }
-                        else Event("Cannot find Account #" + ai + " configuration");
-                    }
-
-                    if (accounts.Count > 0)
-                    {
-                        Event("Loaded " + accounts.Count + " account" + ((accounts.Count > 1) ? "s" : ""));
-
-                        #region Graph
-
-                        //JoviceGraph.Update();
-
-                        #endregion
-
-                        #region Database Check
-
-                        Event("Checking database...");
-
-                        DatabaseCheck();
-
-                        Event("Database checks completed");
-
-                        #endregion
-
-                        #region Virtualizations
-
-                        Event("Starting database virtualizations...");
-
-                        NecrowVirtualization.Load();
-
-                        Event("Database virtualizations completed");
-
-                        #endregion
-
-                        #region Etc
-
-                        interfaceTestPrefixes = new Dictionary<string, string[]>();
-                        interfaceTestPrefixes.Add("Hu", new string[] { "H", "HU" });
-                        interfaceTestPrefixes.Add("Te", new string[] { "T", "TE", "TENGIGE", "GI", "XE" }); // kadang Te-gig direfer sebagai Gi dammit people
-                        interfaceTestPrefixes.Add("Gi", new string[] { "G", "GI", "GE", "GIGAE", "GIGABITETHERNET", "TE" }); // kadang Te-gig direfer sebagai Gi dammit people
-                        interfaceTestPrefixes.Add("Fa", new string[] { "F", "FA", "FE", "FASTE" });
-                        interfaceTestPrefixes.Add("Et", new string[] { "E", "ET", "ETH" });
-                        interfaceTestPrefixes.Add("Ag", new string[] { "LAG", "ETH-TRUNK", "BE" });
-
-                        #endregion
-
-                        #region Probe initialization
-
-                        Event("Loading probe list...");
-
-                        list = new Queue<Tuple<int, string>>();
-
-                        foreach (Row xp in jovice.Query("select XP_ID, XP_NO from ProbeProgress order by XP_ID asc"))
-                        {
-                            list.Enqueue(new Tuple<int, string>(xp["XP_ID"].ToInt(), xp["XP_NO"].ToString()));
+                            foreach (string key in removeKey)
+                                instances.Remove(key);
                         }
 
-                        if (list.Count == 0)
+                        if (modifyingSSH == false)
                         {
-                            CreateNodeQueue();
-                        }
-                        else
-                        {
-                            // set all starttime and status to null
-                            jovice.Execute("update ProbeProgress set XP_StartTime = NULL, XP_Status = NULL");
-                            Event("Using existing list, " + list.Count + " node" + (list.Count > 1 ? "s" : "") + " remaining");
-                        }
-
-                        if (supportedVersions == null)
-                        {
-                            Result sver = jovice.Query("select * from NodeSupport");
-
-                            supportedVersions = new List<Tuple<string, string, string>>();
-
-                            foreach (Row sve in sver)
+                            foreach (KeyValuePair<string, Tuple<Access, List<Probe>>> pair in instances)
                             {
-                                supportedVersions.Add(new Tuple<string, string, string>(sve["NT_Manufacture"].ToString(), sve["NT_Version"].ToString(), sve["NT_SubVersion"].ToString()));
+                                Access access = pair.Value.Item1;
+                                List<Probe> probes = pair.Value.Item2;
+
+                                TimeSpan currentTime = DateTime.UtcNow.TimeOfDay;
+
+                                bool inTime = true;
+
+                                if (access.TimeStart != TimeSpan.Zero && access.TimeEnd != TimeSpan.Zero)
+                                    inTime = (access.TimeStart < access.TimeEnd && currentTime > access.TimeStart && currentTime < access.TimeEnd) ||
+                                            (access.TimeStart > access.TimeEnd && (currentTime > access.TimeStart || currentTime < access.TimeEnd)) ||
+                                            (access.TimeStart == access.TimeEnd);
+
+                                foreach (Probe probe in probes)
+                                {
+                                    if (inTime) probe.Start();
+                                }
                             }
                         }
 
-                        #endregion
-
-                        #region Starting instances
-
-                        int instance;
-                        if (!int.TryParse(Configuration.Settings("instance", "1"), out instance)) instance = 1;
-                        if (instance < 1) instance = 1;
-                        Event("Creating " + instance + " probe instance" + (instance > 1 ? "s..." : "..."));
-
-                        for (int ins = 0; ins < instance; ins++)
-                        {
-                            int acn = ins % accounts.Count;
-                            Event("Starting Instance #" + (ins + 1) + " using Account #" + (acn + 1));
-                            Probe.Start(accounts[acn], "INST" + (ins + 1));
-                        }
-
-                        #endregion
+                        Thread.Sleep(1000);
+                        loops++;
                     }
-                    else Event("There's no account configured in the configuration file, please check account configuration in the *.config file");
-
                 }
                 else
                 {
@@ -476,6 +644,55 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             Database jovice = Necrow.Jovice;
             Result result;
             Batch batch = jovice.Batch();
+
+            #region Upper case node name
+
+            result = jovice.Query("select * from Node");
+
+            string[] nodeTypes = new string[] { "P", "M", "S", "H", "D" };
+            string[] nodeManufactures = new string[] { "CISCO", "HUAWEI", "ALCATEL-LUCENT", "JUNIPER", "TELLABS" };
+
+            batch.Begin();
+            foreach (Row row in result)
+            {
+                string id = row["NO_ID"].ToString();
+                
+
+                Update update = jovice.Update("Node");
+                update.Where("NO_ID", id);
+
+                string name = row["NO_Name"].ToString();
+                if (name.ToUpper() != name) update.Set("NO_Name", name.ToUpper());
+
+                string type = row["NO_Type"].ToString();
+                if (type == "p") update.Set("NO_Type", "P");
+                else if (type == "m") update.Set("NO_Type", "M");
+                else if (type == "s") update.Set("NO_Type", "S");
+                else if (type == "h") update.Set("NO_Type", "H");
+                else if (type == "d") update.Set("NO_Type", "D");
+                else if (type.InOf(nodeTypes) == -1) update.Set("NO_Active", false);
+
+                string man = row["NO_Manufacture"].ToString();
+                if (man == "alu" || man == "ALU") update.Set("NO_Manufacture", "ALCATEL-LUCENT");
+                else if (man == "hwe" || man == "HWE") update.Set("NO_Manufacture", "HUAWEI");
+                else if (man == "cso" || man == "CSO" || man == "csc" || man == "CSC") update.Set("NO_Manufacture", "CISCO");
+                else if (man == "jun" || man == "JUN") update.Set("NO_Manufacture", "JUNIPER");
+                else if (man.ToUpper().InOf(nodeManufactures) == -1) update.Set("NO_Active", false);
+                else if (man.ToUpper() != man) update.Set("NO_Manufacture", man.ToUpper());
+
+                if (!update.IsEmpty) batch.Execute(update);
+            }
+
+            if (batch.Count > 0) Event("Checking Node...");
+            result = batch.Commit();
+
+            if (result.AffectedRows > 0)
+            {
+                Event("Affected " + result.AffectedRows + " rows");
+            }
+
+            #endregion
+
 
             bool neighborAffected = false;
 

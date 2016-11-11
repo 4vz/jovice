@@ -475,7 +475,6 @@ namespace Jovice
             TimeStamp,
             TimeOffset,
             Remark,
-            RemarkUser,
             IP,
             Name,
             Active,
@@ -501,6 +500,13 @@ namespace Jovice
 
         #region Fields
 
+        private bool stopping = false;
+        private bool readyToStart = true;
+
+        private Access access;
+
+        internal Access Access { get { return access; } }
+
         private Thread mainLoop = null;
         private Thread idleThread = null;
 
@@ -511,13 +517,6 @@ namespace Jovice
         private string outputIdentifier = null;
 
         private Database j;
-
-        private string sshServer = null;
-        private string sshUser = null;
-        private string sshPassword = null;
-        private string sshTerminal = null;
-        private string tacacUser = null;
-        private string tacacPassword = null;
 
         private string nodeID;
         private string nodeName;
@@ -550,6 +549,8 @@ namespace Jovice
         private Dictionary<string, Row> reservedInterfaces;
         private Dictionary<string, Row> popInterfaces;
 
+        private OnStop onStop = null;
+
         public bool IsConnected
         {
             get
@@ -558,20 +559,13 @@ namespace Jovice
             }
         }
 
-        public bool requestFailure = false;
-
         #endregion
 
         #region Constructors
 
-        public Probe(string server, string user, string password, string cli, string tacacUser, string tacacPassword)
+        public Probe(Access access)
         {
-            this.sshServer = server;
-            this.sshUser = user;
-            this.sshPassword = password;
-            this.sshTerminal = cli;
-            this.tacacUser = tacacUser;
-            this.tacacPassword = tacacPassword;
+            this.access = access;
 
             j = Necrow.Jovice;
         }
@@ -649,15 +643,12 @@ namespace Jovice
 
         #region Static
 
-        public static void Start(ProbeProperties properties, string identifier)
+        public static Probe Create(Access access, string identifier)
         {
-            Thread start = new Thread(new ThreadStart(delegate ()
-            {
-                Probe probe = new Probe(properties.SSHServerAddress, properties.SSHUser, properties.SSHPassword, properties.SSHTerminal, properties.TacacUser, properties.TacacPassword);
-                probe.defaultOutputIdentifier = identifier;
-                probe.Start();
-            }));
-            start.Start();
+            Probe probe = new Probe(access);
+            probe.defaultOutputIdentifier = identifier;
+
+            return probe;
         }
 
         #endregion
@@ -752,16 +743,46 @@ namespace Jovice
             }
         }
 
-        private void Start()
+        internal void Start()
         {
-            Event("Connecting... (" + sshUser + "@" + sshServer + ")");
-            Start(sshServer, sshUser, sshPassword);
+            if (readyToStart)
+            {
+                readyToStart = false;
+                new Thread(new ThreadStart(delegate ()
+                {
+                    onStop = null;
+                    Event("Connecting... (" + access.SSHUser + "@" + access.SSHServerAddress + " [" + access.TacacUser + "])");
+                    Start(access.SSHServerAddress, access.SSHUser, access.SSHPassword);
+                })).Start();
+            }
+        }
+
+        internal delegate void OnStop();
+
+        internal void BeginStop()
+        {
+            if (stopping == false)
+            {
+                Event("Stopping...");
+                stopping = true;
+            }
+        }
+
+        internal void BeginStop(OnStop onStop)
+        {
+            if (stopping == false)
+            {
+                Event("Stopping...");
+                stopping = true;
+                this.onStop = onStop;
+            }
         }
 
         private void Restart()
         {
-            Event("Reconnecting... (" + sshUser + "@" + sshServer + ")");
-            Start(sshServer, sshUser, sshPassword);
+            onStop = null;
+            Event("Reconnecting... (" + access.SSHUser + "@" + access.SSHServerAddress + " [" + access.TacacUser + "])");
+            Start(access.SSHServerAddress, access.SSHUser, access.SSHPassword);
         }
 
         private void Failure()
@@ -771,30 +792,26 @@ namespace Jovice
             base.Stop();
         }
 
+        private void OnStopping()
+        {
+            stopping = false;
+            Event("Stopped");
+            readyToStart = true;
+            if (onStop != null) onStop();
+            onStop = null;
+        }
+
         protected override void CantConnect(string message)
         {
-            bool dorestart = false;
-            if (message.IndexOf("Auth fail") > -1)
-            {
-                Event("Connection failed: Authentication failed");
-            }
-            else if (message.IndexOf("unreachable") > -1)
-            {
-                Event("Connection failed: Server unreachable");
-                dorestart = true;
-            }
+            if (message.IndexOf("Auth fail") > -1) Event("Connection failed: Authentication failed");
+            else if (message.IndexOf("unreachable") > -1) Event("Connection failed: Server unreachable");
+            else Event("Connection failed");
+
+            if (stopping) OnStopping();
             else
             {
-                Event(message);
-                dorestart = true;
-            }
-
-            if (dorestart)
-            {
-                Event("Reconnecting in 20 seconds");
-                Thread.Sleep(15000);
-                Event("Reconnecting in 5 seconds");
-                Thread.Sleep(5000);
+                Event("Reconnecting in 20 seconds...");
+                Thread.Sleep(20000);
                 Restart();
             }
         }
@@ -837,7 +854,8 @@ namespace Jovice
 
             Thread.Sleep(5000);
 
-            Restart();
+            if (stopping) OnStopping();
+            else Restart();
         }
 
         public override void OnResponse(string output)
@@ -854,9 +872,7 @@ namespace Jovice
         private void MainLoop()
         {
             Culture.Default();
-
-            #region Default
-
+            
             while (true)
             {
                 int xpID = -1;
@@ -1026,13 +1042,24 @@ namespace Jovice
                         }
                     }
 
-                    // delay after probing finished
-                    Event("Next node in 5 seconds...");
-                    Thread.Sleep(5000);
+
+                    TimeSpan timeEnd = access.TimeEnd;
+                    if (DateTime.UtcNow.TimeOfDay > timeEnd) stopping = true;
+
+                    if (stopping)
+                    {
+                        Event("My watch is now over");
+                        Stop();
+                        break;
+                    }
+                    else
+                    {
+                        // delay after probing finished
+                        Event("Next node in 5 seconds...");
+                        Thread.Sleep(5000);
+                    }
                 }
             }
-
-            #endregion
         }
 
         private static void Shuffle<T>(IList<T> list)
@@ -1114,7 +1141,7 @@ namespace Jovice
                 while (wait < 100)
                 {
                     while (outputs.Count > 0) lock (outputs) outputs.Dequeue();
-                    if (LastOutput != null && LastOutput.TrimEnd().EndsWith(sshTerminal))
+                    if (LastOutput != null && LastOutput.TrimEnd().EndsWith(access.SSHTerminal))
                     {
                         continueWait = false;
                         break;
@@ -1315,7 +1342,6 @@ namespace Jovice
                 case UpdateTypes.TimeStamp: key = "NO_TimeStamp"; break;
                 case UpdateTypes.TimeOffset: key = "NO_TimeOffset"; break;
                 case UpdateTypes.Remark: key = "NO_Remark"; break;
-                case UpdateTypes.RemarkUser: key = "NO_RemarkUser"; break;
                 case UpdateTypes.IP: key = "NO_IP"; break;
                 case UpdateTypes.Name: key = "NO_Name"; break;
                 case UpdateTypes.Active: key = "NO_Active"; break;
@@ -1566,10 +1592,13 @@ namespace Jovice
             }
         }
 
-        private bool ConnectByTelnet(string host, string manufacture, string user, string pass)
+        private bool ConnectByTelnet(string host, string manufacture)
         {
             int expect = -1;
             bool connectSuccess = false;
+
+            string user = access.TacacUser;
+            string pass = access.TacacPassword;
 
             Event("Connecting with Telnet... (" + user + "@" + host + ")");
             SendLine("telnet " + host);
@@ -1685,10 +1714,13 @@ namespace Jovice
             return connectSuccess;
         }
 
-        private bool ConnectBySSH(string host, string manufacture, string user, string pass)
+        private bool ConnectBySSH(string host, string manufacture)
         {
             int expect = -1;
             bool connectSuccess = false;
+
+            string user = access.TacacUser;
+            string pass = access.TacacPassword;
 
             Event("Connecting with SSH... (" + user + "@" + host + ")");
             SendLine("ssh -o StrictHostKeyChecking=no " + user + "@" + host);
@@ -1886,8 +1918,6 @@ namespace Jovice
             this.probeProgressID = probeProgressID;
 
             string previousRemark = row["NO_Remark"].ToString();
-            string nodeUser = tacacUser;
-            string nodePass = tacacPassword;
 
             nodeProbeStartTime = DateTime.UtcNow;
             Execute("update ProbeProgress set XP_StartTime = {0} where XP_ID = {1}", DateTime.UtcNow, this.probeProgressID);
@@ -1897,7 +1927,6 @@ namespace Jovice
             if (nodeModel != null) Event("Model: " + nodeModel);
 
             Update(UpdateTypes.Remark, null);
-            Update(UpdateTypes.RemarkUser, null);
             Update(UpdateTypes.TimeStamp, DateTime.UtcNow);
 
             // check node manufacture
@@ -2068,8 +2097,6 @@ namespace Jovice
 
             #region CONNECT
 
-            Update(UpdateTypes.RemarkUser, nodeUser);
-
             string connectType = nodeConnectType;
             int connectSequence = 0;
             string connectBy = null;
@@ -2101,13 +2128,13 @@ namespace Jovice
 
                 if (currentConnectType == "T")
                 {
-                    connectSuccess = ConnectByTelnet(nodeName, nodeManufacture, nodeUser, nodePass);
+                    connectSuccess = ConnectByTelnet(nodeName, nodeManufacture);
                     if (connectSuccess) connectBy = "T";
                     else Event("Telnet failed");
                 }
                 else if (currentConnectType == "S")
                 {
-                    connectSuccess = ConnectBySSH(nodeName, nodeManufacture, nodeUser, nodePass);
+                    connectSuccess = ConnectBySSH(nodeName, nodeManufacture);
                     if (connectSuccess) connectBy = "S";
                     else Event("SSH failed");
                 }
@@ -2133,7 +2160,7 @@ namespace Jovice
 
                     Event("Trying to connect to other node...(" + testOtherNode + ")");
 
-                    bool testConnected = ConnectByTelnet(testOtherNode, cso, nodeUser, nodePass);
+                    bool testConnected = ConnectByTelnet(testOtherNode, cso);
 
                     if (testConnected)
                     {

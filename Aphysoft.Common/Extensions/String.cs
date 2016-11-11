@@ -26,6 +26,24 @@ namespace Aphysoft.Common
             }
             return rv;
         }
+        
+        public static int InOf(this string value, params string[] values)
+        {
+            int rv = -1;
+            int ix = -1;
+            foreach (string v in values)
+            {
+                ix++;
+                if (value == v)
+                {
+                    rv = ix;
+                    break;
+                }
+            }
+            return rv;
+        }
+
+        //public static int In(this string value, params string[])
 
         public static bool StartsWith(this string value, params string[] values)
         {

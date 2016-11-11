@@ -327,7 +327,7 @@ namespace Jovice
             set { updateCustomer = value; }
         }
 
-        private int admMTU;
+        private int admMTU = -1;
 
         public int AdmMTU
         {
@@ -751,7 +751,7 @@ namespace Jovice
                             MESDPToDatabase d = new MESDPToDatabase();
                             d.SDP = sdp;
                             int iamtu;
-                            if (int.TryParse(amtu, out iamtu)) d.AdmMTU = iamtu;
+                            if (int.TryParse(amtu, out iamtu)) d.AdmMTU = iamtu == 0 ? -1 : iamtu;
                             else d.AdmMTU = -1;
                             d.FarEnd = farend;
                             d.Status = status;
@@ -1088,7 +1088,7 @@ namespace Jovice
                         {
                             string mtu = oline.Substring(11).Trim();
                             int amtu;
-                            if (int.TryParse(mtu, out amtu)) cservice.AdmMTU = amtu;
+                            if (int.TryParse(mtu, out amtu)) cservice.AdmMTU = amtu == 0 ? -1 : amtu;
                             else cservice.AdmMTU = -1;
                         }
                     }

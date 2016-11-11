@@ -612,7 +612,9 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     Event("Total " + total + " nodes available, " + nids.Count + " nodes eligible, " + excluded + " excluded in this list");
 
                     // check incompleted probeprogress
-                    List<string> incid = Jovice.QueryList("select XP_ID from ProbeProgress", "XP_ID");
+                    List<int> incid = new List<int>();
+                    Result result = Jovice.Query("select XP_ID from ProbeProgress");
+                    foreach (Row row in result) incid.Add(row["XP_ID"].ToInt());
                     
                     Batch batch = Jovice.Batch();
 
@@ -622,13 +624,13 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     {
                         Insert insert = Jovice.Insert("ProbeProgress");
 
-                        while (incid.Contains((id + ""))) id++; // if id contained in incompleted id, then increase
+                        while (incid.Contains(id)) id++; // if id contained in incompleted id, then increase
 
                         insert.Value("XP_ID", id++);
                         insert.Value("XP_NO", nid);
                         batch.Execute(insert);
                     }
-                    Result result = batch.Commit();
+                    result = batch.Commit();
                     if (result.Count > 0) Event("List created");
 
                     foreach (Row xp in Jovice.Query("select XP_ID, XP_NO from ProbeProgress order by XP_ID asc"))

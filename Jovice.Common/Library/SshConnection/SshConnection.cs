@@ -202,7 +202,11 @@ namespace Jovice
 
         protected void Stop()
         {
-            listenerThread.Abort();
+            if (listenerThread != null)
+            {
+                listenerThread.Abort();
+            }
+
             try
             {
                 shell.Close();

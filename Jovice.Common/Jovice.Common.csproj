@@ -196,7 +196,7 @@
     <Compile Include="Necrow\Probe.cs" />
     <Compile Include="Necrow\MEProbe.cs" />
     <Compile Include="Necrow\PEProbe.cs" />
-    <Compile Include="Library\SshConnection\SshConnection.cs" />
+    <Compile Include="Helpers\SshConnection.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Library\SharpSSH\ITransferProtocol.cs" />
     <Compile Include="Library\SharpSSH\java\Exception.cs" />
@@ -356,6 +356,9 @@
     <EmbeddedResource Include="Library\SharpSSH\jsch\examples\util\InputForm.resx">
       <DependentUpon>InputForm.cs</DependentUpon>
     </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Library\SshConnection\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

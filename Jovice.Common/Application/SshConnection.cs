@@ -11,80 +11,155 @@ using System.IO;
 
 namespace Jovice
 {
+    internal delegate void SshConnectionEventHandler(object sender);
+
+    internal delegate void SshConnectionFailedEventHandler(object sender, Exception exception);
+
+    internal delegate void SshConnectionReceivedEventHandler(object sender, string message);
+
     internal abstract class SshConnection
     {
-        private bool started = false;
-
-        public bool IsStarted
-        {
-            get { return started; }
-            set { started = value; }
-        }
+        #region Fields
 
         private Thread listenerThread;
+
         private SshShell shell;
 
-        private string currentOutput = "";
-
-        public string CurrentOutput
-        {
-            get { return currentOutput; }
-        }
-
         private Queue<string> lastOutputs = new Queue<string>();
-        private string lastOutput;
 
-        private bool haveConnected = false;
+        private string lastOutput;
 
         public string LastOutput
         {
             get { return lastOutput; }
         }
 
-        private string expect = string.Empty;
+        private bool connected = false;
 
-        public string CurrentExpectString
+        public bool IsConnected
         {
-            get { return expect; }
+            get { return connected; }
         }
+
+        private string expect = string.Empty;
 
         private Regex expectRegex = null;
 
+        #endregion
+
+        #region Events
+
+        public event SshConnectionEventHandler Connected;
+
+        public event SshConnectionEventHandler Disconnected;
+
+        public event SshConnectionFailedEventHandler ConnectionFailed;
+
+        public event SshConnectionReceivedEventHandler Received;
+
+        #endregion
+
+        #region Methods
+
         protected void Start(string host, string user, string pass)
         {
-            if (!started)
+            if (!connected)
             {
                 shell = new SshShell(host, user, pass);
                 shell.RemoveTerminalEmulationCharacters = true;
 
-                string cantconnectmessage = null;
-
                 try
                 {
                     shell.Connect();
-                    started = true;
-                }
-                catch (Exception ex)
-                {
-                    cantconnectmessage = ex.Message;
-                }
+                    connected = true;
 
-                if (started)
-                {
+                    Connected?.Invoke(this);
+
                     lastOutputs.Clear();
                     lastOutput = null;
 
-                    listenerThread = new Thread(new ThreadStart(Response_WaitCallback));
+                    listenerThread = new Thread(new ThreadStart(delegate() {
+                        while (true)
+                        {
+                            if (shell.Connected)
+                            {
+                                string output = null;
+                                bool sendOutput = false;
+
+                                try
+                                {
+                                    if (string.IsNullOrEmpty(expect) && expectRegex == null)
+                                    {
+                                        output = shell.Expect();
+                                        sendOutput = true;
+                                    }
+                                    else if (expectRegex != null)
+                                    {
+                                        output = shell.Expect(expectRegex);
+                                        sendOutput = true;
+                                    }
+                                    else
+                                    {
+                                        output = shell.Expect(expect);
+                                        sendOutput = true;
+                                    }
+                                }
+                                catch (IOException ex)
+                                {
+                                    if (ex.Message == "Pipe closed") ;
+                                    else if (ex.Message == "Pipe broken") ;
+                                    sendOutput = false;
+                                    break;
+                                }
+
+                                if (sendOutput && output != null)
+                                {
+                                    lastOutputs.Enqueue(output);
+                                    if (lastOutputs.Count > 100) lastOutputs.Dequeue();
+                                    StringBuilder lastOutputSB = new StringBuilder();
+                                    foreach (string s in lastOutputs)
+                                        lastOutputSB.Append(s);
+
+                                    lastOutput = lastOutputSB.ToString();
+
+                                    Received?.Invoke(this, output);
+                                }
+                            }
+                            else break;
+                        }
+
+                        OnDisconnected();
+                    }));
                     listenerThread.IsBackground = false;
                     listenerThread.Start();
                 }
-                else
+                catch (Exception ex)
                 {
                     shell.Close();
                     shell = null;
-                    CantConnect(cantconnectmessage);
+
+                    ConnectionFailed?.Invoke(this, ex);
                 }
             }
+        }
+
+        protected void Stop()
+        {
+            if (connected)
+            {
+                listenerThread.Abort();
+                OnDisconnected();
+            }
+        }
+
+        private void OnDisconnected()
+        {
+            if (shell != null) shell.Close();
+            shell = null;
+
+            connected = false;
+
+            Disconnected?.Invoke(this);
         }
 
         protected void Expect(string expect)
@@ -99,130 +174,11 @@ namespace Jovice
             this.expect = string.Empty;
         }
 
-        protected void Expect()
-        {
-            this.expect = string.Empty;
-        }
-
-        protected virtual void CantConnect(string message)
-        {
-        }
-
-        protected virtual void Connected()
-        {
-        }
-
-        protected virtual void Disconnected()
-        {
-
-        }
-
-        private void Response_WaitCallback()
-        {
-            //  LOOP OF ETERNITY
-            while (true)
-            {
-                if (shell.Connected)
-                {
-                    if (!haveConnected)
-                    {
-                        haveConnected = true;
-                        Connected();
-                    }
-
-                    string output = null;
-                    bool sendOutput = false;
-
-                    try
-                    {
-                        if (string.IsNullOrEmpty(expect) && expectRegex == null)
-                        {
-                            output = shell.Expect();
-                            sendOutput = true;
-                        }
-                        else if (expectRegex != null)
-                        {
-                            output = shell.Expect(expectRegex);
-                            sendOutput = true;
-                        }
-                        else
-                        {
-                            output = shell.Expect(expect);
-                            sendOutput = true;
-                        }
-                    }
-                    catch (IOException ex)
-                    {
-                        if (ex.Message == "Pipe closed")
-                        {
-                            // being kicked
-                        }
-                        else if (ex.Message == "Pipe broken")
-                        {
-                            // connection failure
-                        }
-
-                        haveConnected = false;
-                        sendOutput = false;
-                        shell.Close();
-                        shell = null;
-                        break;
-                    }
-
-                    if (sendOutput && output != null)
-                    {
-                        lastOutputs.Enqueue(output);
-                        if (lastOutputs.Count > 100) lastOutputs.Dequeue();
-                        StringBuilder lastOutputSB = new StringBuilder();
-                        foreach (string s in lastOutputs)
-                            lastOutputSB.Append(s);
-
-                        lastOutput = lastOutputSB.ToString();
-                        currentOutput = output;
-
-                        OnResponse(output);
-                    }
-                }
-                else
-                {
-                    started = false;
-                    try
-                    {
-                        shell.Close();
-                    }
-                    catch { }
-                    shell = null;
-                    haveConnected = false;
-                    break;
-                }
-            }
-
-            Disconnected();
-        }
-
-        protected void Stop()
-        {
-            if (listenerThread != null)
-            {
-                listenerThread.Abort();
-            }
-
-            try
-            {
-                shell.Close();
-            }
-            catch { }
-            haveConnected = false;
-            started = false;
-
-            Disconnected();
-        }
-
         protected bool WriteLine(string data)
         {
             try
             {
-                if (shell.Connected)
+                if (shell != null && shell.Connected)
                 {
                     shell.WriteLine(data);
                     return true;
@@ -236,7 +192,7 @@ namespace Jovice
         {
             try
             {
-                if (shell.Connected)
+                if (shell != null && shell.Connected)
                 {
                     shell.Write(data);
                     return true;
@@ -245,9 +201,7 @@ namespace Jovice
             }
             catch { return false; }
         }
-
-        public virtual void OnResponse(string output)
-        {
-        }
+        
+        #endregion
     }
 }

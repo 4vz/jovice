@@ -501,11 +501,10 @@ namespace Jovice
         #region Fields
 
         private bool stopping = false;
-        private bool readyToStart = true;
 
-        private Access access;
+        private ProbeProperties properties;
 
-        internal Access Access { get { return access; } }
+        internal ProbeProperties Properties { get { return properties; } }
 
         private Thread mainLoop = null;
         private Thread idleThread = null;
@@ -549,9 +548,7 @@ namespace Jovice
         private Dictionary<string, Row> reservedInterfaces;
         private Dictionary<string, Row> popInterfaces;
 
-        private OnStop onStop = null;
-
-        public bool IsConnected
+        public new bool IsConnected
         {
             get
             {
@@ -559,15 +556,27 @@ namespace Jovice
             }
         }
 
+        private bool started = false;
+
+        public bool IsStarted
+        {
+            get { return started; }
+        }
+
         #endregion
 
         #region Constructors
 
-        public Probe(Access access)
+        public Probe(ProbeProperties access)
         {
-            this.access = access;
+            this.properties = access;
 
             j = Necrow.Jovice;
+
+            Connected += OnConnected;
+            Disconnected += OnDisconnected;
+            ConnectionFailed += OnConnectionFailed;
+            Received += OnReceived;
         }
 
         #endregion
@@ -643,7 +652,7 @@ namespace Jovice
 
         #region Static
 
-        public static Probe Create(Access access, string identifier)
+        public static Probe Create(ProbeProperties access, string identifier)
         {
             Probe probe = new Probe(access);
             probe.defaultOutputIdentifier = identifier;
@@ -745,78 +754,45 @@ namespace Jovice
 
         internal void Start()
         {
-            if (readyToStart)
+            if (!IsStarted)
             {
-                readyToStart = false;
+                started = true;
+
+                Event("Connecting... (" + properties.SSHUser + "@" + properties.SSHServerAddress + " [" + properties.TacacUser + "])");
                 new Thread(new ThreadStart(delegate ()
                 {
-                    onStop = null;
-                    Event("Connecting... (" + access.SSHUser + "@" + access.SSHServerAddress + " [" + access.TacacUser + "])");
-                    Start(access.SSHServerAddress, access.SSHUser, access.SSHPassword);
+                    Start(properties.SSHServerAddress, properties.SSHUser, properties.SSHPassword);
                 })).Start();
-            }
+            }           
         }
 
-        internal delegate void OnStop();
-
-        internal void BeginStop()
+        internal void QueueStop()
         {
             if (stopping == false)
             {
-                Event("Stopping...");
+                Event("Stop initiated");
                 stopping = true;
             }
         }
 
-        internal void BeginStop(OnStop onStop)
+        internal void BeginRestart()
         {
-            if (stopping == false)
-            {
-                Event("Stopping...");
-                stopping = true;
-                this.onStop = onStop;
-            }
-        }
+            stopping = false;
 
-        private void Restart()
-        {
-            onStop = null;
-            Event("Reconnecting... (" + access.SSHUser + "@" + access.SSHServerAddress + " [" + access.TacacUser + "])");
-            Start(access.SSHServerAddress, access.SSHUser, access.SSHPassword);
+            if (IsConnected)
+            {
+                Event("Restart initiated");
+                Stop();
+            }
         }
 
         private void Failure()
         {
             outputIdentifier = null;
             Event("Connection failure has occured");
-            base.Stop();
         }
 
-        private void OnStopping()
-        {
-            stopping = false;
-            Event("Stopped");
-            readyToStart = true;
-            if (onStop != null) onStop();
-            onStop = null;
-        }
-
-        protected override void CantConnect(string message)
-        {
-            if (message.IndexOf("Auth fail") > -1) Event("Connection failed: Authentication failed");
-            else if (message.IndexOf("unreachable") > -1) Event("Connection failed: Server unreachable");
-            else Event("Connection failed");
-
-            if (stopping) OnStopping();
-            else
-            {
-                Event("Reconnecting in 20 seconds...");
-                Thread.Sleep(20000);
-                Restart();
-            }
-        }
-
-        protected override void Connected()
+        private void OnConnected(object sender)
         {
             Event("Connected!");
 
@@ -829,8 +805,8 @@ namespace Jovice
             mainLoop = new Thread(new ThreadStart(MainLoop));
             mainLoop.Start();
         }
-
-        protected override void Disconnected()
+        
+        private void OnDisconnected(object sender)
         {
             outputIdentifier = null;
             Event("Disconnected");
@@ -849,16 +825,43 @@ namespace Jovice
             }
 
             int c = j.Cancel();
-            if (c > 0)
-                Event("Canceled " + c + " database transactions");
+            if (c > 0) Event("Canceled " + c + " database transactions");
 
-            Thread.Sleep(5000);
+            started = false;
 
-            if (stopping) OnStopping();
-            else Restart();
+            if (stopping)
+            {
+                stopping = false;
+                Event("Probe session has ended");
+            }
         }
+        
+        private void OnConnectionFailed(object sender, Exception exception)
+        {
+            string message = exception.Message;
 
-        public override void OnResponse(string output)
+            if (message.IndexOf("Auth fail") > -1) Event("Connection failed: Authentication failed");
+            else if (message.IndexOf("unreachable") > -1) Event("Connection failed: Server unreachable");
+            else Event("Connection failed");
+                      
+
+            if (!Necrow.InTime(properties)) stopping = true;
+
+            if (stopping)
+            {
+                stopping = false;
+                Event("Connection attempt aborted");
+                started = false;
+            }
+            else
+            {
+                Event("Reconnecting in 20 seconds...");
+                Thread.Sleep(20000);
+                started = false;
+            }
+        }
+        
+        private void OnReceived(object sender, string output)
         {
             if (output != null && output != "")
             {
@@ -1042,13 +1045,10 @@ namespace Jovice
                         }
                     }
 
-
-                    TimeSpan timeEnd = access.TimeEnd;
-                    if (DateTime.UtcNow.TimeOfDay > timeEnd) stopping = true;
+                    if (!Necrow.InTime(properties)) stopping = true;
 
                     if (stopping)
                     {
-                        Event("My watch is now over");
                         Stop();
                         break;
                     }
@@ -1141,7 +1141,7 @@ namespace Jovice
                 while (wait < 100)
                 {
                     while (outputs.Count > 0) lock (outputs) outputs.Dequeue();
-                    if (LastOutput != null && LastOutput.TrimEnd().EndsWith(access.SSHTerminal))
+                    if (LastOutput != null && LastOutput.TrimEnd().EndsWith(properties.SSHTerminal))
                     {
                         continueWait = false;
                         break;
@@ -1525,7 +1525,7 @@ namespace Jovice
 
                         wait++;
 
-                        if (wait % 100 == 0 && wait < 400)
+                        if (wait % 200 == 0 && wait < 1600)
                         {
                             Event("Waiting...");
                             SendLine("");
@@ -1597,8 +1597,8 @@ namespace Jovice
             int expect = -1;
             bool connectSuccess = false;
 
-            string user = access.TacacUser;
-            string pass = access.TacacPassword;
+            string user = properties.TacacUser;
+            string pass = properties.TacacPassword;
 
             Event("Connecting with Telnet... (" + user + "@" + host + ")");
             SendLine("telnet " + host);
@@ -1719,8 +1719,8 @@ namespace Jovice
             int expect = -1;
             bool connectSuccess = false;
 
-            string user = access.TacacUser;
-            string pass = access.TacacPassword;
+            string user = properties.TacacUser;
+            string pass = properties.TacacPassword;
 
             Event("Connecting with SSH... (" + user + "@" + host + ")");
             SendLine("ssh -o StrictHostKeyChecking=no " + user + "@" + host);

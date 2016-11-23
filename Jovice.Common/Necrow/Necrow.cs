@@ -11,25 +11,9 @@ using System.IO;
 
 namespace Jovice
 {
-    public class Access
+    public class ProbeProperties
     {
         #region Fields
-
-        private string accessID;
-
-        public string AccessID
-        {
-            get { return accessID; }
-            set { accessID = value; }
-        }
-
-        private int instance;
-
-        public int Instance
-        {
-            get { return instance; }
-            set { instance = value; }
-        }
 
         private TimeSpan timeStart;
 
@@ -183,6 +167,17 @@ namespace Jovice
         }
 #endif
 
+        public static bool InTime(ProbeProperties properties)
+        {
+            TimeSpan start = properties.TimeStart;
+            TimeSpan end = properties.TimeEnd;
+            TimeSpan time = DateTime.UtcNow.TimeOfDay;
+
+            return (start < end && start < time && time < end) ||
+                   (start > end && (time > start || time < end)) ||
+                   (start == end);
+        }
+
         public static void Start()
         {
             Thread start = new Thread(new ThreadStart(delegate ()
@@ -317,11 +312,8 @@ namespace Jovice
                     }
 
                     #endregion
-                    
 
-                    Dictionary<string, Tuple<Access, List<Probe>>> instances = new Dictionary<string, Tuple<Access, List<Probe>>>();
-
-                    bool modifyingSSH = false;
+                    Dictionary<string, Probe> instances = new Dictionary<string, Probe>();
 
                     long loops = 0;
 
@@ -329,11 +321,8 @@ namespace Jovice
                     {
                         if (loops % 10 == 0)
                         {
-                            //if (instances.Count == 0) Event("Loading instances...");
-                            //else Event("Reloading instances...");
-
                             result = jovice.Query(@"
-select XA_ID, XA_Instance, XA_TimeStart, XA_TimeEnd, XU_ServerUser, XU_ServerPassword, XU_TacacUser, XU_TacacPassword, XS_Address, XS_ConsolePrefixFormat
+select XA_ID, XA_TimeStart, XA_TimeEnd, XU_ServerUser, XU_ServerPassword, XU_TacacUser, XU_TacacPassword, XS_Address, XS_ConsolePrefixFormat
 from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID");
 
                             foreach (Row row in result)
@@ -343,146 +332,100 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
                                 if (!instances.ContainsKey(id))
                                 {
                                     // NEW
+                                    ProbeProperties prop = new ProbeProperties();
+                                    prop.SSHUser = row["XU_ServerUser"].ToString();
+                                    prop.SSHPassword = row["XU_ServerPassword"].ToString();
+                                    prop.TacacUser = row["XU_TacacUser"].ToString();
+                                    prop.TacacPassword = row["XU_TacacPassword"].ToString();
+                                    prop.SSHServerAddress = row["XS_Address"].ToString();
+                                    prop.SSHTerminal = string.Format(row["XS_ConsolePrefixFormat"].ToString(), prop.SSHUser);
+                                    prop.TimeStart = row["XA_TimeStart"].ToTimeSpan(TimeSpan.MinValue);
+                                    prop.TimeEnd = row["XA_TimeEnd"].ToTimeSpan(TimeSpan.MaxValue);
 
-                                    Access access = new Access();
-                                    access.AccessID = id;
-                                    access.TimeStart = row["XA_TimeStart"].ToTimeSpan(TimeSpan.Zero);
-                                    access.TimeEnd = row["XA_TimeEnd"].ToTimeSpan(TimeSpan.Zero);
-                                    access.SSHUser = row["XU_ServerUser"].ToString();
-                                    access.SSHPassword = row["XU_ServerPassword"].ToString();
-                                    access.TacacUser = row["XU_TacacUser"].ToString();
-                                    access.TacacPassword = row["XU_TacacPassword"].ToString();
-                                    access.SSHServerAddress = row["XS_Address"].ToString();
+                                    instances.Add(id, Probe.Create(prop, "PROBE" + id.Trim()));
 
-                                    string format = row["XS_ConsolePrefixFormat"].ToString();
-                                    access.SSHTerminal = string.Format(format, access.SSHUser);
-
-                                    access.Instance = row["XA_Instance"].ToInt();
-
-                                    instances.Add(id, new Tuple<Access, List<Probe>>(access, new List<Probe>()));
-
-                                    for (int i = 0; i < access.Instance; i++)
-                                        instances[id].Item2.Add(Probe.Create(access, access.AccessID.Trim() + "-" + access.TacacUser + "-" + (i + 1)));
-
-                                    Event("ADD PROBE " + access.AccessID.Trim() + "-" + access.TacacUser + ": " + access.SSHUser + "@" + access.SSHServerAddress + " [" + access.TacacUser + "] " + access.Instance + " instance" + ((access.Instance > 1) ? "s" : ""));
+                                    Event("ADD PROBE" + id.Trim() + ": " + prop.SSHUser + "@" + prop.SSHServerAddress + " [" + prop.TacacUser + "] " + ((prop.TimeStart == TimeSpan.Zero || prop.TimeEnd == TimeSpan.Zero) ? "" : (prop.TimeStart + "-" + prop.TimeEnd)));
                                 }
                                 else
                                 {
                                     // UPDATE
-                                    Access access = instances[id].Item1;
+                                    ProbeProperties prop = instances[id].Properties;
 
                                     List<string> updateinfo = new List<string>();
 
                                     // change timestart
-                                    TimeSpan newstart = row["XA_TimeStart"].ToTimeSpan(TimeSpan.Zero);
-                                    TimeSpan newend = row["XA_TimeEnd"].ToTimeSpan(TimeSpan.Zero);
+                                    TimeSpan newstart = row["XA_TimeStart"].ToTimeSpan(TimeSpan.MinValue);
+                                    TimeSpan newend = row["XA_TimeEnd"].ToTimeSpan(TimeSpan.MaxValue);
+                                    bool updatetime = false;
 
-                                    if (newstart != access.TimeStart)
+                                    if (newstart != prop.TimeStart)
                                     {
-                                        access.TimeStart = newstart;
-                                        updateinfo.Add("timestart changed");
+                                        updatetime = true;
+                                        prop.TimeStart = newstart;
                                     }
-                                    if (newend != access.TimeEnd)
+                                    if (newend != prop.TimeEnd)
                                     {
-                                        access.TimeEnd = newend;
-                                        updateinfo.Add("timeend changed");
+                                        updatetime = true;
+                                        prop.TimeEnd = newend;
                                     }
+                                    if (updatetime) updateinfo.Add("time changed to " + ((prop.TimeStart == TimeSpan.Zero || prop.TimeEnd == TimeSpan.Zero) ? "" : (prop.TimeStart + "-" + prop.TimeEnd)));
 
                                     // change tacac
                                     string newtacacuser = row["XU_TacacUser"].ToString();
                                     string newtacacpassword = row["XU_TacacPassword"].ToString();
 
-                                    if (newtacacuser != access.TacacUser)
+                                    if (newtacacuser != prop.TacacUser)
                                     {
-                                        updateinfo.Add("tacacuser " + access.TacacUser + " -> " + newtacacuser);
-                                        access.TacacUser = newtacacuser;
+                                        updateinfo.Add("tacacuser " + prop.TacacUser + " -> " + newtacacuser);
+                                        prop.TacacUser = newtacacuser;
+                                    }
+                                    if (newtacacpassword != prop.TacacPassword)
+                                    {
+                                        updateinfo.Add("tacacpass changed");
+                                        prop.TacacPassword = newtacacpassword;
                                     }
 
                                     // change ssh
-
                                     string newsshuser = row["XU_ServerUser"].ToString();
                                     string newsshpassword = row["XU_ServerPassword"].ToString();
                                     string newsshserveraddress = row["XS_Address"].ToString();
-                                    int newcount = row["XA_Instance"].ToInt();
-                                    int oldcount = access.Instance;
 
-                                    if (newsshuser != access.SSHUser || newsshpassword != access.SSHPassword || newsshserveraddress != access.SSHServerAddress)
+                                    bool updatessh = false;
+
+                                    if (newsshuser != prop.SSHUser)
                                     {
-                                        modifyingSSH = true;
-
-                                        access.SSHUser = newsshuser;
-                                        access.SSHPassword = newsshpassword;
-                                        access.SSHServerAddress = newsshserveraddress;
-
-                                        // requires shutdown entire probes
-                                        List<Probe> removeThis = new List<Probe>();
-                                        int toBeRemovedCount = 0;
-                                        int stoppedCount = 0;
-                                        foreach (Probe probe in instances[id].Item2)
-                                        {
-                                            removeThis.Add(probe);
-                                            probe.BeginStop(delegate ()
-                                            {
-                                                stoppedCount++;
-                                                if (stoppedCount == toBeRemovedCount)
-                                                {                                                    
-                                                    access.Instance = row["XA_Instance"].ToInt();
-                                                    for (int i2 = 0; i2 < access.Instance; i2++)
-                                                        instances[id].Item2.Add(Probe.Create(access, access.AccessID.Trim() + "-" + access.TacacUser + "-" + (i2 + 1)));
-                                                    modifyingSSH = false;
-                                                }
-                                            });
-                                            toBeRemovedCount++;
-                                        }
-                                        foreach (Probe probe in removeThis)
-                                            instances[id].Item2.Remove(probe);
+                                        updatessh = true;
+                                        updateinfo.Add("sshuser " + prop.SSHUser + " -> " + newsshuser);
+                                        prop.SSHUser = newsshuser;
                                     }
-                                    else
+                                    if (newsshpassword != prop.SSHPassword)
                                     {
-                                        if (modifyingSSH == false)
-                                        {
-                                            // UPDATE INSTANCES COUNT IF NOT MODIFYING SSH
-
-                                            // change instances count
-                                            if (newcount < oldcount)
-                                            {
-                                                updateinfo.Add("instances " + oldcount + " -> " + newcount);
-                                                access.Instance = newcount;
-
-                                                List<Probe> removeThis = new List<Probe>();
-
-                                                for (int i = newcount; i < oldcount; i++)
-                                                {
-                                                    Probe probe = instances[id].Item2[i];
-                                                    // shutdown this probe
-                                                    probe.BeginStop();
-                                                    // remove from list
-                                                    removeThis.Add(probe);                                                   
-                                                }
-
-                                                foreach (Probe probe in removeThis)
-                                                    instances[id].Item2.Remove(probe);
-                                            }
-                                            else if (newcount > oldcount)
-                                            {
-                                                updateinfo.Add("instances " + oldcount + " -> " + newcount);
-                                                access.Instance = newcount;
-
-                                                for (int i = oldcount; i < newcount; i++)
-                                                    instances[id].Item2.Add(Probe.Create(access, access.AccessID.Trim() + "-" + access.TacacUser + "-" + (i + 1)));
-                                            }
-                                        }
+                                        updatessh = true;
+                                        updateinfo.Add("sshpass changed");
+                                        prop.SSHPassword = newsshpassword;
+                                    }
+                                    if (newsshserveraddress != prop.SSHServerAddress)
+                                    {
+                                        updatessh = true;
+                                        updateinfo.Add("sshaddress " + prop.SSHServerAddress + " -> " + newsshserveraddress);
+                                        prop.SSHServerAddress = newsshserveraddress;
                                     }
 
                                     if (updateinfo.Count > 0)
                                     {
-                                        Event("UPDATE PROBE " + access.AccessID.Trim() + "-" + access.TacacUser + ": " + string.Join(", ", updateinfo.ToArray()));
+                                        Event("UPDATE PROBE" + id.Trim() + ": " + string.Join(", ", updateinfo.ToArray()));
+                                    }
+
+                                    if (updatessh)
+                                    {
+                                        prop.SSHTerminal = string.Format(row["XS_ConsolePrefixFormat"].ToString(), prop.SSHUser);
+                                        instances[id].BeginRestart();
                                     }
                                 }
                             }
 
-                            List<string> removeKey = new List<string>();
-                            foreach (KeyValuePair<string, Tuple<Access, List<Probe>>> pair in instances)
+                            List<string> remove = new List<string>();
+                            foreach (KeyValuePair<string, Probe> pair in instances)
                             {
                                 bool found = false;
                                 foreach (Row row in result)
@@ -497,49 +440,20 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
 
                                 if (!found)
                                 {
-                                    Access access = pair.Value.Item1;
-
-                                    // delete this, remove this, stop this
-                                    Event("DELETE PROBE " + access.AccessID.Trim() + "-" + access.TacacUser);
-
-                                    // requires shutdown entire probes
-                                    List <Probe> removeThis = new List<Probe>();
-                                    foreach (Probe probe in pair.Value.Item2)
-                                    {
-                                        removeThis.Add(probe);
-                                        probe.BeginStop();
-                                    }
-                                    foreach (Probe probe in removeThis)
-                                        pair.Value.Item2.Remove(probe);
-
-                                    removeKey.Add(pair.Key);
+                                    Event("DELETE PROBE" + pair.Key.Trim());
+                                    pair.Value.QueueStop();
+                                    remove.Add(pair.Key);
                                 }
                             }
-                            foreach (string key in removeKey)
+                            foreach (string key in remove)
                                 instances.Remove(key);
                         }
 
-                        if (modifyingSSH == false)
+
+                        foreach (KeyValuePair<string, Probe> pair in instances)
                         {
-                            foreach (KeyValuePair<string, Tuple<Access, List<Probe>>> pair in instances)
-                            {
-                                Access access = pair.Value.Item1;
-                                List<Probe> probes = pair.Value.Item2;
-
-                                TimeSpan currentTime = DateTime.UtcNow.TimeOfDay;
-
-                                bool inTime = true;
-
-                                if (access.TimeStart != TimeSpan.Zero && access.TimeEnd != TimeSpan.Zero)
-                                    inTime = (access.TimeStart < access.TimeEnd && currentTime > access.TimeStart && currentTime < access.TimeEnd) ||
-                                            (access.TimeStart > access.TimeEnd && (currentTime > access.TimeStart || currentTime < access.TimeEnd)) ||
-                                            (access.TimeStart == access.TimeEnd);
-
-                                foreach (Probe probe in probes)
-                                {
-                                    if (inTime) probe.Start();
-                                }
-                            }
+                            Probe probe = pair.Value;
+                            if (InTime(probe.Properties)) pair.Value.Start();
                         }
 
                         Thread.Sleep(1000);

@@ -110,12 +110,6 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Scripts.resx</DependentUpon>
     </Compile>
-    <Compile Include="UI\System\Setup\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
-    <Compile Include="UI\System\Setup\Setup.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources\Css.resx">
@@ -137,10 +131,6 @@
       <SubType>Designer</SubType>
       <LastGenOutput>Scripts.Designer.cs</LastGenOutput>
     </EmbeddedResource>
-    <EmbeddedResource Include="UI\System\Setup\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <Content Include="Resources\Scripts\modernizr.js" />
@@ -152,7 +142,6 @@
     <Content Include="Resources\Scripts\libs.js" />
     <Content Include="Resources\Scripts\share.js" />
     <Content Include="Resources\Scripts\three.js" />
-    <Content Include="UI\System\Setup\setup.js" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>

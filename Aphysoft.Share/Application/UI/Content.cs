@@ -30,20 +30,6 @@ namespace Aphysoft.Share
 
         internal static void InternalContentLoad()
         {
-            #region Setup
-
-            Content.Register("system_setup",
-                new ContentPage[] {                    
-                    new ContentPage("/setup", "Setup")
-                },
-                new ContentPackage(
-                    Aphysoft.Share.UI.System.Setup.Setup.PageLoad,
-                    Resource.Register("system_setup_scripts", ResourceType.JavaScript, Aphysoft.Share.UI.System.Setup.Resources.ResourceManager, "setup")
-                    )
-                );
-            
-
-            #endregion
         }
 
         #endregion

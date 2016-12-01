@@ -296,55 +296,6 @@ namespace Aphysoft.Share
             if (Settings.EnableUI)
             {
                 Session.Start(context);
-
-                #region Setup
-
-                if (executionType == ExecutionTypes.Default)
-                {
-                    string cp = Path.Base();
-
-                    if (request.Cookies["vers"] == null)
-                    {
-                        if (cp != Settings.UrlPrefix + PathSetup)
-                        {
-                            response.Redirect(Settings.UrlPrefix + PathSetup + "?done=" + Base64.UrlEncode(request.RawUrl));
-                            response.End();
-                        }
-                        else
-                        {
-                            #region Setup
-
-                            HttpCookie cookie = new HttpCookie("shts");
-                            cookie.Value = "shts";
-                            cookie.HttpOnly = false;
-                            cookie.Path = "/";
-                            if (Settings.UseDomain) cookie.Domain = Settings.BaseDomain;
-
-                            response.Cookies.Add(cookie);
-
-                            #endregion
-                        }
-                    }
-                    else
-                    {
-                        if (cp != Settings.UrlPrefix + PathSetup)
-                        {
-                            string verss = request.Cookies["vers"].Value;
-
-                            int vers;
-
-                            if (int.TryParse(verss, out vers)) ;
-                            else vers = 0;
-
-                            if (vers < ShareVersion)
-                            {
-                                response.Redirect(Settings.UrlPrefix + PathSetup + "?done=" + Base64.UrlEncode(request.RawUrl));
-                                response.End();
-                            }
-                        }
-                    }
-                }
-                #endregion
             }
             else
             {

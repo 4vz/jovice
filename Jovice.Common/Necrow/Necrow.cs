@@ -614,7 +614,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
             #region Neighbor already exists in node
 
-            result = jovice.Query("select NO_ID, NN_ID from Node left join NodeNeighbor on NN_Name = NO_Name where NN_ID is not null and NO_Type in ('M', 'P')");
+            result = jovice.Query("select NO_ID, NN_ID from Node left join NodeNeighbor on NN_Name = NO_Name where NN_ID is not null and NO_Type in ('M', 'P') and NO_Active = 1");
 
             if (result.Count > 0)
             {

@@ -150,6 +150,8 @@ namespace Jovice
 
             if (input.Length > 0)
             {
+                if (input.Length > 5 && input.StartsWith("100GE")) input = "Hu" + input.Substring(5);
+
                 if (char.IsLetter(input[0]))
                 {
                     // search digit
@@ -180,6 +182,11 @@ namespace Jovice
                         {
                             rest = rest.Remove(rest.Length - 4);
                             interfaceType = "te";
+                        }
+                        else if (rest.EndsWith("(100G)"))
+                        {
+                            rest = rest.Remove(rest.Length - 5);
+                            interfaceType = "hu";
                         }
 
                         // cek subinterface

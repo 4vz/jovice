@@ -268,8 +268,8 @@ namespace Jovice
                     #region Etc
 
                     interfaceTestPrefixes = new Dictionary<string, string[]>();
-                    interfaceTestPrefixes.Add("Hu", new string[] { "H", "HU" });
-                    interfaceTestPrefixes.Add("Te", new string[] { "T", "TE", "TENGIGE", "GI", "XE" }); // kadang Te-gig direfer sebagai Gi dammit people
+                    interfaceTestPrefixes.Add("Hu", new string[] { "H", "HU", "GI", "GE" });
+                    interfaceTestPrefixes.Add("Te", new string[] { "T", "TE", "TENGIGE", "GI", "GE", "XE" }); // kadang Te-gig direfer sebagai Gi dammit people
                     interfaceTestPrefixes.Add("Gi", new string[] { "G", "GI", "GE", "GIGAE", "GIGABITETHERNET", "TE" }); // kadang Te-gig direfer sebagai Gi dammit people
                     interfaceTestPrefixes.Add("Fa", new string[] { "F", "FA", "FE", "FASTE" });
                     interfaceTestPrefixes.Add("Et", new string[] { "E", "ET", "ETH" });

@@ -2132,7 +2132,10 @@ Last input 00:00:00, output 00:00:00
                                 if (port != null)
                                 {
                                     string descarea = null;
-                                    if (line.Length > 47) descarea = line.Substring(47).TrimStart();
+                                    if (nodeVersion == "5.90")
+                                        descarea = line.Substring(30).TrimStart();
+                                    else
+                                        descarea = line.Substring(47).TrimStart();
 
                                     description.Append(descarea);
                                 }
@@ -2171,7 +2174,12 @@ Last input 00:00:00, output 00:00:00
                             if (!poe.StartsWith("Eth-Trunk"))
                             {
                                 NetworkInterface inf = NetworkInterface.Parse(poe);
-                                if (inf != null) interfacelive[inf.ShortName].Aggr = aggr;
+                                if (inf != null)
+                                {
+                                    if (!interfacelive.ContainsKey(inf.ShortName))
+                                        ChangeLiveInterfaceTypeByPort(interfacelive, inf.Port, inf.ShortType);
+                                    interfacelive[inf.ShortName].Aggr = aggr;
+                                }
                             }
                         }
                         else

@@ -2392,10 +2392,13 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             else if (nodeManufacture == hwe)
             {
                 #region hwe
+
                 if (Request("display interface description", out lines)) return;
 
                 bool begin = false;
                 string port = null;
+                string status = null;
+                string protocol = null;
                 StringBuilder description = new StringBuilder();
 
                 foreach (string line in lines)
@@ -2412,13 +2415,16 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                     {
                                         MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                         mid.Name = port;
-                                        mid.Description = description.ToString().Trim();
-
+                                        mid.Description = description.Length > 0 ? description.ToString() : null;
+                                        mid.Status = (status == "up" || status == "up(s)");
+                                        mid.Protocol = (status == "up" || status == "up(s)");
                                         interfacelive.Add(port, mid);
                                     }
 
                                     description.Clear();
                                     port = null;
+                                    status = null;
+                                    protocol = null;
                                 }
 
                                 // 5.90
@@ -2439,6 +2445,9 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 //012345678901234567890123456789012345678901234567
                                 //          1         2         3         4
                                 string inf = line.Substring(0, 30).Trim();
+                                status = line.Substring(30, 7).Trim();
+                                protocol = line.Substring(38, 7).Trim();
+
                                 NetworkInterface nif = NetworkInterface.Parse(inf);
                                 if (nif != null) port = nif.ShortName;
 
@@ -2464,8 +2473,9 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     {
                         MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                         mid.Name = port;
-                        mid.Description = description.ToString().Trim();
-
+                        mid.Description = description.Length > 0 ? description.ToString() : null;
+                        mid.Status = (status == "up" || status == "up(s)");
+                        mid.Protocol = (status == "up" || status == "up(s)");
                         interfacelive.Add(port, mid);
                     }
 
@@ -2476,73 +2486,34 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 if (Request("display interface brief", out lines)) return;
 
                 begin = false;
-                string aggre = null;
+                int aggr = -1;
 
                 foreach (string line in lines)
                 {
                     if (begin)
                     {
-                        string[] linex2 = line.Trim().Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                        string poe = line.Trim().Split(StringSplitTypes.Space)[0].Trim();
 
-                        if (linex2.Length >= 3)
+                        if (aggr > -1 && line.StartsWith(" "))
                         {
-                            string pstat = linex2[1].IndexOf("up") > -1 ? "Up" : "Down";
-                            string pprot = linex2[2].IndexOf("up") > -1 ? "Up" : "Down";
-                            string[] linex3 = linex2[0].Split(new char[] { '(', ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                            string poe = null;
-                            string pot = null;
-                            bool issif = false;
-
-                            NetworkInterface nif = NetworkInterface.Parse(linex3[0]);
-                            if (nif != null)
+                            if (!poe.StartsWith("Eth-Trunk"))
                             {
-                                poe = nif.ShortName;
-                                pot = nif.ShortType;
-                                issif = nif.IsSubInterface;
-                            }
-
-                            if (poe != null)
-                            {
-                                if (interfacelive.ContainsKey(poe))
+                                NetworkInterface inf = NetworkInterface.Parse(poe);
+                                if (inf != null)
                                 {
-                                    interfacelive[poe].Status = pstat == "Up";
-                                    interfacelive[poe].Protocol = pprot == "Up";
-                                    interfacelive[poe].Enable = interfacelive[poe].Status;
-
-                                    if (issif == false)
-                                    {
-                                        if (pot == "Gi" && line.IndexOf("(10G)") > -1) pot = "Te";
-                                        interfacelive[poe].InterfaceType = pot;
-                                    }
+                                    if (!interfacelive.ContainsKey(inf.ShortName))
+                                        ChangeLiveInterfaceTypeByPort(interfacelive, inf.Port, inf.ShortType);
+                                    interfacelive[inf.ShortName].Aggr = aggr;
                                 }
                             }
-
-                            if (line[0] != ' ')
+                        }
+                        else
+                        {
+                            aggr = -1;
+                            if (poe.StartsWith("Eth-Trunk") && poe.IndexOf('.') == -1)
                             {
-                                string[] linex = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-                                if (linex[0].StartsWith("Eth-Trunk") && linex[0].IndexOf(".") == -1)
-                                    aggre = linex[0].Substring(9).Trim();
-                                else
-                                    aggre = null;
+                                if (!int.TryParse(poe.Substring(9), out aggr)) aggr = -1;
                             }
-                            else
-                            {
-                                string[] linex = line.Trim().Split(new char[] { '(', ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-                                NetworkInterface nif2 = NetworkInterface.Parse(linex[0]);
-                                if (nif2 != null)
-                                {
-                                    string portnif = nif2.ShortName;
-                                    if (interfacelive.ContainsKey(portnif))
-                                    {
-                                        int agr;
-                                        if (!int.TryParse(aggre, out agr)) agr = -1;
-                                        interfacelive[portnif].Aggr = agr;
-                                    }
-                                }
-                            }
-
                         }
                     }
                     else
@@ -2838,7 +2809,11 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             interfacelive[parent].SubInterfaceCount = count + 1;
                         }
                     }
-                    else li.SubInterfaceCount = 0;
+                    else
+                    {
+                        li.SubInterfaceCount = 0;
+                        li.InterfaceType = inf.ShortType;
+                    }
                 }
             }
 

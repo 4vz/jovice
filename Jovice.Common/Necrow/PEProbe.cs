@@ -1266,6 +1266,8 @@ Last input 00:00:00, output 00:00:00
                                         current = new PEInterfaceToDatabase();
                                         current.Name = inf.ShortName;
 
+                                        if (!inf.IsSubInterface) current.InterfaceType = inf.ShortType;
+
                                         if (mid.StartsWith("up")) current.Status = true;
                                         else current.Status = false;
                                         if (mid.StartsWith("admin")) current.Enable = false;
@@ -1599,6 +1601,8 @@ Last input 00:00:00, output 00:00:00
                                     {
                                         current = new PEInterfaceToDatabase();
                                         current.Name = inf.ShortName;
+
+                                        if (!inf.IsSubInterface) current.InterfaceType = inf.ShortType;
 
                                         if (mid.StartsWith("up")) current.Status = true;
                                         else current.Status = false;
@@ -2128,17 +2132,7 @@ Last input 00:00:00, output 00:00:00
 
                                 NetworkInterface nif = NetworkInterface.Parse(inf);
                                 if (nif != null) port = nif.ShortName;
-
-                                if (port != null)
-                                {
-                                    string descarea = null;
-                                    if (nodeVersion == "5.90")
-                                        descarea = line.Substring(30).TrimStart();
-                                    else
-                                        descarea = line.Substring(47).TrimStart();
-
-                                    description.Append(descarea);
-                                }
+                                if (port != null) description.Append(line.Substring(47).TrimStart());
                             }
                             else if (port != null) description.Append(line.TrimStart());
                         }
@@ -2155,6 +2149,60 @@ Last input 00:00:00, output 00:00:00
                         pid.Status = (status == "up" || status == "up(s)");
                         pid.Protocol = (status == "up" || status == "up(s)");
                         interfacelive.Add(port, pid);
+                    }
+                }
+
+                if (Request("display int main | in current\\ state|BW", out lines)) return;
+
+                string cport = null;
+                foreach (string line in lines)
+                {
+                    string lineTrim = line.Trim();
+                    if (lineTrim.Length > 0)
+                    {
+                        if (cport != null)
+                        {
+                            string itype = null;
+                            int indx;
+                            if (lineTrim.IndexOf("BW: 1000M") > -1 || lineTrim.IndexOf("Port BW: 1G") > -1) itype = "Gi";
+                            else if (lineTrim.IndexOf("Port BW: 10G") > -1) itype = "Te";
+                            else if ((indx = lineTrim.IndexOf("max BW: ")) > -1)
+                            {
+                                string range = lineTrim.Substring(indx + 8, lineTrim.IndexOf(',', indx) - (indx + 8));
+                                if (range.IndexOf("~") > -1)
+                                {
+                                    string[] toks = range.Split(new string[] { "~", "Mbps" }, StringSplitOptions.RemoveEmptyEntries);
+                                    if (toks.Length >= 2)
+                                    {
+                                        int t1 = int.Parse(toks[0]);
+                                        int t2 = int.Parse(toks[1]);
+                                        int mix = t1 + ((t2 - t1) / 2);
+
+                                        if (mix >= 50000 && mix < 500000) itype = "Hu";
+                                        else if (mix >= 5000 && mix < 50000) itype = "Te";
+                                        else if (mix < 5000 && mix >= 500) itype = "Gi";
+                                        else if (mix < 500 && mix > 50) itype = "Fa";
+                                    }
+                                }
+                            }
+
+
+                            if (itype != null)
+                            {
+                                interfacelive[cport].InterfaceType = itype;
+                                cport = null;
+                            }
+                        }
+                        else if (!lineTrim.StartsWith("Line"))
+                        {
+                            NetworkInterface nif = NetworkInterface.Parse(lineTrim.Split(StringSplitTypes.Space)[0]);
+                            if (nif != null)
+                            {
+                                if (nif.ShortType == "Ag" || nif.ShortType == "Fa") interfacelive[nif.ShortName].InterfaceType = nif.ShortType;
+                                else if (nif.ShortType == "Hu") interfacelive["Gi" + nif.Port].InterfaceType = "Hu";
+                                else cport = nif.ShortName;
+                            }
+                        }
                     }
                 }
 
@@ -2176,9 +2224,12 @@ Last input 00:00:00, output 00:00:00
                                 NetworkInterface inf = NetworkInterface.Parse(poe);
                                 if (inf != null)
                                 {
-                                    if (!interfacelive.ContainsKey(inf.ShortName))
-                                        ChangeLiveInterfaceTypeByPort(interfacelive, inf.Port, inf.ShortType);
-                                    interfacelive[inf.ShortName].Aggr = aggr;
+                                    string normal = null;
+                                    // fix missing Hu and Te on huawei devices
+                                    if (inf.ShortType == "Hu") normal = "Gi" + inf.Port;
+                                    else if (inf.ShortType == "Te") normal = "Gi" + inf.Port;
+                                    else normal = inf.ShortName;
+                                    interfacelive[normal].Aggr = aggr;
                                 }
                             }
                         }
@@ -2463,7 +2514,6 @@ Last input 00:00:00, output 00:00:00
                     else
                     {
                         li.SubInterfaceCount = 0;
-                        li.InterfaceType = inf.ShortType;
                     }
                 }
             }
@@ -2494,6 +2544,20 @@ Last input 00:00:00, output 00:00:00
             foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
             {
                 PEInterfaceToDatabase li = pair.Value;
+
+                if (li.InterfaceType != null)
+                {
+                    // phyif
+                    sinf++;
+                    if (li.Status) sinfup++;
+                    if (li.InterfaceType == "Hu") { sinfhu++; if (li.Status) sinfhuup++; }
+                    if (li.InterfaceType == "Te") { sinfte++; if (li.Status) sinfteup++; }
+                    if (li.InterfaceType == "Gi") { sinfgi++; if (li.Status) sinfgiup++; }
+                    if (li.InterfaceType == "Fa") { sinffa++; if (li.Status) sinffaup++; }
+                    if (li.InterfaceType == "Et") { sinfet++; if (li.Status) sinfetup++; }
+                    if (li.InterfaceType == "Ag") { sinfag++; }
+                }
+
                 NetworkInterface inf = NetworkInterface.Parse(li.Name);
                 string parentPort = null;
 
@@ -2505,31 +2569,9 @@ Last input 00:00:00, output 00:00:00
                     if (inf.IsSubInterface)
                     {
                         parentPort = inf.ShortBaseName;
-
-                        ssubinf++;
-                        if (li.Status)
-                        {
-                            ssubinfup++;
-                            if (li.Protocol) ssubinfupup++;
-                        }
-                        if (inftype == "Hu") { ssubinfhu++; if (li.Status) { ssubinfhuup++; if (li.Protocol) ssubinfhuupup++; } }
-                        if (inftype == "Te") { ssubinfte++; if (li.Status) { ssubinfteup++; if (li.Protocol) ssubinfteupup++; } }
-                        if (inftype == "Gi") { ssubinfgi++; if (li.Status) { ssubinfgiup++; if (li.Protocol) ssubinfgiupup++; } }
-                        if (inftype == "Fa") { ssubinffa++; if (li.Status) { ssubinffaup++; if (li.Protocol) ssubinffaupup++; } }
-                        if (inftype == "Et") { ssubinfet++; if (li.Status) { ssubinfetup++; if (li.Protocol) ssubinfetupup++; } }
-                        if (inftype == "Ag") { ssubinfag++; if (li.Status) { ssubinfagup++; if (li.Protocol) ssubinfagupup++; } }
                     }
                     else
                     {
-                        sinf++;
-                        if (li.Status) sinfup++;
-                        if (inftype == "Hu") { sinfhu++; if (li.Status) sinfhuup++; }
-                        if (inftype == "Te") { sinfte++; if (li.Status) sinfteup++; }
-                        if (inftype == "Gi") { sinfgi++; if (li.Status) sinfgiup++; }
-                        if (inftype == "Fa") { sinffa++; if (li.Status) sinffaup++; }
-                        if (inftype == "Et") { sinfet++; if (li.Status) sinfetup++; }
-                        if (inftype == "Se") { sinfse++; if (li.Status) sinfseup++; }
-                        if (inftype == "Ag") { sinfag++; }
                         if (li.Aggr != -1) parentPort = "Ag" + li.Aggr;
                     }
 
@@ -2602,14 +2644,32 @@ Last input 00:00:00, output 00:00:00
                         else
                             FindPhysicalNeighbor(li);
                     }
-                    else if (li.ParentID != null) 
+                    else if (li.ParentID != null)  // subif dan anak aggregate
                     {
-                        int dot1q = li.Dot1Q;
-                        if (dot1q > -1)
+                        if (interfacelive.ContainsKey(parentPort))
                         {
-                            if (interfacelive.ContainsKey(parentPort))
+                            PEInterfaceToDatabase parent = interfacelive[parentPort];
+
+                            if (li.Aggr == -1)
                             {
-                                PEInterfaceToDatabase parent = interfacelive[parentPort];
+                                // subif
+                                ssubinf++;
+                                if (li.Status)
+                                {
+                                    ssubinfup++;
+                                    if (li.Protocol) ssubinfupup++;
+                                }
+                                if (parent.InterfaceType == "Hu") { ssubinfhu++; if (li.Status) { ssubinfhuup++; if (li.Protocol) ssubinfhuupup++; } }
+                                if (parent.InterfaceType == "Te") { ssubinfte++; if (li.Status) { ssubinfteup++; if (li.Protocol) ssubinfteupup++; } }
+                                if (parent.InterfaceType == "Gi") { ssubinfgi++; if (li.Status) { ssubinfgiup++; if (li.Protocol) ssubinfgiupup++; } }
+                                if (parent.InterfaceType == "Fa") { ssubinffa++; if (li.Status) { ssubinffaup++; if (li.Protocol) ssubinffaupup++; } }
+                                if (parent.InterfaceType == "Et") { ssubinfet++; if (li.Status) { ssubinfetup++; if (li.Protocol) ssubinfetupup++; } }
+                                if (parent.InterfaceType == "Ag") { ssubinfag++; if (li.Status) { ssubinfagup++; if (li.Protocol) ssubinfagupup++; } }
+                            }
+
+                            int dot1q = li.Dot1Q;
+                            if (dot1q > -1)
+                            {
                                 if (parent.ChildrenNeighbor != null)
                                 {
                                     if (parent.ChildrenNeighbor.ContainsKey(dot1q))

@@ -4400,47 +4400,6 @@ namespace Jovice
 
             return null;
         }
-
-        private void ChangeLiveInterfaceTypeByPort(SortedDictionary<string, MEInterfaceToDatabase> interfacelive, string port, string newType)
-        {
-            string renameKey = null;
-            foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
-            {
-                string key = pair.Key;
-                if (key.EndsWith(port))
-                {
-                    renameKey = key;
-                    break;
-                }
-            }
-            if (renameKey != null)
-            {
-                MEInterfaceToDatabase min = interfacelive[renameKey];
-                interfacelive.Remove(renameKey);
-                min.Name = newType + port;
-                interfacelive.Add(min.Name, min);
-            }
-        }
-        private void ChangeLiveInterfaceTypeByPort(SortedDictionary<string, PEInterfaceToDatabase> interfacelive, string port, string newType)
-        {
-            string renameKey = null;
-            foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
-            {
-                string key = pair.Key;
-                if (key.EndsWith(port))
-                {
-                    renameKey = key;
-                    break;
-                }
-            }
-            if (renameKey != null)
-            {
-                PEInterfaceToDatabase min = interfacelive[renameKey];
-                interfacelive.Remove(renameKey);
-                min.Name = newType + port;
-                interfacelive.Add(min.Name, min);
-            }
-        }
     }
 
     internal class ServiceReference

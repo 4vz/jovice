@@ -144,11 +144,11 @@ namespace Jovice
         public static bool Debug()
         {
 
-            NetworkInterface nif = NetworkInterface.Parse("GE1/0/0(10G)");
+            //NetworkInterface nif = NetworkInterface.Parse("GE1/0/0(10G)");
 
-            Event(nif.ShortName);
+            //Event(nif.ShortName);
 
-            return false;
+            return true;
         }
 
         public static void Test(string name)

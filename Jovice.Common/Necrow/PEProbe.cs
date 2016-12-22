@@ -1264,9 +1264,9 @@ Last input 00:00:00, output 00:00:00
                                     if (!mid.StartsWith("delete")) // skip deleted interface
                                     {
                                         current = new PEInterfaceToDatabase();
-                                        current.Name = inf.ShortName;
+                                        current.Name = inf.Name;
 
-                                        if (!inf.IsSubInterface) current.InterfaceType = inf.ShortType;
+                                        if (!inf.IsSubInterface) current.InterfaceType = inf.Type;
 
                                         if (mid.StartsWith("up")) current.Status = true;
                                         else current.Status = false;
@@ -1354,7 +1354,7 @@ Last input 00:00:00, output 00:00:00
                                     NetworkInterface networkInterface = NetworkInterface.Parse(lineTrim);
                                     if (networkInterface != null)
                                     {
-                                        string name = networkInterface.ShortName;
+                                        string name = networkInterface.Name;
 
                                         if (interfacelive.ContainsKey(name))
                                         {
@@ -1415,8 +1415,8 @@ Last input 00:00:00, output 00:00:00
                                 NetworkInterface networkInterface = NetworkInterface.Parse(linex[0]);
                                 if (networkInterface != null)
                                 {
-                                    string name = networkInterface.ShortName;
-                                    string type = networkInterface.ShortType;
+                                    string name = networkInterface.Name;
+                                    string type = networkInterface.Type;
                                     int typerate = -1;
                                     if (type == "Te") typerate = 10485760;
                                     else if (type == "Ge") typerate = 1048576;
@@ -1428,7 +1428,7 @@ Last input 00:00:00, output 00:00:00
                                         string parentPort = null;
                                         if (networkInterface.IsSubInterface)
                                         {
-                                            string bport = networkInterface.ShortBaseName;
+                                            string bport = networkInterface.BaseName;
                                             if (interfacelive.ContainsKey(bport))
                                                 parentPort = bport;
                                         }
@@ -1524,7 +1524,7 @@ Last input 00:00:00, output 00:00:00
                                 NetworkInterface networkInterface = NetworkInterface.Parse(name);
                                 if (networkInterface != null)
                                 {
-                                    string shortName = networkInterface.ShortName;
+                                    string shortName = networkInterface.Name;
                                     if (interfacelive.ContainsKey(shortName))
                                         currentInterface = interfacelive[shortName];
                                 }
@@ -1551,7 +1551,7 @@ Last input 00:00:00, output 00:00:00
                             NetworkInterface networkInterface = NetworkInterface.Parse(name);
                             if (networkInterface != null)
                             {
-                                string shortName = networkInterface.ShortName;
+                                string shortName = networkInterface.Name;
                                 if (interfacelive.ContainsKey(shortName))
                                     currentInterface = interfacelive[shortName];
                             }
@@ -1600,9 +1600,9 @@ Last input 00:00:00, output 00:00:00
                                     if (!mid.StartsWith("delete")) // skip deleted interface
                                     {
                                         current = new PEInterfaceToDatabase();
-                                        current.Name = inf.ShortName;
+                                        current.Name = inf.Name;
 
-                                        if (!inf.IsSubInterface) current.InterfaceType = inf.ShortType;
+                                        if (!inf.IsSubInterface) current.InterfaceType = inf.Type;
 
                                         if (mid.StartsWith("up")) current.Status = true;
                                         else current.Status = false;
@@ -1704,14 +1704,14 @@ Last input 00:00:00, output 00:00:00
                                     NetworkInterface networkInterface = NetworkInterface.Parse(ifcandidate);
                                     if (networkInterface != null)
                                     {
-                                        string name = networkInterface.ShortName;
+                                        string name = networkInterface.Name;
                                         if (interfacelive.ContainsKey(name))
                                         {
                                             currentif = name;
 
                                             if (networkInterface.IsSubInterface)
                                             {
-                                                string bport = networkInterface.ShortBaseName;
+                                                string bport = networkInterface.BaseName;
                                                 if (interfacelive.ContainsKey(bport))
                                                 {
                                                     parentPort = bport;
@@ -1844,18 +1844,18 @@ Last input 00:00:00, output 00:00:00
 
                                 if (networkInterface != null)
                                 {
-                                    string name = networkInterface.ShortName;
+                                    string name = networkInterface.Name;
 
                                     if (interfacelive.ContainsKey(name))
                                     {
-                                        string typeif = networkInterface.ShortType;
+                                        string typeif = networkInterface.Type;
                                         int typerate = networkInterface.TypeRate;
 
                                         string parentPort = null;
 
                                         if (networkInterface.IsSubInterface)
                                         {
-                                            string bport = networkInterface.ShortBaseName;
+                                            string bport = networkInterface.BaseName;
                                             if (interfacelive.ContainsKey(bport)) parentPort = bport;
                                         }
 
@@ -2015,11 +2015,11 @@ Last input 00:00:00, output 00:00:00
                                     if (networkInterface != null)
                                     {
                                         parentPort2 = null;
-                                        currentinterface = networkInterface.ShortName;
+                                        currentinterface = networkInterface.Name;
 
                                         if (networkInterface.IsSubInterface)
                                         {
-                                            string bport = networkInterface.ShortBaseName;
+                                            string bport = networkInterface.BaseName;
                                             if (interfacelive.ContainsKey(bport))
                                             {
                                                 parentPort2 = bport;
@@ -2069,7 +2069,7 @@ Last input 00:00:00, output 00:00:00
                                 NetworkInterface networkInterface = NetworkInterface.Parse(name);
                                 if (networkInterface != null)
                                 {
-                                    string shortName = networkInterface.ShortName;
+                                    string shortName = networkInterface.Name;
                                     if (interfacelive.ContainsKey(shortName))
                                         currentInterface = interfacelive[shortName];
                                 }
@@ -2131,7 +2131,12 @@ Last input 00:00:00, output 00:00:00
                                 protocol = line.Substring(38, 7).Trim();
 
                                 NetworkInterface nif = NetworkInterface.Parse(inf);
-                                if (nif != null) port = nif.ShortName;
+                                if (nif != null)
+                                {
+                                    if (nif.Type == "Hu" || nif.Type == "Te") port = "Gi" + nif.PortName;
+                                    else port = nif.Name;
+                                    
+                                }
                                 if (port != null) description.Append(line.Substring(47).TrimStart());
                             }
                             else if (port != null) description.Append(line.TrimStart());
@@ -2152,105 +2157,8 @@ Last input 00:00:00, output 00:00:00
                     }
                 }
 
-                if (Request("display int main | in current\\ state|BW", out lines)) return;
-
-                string cport = null;
-                foreach (string line in lines)
-                {
-                    string lineTrim = line.Trim();
-                    if (lineTrim.Length > 0)
-                    {
-                        if (cport != null)
-                        {
-                            string itype = null;
-                            int indx;
-                            if (lineTrim.IndexOf("BW: 1000M") > -1 || lineTrim.IndexOf("Port BW: 1G") > -1) itype = "Gi";
-                            else if (lineTrim.IndexOf("Port BW: 10G") > -1) itype = "Te";
-                            else if ((indx = lineTrim.IndexOf("max BW: ")) > -1)
-                            {
-                                string range = lineTrim.Substring(indx + 8, lineTrim.IndexOf(',', indx) - (indx + 8));
-                                if (range.IndexOf("~") > -1)
-                                {
-                                    string[] toks = range.Split(new string[] { "~", "Mbps" }, StringSplitOptions.RemoveEmptyEntries);
-                                    if (toks.Length >= 2)
-                                    {
-                                        int t1 = int.Parse(toks[0]);
-                                        int t2 = int.Parse(toks[1]);
-                                        int mix = t1 + ((t2 - t1) / 2);
-
-                                        if (mix >= 50000 && mix < 500000) itype = "Hu";
-                                        else if (mix >= 5000 && mix < 50000) itype = "Te";
-                                        else if (mix < 5000 && mix >= 500) itype = "Gi";
-                                        else if (mix < 500 && mix > 50) itype = "Fa";
-                                    }
-                                }
-                            }
-
-
-                            if (itype != null)
-                            {
-                                interfacelive[cport].InterfaceType = itype;
-                                cport = null;
-                            }
-                        }
-                        else if (!lineTrim.StartsWith("Line"))
-                        {
-                            NetworkInterface nif = NetworkInterface.Parse(lineTrim.Split(StringSplitTypes.Space)[0]);
-                            if (nif != null)
-                            {
-                                if (nif.ShortType == "Ag" || nif.ShortType == "Fa") interfacelive[nif.ShortName].InterfaceType = nif.ShortType;
-                                else if (nif.ShortType == "Hu") interfacelive["Gi" + nif.Port].InterfaceType = "Hu";
-                                else cport = nif.ShortName;
-                            }
-                        }
-                    }
-                }
-
-                if (Request("display interface brief", out lines)) return;
-
-                begin = false;
-                int aggr = -1;
-
-                foreach (string line in lines)
-                {
-                    if (begin)
-                    {
-                        string poe = line.Trim().Split(StringSplitTypes.Space)[0].Trim();
-
-                        if (aggr > -1 && line.StartsWith(" "))
-                        {
-                            if (!poe.StartsWith("Eth-Trunk"))
-                            {
-                                NetworkInterface inf = NetworkInterface.Parse(poe);
-                                if (inf != null)
-                                {
-                                    string normal = null;
-                                    // fix missing Hu and Te on huawei devices
-                                    if (inf.ShortType == "Hu") normal = "Gi" + inf.Port;
-                                    else if (inf.ShortType == "Te") normal = "Gi" + inf.Port;
-                                    else normal = inf.ShortName;
-                                    interfacelive[normal].Aggr = aggr;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            aggr = -1;
-                            if (poe.StartsWith("Eth-Trunk") && poe.IndexOf('.') == -1)
-                            {
-                                if (!int.TryParse(poe.Substring(9), out aggr)) aggr = -1;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if (line.StartsWith("Interface")) begin = true;
-                    }
-                }
-
-                // last down
-                //display interface main | in current state|down time
-                if (Request("display interface main | in current state|down time", out lines)) return;
+                //main interface
+                if (Request("display interface main | in current state|down time|BW", out lines)) return;
 
                 PEInterfaceToDatabase currentInterfaceToDatabase = null;
 
@@ -2263,9 +2171,44 @@ Last input 00:00:00, output 00:00:00
                         NetworkInterface nif = NetworkInterface.Parse(splits[0]);
                         if (nif != null)
                         {
-                            string nifshort = nif.ShortName;
-                            if (interfacelive.ContainsKey(nifshort)) currentInterfaceToDatabase = interfacelive[nifshort];
+                            string name;
+                            if (nif.Type == "Hu" || nif.Type == "Te") name = "Gi" + nif.PortName;
+                            else name = nif.Name;
+
+                            if (interfacelive.ContainsKey(name))
+                            {
+                                currentInterfaceToDatabase = interfacelive[name];
+                                currentInterfaceToDatabase.InterfaceType = nif.Type; // default
+                            }
                         }
+                    }
+                    else if (currentInterfaceToDatabase != null && line.IndexOf("BW") > -1)
+                    {
+                        string itype = null;
+                        int indx;
+                        if (line.IndexOf("BW: 1000M") > -1 || line.IndexOf("Port BW: 1G") > -1) itype = "Gi";
+                        else if (line.IndexOf("Port BW: 10G") > -1) itype = "Te";
+                        else if ((indx = line.IndexOf("max BW: ")) > -1)
+                        {
+                            string lineTrim = line.Trim();
+                            string range = lineTrim.Substring(indx + 8, lineTrim.IndexOf(',', indx) - (indx + 8));
+                            if (range.IndexOf("~") > -1)
+                            {
+                                string[] toks = range.Split(new string[] { "~", "Mbps" }, StringSplitOptions.RemoveEmptyEntries);
+                                if (toks.Length >= 2)
+                                {
+                                    int t1 = int.Parse(toks[0]);
+                                    int t2 = int.Parse(toks[1]);
+                                    int mix = t1 + ((t2 - t1) / 2);
+
+                                    if (mix >= 50000 && mix < 500000) itype = "Hu";
+                                    else if (mix >= 5000 && mix < 50000) itype = "Te";
+                                    else if (mix < 5000 && mix >= 500) itype = "Gi";
+                                    else if (mix < 500 && mix > 50) itype = "Fa";
+                                }
+                            }
+                        }
+                        if (itype != null) currentInterfaceToDatabase.InterfaceType = itype;
                     }
                     else if (currentInterfaceToDatabase != null && line.StartsWith("Last physical down time"))
                     {
@@ -2292,6 +2235,48 @@ Last input 00:00:00, output 00:00:00
                             currentInterfaceToDatabase.LastDown = null;
 
                         currentInterfaceToDatabase = null;
+                    }
+                }
+                
+                if (Request("display interface brief", out lines)) return;
+
+                begin = false;
+                int aggr = -1;
+
+                foreach (string line in lines)
+                {
+                    if (begin)
+                    {
+                        string poe = line.Trim().Split(StringSplitTypes.Space)[0].Trim();
+
+                        if (aggr > -1 && line.StartsWith(" "))
+                        {
+                            if (!poe.StartsWith("Eth-Trunk"))
+                            {
+                                NetworkInterface inf = NetworkInterface.Parse(poe);
+                                if (inf != null)
+                                {
+                                    string normal = null;
+                                    // fix missing Hu and Te on huawei devices
+                                    if (inf.Type == "Hu") normal = "Gi" + inf.Interface;
+                                    else if (inf.Type == "Te") normal = "Gi" + inf.Interface;
+                                    else normal = inf.Name;
+                                    interfacelive[normal].Aggr = aggr;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            aggr = -1;
+                            if (poe.StartsWith("Eth-Trunk") && poe.IndexOf('.') == -1)
+                            {
+                                if (!int.TryParse(poe.Substring(9), out aggr)) aggr = -1;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (line.StartsWith("Interface")) begin = true;
                     }
                 }
 
@@ -2332,14 +2317,14 @@ Last input 00:00:00, output 00:00:00
                         NetworkInterface inf = NetworkInterface.Parse(ifname);
                         if (inf != null)
                         {
-                            string sn = inf.ShortName;
+                            string sn = inf.Name;
                             if (interfacelive.ContainsKey(sn))
                             {
                                 current = interfacelive[sn];
 
                                 if (inf.IsSubInterface)
                                 {
-                                    string bport = inf.ShortBaseName;
+                                    string bport = inf.BaseName;
                                     if (interfacelive.ContainsKey(bport))
                                     {
                                         currentParent = interfacelive[bport];
@@ -2503,7 +2488,7 @@ Last input 00:00:00, output 00:00:00
                 {
                     if (inf.IsSubInterface)
                     {
-                        string parent = inf.ShortBaseName;
+                        string parent = inf.BaseName;
                         if (interfacelive.ContainsKey(parent))
                         {
                             int count = interfacelive[parent].SubInterfaceCount;
@@ -2564,11 +2549,11 @@ Last input 00:00:00, output 00:00:00
                 // TOPOLOGY
                 if (inf != null)
                 {
-                    string inftype = inf.ShortType;
+                    string inftype = inf.Type;
 
                     if (inf.IsSubInterface)
                     {
-                        parentPort = inf.ShortBaseName;
+                        parentPort = inf.BaseName;
                     }
                     else
                     {
@@ -2590,7 +2575,7 @@ Last input 00:00:00, output 00:00:00
                         {
                             // we need support with child
                             int myaggr;
-                            if (int.TryParse(inf.Port, out myaggr))
+                            if (int.TryParse(inf.Interface, out myaggr))
                             {
                                 // cari child di interfacelive yg aggr-nya myaggr
                                 List<PEInterfaceToDatabase> agPhysicals = new List<PEInterfaceToDatabase>();
@@ -3343,7 +3328,7 @@ Last input 00:00:00, output 00:00:00
                                             NetworkInterface nif = NetworkInterface.Parse(parts[1]);
                                             if (nif != null)
                                             {
-                                                ifname = nif.ShortName;
+                                                ifname = nif.Name;
                                                 if (interfacelive.ContainsKey(ifname))
                                                 {
                                                     interfaceID = interfacelive[ifname].ID;
@@ -3359,7 +3344,7 @@ Last input 00:00:00, output 00:00:00
                                         NetworkInterface nif = NetworkInterface.Parse(parts[1]);
                                         if (nif != null)
                                         {
-                                            ifname = nif.ShortName;
+                                            ifname = nif.Name;
                                             if (interfacelive.ContainsKey(ifname))
                                             {
                                                 interfaceID = interfacelive[ifname].ID;
@@ -3723,7 +3708,7 @@ Last input 00:00:00, output 00:00:00
                                         if (linetrim.StartsWith("interface "))
                                         {
                                             NetworkInterface nif = NetworkInterface.Parse(linetrim.Substring(10));
-                                            if (nif != null) currentInterface = nif.ShortName;
+                                            if (nif != null) currentInterface = nif.Name;
 
                                             currentNeighbor = null;
                                             currentMessageDigestKey = null;
@@ -3812,7 +3797,7 @@ Last input 00:00:00, output 00:00:00
                                 if (linetrim.StartsWith("interface "))
                                 {
                                     NetworkInterface nif = NetworkInterface.Parse(linetrim.Substring(10));
-                                    if (nif != null) currentInterface = nif.ShortName;
+                                    if (nif != null) currentInterface = nif.Name;
                                 }
                                 else if (currentInterface != null)
                                 {
@@ -3873,7 +3858,7 @@ Last input 00:00:00, output 00:00:00
                                 if (linetrim.StartsWith("interface "))
                                 {
                                     NetworkInterface nif = NetworkInterface.Parse(linetrim.Substring(10));
-                                    if (nif != null) currentInterface = nif.ShortName;
+                                    if (nif != null) currentInterface = nif.Name;
                                 }
                                 else if (currentInterface != null)
                                 {
@@ -3954,7 +3939,7 @@ Last input 00:00:00, output 00:00:00
                                         NetworkInterface nif = NetworkInterface.Parse(thirdarg);
                                         if (nif != null)
                                         {
-                                            ifname = nif.ShortName;
+                                            ifname = nif.Name;
                                             if (interfacelive.ContainsKey(ifname)) interfaceID = interfacelive[ifname].ID;
                                             if (fortharg != null) neighbor = fortharg;
                                             else neighbor = "INTERFACE";
@@ -4179,7 +4164,7 @@ Last input 00:00:00, output 00:00:00
                                     NetworkInterface nif = NetworkInterface.Parse(neighborx[2]);
                                     if (nif != null)
                                     {
-                                        string dif = nif.ShortName;
+                                        string dif = nif.Name;
                                         string neighbor = neighborx[1];
 
                                         PERouteUseToDatabase i = new PERouteUseToDatabase();
@@ -4391,7 +4376,7 @@ Last input 00:00:00, output 00:00:00
                                     NetworkInterface nif = NetworkInterface.Parse(thirdarg);
                                     if (nif != null)
                                     {
-                                        ifname = nif.ShortName;
+                                        ifname = nif.Name;
                                         if (interfacelive.ContainsKey(ifname)) interfaceID = interfacelive[ifname].ID;
                                         if (fortharg != null) neighbor = fortharg;
                                         else neighbor = "INTERFACE";
@@ -4558,7 +4543,7 @@ Last input 00:00:00, output 00:00:00
                                         NetworkInterface nif = NetworkInterface.Parse(splits[3]);
                                         if (nif != null)
                                         {
-                                            string interfaceName = nif.ShortName;
+                                            string interfaceName = nif.Name;
                                             if (interfacelive.ContainsKey(interfaceName))
                                             {
                                                 string interfaceID = interfacelive[interfaceName].ID;

@@ -1271,7 +1271,7 @@ namespace Jovice
                                 {
                                     string[] linex2 = lineValue.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                                     NetworkInterface inf = NetworkInterface.Parse(linex2[0]);
-                                    if (inf != null) cinterface = inf.ShortName;
+                                    if (inf != null) cinterface = inf.Name;
 
                                     if (linex2.Length >= 3)
                                     {
@@ -2445,7 +2445,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 protocol = line.Substring(38, 7).Trim();
 
                                 NetworkInterface nif = NetworkInterface.Parse(inf);
-                                if (nif != null) port = nif.ShortName;
+                                if (nif != null) port = nif.Name;
 
                                 if (port != null)
                                 {
@@ -2476,57 +2476,84 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     }
                 }
 
-                if (Request("display int main | in current\\ state|BW", out lines)) return;
+                //main interface
+                if (Request("display interface main | in current state|down time|BW", out lines)) return;
 
-                string cport = null;
+                MEInterfaceToDatabase currentInterfaceToDatabase = null;
+
                 foreach (string line in lines)
                 {
-                    string lineTrim = line.Trim();
-                    if (lineTrim.Length > 0)
+                    if (line.IndexOf("current state") > -1 && !line.StartsWith("Line protocol"))
                     {
-                        if (cport != null)
+                        currentInterfaceToDatabase = null;
+                        string[] splits = line.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                        NetworkInterface nif = NetworkInterface.Parse(splits[0]);
+                        if (nif != null)
                         {
-                            string itype = null;
-                            int indx;
-                            if (lineTrim.IndexOf("BW: 1000M") > -1 || lineTrim.IndexOf("Port BW: 1G") > -1) itype = "Gi";
-                            else if (lineTrim.IndexOf("Port BW: 10G") > -1) itype = "Te";
-                            else if ((indx = lineTrim.IndexOf("max BW: ")) > -1)
-                            {
-                                string range = lineTrim.Substring(indx + 8, lineTrim.IndexOf(',', indx) - (indx + 8));
-                                if (range.IndexOf("~") > -1)
-                                {
-                                    string[] toks = range.Split(new string[] { "~", "Mbps" }, StringSplitOptions.RemoveEmptyEntries);
-                                    if (toks.Length >= 2)
-                                    {
-                                        int t1 = int.Parse(toks[0]);
-                                        int t2 = int.Parse(toks[1]);
-                                        int mix = t1 + ((t2 - t1) / 2);
+                            string name;
+                            if (nif.Type == "Hu" || nif.Type == "Te") name = "Gi" + nif.PortName;
+                            else name = nif.Name;
 
-                                        if (mix >= 50000 && mix < 500000) itype = "Hu";
-                                        else if (mix >= 5000 && mix < 50000) itype = "Te";
-                                        else if (mix < 5000 && mix >= 500) itype = "Gi";
-                                        else if (mix < 500 && mix > 50) itype = "Fa";
-                                    }
+                            if (interfacelive.ContainsKey(name))
+                            {
+                                currentInterfaceToDatabase = interfacelive[name];
+                                currentInterfaceToDatabase.InterfaceType = nif.Type; // default
+                            }
+                        }
+                    }
+                    else if (currentInterfaceToDatabase != null && line.IndexOf("BW") > -1)
+                    {
+                        string itype = null;
+                        int indx;
+                        if (line.IndexOf("BW: 1000M") > -1 || line.IndexOf("Port BW: 1G") > -1) itype = "Gi";
+                        else if (line.IndexOf("Port BW: 10G") > -1) itype = "Te";
+                        else if ((indx = line.IndexOf("max BW: ")) > -1)
+                        {
+                            string lineTrim = line.Trim();
+                            string range = lineTrim.Substring(indx + 8, lineTrim.IndexOf(',', indx) - (indx + 8));
+                            if (range.IndexOf("~") > -1)
+                            {
+                                string[] toks = range.Split(new string[] { "~", "Mbps" }, StringSplitOptions.RemoveEmptyEntries);
+                                if (toks.Length >= 2)
+                                {
+                                    int t1 = int.Parse(toks[0]);
+                                    int t2 = int.Parse(toks[1]);
+                                    int mix = t1 + ((t2 - t1) / 2);
+
+                                    if (mix >= 50000 && mix < 500000) itype = "Hu";
+                                    else if (mix >= 5000 && mix < 50000) itype = "Te";
+                                    else if (mix < 5000 && mix >= 500) itype = "Gi";
+                                    else if (mix < 500 && mix > 50) itype = "Fa";
                                 }
                             }
-
-
-                            if (itype != null)
-                            {
-                                interfacelive[cport].InterfaceType = itype;
-                                cport = null;
-                            }
                         }
-                        else if (!lineTrim.StartsWith("Line"))
+                        if (itype != null) currentInterfaceToDatabase.InterfaceType = itype;
+                    }
+                    else if (currentInterfaceToDatabase != null && line.StartsWith("Last physical down time"))
+                    {
+                        //Last physical down time : 2013-11-07 01:05:24 UTC+07:00
+                        //01234567890123456789012345678901234567890123456789
+                        //                          1234567890123456789
+                        //                          0123456789012345678
+                        if (currentInterfaceToDatabase.Protocol == false)
                         {
-                            NetworkInterface nif = NetworkInterface.Parse(lineTrim.Split(StringSplitTypes.Space)[0]);
-                            if (nif != null)
+                            string dtim = line.Substring(26, 19);
+                            int year, month, day;
+                            int hour, min, sec;
+                            if (int.TryParse(dtim.Substring(0, 4), out year) &&
+                                int.TryParse(dtim.Substring(5, 2), out month) &&
+                                int.TryParse(dtim.Substring(8, 2), out day) &&
+                                int.TryParse(dtim.Substring(11, 2), out hour) &&
+                                int.TryParse(dtim.Substring(14, 2), out min) &&
+                                int.TryParse(dtim.Substring(17, 2), out sec))
                             {
-                                if (nif.ShortType == "Ag" || nif.ShortType == "Fa") interfacelive[nif.ShortName].InterfaceType = nif.ShortType;
-                                else if (nif.ShortType == "Hu") interfacelive["Gi" + nif.Port].InterfaceType = "Hu";
-                                else cport = nif.ShortName;
+                                currentInterfaceToDatabase.LastDown = (new DateTime(year, month, day, hour, min, sec)) - nodeTimeOffset;
                             }
                         }
+                        else
+                            currentInterfaceToDatabase.LastDown = null;
+
+                        currentInterfaceToDatabase = null;
                     }
                 }
 
@@ -2550,9 +2577,9 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 {
                                     string normal = null;
                                     // fix missing Hu and Te on huawei devices
-                                    if (inf.ShortType == "Hu") normal = "Gi" + inf.Port;
-                                    else if (inf.ShortType == "Te") normal = "Gi" + inf.Port;
-                                    else normal = inf.ShortName;
+                                    if (inf.Type == "Hu") normal = "Gi" + inf.Interface;
+                                    else if (inf.Type == "Te") normal = "Gi" + inf.Interface;
+                                    else normal = inf.Name;
                                     interfacelive[normal].Aggr = aggr;
                                 }
                             }
@@ -2569,50 +2596,6 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     else
                     {
                         if (line.StartsWith("Interface")) begin = true;
-                    }
-                }
-
-                // last down
-                //display interface main | in current state|down time
-                if (Request("display interface main | in current state|down time", out lines)) return;
-
-                MEInterfaceToDatabase currentInterfaceToDatabase = null;
-
-                foreach (string line in lines)
-                {
-                    if (line.IndexOf("current state") > -1 && !line.StartsWith("Line protocol"))
-                    {
-                        currentInterfaceToDatabase = null;
-                        string[] splits = line.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-                        NetworkInterface nif = NetworkInterface.Parse(splits[0]);
-                        if (nif != null)
-                        {
-                            string nifshort = nif.ShortName;
-                            if (interfacelive.ContainsKey(nifshort)) currentInterfaceToDatabase = interfacelive[nifshort];
-                        }
-                    }
-                    else if (currentInterfaceToDatabase != null && line.StartsWith("Last physical down time"))
-                    {
-                        //Last physical down time : 2013-11-07 01:05:24 UTC+07:00
-                        //01234567890123456789012345678901234567890123456789
-                        //                          1234567890123456789
-                        //                          0123456789012345678
-                        if (currentInterfaceToDatabase.Status == false)
-                        {
-                            string dtim = line.Substring(26, 19);
-                            int year, month, day;
-                            int hour, min, sec;
-                            if (int.TryParse(dtim.Substring(0, 4), out year) &&
-                                int.TryParse(dtim.Substring(5, 2), out month) &&
-                                int.TryParse(dtim.Substring(8, 2), out day) &&
-                                int.TryParse(dtim.Substring(11, 2), out hour) &&
-                                int.TryParse(dtim.Substring(14, 2), out min) &&
-                                int.TryParse(dtim.Substring(17, 2), out sec))
-                            {
-                                currentInterfaceToDatabase.LastDown = (new DateTime(year, month, day, hour, min, sec)) - nodeTimeOffset;
-                            }
-                        }
-                        currentInterfaceToDatabase = null;
                     }
                 }
 
@@ -2651,7 +2634,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
                         if (nif1 != null)
                         {
-                            string inf = nif1.ShortName;
+                            string inf = nif1.Name;
                             if (interfacelive.ContainsKey(inf))
                             {
                                 string cid = circuitdb[vcidname]["MC_ID"].ToString();
@@ -2663,7 +2646,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
                         if (nif2 != null)
                         {
-                            string inf = nif2.ShortName;
+                            string inf = nif2.Name;
                             if (interfacelive.ContainsKey(inf))
                             {
                                 string cid = circuitdb[vcidname]["MC_ID"].ToString();
@@ -2691,7 +2674,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
                         if (nif != null)
                         {
-                            string portnif = nif.ShortName;
+                            string portnif = nif.Name;
                             string vsi = line.Substring(36, 31).Trim();
 
                             if (interfacelive.ContainsKey(portnif))
@@ -2727,13 +2710,13 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         NetworkInterface nif = NetworkInterface.Parse(nifc);
                         if (nif != null)
                         {                            
-                            string portnif = nif.ShortName;
+                            string portnif = nif.Name;
                             if (interfacelive.ContainsKey(portnif))
                             {
                                 currentInterface = portnif;
                                 if (nif.IsSubInterface)
                                 {
-                                    string bport = nif.ShortBaseName;
+                                    string bport = nif.BaseName;
                                     if (interfacelive.ContainsKey(bport))
                                     {
                                         currentParent = bport;
@@ -2851,7 +2834,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 {
                     if (inf.IsSubInterface)
                     {
-                        string parent = inf.ShortBaseName;
+                        string parent = inf.BaseName;
                         if (interfacelive.ContainsKey(parent))
                         {
                             int count = interfacelive[parent].SubInterfaceCount;
@@ -2913,12 +2896,12 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 // TOPOLOGY
                 if (inf != null)
                 {
-                    string inftype = inf.ShortType;
+                    string inftype = inf.Type;
                     if (inftype == "Ex") inftype = li.InterfaceType;
 
                     if (inf.IsSubInterface)
                     {
-                        parentPort = inf.ShortBaseName;
+                        parentPort = inf.BaseName;
                     }
                     else
                     {
@@ -2939,7 +2922,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         {
                             // we need support with child
                             int myaggr;
-                            if (int.TryParse(inf.Port, out myaggr))
+                            if (int.TryParse(inf.Interface, out myaggr))
                             {
                                 // cari child di interfacelive yg aggr-nya myaggr
                                 List<MEInterfaceToDatabase> agPhysicals = new List<MEInterfaceToDatabase>();

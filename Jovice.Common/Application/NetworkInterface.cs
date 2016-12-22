@@ -9,44 +9,34 @@ namespace Jovice
     {
         #region Fields
 
-        private string type;
+        private string fullType;
 
         /// <summary>
         /// GigabitEthernet, Ethernet, FastEthernet, Serial, etc...
+        /// </summary>
+        public string FullType
+        {
+            get { return fullType; }
+        }
+
+        private string type;
+
+        /// <summary>
+        /// Gi, Fa, Se, etc...
         /// </summary>
         public string Type
         {
             get { return type; }
         }
 
-        private string shortType;
-
-        /// <summary>
-        /// Gi, Fa, Se, etc...
-        /// </summary>
-        public string ShortType
-        {
-            get { return shortType; }
-        }
-
-        private string codeType;
-
-        /// <summary>
-        /// G, F, S, E, etc...
-        /// </summary>
-        public string CodeType
-        {
-            get { return codeType; }
-        }
-
-        private string port;
+        private string _interface;
 
         /// <summary>
         /// 0/1/0, 0/1, 0/3, 1/0/0, etc....
         /// </summary>
-        public string Port
+        public string Interface
         {
-            get { return port; }
+            get { return _interface; }
         }
 
         private int channel = -1;
@@ -67,9 +57,9 @@ namespace Jovice
         {
             get { return subInterface != -1 ? true : false; }
         }
-        public bool IsDirect
+        public bool IsSubSubInterface
         {
-            get { return subInterface == 0 ? true : false; }
+            get { return subSubInterface != -1 ? true : false; }
         }
         
         private int subInterface = -1;
@@ -90,40 +80,75 @@ namespace Jovice
         }
 
         /// <summary>
-        /// Gi0/1, Se4/3:2, Te0/0/0/1.502
+        /// Returns sub-interface portions (and sub-sub-interface if exists), else returns empty string.
         /// </summary>
-        public string ShortName
+        public string SubInterfaceName
         {
-            get { return shortType + port + "" + (IsChannel ? ":" + channel.ToString() : "") + (IsSubInterface ? "." + subInterface.ToString() : ""); }
+            get { return IsSubInterface ? "." + subInterface.ToString() + (IsSubSubInterface ? "." + subSubInterface.ToString() : "") : ""; }
         }
 
         /// <summary>
-        /// Gi0/1.456 -> Gi0/1, Se4/3:2.456 -> Se4/3:2, Te0/0/0/1.502 -> Te0/0/0/1
+        /// Returns interface portions and channel if exists.
         /// </summary>
-        public string ShortBaseName
+        public string InterfaceName
         {
-            get { return shortType +port + "" + (IsChannel ? ":" + channel.ToString() : ""); }
+            get { return _interface + (IsChannel ? ":" + channel.ToString() : ""); }
+        }
+        
+        /// <summary>
+        /// Returns interface name including its type.
+        /// </summary>
+        public string Name
+        {
+            get { return type + InterfaceName + SubInterfaceName; }
         }
 
         /// <summary>
-        /// GigabitEthernet0/1, Serial4/3:2, TenGigabitEthernet0/0/0/1.502
+        /// Returns interface name including its full type.
         /// </summary>
         public string FullName
         {
-            get { return type + port + "" + (IsChannel ? ":" + channel.ToString() : "") + (IsSubInterface ? "." + subInterface.ToString() : ""); }
+            get { return fullType + InterfaceName + SubInterfaceName; }
         }
 
+        /// <summary>
+        /// Returns interface's main interface name.
+        /// </summary>
+        public string BaseName
+        {
+            get { return type + InterfaceName; }
+        }
+
+        /// <summary>
+        /// Returns interface's main interface full name.
+        /// </summary>
+        public string BaseFullName
+        {
+            get { return fullType + InterfaceName; }
+        }
+
+        /// <summary>
+        /// Returns port portions of the interface name.
+        /// </summary>
+        public string PortName
+        {
+            get { return InterfaceName + SubInterfaceName; }
+        }
+
+        /// <summary>
+        /// Returns type rate in Kilobits.
+        /// </summary>
         public int TypeRate
         {
             get
             {
                 int typerate = -1;
 
-                if (ShortType == "Hu") typerate = 104857600;
-                else if (ShortType == "Te") typerate = 10485760;
-                else if (ShortType == "Ge") typerate = 1048576;
-                else if (ShortType == "Fa") typerate = 102400;
-                else if (ShortType == "Et") typerate = 10240;
+                if (Type == "Hu") typerate = 104857600;
+                else if (Type == "Te") typerate = 10485760;
+                else if (Type == "Ge") typerate = 1048576;
+                else if (Type == "Fa") typerate = 102400;
+                else if (Type == "Et") typerate = 10240;
 
                 return typerate;
             }
@@ -240,56 +265,48 @@ namespace Jovice
                         if (interfaceType == "g" || interfaceType == "gi" || interfaceType == "gigabitethernet" || interfaceType == "ge")
                         {
                             ci.type = "GigabitEthernet";
-                            ci.shortType = "Gi";
-                            ci.codeType = "G";
+                            ci.type = "Gi";
                         }
                         else if (interfaceType == "f" || interfaceType == "fa" || interfaceType == "fastethernet" || interfaceType == "fe")
                         {
                             ci.type = "FastEthernet";
-                            ci.shortType = "Fa";
-                            ci.codeType = "F";
+                            ci.type = "Fa";
                         }
                         else if (interfaceType == "e" || interfaceType == "et" || interfaceType == "ethernet")
                         {
                             ci.type = "Ethernet";
-                            ci.shortType = "Et";
-                            ci.codeType = "E";
+                            ci.type = "Et";
                         }
                         else if (interfaceType == "s" || interfaceType == "se" || interfaceType == "serial")
                         {
                             ci.type = "Serial";
-                            ci.shortType = "Se";
-                            ci.codeType = "S";
+                            ci.type = "Se";
                         }
                         else if (interfaceType == "t" || interfaceType == "te" || interfaceType == "tengige" || interfaceType == "xe")
                         {
                             ci.type = "TenGigE";
-                            ci.shortType = "Te";
-                            ci.codeType = "T";
+                            ci.type = "Te";
                         }
                         else if (interfaceType == "h" || interfaceType == "hu" || interfaceType == "hundredgige")
                         {
                             ci.type = "HundredGigE";
-                            ci.shortType = "Hu";
-                            ci.codeType = "H";
+                            ci.type = "Hu";
                         }
                         else if (interfaceType == "ag" || interfaceType == "eth-trunk")
                         {
                             ci.type = "AggregatedInterface";
-                            ci.shortType = "Ag";
-                            ci.codeType = "A";
+                            ci.type = "Ag";
                         }
                         else if (interfaceType == "ex")
                         {
                             ci.type = "UnspecifiedInterface";
-                            ci.shortType = "Ex";
-                            ci.codeType = "U";
+                            ci.type = "Ex";
                         }
                         else interfaceIdentified = false;
 
                         if (interfaceIdentified)
                         {
-                            ci.port = port;
+                            ci._interface = port;
                             ci.channel = channel;
                             ci.subInterface = subif;
                             ci.subSubInterface = subsubif;

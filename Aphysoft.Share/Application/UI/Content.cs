@@ -7,8 +7,8 @@ using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Web;
 using System.Web.Script.Serialization;
-using Aphysoft.Common;
-using Aphysoft.Common.Html;
+
+using Aphysoft.Share.Html;
 
 namespace Aphysoft.Share
 {
@@ -437,7 +437,7 @@ namespace Aphysoft.Share
         }
 
         private static void Transverse(PageData page, HtmlNode parent)
-        {
+        {   
             List<HtmlNode> childNodes = new List<HtmlNode>();
 
             foreach (HtmlNode node in parent.ChildNodes)

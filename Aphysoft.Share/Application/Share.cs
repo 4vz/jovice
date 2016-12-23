@@ -5,7 +5,7 @@ using System.Text;
 using System.Web;
 using System.Web.SessionState;
 using System.Web.Hosting;
-using Aphysoft.Common;
+
 using System.Diagnostics;
 using System.Threading;
 
@@ -29,7 +29,7 @@ namespace Aphysoft.Share
             {
                 if (share == null)
                 {
-                    string database = Configuration.Settings("database");
+                    string database = ConfigurationHelper.Settings("database");
                     string connectionString = string.Format("Data Source={0};Initial Catalog=share;User ID=telkom.center;Password=t3lk0mdotc3nt3r;async=true", database);
                     share = new Database(connectionString, DatabaseType.SqlServer);
                 }
@@ -109,9 +109,9 @@ namespace Aphysoft.Share
 
                         UserSettings.Init();
 
-                        //Identity.Init()
-
                         Resource.Init();
+
+                        Provider.Init();
 
                         if (Settings.EnableUI)
                         {
@@ -252,31 +252,6 @@ namespace Aphysoft.Share
         {
             HttpApplication application = (HttpApplication)sender;
             HttpContext context = HttpContext.Current;
-
-            #region Basic Authorization for Development Mode
-
-            if (Settings.DevelopmentMode)
-            {
-                HttpRequest request = context.Request;
-                HttpResponse response = context.Response;
-
-                //string authhash = request.Headers["Authorization"];
-
-                //if (authhash == null || authhash != "Basic " + Base64.Encode(Settings.DevelopmentModeAuthentication))
-                //{
-                //    response.Status = "401 Authorization Required";
-                //    response.Headers.Add("WWW-Authenticate", "Basic realm=\"This site is currently under development mode. Please enter developer user and password to continue.\"");
-
-                //    if (context.Items.Contains("resource"))
-                //        response.Write("/* Developer Mode: Authorization Required */");
-                //    else  // uipage or asp.net page                
-                //        response.Write("<h1>Developer Mode: Authorization Required</h1>");
-                //    response.End();
-
-                //    return;
-                //}
-            }
-            #endregion
         }
 
         private void application_PostAuthorizeRequest(object sender, EventArgs e)

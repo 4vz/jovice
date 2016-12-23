@@ -5,7 +5,7 @@ using System.Web;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Web.SessionState;
-using Aphysoft.Common;
+
 using System.Resources;
 using System.Text;
 
@@ -33,139 +33,25 @@ namespace Aphysoft.Share
 
         #endregion
 
-        #region Internal Resources
-
-        internal static void InternalResourceLoad()
-        {
-            if (Settings.DevelopmentMode)
-            {
-                Resource.Common(
-                    Resource.Register("development_javascript", ResourceType.JavaScript, "~/Development/javascript.js").NoCache().NoMinify()
-                );
-
-                Content.Register("test",
-                    new ContentPage[] {
-                        new ContentPage("/test")
-                    },
-                    new ContentPackage(
-                        Resource.Register("test", ResourceType.JavaScript, "~/Development/test.js"),
-                        null));
-            }
-            
-            //
-            // css
-            //
-            if (Settings.EnableUI)
-            {
-                Resource.Register("css_ui", ResourceType.CSS, Resources.Css.ResourceManager, "ui");
-                Resource.Group(CommonResourceCSS, "css_ui", 1);
-            }
-
-            //
-            // scripts
-            //
-            Resource.Register("script_jquery", "jquery", ResourceType.JavaScript, Resources.Scripts.ResourceManager, "jquery").NoMinify();
-            Resource.Group(CommonResourceScript, "script_jquery", 1);
-
-            Resource.Register("script_modernizr", ResourceType.JavaScript, Resources.Scripts.ResourceManager, "modernizr").NoMinify();
-            Resource.Group(CommonResourceScript, "script_modernizr", 2);
-
-            Resource.Register("script_libs", ResourceType.JavaScript, Resources.Scripts.ResourceManager, "libs");
-            Resource.Group(CommonResourceScript, "script_libs", 3);
-
-            if (Settings.THREE)
-            {
-                Resource.Register("script_three", ResourceType.JavaScript, Resources.Scripts.ResourceManager, "three").NoMinify();
-                Resource.Group(CommonResourceScript, "script_three", 4);
-            }
-
-            if (Settings.Raphael)
-            {
-                Resource.Register("script_raphael", ResourceType.JavaScript, Resources.Scripts.ResourceManager, "raphael").NoMinify();
-                Resource.Group(CommonResourceScript, "script_raphael", 5);
-            }
-
-            Resource.Register("script_share", ResourceType.JavaScript, Resources.Scripts.ResourceManager, "share").NoMinify();
-            Resource.Group(CommonResourceScript, "script_share", 10);
-
-            if (Settings.EnableUI)
-            {                
-                Resource.Register("script_ui", ResourceType.JavaScript, Resources.Scripts.ResourceManager, "ui");
-                Resource.Group(CommonResourceScript, "script_ui", 11);
-
-                Resource.Register("xhr_content_provider", ResourceType.JSON, Content.Begin, Content.End);
-            }
-
-            // Images
-            Resource.Register("image_shortcuticon", ResourceType.PNG, Resources.Images.ResourceManager, "shortcuticon");
-
-            // XHR 
-            Resource.Register("xhr_stream", ResourceType.Text, Provider.StreamBeginProcessRequest, Provider.StreamEndProcessRequest)
-                .NoBufferOutput().AllowOrigin("http://" + Settings.PageDomain).AllowCredentials();
-            Resource.Register("xhr_provider", ResourceType.JSON, Provider.ProviderBeginProcessRequest, Provider.ProviderEndProcessRequest);
-
-            // Service
-            //Resource.Register("service", ResourceType.JSON, Provider.ServiceBegin)
-
-            if (Settings.EnableUI)
-            {
-                if (Settings.FontHeadings == Settings.fontHeadingsDefault)
-                {
-                    WebFont.Register("avenir85", "Avenir", null, WebFontWeight.Normal,
-                        Resource.Register("font_avenir85_ttf", ResourceType.TTF, Resources.Fonts.ResourceManager, "avenir85_ttf"),
-                        Resource.Register("font_avenir85_woff", ResourceType.WOFF, Resources.Fonts.ResourceManager, "avenir85_woff"),
-                        null);
-                }
-
-                if (Settings.FontBody == Settings.fontBodyDefault)
-                {
-                    WebFont.Register("segoeuil", "Segoe UI", "Segoe UI Light", WebFontWeight.Weight200,
-                        Resource.Register("font_segoeuil_ttf", ResourceType.TTF, Resources.Fonts.ResourceManager, "segoeuil_ttf"),
-                        Resource.Register("font_segoeuil_woff", ResourceType.WOFF, Resources.Fonts.ResourceManager, "segoeuil_woff"),
-                        null);
-                    WebFont.Register("segoeuisl", "Segoe UI", "Segoe UI SemiLight", WebFontWeight.Weight300,
-                        Resource.Register("font_segoeuis_ttf", ResourceType.TTF, Resources.Fonts.ResourceManager, "segoeuisl_ttf"),
-                        Resource.Register("font_segoeuis_woff", ResourceType.WOFF, Resources.Fonts.ResourceManager, "segoeuisl_woff"),
-                        null);
-                    WebFont.Register("segoeui", "Segoe UI", null, WebFontWeight.Normal,
-                        Resource.Register("font_segoeui_ttf", ResourceType.TTF, Resources.Fonts.ResourceManager, "segoeui_ttf"),
-                        Resource.Register("font_segoeui_woff", ResourceType.WOFF, Resources.Fonts.ResourceManager, "segoeui_woff"),
-                        null);
-                    WebFont.Register("seguisb", "Segoe UI", "Segoe UI SemiBold", WebFontWeight.Weight600,
-                        Resource.Register("font_seguisb_ttf", ResourceType.TTF, Resources.Fonts.ResourceManager, "seguisb_ttf"),
-                        Resource.Register("font_seguisb_woff", ResourceType.WOFF, Resources.Fonts.ResourceManager, "seguisb_woff"),
-                        null);
-                    WebFont.Register("segoeuib", "Segoe UI", null, WebFontWeight.Bold,
-                        Resource.Register("font_segoeuib_ttf", ResourceType.TTF, Resources.Fonts.ResourceManager, "segoeuib_ttf"),
-                        Resource.Register("font_segoeuib_woff", ResourceType.WOFF, Resources.Fonts.ResourceManager, "segoeuib_woff"),
-                        null);
-                }
-
-                WebFont.Register("keepcalmm", "Keep Calm", null, WebFontWeight.Normal,
-                    Resource.Register("font_keepcalmm_ttf", ResourceType.TTF, Resources.Fonts.ResourceManager, "keepcalmm_ttf"),
-                    Resource.Register("font_keepcalmm_woff", ResourceType.WOFF, Resources.Fonts.ResourceManager, "keepcalmm_woff"),
-                    null);
-            }
-        }
-
-        #endregion
-
         #region Internal Methods
-        
+
         internal static void Init()
         {
-            if (!resourceLoaded)
-            {
-                resourceLoaded = true;
+#if DEBUG
+            Common(Register("__debug__development_javascript", ResourceType.JavaScript, "~/Development/javascript.js").NoCache().NoMinify());
 
-                Resource.InternalResourceLoad();
-            }
+            Content.Register("__debug__test",
+                new ContentPage[] {
+                    new ContentPage("/test")
+                },
+                new ContentPackage(
+                    Resource.Register("test", ResourceType.JavaScript, "~/Development/test.js"),
+                    null));
+#endif
         }
 
         internal static IAsyncResult Begin(HttpContext context, AsyncCallback cb, object extraData)
         {
-
-
             return null;
         }
 
@@ -206,7 +92,7 @@ namespace Aphysoft.Share
             if (registeredResources.ContainsKey(key))
             {
                 Resource resource = registeredResources[key];
-                
+
                 string fileHash;
 
                 if (resource.BeginHandler == null)
@@ -229,7 +115,7 @@ namespace Aphysoft.Share
 
                             igus[i++] = signature;
                         }
-                        
+
                         fileBeenUpdatedSignature = string.Join("", igus);
                     }
                     else
@@ -241,9 +127,9 @@ namespace Aphysoft.Share
                 }
                 else fileHash = "res";
 
-                string path = string.Format("/{0}/{1}/{2}{3}", 
-                    Settings.ResourceProviderPath, 
-                    resource.RealName ? resource.Key : resource.KeyHash, 
+                string path = string.Format("/{0}/{1}/{2}{3}",
+                    Settings.ResourceProviderPath,
+                    resource.RealName ? resource.Key : resource.KeyHash,
                     fileHash,
                     resource.FileExtension);
 
@@ -254,7 +140,7 @@ namespace Aphysoft.Share
         }
 
         #endregion
-        
+
         #region Register Resources
 
         /// <summary>
@@ -271,7 +157,7 @@ namespace Aphysoft.Share
             }
         }
 
-        internal static Resource Group(string groupKey, string key, int position)
+        public static Resource Group(string groupKey, string key, int position)
         {
             Resource resource = Resource.Get(key);
 
@@ -319,7 +205,7 @@ namespace Aphysoft.Share
                 }
             }
             else
-                resource = registeredResources[key];            
+                resource = registeredResources[key];
 
             return resource;
         }
@@ -338,32 +224,29 @@ namespace Aphysoft.Share
             return resource;
         }
 
-        public static Resource Register(string key, ResourceType resourceType, ResourceBeginProcessRequest beginHandler, ResourceEndProcessRequest endHandler)
+        internal static Resource Register(string key, ResourceType resourceType, ResourceBeginProcessRequest beginHandler, ResourceEndProcessRequest endHandler)
         {
-            return Resource.Register(key, null, resourceType, beginHandler, endHandler);
+            return Register(key, null, resourceType, beginHandler, endHandler);
         }
 
-        public static Resource Register(string key, string keyHash, ResourceType resourceType, string rootRelativePath)
-        {  
-            string physicalPath = Path.PhysicalPath(rootRelativePath);            
+        internal static Resource Register(string key, string keyHash, ResourceType resourceType, string rootRelativePath)
+        {
+            if (rootRelativePath == null) return null;
+            string physicalPath = Path.PhysicalPath(rootRelativePath);
+            FileInfo pathInfo = new FileInfo(physicalPath);
+            if (!pathInfo.Exists) return null;
 
-            FileInfo info = new FileInfo(physicalPath);
+            Resource resource;
 
-            if (!info.Exists)
-                return null;
-            else
-            {
-                Resource resource = Resource.Register(key, keyHash, resourceType);
+            resource = Register(key, keyHash, resourceType);
+            resource.OriginalFilePath = physicalPath;
+            resource.LastModified = pathInfo.LastWriteTime;
+            resource.SetData(File.ReadAllBytes(physicalPath));
 
-                resource.OriginalFilePath = physicalPath;
-                resource.LastModified = info.LastWriteTime;
-                resource.SetData(File.ReadAllBytes(physicalPath));
-
-                return resource;
-            }
+            return resource;
         }
 
-        public static Resource Register(string key, ResourceType resourceType, string rootRelativePath)
+        internal static Resource Register(string key, ResourceType resourceType, string rootRelativePath)
         {
             return Resource.Register(key, null, resourceType, rootRelativePath);
         }
@@ -392,10 +275,37 @@ namespace Aphysoft.Share
 
             return resource;
         }
-        
+
         public static Resource Register(string key, ResourceType resourceType, ResourceManager resourceManager, string objectName)
         {
             return Resource.Register(key, null, resourceType, resourceManager, objectName);
+        }
+
+        public static Resource Register(string key, ResourceType resourceType, ResourceManager resourceManager, string objectName, string rootRelativePath)
+        {
+            return Register(key, null, resourceType, resourceManager, objectName, rootRelativePath);
+        }
+
+        public static Resource Register(string key, string keyHash, ResourceType resourceType, ResourceManager resourceManager, string objectName, string rootRelativePath)
+        {
+            if (rootRelativePath == null) return null;
+            string physicalPath = Path.PhysicalPath(rootRelativePath);
+            FileInfo pathInfo = new FileInfo(physicalPath);
+            if (!pathInfo.Exists) return null;
+
+            Resource resource;
+#if DEBUG
+            resource = Register(key, keyHash, resourceType);
+            resource.OriginalFilePath = physicalPath;
+            resource.LastModified = pathInfo.LastWriteTime;
+            resource.SetData(File.ReadAllBytes(physicalPath));
+
+            resource.NoMinify().NoCache();
+#else
+            resource = Register(key, keyHash, resourceType, resourceManager, objectName);
+#endif
+
+            return resource;
         }
 
         #endregion
@@ -432,7 +342,7 @@ namespace Aphysoft.Share
 
         public string FileExtension
         {
-            get 
+            get
             {
                 if (fileExtension == null)
                 {
@@ -451,7 +361,7 @@ namespace Aphysoft.Share
                     }
                 }
 
-                return fileExtension; 
+                return fileExtension;
             }
             set
             {
@@ -493,7 +403,7 @@ namespace Aphysoft.Share
 
         public Byte[] Data
         {
-            get 
+            get
             {
                 if (beginHandler != null)
                     return null;
@@ -614,7 +524,7 @@ namespace Aphysoft.Share
         {
             get { return originalData; }
         }
-        
+
         private string md5;
 
         public string MD5
@@ -635,14 +545,14 @@ namespace Aphysoft.Share
         {
             get { return endHandler; }
         }
-        
+
         private bool compressed = true;
 
         public bool Compressed
         {
             get { return compressed; }
-            set 
-            { 
+            set
+            {
                 compressed = value;
                 if (compressed == true) bufferOutput = true;
             }
@@ -661,8 +571,8 @@ namespace Aphysoft.Share
         public bool Minify
         {
             get { return minify; }
-            set 
-            { 
+            set
+            {
                 minify = value;
                 data = null;
                 if (minify == true) bufferOutput = true;
@@ -674,8 +584,8 @@ namespace Aphysoft.Share
         public bool BufferOutput
         {
             get { return bufferOutput; }
-            set 
-            { 
+            set
+            {
                 bufferOutput = value;
                 if (bufferOutput == false)
                 {
@@ -803,7 +713,7 @@ namespace Aphysoft.Share
         }
 
         internal void ResourceCheck()
-        {    
+        {
             if (groupSources != null)
             {
                 // check all sources for modification

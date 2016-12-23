@@ -6,7 +6,7 @@ using System.Xml;
 using System.IO;
 using System.Configuration;
 using System.Web.Configuration;
-using Aphysoft.Common;
+
 
 namespace Aphysoft.Share
 {
@@ -16,15 +16,6 @@ namespace Aphysoft.Share
     public partial class Settings
     {
         #region Developer Settings
-
-        private static bool developmentMode = false;
-        /// <summary>
-        /// Gets a value indicating whether the application is marked in development mode.
-        /// </summary>
-        public static bool DevelopmentMode
-        {
-            get { return developmentMode; }
-        }
 
         private static string developmentModeAuthentication = "share:share";
 
@@ -229,18 +220,18 @@ namespace Aphysoft.Share
             get { return ajaxify; }
         }
 
-        internal const string fontHeadingsDefault = "Avenir";        
+        public const string FontHeadingsDefault = "Avenir";        
 
-        private static string fontHeadings = fontHeadingsDefault;
+        private static string fontHeadings = FontHeadingsDefault;
 
         public static string FontHeadings
         {
             get { return fontHeadings; }
         }
 
-        internal const string fontBodyDefault = "Segoe UI";
+        public const string FontBodyDefault = "Segoe UI";
 
-        private static string fontBody = fontBodyDefault;
+        private static string fontBody = FontBodyDefault;
 
         public static string FontBody
         {
@@ -333,7 +324,6 @@ namespace Aphysoft.Share
         private static void ReadSettings()
         {
             // Developer Settings
-            ReadBoolean("DevelopmentMode", ref developmentMode);
             ReadString("DevelopmentModeAuthentication", ref developmentModeAuthentication);
             ReadString("AutoLoginUser", ref autoLoginUser);
 

@@ -1,4 +1,4 @@
-﻿using Aphysoft.Common;
+﻿
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -79,6 +79,8 @@ namespace Aphysoft.Share
             int avn = sessionIDCharacters.Length;
             for (int i = 0; i < 24; i++) { sb.Append(sessionIDCharacters[RandomHelper.Next(avn)]); }
             return sb.ToString();
+
+            
         }
         
         internal static void Start(HttpContext context)

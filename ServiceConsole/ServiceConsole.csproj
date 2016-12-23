@@ -50,17 +50,13 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Aphysoft.Common\Aphysoft.Common.csproj">
-      <Project>{e6fd9031-9af5-4ebd-a0eb-73be2c80c0c6}</Project>
-      <Name>Aphysoft.Common</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Aphysoft.Share\Aphysoft.Share.csproj">
       <Project>{be59c0c5-8b77-445f-88ed-d88a4eb7709e}</Project>
       <Name>Aphysoft.Share</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Jovice.Common\Jovice.Common.csproj">
+    <ProjectReference Include="..\Jovice\Jovice.csproj">
       <Project>{123e8a09-3f7a-4a85-8e3a-da92b55ce6cc}</Project>
-      <Name>Jovice.Common</Name>
+      <Name>Jovice</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

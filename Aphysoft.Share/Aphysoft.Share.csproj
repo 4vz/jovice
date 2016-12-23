@@ -27,6 +27,7 @@
     <WarningLevel>4</WarningLevel>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
     <PlatformTarget>x64</PlatformTarget>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -40,6 +41,12 @@
   <ItemGroup>
     <Reference Include="AjaxMin">
       <HintPath>..\_External\AjaxMin.dll</HintPath>
+    </Reference>
+    <Reference Include="MySql.Data">
+      <HintPath>..\_External\MySql.Data.dll</HintPath>
+    </Reference>
+    <Reference Include="Oracle.DataAccess">
+      <HintPath>..\_External\Oracle.DataAccess.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.configuration" />
@@ -89,89 +96,63 @@
     <Compile Include="Application\Helpers\Params.cs" />
     <Compile Include="Application\Helpers\WebConfiguration.cs" />
     <Compile Include="Application\Provider\Provider.cs" />
+    <Compile Include="Class\Color.cs" />
+    <Compile Include="Core\BaseDisposable.cs" />
+    <Compile Include="Core\BaseFinalizable.cs" />
+    <Compile Include="Core\Culture.cs" />
+    <Compile Include="Core\Html\crc32.cs" />
+    <Compile Include="Core\Html\EncodingFoundException.cs" />
+    <Compile Include="Core\Html\HtmlAttribute.cs" />
+    <Compile Include="Core\Html\HtmlAttributeCollection.cs" />
+    <Compile Include="Core\Html\HtmlCmdLine.cs" />
+    <Compile Include="Core\Html\HtmlCommentNode.cs" />
+    <Compile Include="Core\Html\HtmlConsoleListener.cs" />
+    <Compile Include="Core\Html\HtmlDocument.cs" />
+    <Compile Include="Core\Html\HtmlElementFlag.cs" />
+    <Compile Include="Core\Html\HtmlEntity.cs" />
+    <Compile Include="Core\Html\HtmlNameTable.cs" />
+    <Compile Include="Core\Html\HtmlNode.cs" />
+    <Compile Include="Core\Html\HtmlNodeCollection.cs" />
+    <Compile Include="Core\Html\HtmlNodeNavigator.cs" />
+    <Compile Include="Core\Html\HtmlNodeType.cs" />
+    <Compile Include="Core\Html\HtmlParseError.cs" />
+    <Compile Include="Core\Html\HtmlParseErrorCode.cs" />
+    <Compile Include="Core\Html\HtmlTextNode.cs" />
+    <Compile Include="Core\Html\IOLibrary.cs" />
+    <Compile Include="Core\Html\MixedCodeDocument.cs" />
+    <Compile Include="Core\Html\MixedCodeDocumentCodeFragment.cs" />
+    <Compile Include="Core\Html\MixedCodeDocumentFragment.cs" />
+    <Compile Include="Core\Html\MixedCodeDocumentFragmentList.cs" />
+    <Compile Include="Core\Html\MixedCodeDocumentFragmentType.cs" />
+    <Compile Include="Core\Html\MixedCodeDocumentTextFragment.cs" />
+    <Compile Include="Core\Html\NameValuePair.cs" />
+    <Compile Include="Core\Html\NameValuePairList.cs" />
+    <Compile Include="Core\Marshaling.cs" />
+    <Compile Include="Core\Threading\ThreadingHelper.cs" />
+    <Compile Include="Database\Database.cs" />
+    <Compile Include="Extensions\Boolean.cs" />
+    <Compile Include="Extensions\DateTime.cs" />
+    <Compile Include="Extensions\Enum.cs" />
+    <Compile Include="Extensions\Int.cs" />
+    <Compile Include="Extensions\String.cs" />
+    <Compile Include="Helpers\Configuration.cs" />
+    <Compile Include="Helpers\Cryptography\Ascii85.cs" />
+    <Compile Include="Helpers\Cryptography\Base64.cs" />
+    <Compile Include="Helpers\Cryptography\Hasher.cs" />
+    <Compile Include="Helpers\Dictionary.cs" />
+    <Compile Include="Helpers\IntHelper.cs" />
+    <Compile Include="Helpers\IPNetwork.cs" />
+    <Compile Include="Helpers\List.cs" />
+    <Compile Include="Helpers\Localization.cs" />
+    <Compile Include="Helpers\ObjectHelper.cs" />
+    <Compile Include="Helpers\RandomHelper.cs" />
+    <Compile Include="Helpers\StringHelper.cs" />
+    <Compile Include="Helpers\XmlHelper.cs" />
+    <Compile Include="Network\BaseService.cs" />
+    <Compile Include="Network\ConsoleInput.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Resources\Css.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Css.resx</DependentUpon>
-    </Compile>
-    <Compile Include="Resources\Fonts.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Fonts.resx</DependentUpon>
-    </Compile>
-    <Compile Include="Resources\Images.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Images.resx</DependentUpon>
-    </Compile>
-    <Compile Include="Resources\Scripts.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Scripts.resx</DependentUpon>
-    </Compile>
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Resources\Css.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Css.Designer.cs</LastGenOutput>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Resources\Fonts.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Fonts.Designer.cs</LastGenOutput>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Resources\Images.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Images.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Resources\Scripts.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <SubType>Designer</SubType>
-      <LastGenOutput>Scripts.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="Resources\Scripts\modernizr.js" />
-    <Content Include="Resources\Scripts\raphael.js" />
-    <Content Include="Resources\Css\ui.css" />
-    <Content Include="Resources\Images\shortcuticon.png" />
-    <Content Include="Resources\Scripts\ui.js" />
-    <Content Include="Resources\Scripts\jquery.js" />
-    <Content Include="Resources\Scripts\libs.js" />
-    <Content Include="Resources\Scripts\share.js" />
-    <Content Include="Resources\Scripts\three.js" />
   </ItemGroup>
   <ItemGroup />
-  <ItemGroup>
-    <ProjectReference Include="..\Aphysoft.Common\Aphysoft.Common.csproj">
-      <Project>{E6FD9031-9AF5-4EBD-A0EB-73BE2C80C0C6}</Project>
-      <Name>Aphysoft.Common</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Resources\Fonts\avenir65.ttf" />
-    <None Include="Resources\Fonts\avenir65.woff" />
-    <None Include="Resources\Fonts\avenir85.ttf" />
-    <None Include="Resources\Fonts\avenir85.woff" />
-    <None Include="Resources\Fonts\keepcalmm.ttf" />
-    <None Include="Resources\Fonts\keepcalmm.woff" />
-    <None Include="Resources\Fonts\segoeui.ttf" />
-    <None Include="Resources\Fonts\segoeui.woff" />
-    <None Include="Resources\Fonts\segoeuib.ttf" />
-    <None Include="Resources\Fonts\segoeuib.woff" />
-    <None Include="Resources\Fonts\segoeuii.ttf" />
-    <None Include="Resources\Fonts\segoeuii.woff" />
-    <None Include="Resources\Fonts\segoeuil.ttf" />
-    <None Include="Resources\Fonts\segoeuil.woff" />
-    <None Include="Resources\Fonts\segoeuisl.ttf" />
-    <None Include="Resources\Fonts\segoeuisl.woff" />
-    <None Include="Resources\Fonts\segoeuiz.ttf" />
-    <None Include="Resources\Fonts\segoeuiz.woff" />
-    <None Include="Resources\Fonts\seguisb.ttf" />
-    <None Include="Resources\Fonts\seguisb.woff" />
-  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

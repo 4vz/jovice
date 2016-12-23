@@ -8,7 +8,7 @@ using System.Diagnostics;
 using System.Runtime.Serialization.Json;
 using System.Web.SessionState;
 using System.Runtime.Serialization;
-using Aphysoft.Common;
+
 using System.IO;
 using System.Xml;
 using System.Text;
@@ -366,6 +366,18 @@ namespace Aphysoft.Share
         #endregion
 
         #region Client
+
+        internal static void Init()
+        {
+            Resource.Register("xhr_stream", ResourceType.Text, Provider.StreamBeginProcessRequest, Provider.StreamEndProcessRequest)
+                .NoBufferOutput().AllowOrigin("http://" + Settings.PageDomain).AllowCredentials();
+            Resource.Register("xhr_provider", ResourceType.JSON, Provider.ProviderBeginProcessRequest, Provider.ProviderEndProcessRequest);
+
+            if (Settings.EnableUI)
+            {
+                Resource.Register("xhr_content_provider", ResourceType.JSON, Content.Begin, Content.End);
+            }
+        }
 
         public static string ClientID()
         {

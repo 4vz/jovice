@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Jovice;
 using System.IO;
+
+using Center;
+
 namespace NecrowConsole
 {
     class Program
@@ -15,12 +17,20 @@ namespace NecrowConsole
 #if DEBUG
             if (Necrow.Debug())
             {
-                Necrow.Test("ME4-D5-RKT");
+                //Necrow.Test("me-d1-pgki-tsel");
+                Necrow.Test("ME5-D5-KBL");
+                //Necrow.Test("ME8-D5-KBL");
+
+                //Necrow.Test("PE-D5-KLM-INET");
+                //Necrow.Test("ME-D5-KLM");
+
+                //Necrow.Test("PE2-D2-JT2-TRANSIT");
 #endif
-            Necrow.Start();
+                Necrow.Start();
 #if DEBUG
             }
 #endif
+
             Necrow.Console();
         }
     }

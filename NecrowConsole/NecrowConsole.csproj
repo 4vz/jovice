@@ -82,12 +82,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Jovice.Common\Jovice.Common.csproj">
-      <Project>{123e8a09-3f7a-4a85-8e3a-da92b55ce6cc}</Project>
-      <Name>Jovice.Common</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="app.config">
       <SubType>Designer</SubType>
     </None>
@@ -113,6 +107,12 @@
       <ProductName>Windows Installer 4.5</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Necrow\Necrow.csproj">
+      <Project>{ffacd4fe-ca5a-4e45-9f7d-f99f8a925544}</Project>
+      <Name>Necrow</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

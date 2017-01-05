@@ -440,7 +440,7 @@ namespace Aphysoft.Share
                 {
                     do
                     {
-                        StreamServiceMessage response = Service.Wait<StreamServiceMessage>(message);
+                        StreamServiceMessage response = Service.Wait(message);
                         
                         if (!response.IsAborted)
                         {
@@ -869,6 +869,7 @@ namespace Aphysoft.Share
         public string t = "heartbeat";
         public string d = "";
         public DateTime serverTime;
+        public string v = Share.Version();
 
         #endregion
     }

@@ -77,13 +77,13 @@
     <Compile Include="Providers\Search\NodeSearchMatch.cs" />
     <Compile Include="Providers\Search\ServiceSearchMatch.cs" />
     <Compile Include="Providers\Statistics.cs" />
+    <Compile Include="Center.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="Center.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Aphysoft.Share.Resources\Aphysoft.Share.Resources.csproj">
@@ -102,13 +102,13 @@
   <ItemGroup>
     <Content Include="Development\javascript.js" />
     <Content Include="Development\test.js" />
-    <Content Include="View\jovice.js" />
+    <Content Include="View\center.js" />
     <Content Include="View\main.js" />
     <Content Include="View\search.js" />
-    <Content Include="View\Search\interface.js" />
-    <Content Include="View\Search\node.js" />
-    <Content Include="View\Search\service.js" />
-    <Content Include="View\service.js" />
+    <Content Include="View\Jovice\Search\interface.js" />
+    <Content Include="View\Jovice\Search\node.js" />
+    <Content Include="View\Jovice\Search\service.js" />
+    <Content Include="View\Jovice\service.js" />
     <Content Include="Web.config">
       <SubType>Designer</SubType>
     </Content>
@@ -121,6 +121,10 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="View\Satellite\Search\" />
+    <Folder Include="View\Search\" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

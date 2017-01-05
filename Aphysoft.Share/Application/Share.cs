@@ -77,12 +77,6 @@ namespace Aphysoft.Share
 
         #endregion
 
-        #region Version
-
-        protected int Version = 0;
-
-        #endregion
-
         #endregion
 
         #region Core
@@ -642,6 +636,11 @@ namespace Aphysoft.Share
 
         #region Methods
 
+        internal static string Version()
+        {
+            return System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.Build.ToString() + "." + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.Revision;
+        }
+
         internal static void Compress(HttpContext context)
         {
             // Gzip or Deflate if available
@@ -673,6 +672,7 @@ namespace Aphysoft.Share
                 response.AppendHeader("Vary", "Content-Encoding");
             }
         }
+        
         #endregion
     }
 

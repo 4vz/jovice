@@ -12,14 +12,70 @@
         return ar;
     };
 
-    ui("search_service", function (b, r, f) {
+    ui("search_jovice_service", function (b, r, f, p, t) {
 
         //--- match properties
-        f.setButton();
-        //f.setExpand(185, 500, null, null, null, null);
+        f.setButton(function () {
+            p.transfer("/network/service/" + serviceID, {
+                transferData: {
+                    serviceID: r.serviceID.text(),
+                    customerName: r.customerName.text(),
+                    serviceType: r.serviceType.text(),
+                    entries: t.entries
+                },
+                leave: function () {
+                    t.animTransferedClick();
+
+                    var at = b.absoluteTop();
+                    b.$.detach();
+                    p.$.append(b.$);
+                    b.top(at - ui.marginTop());
+
+                    b.color(null, { duration: 300, queue: false });
+                    b.height(200, { duration: 300, queue: false });
+                    
+                    r.serviceID.$.transition({ y: -20, duration: 200, opacity: 0 });
+                    r.customerName.$.transition({ x: 20, duration: 200, opacity: 0 });
+                    r.serviceType.$.transition({ x: 20, duration: 200, opacity: 0 });
+                    r.purpose1.$.transition({ x: 20, duration: 200, opacity: 0 });
+                    r.purpose2.$.transition({ x: 20, duration: 200, opacity: 0 });
+
+                    r.topology.$.transition({ y: 20, duration: 200, opacity: 0 });
+
+                    $$(700, function () {
+                        t.searchresult.fadeOut(100);
+                    });
+
+                    var found = false;
+                    $.each(t.resultBoxes, function (bi, bv) {
+                        if (bv == b) {
+                            found = true;
+                        }
+                        else {
+                            var bt = bv.absoluteTop();
+                            bv.$.detach();
+                            p.$.append(bv.$);
+                            bv.top(bt - ui.marginTop());
+
+                            if (!found) {
+                                if (bv.top() <= 200) bv.hide();
+                                else {
+                                    //bv.$.animate({ opacity: 0 }, { duration: 300, queue: false });
+                                    bv.$.transition({ y: -(t.filter.isShown() ? 80 : 40), opacity: 0, duration: 300 });
+                                }
+                            }
+                            else { // found
+                                bv.$.transition({ y: 200, opacity: 0, duration: 300 });
+                            }
+                        }
+                    });
+                    //b.height(50, { duration: 300 });
+                }
+            });
+        });
         f.setSize(100);
         
-        //--- entry values
+        //--- entry valuesW
         var serviceID = f.column("SE_SID");
         var customerName = f.column("SC_Name");
         var setype = f.column("SE_Type");
@@ -47,6 +103,8 @@
             r.serviceID = ui.text(b)({ font: ["body", 15], color: "accent", top: 13, left: 20, weight: "600", noBreak: true, clickToSelect: true, cursor: "copy" });
             r.serviceType = ui.text(b)({ font: ["body", 15], color: 25, clickToSelect: true, cursor: "copy", attach: [r.serviceID, "right", 20] });
             r.customerName = ui.text(b)({ font: ["body", 15], color: 25, weight: "600", noBreak: true, truncate: true, attach: [r.serviceType, "right2", 20, 20] });
+
+            //debug(r.serviceID.absolutePosition());
             
             r.topology = ui.box(b)({ top: 40, height: 60, leftRight: 20 });
 
@@ -61,15 +119,15 @@
                 prevArea = ref.area;
 
                 ref.speedArea = ui.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: false });
-                ui.icon(ref.speedArea, jovice.icon("speed"))({ top: 2, left: 0, color: 45, size: [16, 16] });
+                ui.icon(ref.speedArea, center.icon("speed"))({ top: 2, left: 0, color: 45, size: [16, 16] });
                 ref.speedText = ui.text(ref.speedArea)({ font: ["body", 13], color: 0, top: 0, left: 22, noBreak: true });
 
                 ref.vrfArea = ui.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
-                ui.icon(ref.vrfArea, jovice.icon("cloud"))({ top: 2, left: 0, color: 45, size: [16, 16] });
+                ui.icon(ref.vrfArea, center.icon("cloud"))({ top: 2, left: 0, color: 45, size: [16, 16] });
                 ref.vrfText = ui.text(ref.vrfArea)({ font: ["body", 13], color: 0, top: 0, left: 22, noBreak: true, clickToSelect: true, cursor: "copy" });
 
                 ref.ipArea = ui.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
-                ui.icon(ref.ipArea, jovice.icon("IP"))({ top: 2, left: 0, color: 45, size: [16, 16] });
+                ui.icon(ref.ipArea, center.icon("IP"))({ top: 2, left: 0, color: 45, size: [16, 16] });
                 ref.ipText = ui.text(ref.ipArea)({ font: ["body", 13], color: 0, top: 0, left: 22, noBreak: true, clickToSelect: true, cursor: "copy" });
 
                 ref.vcidArea = ui.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
@@ -78,11 +136,11 @@
                 ref.vcidText = ui.text(ref.vcidArea)({ font: ["body", 13], color: 0, top: 0, left: 22, noBreak: true, clickToSelect: true, cursor: "copy" });
 
                 ref.routeArea = ui.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
-                ui.icon(ref.routeArea, jovice.icon("map"))({ top: 2, left: 0, color: 45, size: [16, 16] });
+                ui.icon(ref.routeArea, center.icon("map"))({ top: 2, left: 0, color: 45, size: [16, 16] });
                 ref.routeText = ui.text(ref.routeArea)({ font: ["body", 13], color: 0, top: 0, left: 22, noBreak: true });
 
                 ref.updateArea = ui.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
-                ui.icon(ref.updateArea, jovice.icon("time"))({ top: 2, left: 0, color: 45, size: [16, 16] });
+                ui.icon(ref.updateArea, center.icon("time"))({ top: 2, left: 0, color: 45, size: [16, 16] });
                 ref.updateText = ui.text(ref.updateArea)({ font: ["body", 13], color: 0, top: 0, left: 22, noBreak: true });
      
                 ref.topoArea = ui.box(ref.area)({ leftRight: [0, 0], top: 22, height: 28, hide: true, scroll: { vertical: false, horizontal: true, type: "button" } });
@@ -107,6 +165,7 @@
                 r.purposeOther = this;
                 r.change(index);
             };
+
             r.purposeOther = null;
             r.purpose1 = ui.text(b)({ cursor: "pointer", font: ["body", 15], attach: [r.serviceType, "right", 20], hide: true, button: { normal: purposeNormal, over: purposeOver, click: purposeClick }});
             r.purpose2 = ui.text(b)({ cursor: "pointer", font: ["body", 15], attach: [r.purpose1, "right", 20], hide: true, button: { normal: purposeNormal, over: purposeOver, click: purposeClick } });
@@ -176,7 +235,7 @@
             var lanc = 0;
             if (rateoutput > 0) {
                 var rt = rateoutput * 1024;
-                var fb = jovice.formatBytes(rt, 10);
+                var fb = center.formatBytes(rt, 10);
                 var spt = fb[0] + "";
                 var spr = spt.split('.')[0];
 
@@ -197,7 +256,7 @@
 
             if (rateinput > 0) {
                 var rt = rateinput * 1024;
-                var fb = jovice.formatBytes(rt, 10);
+                var fb = center.formatBytes(rt, 10);
                 var spt = fb[0] + "";
                 var spr = spt.split('.')[0];
 
@@ -300,7 +359,7 @@
 
                 ref.topoContents.removeChildren();
 
-                ui.icon(ref.topoContents, jovice.icon("topology"))({ top: 7, left: 0, color: 45, size: [16, 16] });
+                ui.icon(ref.topoContents, center.icon("topology"))({ top: 7, left: 0, color: 45, size: [16, 16] });
 
                 var left = 22;
                 var rightLastMile = false;
@@ -313,7 +372,7 @@
                     });
                     left = piNO.leftWidth();
                     var piName = ui.text(ref.topoContents)({
-                        text: jovice.formatInterfaceName(pi[8], pi[2]), top: 5, font: 12, left: left + 10, color: pi[10] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                        text: center.formatInterfaceName(pi[8], pi[2]), top: 5, font: 12, left: left + 10, color: pi[10] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
                     });
                     left = piName.leftWidth();
 
@@ -331,7 +390,7 @@
 
                     if (pi[12] > 0) {
                         var rt = pi[12] * 1024;
-                        var fb = jovice.formatBytes(rt, 10);
+                        var fb = center.formatBytes(rt, 10);
                         var spt = fb[0] + "";
                         var spr = spt.split('.')[0];
                         ref.perateinput = spr + " " + fb[1] + "PS";
@@ -341,7 +400,7 @@
                     }
                     if (pi[13] > 0) {
                         var rt = pi[13] * 1024;
-                        var fb = jovice.formatBytes(rt, 10);
+                        var fb = center.formatBytes(rt, 10);
                         var spt = fb[0] + "";
                         var spr = spt.split('.')[0];
                         ref.perateoutput = spr + " " + fb[1] + "PS";
@@ -411,7 +470,7 @@
                     left = midNO.leftWidth();
 
                     var midName = ui.text(ref.topoContents)({
-                        text: jovice.formatInterfaceName(mid[5], mid[2]), top: 5, font: 12, left: left + 10, color: mid[7] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                        text: center.formatInterfaceName(mid[5], mid[2]), top: 5, font: 12, left: left + 10, color: mid[7] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
                     });
                     left = midName.leftWidth();
 
@@ -467,13 +526,13 @@
                         left += 15;
 
                         var mi2Name = ui.text(ref.topoContents)({
-                            text: jovice.formatInterfaceName(mi2[5], mi2[2]), top: 5, font: 12, left: left + 10, color: mi2[7] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                            text: center.formatInterfaceName(mi2[5], mi2[2]), top: 5, font: 12, left: left + 10, color: mi2[7] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
                         });
                         left = mi2Name.leftWidth();
 
                         //24
                         if (mi2[24] != null && mi2[24] > 1) {
-                            var multi = ui.icon(ref.topoContents, jovice.icon("split"))({
+                            var multi = ui.icon(ref.topoContents, center.icon("split"))({
                                 size: [20, 20], left: left + 6, top: 3, color: 35, rotation: 90, flip: "V",
                                 tooltip: "{0|" + mi2[24] + "} INTERFACES",
                                 tooltipSpanColor: ["accent+50"]
@@ -506,7 +565,7 @@
                     if (pivar == "EX") {
                         // 20 21 22
                         var xmi2Name = ui.text(ref.topoContents)({
-                            text: jovice.formatInterfaceName(pi[20], pi[22]), top: 5, font: 12, left: left + 10, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
+                            text: center.formatInterfaceName(pi[20], pi[22]), top: 5, font: 12, left: left + 10, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
                         });
                         var xle = left;
                         left = xmi2Name.leftWidth();
@@ -595,7 +654,7 @@
 
                 var mx = getSection(topology, "MX");
                 if (mx != null) {
-                    var multi = ui.icon(ref.topoContents, jovice.icon("split"))({
+                    var multi = ui.icon(ref.topoContents, center.icon("split"))({
                         size: [20, 20], left: left + 4, top: 3, color: 35, rotation: 90,
                         tooltip: "{0|" + mx[1] + "} REMOTE PEERS",
                         tooltipSpanColor: ["accent+50"]
@@ -605,7 +664,7 @@
                     var linkbox = ui.box(ref.topoContents)({
                         left: left + 10, top: 2, height: 22, color: 50, cursor: "pointer", button: {
                             normal: function () { linkbox.color(50); },
-                            click: function () { jovice.searchExecute("services that bound to VCID " + vcid); },
+                            click: function () { center.searchExecute("services that bound to VCID " + vcid); },
                             over: function () { linkbox.color(60); }
                         }
                     });
@@ -643,7 +702,7 @@
                     left += 15;
 
                     if (mc[18] != null && mc[18] > 1) {
-                        var multi = ui.icon(ref.topoContents, jovice.icon("split"))({
+                        var multi = ui.icon(ref.topoContents, center.icon("split"))({
                             size: [20, 20], left: left + 4, top: 3, color: 35, rotation: 90, flip: "V",
                             tooltip: "{0|" + mc[18] + "} REMOTE PEERS",
                             tooltipSpanColor: ["accent+50"]
@@ -711,7 +770,7 @@
                     else ntype = mi2[2];
 
                     var mi1Name = ui.text(ref.topoContents)({
-                        text: jovice.formatInterfaceName(mi1[1], ntype), top: 5, font: 12, left: left + 10, color: mi1[3] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                        text: center.formatInterfaceName(mi1[1], ntype), top: 5, font: 12, left: left + 10, color: mi1[3] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
                     });
                     left = mi1Name.leftWidth();
 
@@ -765,7 +824,7 @@
                         var linkbox = ui.box(ref.topoContents)({
                             left: left + 10, top: 2, height: 22, color: 50, cursor: "pointer", button: {
                                 normal: function () { linkbox.color(50); },
-                                click: function (e) { jovice.searchExecute("service that sid is " + rightcloudsid); },
+                                click: function (e) { center.searchExecute("service that sid is " + rightcloudsid); },
                                 over: function () { linkbox.color(60); }
                             }
                         });
@@ -787,6 +846,21 @@
                 ref.topoArea.hide();
             }
         });
+
+       // p.unload(function () {
+        //    debug("unload");
+        //});
+
+
+
+
+
+
+
+
+
+        // BELOW THIS ARE OBSOLETED
+
 
         //-- EXPAND
         r.expanded = false;
@@ -819,23 +893,23 @@
                 r.contents[1] = r.overviewdetarea;
 
                 r.rateinputtitle = ui.text(r.overviewdetarea)({ position: [0, 15], text: "Overall Input Rate", weight: "600", color: 25, font: 18, noBreak: true });
-                r.rateinputicond = ui.icon(r.overviewdetarea, jovice.icon("upload"))({ size: [30, 30], position: [-2, 48], color: 40, });
+                r.rateinputicond = ui.icon(r.overviewdetarea, center.icon("upload"))({ size: [30, 30], position: [-2, 48], color: 40, });
                 r.rateinput = ui.text(r.overviewdetarea)({ position: [35, 45], font: 25, noBreak: true });
 
                 r.rateoutputtitle = ui.text(r.overviewdetarea)({ position: [0, 110], text: "Overall Output Rate", weight: "600", color: 25, font: 18, noBreak: true });
-                r.rateoutputicond = ui.icon(r.overviewdetarea, jovice.icon("download"))({ size: [30, 30], position: [-2, 143], color: 40, });
+                r.rateoutputicond = ui.icon(r.overviewdetarea, center.icon("download"))({ size: [30, 30], position: [-2, 143], color: 40, });
                 r.rateoutput = ui.text(r.overviewdetarea)({ position: [35, 140], font: 25, noBreak: true });
 
                 r.perateinputtitle = ui.text(r.overviewdetarea)({ position: [240, 15], text: "PE Router Input Rate", weight: "600", color: 25, font: 18, noBreak: true });
-                r.perateinputicon = ui.icon(r.overviewdetarea, jovice.icon("boxin"))({ size: [30, 30], position: [238, 48], color: 40, });
+                r.perateinputicon = ui.icon(r.overviewdetarea, center.icon("boxin"))({ size: [30, 30], position: [238, 48], color: 40, });
                 r.perateinput = ui.text(r.overviewdetarea)({ position: [275, 45], font: 25, noBreak: true });
 
                 r.perateoutputtitle = ui.text(r.overviewdetarea)({ position: [240, 110], text: "PE Router Output Rate", weight: "600", color: 25, font: 18, noBreak: true });
-                r.perateoutputicon = ui.icon(r.overviewdetarea, jovice.icon("boxout"))({ size: [30, 30], position: [238, 143], color: 40, });
+                r.perateoutputicon = ui.icon(r.overviewdetarea, center.icon("boxout"))({ size: [30, 30], position: [238, 143], color: 40, });
                 r.perateoutput = ui.text(r.overviewdetarea)({ position: [275, 140], font: 25, noBreak: true });
 
                 r.pepackagetitle = ui.text(r.overviewdetarea)({ position: [480, 15], text: "Service Package", weight: "600", color: 25, font: 18, noBreak: true });
-                r.pepackageicon = ui.icon(r.overviewdetarea, jovice.icon("boxsel"))({ size: [30, 30], position: [478, 48], color: 40, });
+                r.pepackageicon = ui.icon(r.overviewdetarea, center.icon("boxsel"))({ size: [30, 30], position: [478, 48], color: 40, });
                 r.pepackage = ui.text(r.overviewdetarea)({ position: [515, 45], font: 25, noBreak: true });
 
                 // ping
@@ -849,15 +923,15 @@
 
                 r.pingtargetlabel = ui.text(r.pingarea)({ font: 15, text: "END 2", position: [346, 56] });
                 r.pingtargettext = ui.text(r.pingarea)({ font: 23, position: [400, 49], spanColor: [[30], [70]] });
-                r.pingtargetwarn = ui.icon(r.pingarea, jovice.icon("warning"))({ size: 30, attach: [r.pingtargettext, "right", 15, 2], color: 0 });
+                r.pingtargetwarn = ui.icon(r.pingarea, center.icon("warning"))({ size: 30, attach: [r.pingtargettext, "right", 15, 2], color: 0 });
 
                 r.pingvrflabel = ui.text(r.pingarea)({ font: 15, text: "VRF", position: [362, 103] });
                 r.pingvrftext = ui.text(r.pingarea)({ font: 23, position: [400, 96] });
-                r.pingvrfwarn = ui.icon(r.pingarea, jovice.icon("warning"))({ size: 30, attach: [r.pingvrftext, "right", 15, 2], color: 0 });
+                r.pingvrfwarn = ui.icon(r.pingarea, center.icon("warning"))({ size: 30, attach: [r.pingvrftext, "right", 15, 2], color: 0 });
 
                 r.pingsoulabel = ui.text(r.pingarea)({ font: 15, text: "IP ADDRESS", position: [700, 103] });
                 r.pingsoutext = ui.text(r.pingarea)({ font: 23, position: [793, 96], color: 20 });
-                r.pingsouwarn = ui.icon(r.pingarea, jovice.icon("warning"))({ size: 30, attach: [r.pingsoutext, "right", 15, 2], color: 0 });
+                r.pingsouwarn = ui.icon(r.pingarea, center.icon("warning"))({ size: 30, attach: [r.pingsoutext, "right", 15, 2], color: 0 });
 
                 r.pingdestlabel = ui.text(r.pingarea)({ font: 15, text: "PING TO", position: [331, 150] });
                 r.pingdestinput = ui.textinput(r.pingarea)({ font: 23, weight: "300", position: [400, 143], width: 180, maxlength: 15, color: 20 });
@@ -932,9 +1006,9 @@
                         ping.button(analysisbutton);
                         ping.click(function () { scrollTo(1091); });
                     }
-                    ui.icon(ping, jovice.icon("excl"))({ size: 15, color: bi == 0 ? 100 : 25, position: [7, 12] });
-                    ui.icon(ping, jovice.icon("excl"))({ size: 15, color: bi == 0 ? 100 : 25, position: [13, 12] });
-                    ui.icon(ping, jovice.icon("excl"))({ size: 15, color: bi == 0 ? 100 : 25, position: [19, 12] });
+                    ui.icon(ping, center.icon("excl"))({ size: 15, color: bi == 0 ? 100 : 25, position: [7, 12] });
+                    ui.icon(ping, center.icon("excl"))({ size: 15, color: bi == 0 ? 100 : 25, position: [13, 12] });
+                    ui.icon(ping, center.icon("excl"))({ size: 15, color: bi == 0 ? 100 : 25, position: [19, 12] });
                     ui.text(ping)({ position: [50, 4], noSelect: true, text: "Ping Test", color: bi == 0 ? 100 : 30, font: 20, noBreak: true });
 
                     var mac = ui.box(bv)({ top: 40, height: 40, width: "100%" });
@@ -942,7 +1016,7 @@
                         mac.button(analysisbutton);
                         mac.click(function () { scrollTo(2261); });
                     }
-                    ui.icon(mac, jovice.icon("route"))({ size: 25, color: bi == 0 ? 100 : 25, position: [7, 8] });
+                    ui.icon(mac, center.icon("route"))({ size: 25, color: bi == 0 ? 100 : 25, position: [7, 8] });
                     ui.text(mac)({ position: [50, 4], noSelect: true, text: "Display Routing", color: bi == 0 ? 100 : 30, font: 20, noBreak: true });
 
                     var run = ui.box(bv)({ top: 80, height: 40, width: "100%" });
@@ -950,7 +1024,7 @@
                         run.button(analysisbutton);
                         run.click(function () { scrollTo(3431); });
                     }
-                    ui.icon(run, jovice.icon("gear"))({ size: 30, color: bi == 0 ? 100 : 30, position: [5, 5] });
+                    ui.icon(run, center.icon("gear"))({ size: 30, color: bi == 0 ? 100 : 30, position: [5, 5] });
                     ui.text(run)({ position: [50, 4], noSelect: true, text: "Display Running Configuration", color: bi == 0 ? 100 : 30, font: 20, noBreak: true });
                 });
 

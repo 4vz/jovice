@@ -3,7 +3,7 @@
     var page;
     ui("main", {
         init: function (p) {
-            page = jovice.init(p);
+            page = center.init(p);
 
             (function() {
                 //var paper = logo.paper();
@@ -38,7 +38,7 @@
             p.done();
         },
         start: function (p) {
-            jovice.setSearchBoxValue(null);
+            center.setSearchBoxValue(null);
             p.done();
         },
         resize: function (p) {

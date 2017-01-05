@@ -1,8 +1,8 @@
 ﻿(function () {
 
-    var jovice;
+    var center;
 
-    // jovice
+    // center
     (function (window) {
 
         var inited = false;
@@ -13,9 +13,8 @@
         var nbox;
         var asea;
 
-
-        jovice = function () { };
-        jovice.init = function (p) {
+        center = function () { };
+        center.init = function (p) {
             page = p;
             if (inited) return p; inited = true;
 
@@ -26,9 +25,9 @@
             ui.marginTop(40);
 
             nbox = ui.box(ctop)({ size: 40 });
-            ui.icon(nbox, jovice.icon("hex"))({ size: 18, color: 75, position: [3, 17], rotation: 90 });
-            ui.icon(nbox, jovice.icon("hex"))({ size: 18, color: 75, position: [16.25, 17], rotation: 90 });
-            ui.icon(nbox, jovice.icon("hex"))({ size: 18, color: 75, position: [9.5, 5.5], rotation: 90 });
+            ui.icon(nbox, center.icon("hex"))({ size: 18, color: 75, position: [3, 17], rotation: 90 });
+            ui.icon(nbox, center.icon("hex"))({ size: 18, color: 75, position: [16.25, 17], rotation: 90 });
+            ui.icon(nbox, center.icon("hex"))({ size: 18, color: 75, position: [9.5, 5.5], rotation: 90 });
                         
             var aseaentered = false;
             var aseadowned = false;
@@ -36,8 +35,8 @@
             
             asea = ui.box(ctop)({ color: 98, left: 40, height: 40, width: 400, cursor: "text" });
             var aseasearch = ui.textinput(asea)({ font: 14, leftRight: [40, 10], top: 0, height: 40, design: false, opacity: 0 });
-            var aseaglass = ui.icon(asea, jovice.icon("glass"))({ size: [32, 32], color: 75, position: [4, 4] });
-            var aseaclear = ui.icon(asea, jovice.icon("arrow"))({ size: [23, 23], color: 75, position: [8, 10], hide: true });
+            var aseaglass = ui.icon(asea, center.icon("glass"))({ size: [32, 32], color: 75, position: [4, 4] });
+            var aseaclear = ui.icon(asea, center.icon("arrow"))({ size: [23, 23], color: 75, position: [8, 10], hide: true });
             var aseastart = ui.text(asea)({ noSelect: true, text: "Search anything here", font: ["body", 14], color: 65, position: [40, 11] });
             
             asea.enter(function (e) {
@@ -86,7 +85,7 @@
                 }
             });
 
-            jovice.setSearchBoxValue = function (s) {
+            center.setSearchBoxValue = function (s) {
                 if (!aseasearch.isFocus()) {
                     if (s != null && s.length > 0) {
                         aseasearch({ opacity: 1, value: s, color: 65 });
@@ -103,7 +102,7 @@
 
             return p;
         };
-        jovice.icon = function (name) {
+        center.icon = function (name) {
             if (name == "hex") return "M50.518,188.535h101.038l50.515-87.5l-50.515-87.5H50.518L0,101.035L50.518,188.535z M59.178,28.535h83.718l41.854,72.5l-41.854,72.5H59.178l-41.858-72.5L59.178,28.535z";
             else if (name == "glass") return "M480.606,459.394L352.832,331.619c30.306-35.168,48.654-80.918,48.654-130.876C401.485,90.053,311.433,0,200.743,0S0,90.053,0,200.743s90.053,200.743,200.743,200.743c49.958,0,95.708-18.348,130.876-48.654l127.775,127.775L480.606,459.394zM30,200.743C30,106.595,106.595,30,200.743,30s170.743,76.595,170.743,170.743s-76.595,170.743-170.743,170.743S30,294.891,30,200.743z";
             else if (name == "arrow") return "M20,11H7.8l5.6-5.6L12,4l-8,8l8,8l1.4-1.4L7.8,13H20V11z";
@@ -125,7 +124,7 @@
             else if (name == "route") return "M303.658,141.433L350.261 214.575 387.626 0 173.043 37.357 246.184 83.962 104.768 225.371 246.78 367.377 179.243 434.921 236.731 492.394 361.74 367.377 219.726 225.371z";
             else if (name == "warning") return "M15.789,13.982l-6.938-13C8.678,0.657,8.339,0.453,7.97,0.453H7.969c-0.369,0-0.707,0.203-0.881,0.528l-6.969,13c-0.166,0.312-0.157,0.686,0.023,0.986C0.323,15.268,0.649,15.453,1,15.453h13.906c0.352,0,0.677-0.184,0.858-0.486C15.945,14.666,15.954,14.292,15.789,13.982z M7.969,13.453c-0.552,0-1-0.448-1-1s0.448-1,1-1c0.551,0,1,0.448,1,1S8.521,13.453,7.969,13.453z M8.97,9.469c0,0.553-0.449,1-1,1c-0.552,0-1-0.447-1-1v-4c0-0.552,0.448-1,1-1 c0.551,0,1,0.448,1,1V9.469z";
         };
-        jovice.formatInterfaceName = function (name, man) {
+        center.formatInterfaceName = function (name, man) {
             if (man == "ALCATEL-LUCENT") {
                 if (name.startsWith("Ex")) {
                     name = name.substr(2);
@@ -156,11 +155,11 @@
 
             return name;
         };
-        jovice.searchExecute = function (s) {
+        center.searchExecute = function (s) {
             page.transfer("/search/" + prepareQuery(s));
         };
 
-        window.jovice = jovice;
+        window.center = center;
         window.onerror = function (e) {
             
         };
@@ -174,7 +173,7 @@
     })(window);
 
     // .formatBytes
-    (function (jovice){
+    (function (center){
 
         var formatBytes = function (bytes, decimals) {
             if (bytes == 0) return '0 Byte';
@@ -185,7 +184,7 @@
             return [(bytes / Math.pow(k, i)).toPrecision(dm), sizes[i]];
         };
 
-        jovice.formatBytes = formatBytes;
+        center.formatBytes = formatBytes;
 
-    })(jovice);
+    })(center);
 })();

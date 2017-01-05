@@ -1115,6 +1115,8 @@
     // .stream .removeStream .isStreamAvailable
     (function (share) {
 
+        var version = null;
+
         var guid = 0;
         var handlers = {};
         var portal = {};
@@ -1244,6 +1246,13 @@
                         var obj = data.d;
 
                         if (type == "heartbeat") {
+                            var ver = data.v;
+                            if (version == null) version = ver;
+                            else {
+                                if (version != ver) {
+                                    location.reload();
+                                }
+                            }
                         }
                         else {
                             if (type == "available") {
@@ -1280,7 +1289,7 @@
                                 }
 
                                 if (type == "unavailable" || type == "disconnected")
-                                    setTimeout(start, 5000); // try again
+                                    setTimeout(start, 60000); // try again
                             }
                             else {
                                 if (type == "updatestreamdomain") {
@@ -2724,6 +2733,7 @@
                 var url = null;
                 var baseUrl = null;
                 var endUrl = null;
+                var transferLeave = null;
 
                 page.family = o.family;
                 page.titles = o.titles;
@@ -2888,8 +2898,7 @@
                             return; // already on target page;
                         }
                         // appHref ==> /urlPrefix/path/to/page?querystrings
-
-                        
+                                                
                         if (ajaxify) {
                             //if (page.location == appHrefClean)
                             var globallink = false;
@@ -2901,6 +2910,7 @@
                                 data: null,
                                 transition: null
                             };
+
 
                             if (globallink == false) {
                                 // cek for local link first
@@ -2928,6 +2938,7 @@
                                 if ($.isPlainObject(arg2.transferData)) transferData.data = arg2.transferData;
                                 if ($.isPlainObject(arg2.data)) stateData = arg2.data;
                                 if ($.isString(arg2.transition)) transferData.transition = arg2.transition;
+                                if ($.isFunction(arg2.leave)) transferLeave = arg2.leave;
                             }
 
                             if (replaceState && noCallback) {
@@ -3066,7 +3077,7 @@
                         if (last != null) {
 
                             last.state(3);
-                            last.leave();
+                            last.leave(last);
 
                             // if last page available, check for page transition
                             var transition;
@@ -3118,8 +3129,14 @@
                         }
                     }
                     else if (page.state() == 3) { // done by leave
+
+                        if (transferLeave != null) {
+                            transferLeave();
+                            transferLeave = null;
+                        }
+
                         page.state(4);
-                    
+
                         share.removeEvent(eventHandlers);
                         share.removeStream(streamHandlers);
 

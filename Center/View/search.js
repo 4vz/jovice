@@ -5,6 +5,10 @@
     // functions
     var showLoading, hideLoading;
     var enterSearchResult, setResults, setFilters, clearSearchResult, setRelated;
+
+    // features
+    var animTransferedClick;
+
     var isfiltersexists = false, ispagingexists = false, isnomatchexists = false;
     var necrowonline = false;
 
@@ -35,7 +39,7 @@
             eus = unescape(eus);            
             search = eus;
 
-            jovice.setSearchBoxValue(search);
+            center.setSearchBoxValue(search);
 
             $.each(eua, function (ei, ev) {
                 if (ei > 0) {
@@ -74,7 +78,7 @@
                 count = d.n; type = d.t; subType = d.st;
                 var refsearch = d.rs;
                 if (refsearch != null) {
-                    jovice.setSearchBoxValue(refsearch);
+                    center.setSearchBoxValue(refsearch);
                 }
                 searchid = d.sid;
                 columns = d.c;
@@ -251,7 +255,7 @@
 
     ui("search", {
         init: function (p) {
-            uipage = jovice.init(p);
+            uipage = center.init(p);
 
             var area = ui.box(p)({ size: ["100%", "100%"], color: 100, hide: true, z: 1000, opacity: 0.6 });
             var circleBox = ui.box(p)({ size: [50, 50], center: true, z: 1001 });
@@ -563,9 +567,7 @@
                     }
                 }
                 else {
-                    
                     ui.script("search_" + type, function (proc) {
-
                         searchresult.show();
                         related.hide();
 
@@ -877,7 +879,7 @@
                                 }
                                 return null;
                             }
-                            f.setButton = function () {
+                            f.setButton = function (c) {
                                 b({
                                     cursor: "pointer",
                                     button: {
@@ -887,6 +889,9 @@
                                         over: function () {
                                             b.color(97);
                                         },
+                                        click: function () {
+                                            if (c != null) c(ei);
+                                        }
                                     }
                                 });
                             };
@@ -1005,7 +1010,14 @@
                                 return necrowonline;
                             };
 
-                            proc(b, r, f);
+                            var t = {};
+                            t.entries = ev;
+                            t.resultBoxes = resultBoxes;
+                            t.animTransferedClick = animTransferedClick;
+                            t.searchresult = searchresult;
+                            t.filter = filter;
+
+                            proc(b, r, f, uipage, t);
 
                             if (entersearch) {
                                 var bhe = b.height();
@@ -1224,7 +1236,7 @@
                                 },
                                 over: function () { b.color(97); },
                                 click: function () {
-                                    jovice.searchExecute(relatedQuery[i].text());
+                                    center.searchExecute(relatedQuery[i].text());
                                 }
                             }
                         });
@@ -1273,6 +1285,18 @@
                     related.show();
                 }
             };
+            
+            animTransferedClick = function () {
+                if (filter.isShown()) {
+                    titlearea.$.css({ y: 0 }).transition({ y: -80, duration: 300 });
+                    filter.$.css({ y: 0 }).transition({ y: -80, duration: 300 });
+                    searchresult.$.css({ y: 0 }).transition({ y: -80, duration: 300 });
+                }
+                else {
+                    titlearea.$.css({ y: 0 }).transition({ y: -40, duration: 300 });
+                    searchresult.$.css({ y: 0 }).transition({ y: -40, duration: 300 });
+                }
+            };
 
             p.done();
         },
@@ -1290,8 +1314,6 @@
                 $$.removeRegister(rsi);
                 delete registerstream[rsi];
             });
-
-
             p.done();
         }
     });

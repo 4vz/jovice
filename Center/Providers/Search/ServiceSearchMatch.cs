@@ -54,7 +54,7 @@ namespace Center.Providers
 
         public override void Process(SearchMatchResult matchResult, string[] tokens, string[] preTokens, string[] postTokens, string sort, string sortMethod, int page, int pageSize, int pageLength)
         {
-            matchResult.Type = "service";
+            matchResult.Type = "jovice_service";
 
             List<SearchDescriptor> descriptors = Search.ParsePostTokens(postTokens);
 

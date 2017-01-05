@@ -31,15 +31,51 @@ namespace Center
 
         protected override void OnInit()
         {
-            Version = 4;
             Client.Init();
         }
 
         protected override void OnResourceLoad()
         {
             BaseResources.Init();
+
+            #region Center
+
+            Resource.Common(Resource.Register("center", ResourceType.JavaScript, Resources.ResourceManager, "center", "~/View/center.js"));
+
+            Content.Register("main",
+                new ContentPage[] {
+                    new ContentPage("/")
+                },
+                new ContentPackage(
+                    Resource.Register("main", ResourceType.JavaScript, Resources.ResourceManager, "main", "~/View/main.js"),
+                    null));
+
+            Content.Register("search",
+                new ContentPage[] {
+                    new ContentPage("/search", true)
+                },
+                new ContentPackage(
+                    Resource.Register("search", ResourceType.JavaScript, Resources.ResourceManager, "search", "~/View/search.js"),
+                    null));
+
+            #endregion
+
+            #region Jovice
+
+            Resource.Register("search_jovice_service", ResourceType.JavaScript, Resources.ResourceManager, "jovice_search_service", "~/View/Jovice/Search/service.js");
+            Content.Register("jovice_service",
+                new ContentPage[] {
+                    new ContentPage("/network/service", true)
+                },
+                new ContentPackage(
+                    Resource.Register("jovice_service", ResourceType.JavaScript, Resources.ResourceManager, "jovice_service", "~/View/Jovice/service.js"),
+                    null));
+
+            #endregion
+
+            Provider.Register(101, Providers.Search.ProviderRequest); // Search
         }
-        
+
         protected override void OnScriptDataBinding(HttpContext context, ScriptData data)
         {
         }
@@ -58,7 +94,7 @@ namespace Center
     //    {
     //        #region Jovice
 
-    //        //Resource.Common(Resource.Register("jovice", ResourceType.JavaScript, "~/View/jovice.js"));
+    //        //
 
     //        #endregion
 
@@ -102,7 +138,7 @@ namespace Center
 
     //        #region Providers
 
-    //        //Provider.Register(101, Providers.Search.ProviderRequest); // Search
+
     //        //Provider.Register(new int[] {
     //            50001, // Is Necrow Available
     //            50005  // Ping

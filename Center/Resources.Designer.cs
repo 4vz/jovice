@@ -63,9 +63,9 @@ namespace Center {
         /// <summary>
         ///   Looks up a localized string similar to (function () {
         ///
-        ///    var jovice;
+        ///    var center;
         ///
-        ///    // jovice
+        ///    // center
         ///    (function (window) {
         ///
         ///        var inited = false;
@@ -76,20 +76,79 @@ namespace Center {
         ///        var nbox;
         ///        var asea;
         ///
-        ///
-        ///        jovice = function () { };
-        ///        jovice.init = function (p) {
+        ///        center = function () { };
+        ///        center.init = function (p) {
         ///            page = p;
         ///            if (inited) return p; inited = true;
         ///
         ///            // ctop
         ///            ctop = ui.box(ui.topContainer())({ color: 98, height: 40, width: &quot;100%&quot; });
         ///
-        ///            // ctop heigh [rest of string was truncated]&quot;;.
+        ///            // ctop height        /// [rest of string was truncated]&quot;;.
         /// </summary>
-        internal static string jovice {
+        internal static string center {
             get {
-                return ResourceManager.GetString("jovice", resourceCulture);
+                return ResourceManager.GetString("center", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 
+        ///(function () {
+        ///
+        ///    function getSection(ars, key) {
+        ///        var ar = null;
+        ///        $.each(ars, function (ai, av) {
+        ///            if (av[0] == key) {
+        ///                ar = av;
+        ///                return false;
+        ///            }
+        ///        });
+        ///        return ar;
+        ///    };
+        ///
+        ///    ui(&quot;search_jovice_service&quot;, function (b, r, f) {
+        ///
+        ///        //--- match properties
+        ///        f.setButton();
+        ///        //f.setExpand(185, 500, null, null, null, null);
+        ///        f.setSize(100);
+        ///        
+        ///        //--- entry values
+        ///        v [rest of string was truncated]&quot;;.
+        /// </summary>
+        internal static string jovice_search_service {
+            get {
+                return ResourceManager.GetString("jovice_search_service", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to (function () {
+        ///
+        ///
+        ///    ui(&quot;service&quot;, {
+        ///        init: function (p) {
+        ///
+        ///        },
+        ///        start: function (p) {
+        ///
+        ///        },
+        ///        resize: function (p) {
+        ///
+        ///        },
+        ///        local: function (p) {
+        ///
+        ///        },
+        ///        unload: function (p) {
+        ///
+        ///        }
+        ///    });
+        ///})();.
+        /// </summary>
+        internal static string jovice_service {
+            get {
+                return ResourceManager.GetString("jovice_service", resourceCulture);
             }
         }
         
@@ -99,7 +158,7 @@ namespace Center {
         ///    var page;
         ///    ui(&quot;main&quot;, {
         ///        init: function (p) {
-        ///            page = jovice.init(p);
+        ///            page = center.init(p);
         ///
         ///            (function() {
         ///                //var paper = logo.paper();
@@ -109,6 +168,30 @@ namespace Center {
         internal static string main {
             get {
                 return ResourceManager.GetString("main", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to (function () {
+        ///
+        ///    var uipage;
+        ///
+        ///    // functions
+        ///    var showLoading, hideLoading;
+        ///    var enterSearchResult, setResults, setFilters, clearSearchResult, setRelated;
+        ///    var isfiltersexists = false, ispagingexists = false, isnomatchexists = false;
+        ///    var necrowonline = false;
+        ///
+        ///    var searchJQXHR;
+        ///    var search, columns, results, sortList, sortBy, sortType, page, npage, mpage, count, type, subType, searchid = null, filters;
+        ///    var registerstream = {};
+        ///      
+        ///    function searchDo(p) {
+        ///     [rest of string was truncated]&quot;;.
+        /// </summary>
+        internal static string search {
+            get {
+                return ResourceManager.GetString("search", resourceCulture);
             }
         }
     }

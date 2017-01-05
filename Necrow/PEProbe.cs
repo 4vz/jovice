@@ -255,6 +255,14 @@ namespace Center
             set { interfaceGone = value; }
         }
 
+        private bool updateInterface = false;
+
+        public bool UpdateInterface
+        {
+            get { return updateInterface; }
+            set { updateInterface = value; }
+        }
+
         private int area = -1;
 
         public int Area
@@ -3629,6 +3637,42 @@ Last input 00:00:00, output 00:00:00
                                         i.Neighbor = currentNeighbor;
                                         i.BGPAS = currentBGPAS;
 
+                                        if (i.Neighbor != null)
+                                        {
+                                            IPAddress neighborIP = IPAddress.Parse(i.Neighbor);
+
+                                            foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
+                                            {
+                                                PEInterfaceToDatabase li = pair.Value;
+
+                                                if (li.RouteID == i.RouteNameID)
+                                                {
+                                                    if (li.IP != null)
+                                                    {
+                                                        foreach (string cip in li.IP)
+                                                        {
+                                                            string[] cips = cip.Split(StringSplitTypes.Underscore);
+
+                                                            if (cips.Length == 3 && cips[0] == "0")
+                                                            {
+                                                                string ipcidr = cips[2];
+                                                                string thip = ipcidr.Split(new char[] { '/' })[0];
+
+                                                                IPNetwork net = IPNetwork.Parse(ipcidr);
+
+                                                                if (neighborIP.IsInSameSubnet(net.FirstUsable, net.Netmask))
+                                                                {
+                                                                    // satu subnet, bisa jadi neighbor tembakan
+                                                                    i.InterfaceID = li.ID;
+                                                                    break;
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
                                         if (currentUseNeighborGroup != null && neighborGroups.ContainsKey(currentUseNeighborGroup))
                                         {
                                             NeighborGroup g = neighborGroups[currentUseNeighborGroup];
@@ -4289,6 +4333,43 @@ Last input 00:00:00, output 00:00:00
                                         i.Type = "B";
                                         i.Neighbor = currentNeighbor;
                                         i.BGPAS = currentBGPAS;
+
+                                        if (i.Neighbor != null)
+                                        {
+                                            IPAddress neighborIP = IPAddress.Parse(i.Neighbor);
+
+                                            foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
+                                            {
+                                                PEInterfaceToDatabase li = pair.Value;
+
+                                                if (li.RouteID == i.RouteNameID)
+                                                {
+                                                    if (li.IP != null)
+                                                    {
+                                                        foreach (string cip in li.IP)
+                                                        {
+                                                            string[] cips = cip.Split(StringSplitTypes.Underscore);
+
+                                                            if (cips.Length == 3 && cips[0] == "0")
+                                                            {
+                                                                string ipcidr = cips[2];
+                                                                string thip = ipcidr.Split(new char[] { '/' })[0];
+
+                                                                IPNetwork net = IPNetwork.Parse(ipcidr);
+
+                                                                if (neighborIP.IsInSameSubnet(net.FirstUsable, net.Netmask))
+                                                                {
+                                                                    // satu subnet, bisa jadi neighbor tembakan
+                                                                    i.InterfaceID = li.ID;
+                                                                    break;
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
                                         i.PrefixListInID = currentPrefixListIN;
                                         i.PrefixListOutID = currentPrefixListOUT;
 
@@ -4788,6 +4869,15 @@ Last input 00:00:00, output 00:00:00
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
 
+                    if (db["PU_PI"].ToString() != li.InterfaceID || db["PU_PI_Gone"].ToString() != li.InterfaceGone)
+                    {
+                        update = true;
+                        u.UpdateInterface = true;
+                        u.InterfaceID = li.InterfaceID;
+                        u.InterfaceGone = li.InterfaceGone;
+                        UpdateInfo(updateinfo, "interface", null);
+                    }
+
                     if (li.Type == "B")
                     {
                         // setup prefix list in and out ID
@@ -5031,6 +5121,8 @@ Last input 00:00:00, output 00:00:00
             foreach (PERouteUseToDatabase s in routeuseupdate)
             {
                 Update update = Update("PERouteUse");
+                update.Set("PU_PI", s.InterfaceID, s.UpdateInterface);
+                update.Set("PU_PI_Gone", s.InterfaceGone, s.UpdateInterface);
                 update.Set("PU_B_RemoteAS", s.RemoteAS.Nullable(-1), s.UpdateRemoteAS);
                 update.Set("PU_B_PX_In", s.PrefixListInID, s.UpdatePrefixListInID);
                 update.Set("PU_B_PX_In_Gone", s.PrefixListInGone, s.UpdatePrefixListInGone);

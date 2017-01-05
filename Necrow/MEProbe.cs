@@ -378,6 +378,14 @@ namespace Center
             set { circuitID = value; }
         }
 
+        private bool updateCircuitID = false;
+
+        public bool UpdateCircuitID
+        {
+            get { return updateCircuitID; }
+            set { updateCircuitID = value; }
+        }
+
         private string sdpID;
 
         public string SDPID
@@ -1214,8 +1222,7 @@ namespace Center
                 // STEP 3, dari MPLS L2VC
                 hweCircuitMplsL2vc = new List<string[]>();
 
-                //display mpls l2vc | in client interface|VC ID|local VC MTU|destination
-                if (Request("display mpls l2vc | in client interface|VC ID|local VC MTU|destination", out lines)) return;
+                if (Request("display mpls l2vc | in client interface|VC ID|local VC MTU|destination|primary or secondary", out lines)) return;
 
                 string cinterface = null;
                 string cinterfaceVCID = null;
@@ -1223,6 +1230,7 @@ namespace Center
                 bool cinterfacestate = false;
                 int cmtu = -1;
                 bool cinterfacewithstate = false;
+                bool cinterfaceprimary = true;
 
                 foreach (string line in lines)
                 {
@@ -1241,20 +1249,25 @@ namespace Center
                             {
                                 if (cinterface != null)
                                 {
-                                    string vcidname = cinterfaceVCID + "_GROUP";
+                                    string vcidname = cinterface + "_GROUP";
 
                                     if (!circuitlive.ContainsKey(vcidname))
                                     {
                                         MECircuitToDatabase cu = new MECircuitToDatabase();
                                         cu.Type = "E";
                                         cu.Description = vcidname;
-                                        cu.VCID = cinterfaceVCID;
+                                        cu.VCID = cinterfaceprimary ? cinterfaceVCID : null;
                                         cu.CustomerID = null;
                                         cu.Status = cinterfacestate;
                                         cu.Protocol = cinterfacestate;
                                         cu.AdmMTU = cmtu;
 
                                         circuitlive.Add(vcidname, cu);
+                                    }
+                                    else
+                                    {
+                                        MECircuitToDatabase cu = circuitlive[vcidname];
+                                        if (cinterfaceprimary) cu.VCID = cinterfaceVCID;
                                     }
 
                                     hweCircuitMplsL2vc.Add(new string[] { cinterface, cinterfaceSDP, cinterfacestate.ToString(), vcidname, cinterfaceVCID, cinterfacewithstate.ToString() });
@@ -1272,7 +1285,7 @@ namespace Center
                                     string[] linex2 = lineValue.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                                     NetworkInterface inf = NetworkInterface.Parse(linex2[0]);
                                     if (inf != null) cinterface = inf.Name;
-
+                                    
                                     if (linex2.Length >= 3)
                                     {
                                         cinterfacewithstate = true;
@@ -1288,6 +1301,11 @@ namespace Center
                             }
                             else if (lineKey == "VC ID") cinterfaceVCID = lineValue;
                             else if (lineKey == "destination") cinterfaceSDP = lineValue;
+                            else if (lineKey == "primary or secondary")
+                            {
+                                if (lineValue == "primary") cinterfaceprimary = true;
+                                else cinterfaceprimary = false;
+                            }
                             else if (lineKey == "local VC MTU")
                             {
                                 if (lineValue.Length > 0)
@@ -1303,7 +1321,7 @@ namespace Center
                 }
                 if (cinterface != null)
                 {
-                    string vcidname = cinterfaceVCID + "_GROUP";
+                    string vcidname = cinterface + "_GROUP";
 
                     if (!circuitlive.ContainsKey(vcidname))
                     {
@@ -1317,6 +1335,11 @@ namespace Center
                         cu.AdmMTU = cmtu;
 
                         circuitlive.Add(vcidname, cu);
+                    }
+                    else
+                    {
+                        MECircuitToDatabase cu = circuitlive[vcidname];
+                        if (cinterfaceprimary) cu.VCID = cinterfaceVCID;
                     }
 
                     hweCircuitMplsL2vc.Add(new string[] { cinterface, cinterfaceSDP, cinterfacestate.ToString(), vcidname, cinterfaceVCID, cinterfacewithstate.ToString() });
@@ -1790,6 +1813,13 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
 
+                    if (db["MP_MC"].ToString() != li.CircuitID)
+                    {
+                        update = true;
+                        u.UpdateCircuitID = true;
+                        u.CircuitID = li.CircuitID;
+                        UpdateInfo(updateinfo, "circuit", null);
+                    }
                     if (db["MP_Protocol"].ToBool() != li.Protocol)
                     {
                         update = true;

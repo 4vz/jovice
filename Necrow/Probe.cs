@@ -1434,6 +1434,8 @@ namespace Center
         {
             Event("Request [" + command + "]...");
 
+            Thread.Sleep(100);
+
             bool requestLoop = true;
             bool timeout = false;
             lines = null;

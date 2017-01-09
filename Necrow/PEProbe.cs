@@ -631,6 +631,7 @@ namespace Center
             List<PERouteNameToDatabase> routenameupdate = new List<PERouteNameToDatabase>();
 
             string[] hweDisplayIPVPNInstanceVerboseLines = null;
+            string[] junShowConfigurationRoutingInstancesLines = null;
 
             Event("Checking VRF");
 
@@ -769,8 +770,111 @@ namespace Center
             {
                 #region jun
 
+                Dictionary<string, List<string>> communities = new Dictionary<string, List<string>>();
+                if (Request("show configuration policy-options | match \"policy-statement|          community\"", out lines)) return;
 
+                string currentStatement = null;
+                foreach (string line in lines)
+                {
+                    //policy-statement SMS_Hub_STI-export {
+                    //0123456789012345678901234567890123456789
+                    //           community add 17974:15094;
+                    //           0123456789
+                    //add 17974:12584;
+                    //[ target:17974:14020 target:17974:14021 ];
+                    //[ 17974:15632 17974:15633 ];
 
+                    string lineTrim = line.Trim();
+                    if (line.StartsWith("policy-statement"))
+                    {
+                        currentStatement = line.Substring(17, line.IndexOf(' ', 17) - 17);
+                        communities.Add(currentStatement, new List<string>());
+                    }
+                    else if (lineTrim.StartsWith("community "))
+                    {
+                        string cle = lineTrim.Substring(9).Trim(new char[] { ' ', ';' });
+                        if (cle.StartsWith("add "))
+                        {
+                            string ot = cle.Substring(4);
+                            if (ot.StartsWith("target:")) ot = ot.Substring(7);
+                            communities[currentStatement].Add(ot);
+                        }
+                        else if (cle.StartsWith("[ "))
+                        {
+                            string ot = cle.Substring(1, cle.Length - 3).Trim();
+                            string[] ots = ot.Split(StringSplitTypes.Space);
+
+                            foreach (string otx in ots)
+                            {
+                                string otxx;
+                                if (otx.StartsWith("target:")) otxx = otx.Substring(7);
+                                else otxx = otx;
+                                communities[currentStatement].Add(otxx);
+                            }
+                        }
+                    }
+                }
+
+                if (Request("show configuration routing-instances", out junShowConfigurationRoutingInstancesLines)) return;
+                /*
+                0123456789
+                EOC_Test {
+                    instance-type vrf;
+                    route-distinguisher 17974:13072;
+                    012345678901234567890123456789
+                    vrf-import EOC_Test-import;
+                    vrf-export EOC_Test-export;
+                */
+                string currentVRF = null;
+                string currentRD = null;
+                List<string> currentRouteTargets = new List<string>();
+
+                foreach (string line in junShowConfigurationRoutingInstancesLines)
+                {
+                    string lineTrim = line.Trim();
+                    if (line.EndsWith("{") && !line.StartsWith(" "))
+                    {
+                        if (currentVRF != null)
+                        {
+                            PERouteNameToDatabase i = new PERouteNameToDatabase();
+                            i.Name = currentVRF;
+                            i.RD = currentRD;
+                            i.RouteTargets = currentRouteTargets.ToArray();
+                            routenamelive.Add(currentVRF, i);
+                        }
+
+                        currentRouteTargets.Clear();
+
+                        currentVRF = lineTrim.Substring(0, lineTrim.LastIndexOf(' '));
+                        if (currentVRF.StartsWith("inactive:")) currentVRF = currentVRF.Substring(9).Trim();
+                    }
+                    else if (lineTrim.StartsWith("route-distinguisher "))
+                    {
+                        currentRD = lineTrim.Substring(20, lineTrim.IndexOf(';') - 20);
+                    }
+                    else if (lineTrim.StartsWith("vrf-import "))
+                    {
+                        string stat = lineTrim.Substring(11, lineTrim.IndexOf(';') - 11);
+                        if (communities.ContainsKey(stat))
+                            foreach (string statx in communities[stat])
+                                currentRouteTargets.Add("01" + statx);
+                    }
+                    else if (lineTrim.StartsWith("vrf-export "))
+                    {
+                        string stat = lineTrim.Substring(11, lineTrim.IndexOf(';') - 11);
+                        if (communities.ContainsKey(stat))
+                            foreach (string statx in communities[stat])
+                                currentRouteTargets.Add("00" + statx);
+                    }
+                }
+                if (currentVRF != null)
+                {
+                    PERouteNameToDatabase i = new PERouteNameToDatabase();
+                    i.Name = currentVRF;
+                    i.RD = currentRD;
+                    i.RouteTargets = currentRouteTargets.ToArray();
+                    routenamelive.Add(currentVRF, i);
+                }
 
                 #endregion
             }

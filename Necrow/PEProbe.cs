@@ -1214,6 +1214,53 @@ namespace Center
 
                 #endregion
             }
+            else if (nodeManufacture == jun)
+            {
+                #region jun
+                if (Request("show configuration firewall | match \"policer|if-exceeding|bandwidth-limit\"", out lines)) return;
+
+                string name = null;
+                bool ifExceeding = false;
+                string bl = null;
+
+                foreach (string line in lines)
+                {
+                    string lineTrim = line.Trim();
+                    //policer Limit_Rate_10M {
+                    //012345678
+                    if (line.StartsWith("policer ") && line.EndsWith("{"))
+                    {
+                        if (name != null)
+                        {
+                            PEQOSToDatabase li = new PEQOSToDatabase();
+                            li.Name = name;
+                            li.Bandwidth = (int)Math.Round(QOS.ParseBandwidth(bl, 1));
+                            qoslive.Add(name, li);
+                        }
+
+                        name = line.Substring(8, line.IndexOf('{') - 9);
+                        ifExceeding = false;
+                        bl = null;
+                    }
+                    else if (lineTrim.StartsWith("if-exceeding") && line.EndsWith("{")) ifExceeding = true;
+                    else if (ifExceeding)
+                    {
+                        //bandwidth-limit 20480000;
+                        //burst-size-limit 3840000;
+                        //0123456789012345678
+                        if (lineTrim.StartsWith("bandwidth-limit")) bl = lineTrim.Substring(16, lineTrim.IndexOf(';') - 16);
+                    }
+                }
+                if (name != null)
+                {
+                    PEQOSToDatabase li = new PEQOSToDatabase();
+                    li.Name = name;
+                    li.Bandwidth = (int)Math.Round(QOS.ParseBandwidth(bl, 1));
+                    qoslive.Add(name, li);
+                }
+
+                #endregion
+            }
             else if (nodeManufacture == hwe)
             {
                 #region hwe

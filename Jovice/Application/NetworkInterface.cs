@@ -176,6 +176,7 @@ namespace Center
             if (input.Length > 0)
             {
                 if (input.Length > 5 && input.StartsWith("100GE")) input = "Hu" + input.Substring(5);
+                input = string.Join("", input.Split('-'));
 
                 if (char.IsLetter(input[0]))
                 {
@@ -292,7 +293,7 @@ namespace Center
                             ci.type = "HundredGigE";
                             ci.type = "Hu";
                         }
-                        else if (interfaceType == "ag" || interfaceType == "eth-trunk")
+                        else if (interfaceType == "ag" || interfaceType == "eth-trunk" || interfaceType == "ae")
                         {
                             ci.type = "AggregatedInterface";
                             ci.type = "Ag";

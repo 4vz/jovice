@@ -632,6 +632,7 @@ namespace Center
 
             string[] hweDisplayIPVPNInstanceVerboseLines = null;
             string[] junShowConfigurationRoutingInstancesLines = null;
+            string[] junShowConfigurationPolicyOptions = null;
 
             Event("Checking VRF");
 
@@ -771,10 +772,10 @@ namespace Center
                 #region jun
 
                 Dictionary<string, List<string>> communities = new Dictionary<string, List<string>>();
-                if (Request("show configuration policy-options | match \"policy-statement|          community\"", out lines)) return;
+                if (Request("show configuration policy-options", out junShowConfigurationPolicyOptions)) return;
 
                 string currentStatement = null;
-                foreach (string line in lines)
+                foreach (string line in junShowConfigurationPolicyOptions)
                 {
                     //policy-statement SMS_Hub_STI-export {
                     //0123456789012345678901234567890123456789
@@ -832,6 +833,13 @@ namespace Center
                 foreach (string line in junShowConfigurationRoutingInstancesLines)
                 {
                     string lineTrim = line.Trim();
+                    bool inactive = false;
+                    if (lineTrim.StartsWith("inactive: "))
+                    {
+                        lineTrim = lineTrim.Substring(10);
+                        inactive = true;
+                    }
+
                     if (line.EndsWith("{") && !line.StartsWith(" "))
                     {
                         if (currentVRF != null)
@@ -844,9 +852,7 @@ namespace Center
                         }
 
                         currentRouteTargets.Clear();
-
                         currentVRF = lineTrim.Substring(0, lineTrim.LastIndexOf(' '));
-                        if (currentVRF.StartsWith("inactive:")) currentVRF = currentVRF.Substring(9).Trim();
                     }
                     else if (lineTrim.StartsWith("route-distinguisher "))
                     {
@@ -2237,6 +2243,306 @@ Last input 00:00:00, output 00:00:00
                     }
 
                     #endregion
+                }
+
+                #endregion
+            }
+            else if (nodeManufacture == jun)
+            {
+                #region jun
+
+                Dictionary<string, Tuple<bool, bool>> subifStatProt = new Dictionary<string, Tuple<bool, bool>>();
+
+                if (Request("show interfaces terse", out lines)) return;
+                foreach (string line in lines)
+                {
+                    string lineTrim = line.Trim();
+                    //ge-6/1/0.1002           up    up   aenet    --> ae1.1002
+                    string[] tokens = lineTrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                    if (tokens.Length >= 3)
+                    {
+                        NetworkInterface nif = NetworkInterface.Parse(tokens[0]);
+                        if (nif != null && nif.IsSubInterface)
+                        {
+                            subifStatProt.Add(nif.Name, new Tuple<bool, bool>(tokens[1] == "up", tokens[2] == "up"));
+                        }
+                    }
+                }
+
+                if (Request("show interfaces detail | match \"^ *(Physical interface|Logical interface|Description:|Flags:|Last flapped|Link-level type|Addresses,|Destination:|Policer:)\"", out lines)) return;
+
+                //Physical interface: ge-6/0/0, Enabled, Physical link is Up
+                //012345678901234567890123456789
+                //  Logical interface ge-1/0/0.56 (Index 139) (SNMP ifIndex 669) (Generation 204)
+                //  Last flapped   : 2016-05-13 13:38:23 WIT                 
+                PEInterfaceToDatabase current = null;
+                bool physicalInterface = false;
+                bool collectAddress = false;
+                int ipv4SecondaryAddressCtr = 1;
+
+
+                foreach (string line in lines)
+                {
+                    string lineTrim = line.Trim();
+                    if (line.StartsWith("Physical interface: "))
+                    {
+                        string[] splits = line.Substring(19).Trim().Split(StringSplitTypes.Comma);
+
+                        if (splits.Length == 3)
+                        {
+                            string ifname = splits[0];
+                            NetworkInterface nif = NetworkInterface.Parse(ifname);
+                            if (nif != null)
+                            {
+                                current = new PEInterfaceToDatabase();
+                                current.Name = nif.Name;
+                                current.Enable = splits[1].Trim() == "Enabled";
+                                current.Status = current.Enable;
+                                current.Protocol = splits[2].Trim() == "Physical link is Up";
+
+                                if (nif.Name.StartsWith("Ag")) current.InterfaceType = "Ag";
+
+                                physicalInterface = true;
+                                collectAddress = false;
+                                ipv4SecondaryAddressCtr = 1;
+
+                                interfacelive.Add(current.Name, current);
+                            }
+                            else current = null;
+                        }
+                    }
+                    else if (line.StartsWith("  Logical interface "))
+                    {
+                        string ifname = line.Substring(20, line.IndexOf(' ', 20) - 20);
+                        NetworkInterface nif = NetworkInterface.Parse(ifname);
+                        if (nif != null)
+                        {
+                            current = new PEInterfaceToDatabase();
+                            current.Name = nif.Name;
+                            if (subifStatProt.ContainsKey(nif.Name))
+                            {
+                                current.Enable = subifStatProt[nif.Name].Item1;
+                                current.Status = current.Enable;
+                                current.Protocol = subifStatProt[nif.Name].Item2;
+                            }
+
+                            physicalInterface = false;
+                            collectAddress = false;
+                            ipv4SecondaryAddressCtr = 1;
+
+                            interfacelive.Add(current.Name, current);
+                        }
+                        else current = null;
+                    }
+                    else if (current != null)
+                    { 
+                        if (lineTrim.StartsWith("Description:"))
+                        {
+                            //Description: IPTV MULTICAST TRAFFIC
+                            //01234567890123456789
+                            current.Description = lineTrim.Substring(13);
+                        }
+                        else if (lineTrim.StartsWith("Flags:"))
+                        {
+                            //SNMP-Traps 0x4000 VLAN-Tag [ 0x8100.1002 ]  Encapsulation: ENET2
+                            string lineValue = lineTrim.Substring(7);
+                            int vtag = lineValue.IndexOf("VLAN-Tag");
+                            if (vtag > -1)
+                            {
+                                string vtags = lineValue.Substring(vtag);
+                                int vtagdot = vtags.IndexOf('.');
+                                if (vtagdot > -1)
+                                {
+                                    string vlanid = vtags.Substring(vtagdot + 1, vtags.IndexOf(' ', vtagdot) - vtagdot - 1);
+                                    int dot1q;
+                                    if (int.TryParse(vlanid, out dot1q))
+                                    {
+                                        if (dot1q > 0)
+                                            current.Dot1Q = dot1q;
+                                    }
+                                }
+                            }
+                        }
+                        else if (lineTrim.StartsWith("Link-level type") && physicalInterface && !current.Name.StartsWith("Ag"))
+                        {
+                            // Link-level type: Ethernet, MTU: 9014, Speed: 10Gbps, BPDU Error: None
+                            string[] tokens = lineTrim.Split(StringSplitTypes.Comma);
+                            foreach (string token in tokens)
+                            {
+                                string[] pair = token.Trim().Split(new char[] { ':' });
+                                if (pair.Length == 2)
+                                {
+                                    string key = pair[0].Trim();
+                                    string value = pair[1].Trim().ToLower();
+
+                                    if (key == "Speed")
+                                    {
+                                        if (value == "10gbps") current.InterfaceType = "Te";
+                                        else if (value == "1g" || value == "1gbps" || value == "1000m" || value == "1000mbps") current.InterfaceType = "Gi";
+                                        else if (value == "100m" || value == "100mbps") current.InterfaceType = "Fa";
+                                        else if (value == "10m" || value == "10mbps") current.InterfaceType = "Et";
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        else if (lineTrim.StartsWith("Addresses,")) collectAddress = true;
+                        else if (collectAddress && lineTrim.StartsWith("Destination:"))
+                        {
+                            collectAddress = false;
+                            string[] tokens = lineTrim.Split(StringSplitTypes.Comma, StringSplitOptions.RemoveEmptyEntries);
+                            // Destination: 10.1.3.36/30, Local: 10.1.3.37
+                            if (tokens.Length >= 2)
+                            {
+                                string dest = tokens[0].Trim();
+                                string locl = tokens[1].Trim();
+
+                                if (dest.IndexOf('/') > -1)
+                                {
+                                    string[] slashs = dest.Split(new char[] { '/' });
+                                    if (slashs.Length == 2)
+                                    {
+                                        int slash = -1;
+                                        if (!int.TryParse(slashs[1], out slash)) slash = -1;
+                                        if (slash > -1)
+                                        {
+                                            string[] locals = locl.Split(new char[] { ':' });
+                                            if (locals.Length == 2)
+                                            {
+                                                string iplocal = locals[1].Trim() + "/" + slash;
+                                                if (current.IP == null) current.IP = new List<string>();
+                                                current.IP.Add("0_" + ipv4SecondaryAddressCtr + "_" + iplocal);
+                                                ipv4SecondaryAddressCtr++;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        else if (lineTrim.StartsWith("Policer: "))
+                        {
+                            //Input: Limit_Rate_10M-ge-0/0/0.140-inet-i, Output: Limit_Rate_10M-ge-0/0/0.140-inet-o
+                            string lineValue = lineTrim.Substring(9);
+                            string[] tokens = lineValue.Split(StringSplitTypes.Comma);
+                            foreach (string token in tokens)
+                            {
+                                string tokenTrim = token.Trim();
+                                if (tokenTrim.StartsWith("Input: "))
+                                {
+                                    string tokenValue = tokenTrim.Substring(7);
+                                    foreach (KeyValuePair<string, Row> pair in qosdb)
+                                    {
+                                        if (tokenValue.StartsWith(pair.Key + "-"))
+                                        {
+                                            current.InputQOSID = pair.Value["PQ_ID"].ToString();
+                                            break;
+                                        }
+                                    }
+                                }
+                                else if (tokenTrim.StartsWith("Output: "))
+                                {
+                                    string tokenValue = tokenTrim.Substring(8);
+                                    foreach (KeyValuePair<string, Row> pair in qosdb)
+                                    {
+                                        if (tokenValue.StartsWith(pair.Key + "-"))
+                                        {
+                                            current.OutputQOSID = pair.Value["PQ_ID"].ToString();
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        else if (lineTrim.StartsWith("Last flapped") && !current.Name.StartsWith("Ag"))
+                        {
+                            //Last flapped   : 2016-11-08 14:33:30 WIT (9w0d 09:00 ago)
+                            //                 0123456789 01234567
+                            //012345678901234567890123456789
+                            string value = lineTrim.Substring(lineTrim.IndexOf(':') + 2);
+                            string[] tokens = value.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                            string date = tokens[0];
+                            string time = tokens[1];
+
+                            if (current.Protocol == false)
+                            {
+                                int year, month, day;
+                                int hour, min, sec;
+                                if (int.TryParse(date.Substring(0, 4), out year) &&
+                                    int.TryParse(date.Substring(5, 2), out month) &&
+                                    int.TryParse(date.Substring(8, 2), out day) &&
+                                    int.TryParse(time.Substring(0, 2), out hour) &&
+                                    int.TryParse(time.Substring(3, 2), out min) &&
+                                    int.TryParse(time.Substring(6, 2), out sec))
+                                {
+                                    current.LastDown = (new DateTime(year, month, day, hour, min, sec)) - nodeTimeOffset;
+                                }
+                            }
+                            else
+                                current.LastDown = null;
+
+                        }
+                    }
+                }
+
+                if (Request("show lacp interfaces", out lines)) return;
+
+                int aesid = -1;
+                bool lacpif = false;
+                foreach (string line in lines)
+                {
+                    //Aggregated interface: ae1
+                    //012345678901234567890123456789
+                    if (line.StartsWith("Aggregated interface: ae"))
+                    {
+                        string aes = line.Substring(24);
+                        if (!int.TryParse(aes, out aesid)) aesid = -1;
+                        lacpif = false;
+                    }
+                    else if (!lacpif && line.StartsWith("    LACP protocol:")) lacpif = true;
+                    else if (lacpif)
+                    {
+                        string lineTrim = line.Trim();
+                        string[] tokens = lineTrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                        if (tokens.Length >= 1)
+                        {
+                            NetworkInterface nif = NetworkInterface.Parse(tokens[0]);
+                            if (nif != null)
+                            {
+                                string name = nif.Name;
+                                if (interfacelive.ContainsKey(name)) interfacelive[name].Aggr = aesid;
+                            }
+                        }
+                    }
+                }
+
+                // vrf
+                string currentVRF = null;
+                foreach (string line in junShowConfigurationRoutingInstancesLines)
+                {
+                    string lineTrim = line.Trim();
+                    bool inactive = false;
+                    if (lineTrim.StartsWith("inactive: "))
+                    {
+                        lineTrim = lineTrim.Substring(10);
+                        inactive = true;
+                    }
+                    if (line.EndsWith("{") && !line.StartsWith(" "))
+                    {
+                        currentVRF = lineTrim.Substring(0, lineTrim.LastIndexOf(' '));
+                    }
+                    else if (line.StartsWith("    interface "))
+                    {
+                        //interface aaa
+                        //01234567890
+                        string ifname = lineTrim.Substring(10, lineTrim.IndexOf(';') - 10);
+                        NetworkInterface nif = NetworkInterface.Parse(ifname);
+                        if (nif != null)
+                        {
+                            string name = nif.Name;
+                            if (interfacelive.ContainsKey(name) && routenamedb.ContainsKey(currentVRF))
+                                interfacelive[name].RouteID = routenamedb[currentVRF]["PN_ID"].ToString();
+                        }
+                    }
                 }
 
                 #endregion
@@ -3787,42 +4093,7 @@ Last input 00:00:00, output 00:00:00
                                         i.Type = "B";
                                         i.Neighbor = currentNeighbor;
                                         i.BGPAS = currentBGPAS;
-
-                                        if (i.Neighbor != null)
-                                        {
-                                            IPAddress neighborIP = IPAddress.Parse(i.Neighbor);
-
-                                            foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
-                                            {
-                                                PEInterfaceToDatabase li = pair.Value;
-
-                                                if (li.RouteID == i.RouteNameID)
-                                                {
-                                                    if (li.IP != null)
-                                                    {
-                                                        foreach (string cip in li.IP)
-                                                        {
-                                                            string[] cips = cip.Split(StringSplitTypes.Underscore);
-
-                                                            if (cips.Length == 3 && cips[0] == "0")
-                                                            {
-                                                                string ipcidr = cips[2];
-                                                                string thip = ipcidr.Split(new char[] { '/' })[0];
-
-                                                                IPNetwork net = IPNetwork.Parse(ipcidr);
-
-                                                                if (neighborIP.IsInSameSubnet(net.FirstUsable, net.Netmask))
-                                                                {
-                                                                    // satu subnet, bisa jadi neighbor tembakan
-                                                                    i.InterfaceID = li.ID;
-                                                                    break;
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
+                                        i.InterfaceID = FindInterfaceByNeighbor(currentNeighbor, currentRouteNameID, interfacelive);
 
                                         if (currentUseNeighborGroup != null && neighborGroups.ContainsKey(currentUseNeighborGroup))
                                         {
@@ -4556,6 +4827,279 @@ Last input 00:00:00, output 00:00:00
                     #endregion
 
                     #endregion
+                }
+
+                #endregion
+            }
+            else if (nodeManufacture == jun)
+            {
+                #region jun
+
+                #region PREFIX-LIST POLICY-STATEMENT
+
+                string currentPrefixList = null;
+                StringBuilder caps = new StringBuilder();
+                string currentRPL = null;
+
+                Dictionary<string, string> rpl = new Dictionary<string, string>();
+
+                foreach (string line in junShowConfigurationPolicyOptions)
+                {
+                    string lineTrim = line.Trim();
+
+                    //prefix-list FROM-UNIFIED-MLS2 {
+                    //01234567890123456789
+                    if (line.StartsWith("prefix-list "))
+                    {
+                        currentPrefixList = line.Substring(12, line.Length - 14);
+                        PEPrefixListToDatabase pl = new PEPrefixListToDatabase();
+                        pl.Name = currentPrefixList;
+                        prefixlistlive.Add(currentPrefixList, new Tuple<PEPrefixListToDatabase, List<PEPrefixEntryToDatabase>>(pl, new List<PEPrefixEntryToDatabase>()));
+                    }
+                    else if (currentPrefixList != null && line.Length >= 14 && char.IsDigit(line[4]) && line.EndsWith(";"))
+                    {
+                        //    1.1.1.1/1;
+                        //012345678901234
+                        string prefix = line.Substring(4, line.Length - 5);
+                        PEPrefixEntryToDatabase pe = new PEPrefixEntryToDatabase();
+                        pe.Network = prefix.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries)[0];
+
+                        prefixlistlive[currentPrefixList].Item2.Add(pe);
+                    }
+                    else if (currentRPL != null)
+                    {
+                        if (line == "}")
+                        {
+                            rpl.Add(currentRPL, caps.ToString());
+                            currentRPL = null;
+                        }
+                        else
+                        {
+                            caps.AppendLine(line);
+                        }
+                    }
+                    else if (line.StartsWith("policy-statement "))
+                    {
+                        //policy-statement IMSlink-BB-JKT-import {
+                        //01234567890123456789
+                        currentRPL = line.Substring(17, line.Length - 19);
+                        caps.Clear();
+                    }
+
+                }
+
+                #endregion
+
+                PERouteUseToDatabase current = null;
+                string currentRouteNameID = null;
+                string currentRouter = null;
+                string currentGroup = null;                
+                string currentRemoteAS = null;
+                string currentRPLIN = null;
+                string currentRPLOUT = null;
+                string currentNetwork = null;
+                bool currentPrefixLimit = false;
+                int currentMaximumPrefix = -1;
+                int currentBGPAS = -1;
+                               
+                foreach (string line in junShowConfigurationRoutingInstancesLines)
+                {
+                    string lineTrim = line.Trim();
+                    bool inactive = false;
+                    if (lineTrim.StartsWith("inactive: "))
+                    {
+                        lineTrim = lineTrim.Substring(10);
+                        inactive = true;
+                    }
+                    if (line.EndsWith("{") && !line.StartsWith(" "))
+                    {
+                        currentRouter = null;
+                        currentGroup = null;
+
+                        current = null;
+                        currentRemoteAS = null;
+                        currentRPLOUT = null;
+                        currentRPLIN = null;
+                        currentNetwork = null;
+
+                        string vrfname = lineTrim.Substring(0, lineTrim.LastIndexOf(' '));
+                        if (vrfname != null)
+                        {
+                            if (routenamedb.ContainsKey(vrfname) && routenamelive.ContainsKey(vrfname))
+                            {
+                                currentRouteNameID = routenamedb[vrfname]["PN_ID"].ToString();
+                                string rd = routenamedb[vrfname]["PN_RD"].ToString();
+                                if (rd != null && rd.Length > 1)
+                                {
+                                    string[] rds = rd.Split(new char[] { ':' });
+                                    int bgpas;
+                                    if (rds.Length == 2 && rds[0].Length <= 5 && int.TryParse(rds[0], out bgpas)) currentBGPAS = bgpas;
+                                }
+                            }
+                            else
+                                currentRouteNameID = null;
+                        }
+                    }
+                    else if (currentRouteNameID != null)
+                    {
+                        //01234567890123456789
+                        //route 10.200.0.0/24 next-hop 172.31.24.14;
+                        //route 172.27.6.208/28 next-hop [ 172.27.6.198 172.27.6.228 ];
+                        //route 172.27.6.16/28 next-hop [ 172.27.6.6 172.27.6.236 ];
+                        //route 172.27.6.48/28 next-hop [ 172.27.6.36 172.27.6.244 ];
+                        //route 172.28.18.32/27 next-hop 172.28.18.2;
+
+                        //route 172.27.2.96/28 {
+                        //    qualified-next-hop 172.27.2.52;
+                        //    qualified-next-hop 172.27.2.60;
+                        //    qualified-next-hop 172.27.2.68;
+                        //    qualified-next-hop 172.27.2.76;
+                        //    qualified-next-hop 172.27.2.84;
+                        //    qualified-next-hop 172.27.2.92;
+                        //    01234567890123456789
+                        //}
+
+                        if (lineTrim.StartsWith("route ") && lineTrim.IndexOf("next-hop") > -1 && lineTrim.EndsWith(";"))
+                        {
+                            string network = lineTrim.Substring(6, lineTrim.IndexOf(' ', 6) - 6);
+                            string nexthopline = lineTrim.Substring(lineTrim.IndexOf("next-hop") + 9).Trim(new char[] { '[', ']', ' ', ';' });
+
+                            string[] nexthops = nexthopline.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries).RemoveDuplicatedEntries();
+
+                            foreach (string nexthop in nexthops)
+                            {
+                                PERouteUseToDatabase i = new PERouteUseToDatabase();
+                                i.RouteNameID = currentRouteNameID;
+                                i.Type = "S";
+                                i.Network = network;
+                                i.Neighbor = nexthop;
+                                i.InterfaceID = FindInterfaceByNeighbor(i.Neighbor, currentRouteNameID, interfacelive);
+
+                                string key = currentRouteNameID + "_S_" + network + "_" + (i.Neighbor != null ? i.Neighbor : "") + "_" + (i.InterfaceID != null ? i.InterfaceID : "");
+                                routeuselive.Add(key, i);
+                            }
+                        }
+                        else if (lineTrim.StartsWith("route ") && lineTrim.EndsWith(" {"))
+                        {
+                            currentNetwork = lineTrim.Substring(6, lineTrim.IndexOf(' ', 6) - 6);
+                        }
+                        else if (lineTrim.StartsWith("qualified-next-hop ") && currentNetwork != null)
+                        {
+                            string nexthopline = lineTrim.Substring(19).Trim(new char[] { '[', ']', ' ', ';' });
+
+                            string[] nexthops = nexthopline.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries).RemoveDuplicatedEntries();
+
+                            foreach (string nexthop in nexthops)
+                            {
+                                PERouteUseToDatabase i = new PERouteUseToDatabase();
+                                i.RouteNameID = currentRouteNameID;
+                                i.Type = "S";
+                                i.Network = currentNetwork;
+                                i.Neighbor = nexthop;
+                                i.InterfaceID = FindInterfaceByNeighbor(i.Neighbor, currentRouteNameID, interfacelive);
+
+                                string key = currentRouteNameID + "_S_" + currentNetwork + "_" + (i.Neighbor != null ? i.Neighbor : "") + "_" + (i.InterfaceID != null ? i.InterfaceID : "");
+                                routeuselive.Add(key, i);
+                            }
+                        }
+                        else if (line.EndsWith("{") && lineTrim.StartsWith("bgp "))
+                        {
+                            currentRouter = "B";
+
+                            current = null;
+                            currentRemoteAS = null;
+                            currentRPLOUT = null;
+                            currentRPLIN = null;
+                            currentNetwork = null;
+                        }
+                        else if (line.EndsWith("{") && lineTrim.StartsWith("ospf "))
+                        {
+                            currentRouter = "O";
+
+                            current = null;
+                            currentRemoteAS = null;
+                            currentRPLOUT = null;
+                            currentRPLIN = null;
+                            currentNetwork = null;
+                        }
+                        else if (currentRouter == "B")
+                        {
+                            #region BGP
+
+                            if (line.EndsWith("{") && lineTrim.StartsWith("group ")) currentGroup = lineTrim.Substring(6, lineTrim.Length - 8);
+                            else if (currentGroup != null)
+                            {
+                                if (lineTrim.StartsWith("peer-as "))
+                                {
+                                    string value = lineTrim.Substring(8, lineTrim.Length - 9);
+                                    if (current != null)
+                                    {
+                                        int ras = -1;
+                                        if (int.TryParse(value, out ras)) current.RemoteAS = ras;
+                                    }
+                                    else currentRemoteAS = value;
+                                }
+                                else if (lineTrim.StartsWith("export "))
+                                {
+                                    string value = null;
+                                    string rplname = lineTrim.Substring(7, lineTrim.Length - 8);
+                                    if (rpl.ContainsKey(rplname)) value = rpl[rplname];
+                                    if (current != null) current.RoutePolicyOut = value;
+                                    else currentRPLOUT = value;
+                                }
+                                else if (lineTrim.StartsWith("import "))
+                                {
+                                    string value = null;
+                                    string rplname = lineTrim.Substring(7, lineTrim.Length - 8);
+                                    if (rpl.ContainsKey(rplname)) value = rpl[rplname];
+                                    if (current != null) current.RoutePolicyIn = value;
+                                    else currentRPLIN = value;
+                                }
+                                else if (lineTrim.StartsWith("prefix-limit {"))
+                                {
+                                    currentPrefixLimit = true;
+                                }
+                                else if (lineTrim.StartsWith("maximum ") && currentPrefixLimit)
+                                {
+                                    string mxm = lineTrim.Substring(8, lineTrim.Length - 9);
+                                    int mxmi;
+                                    if (int.TryParse(mxm, out mxmi))
+                                    {
+                                        if (current != null) current.MaximumPrefix = mxmi;
+                                        else currentMaximumPrefix = mxmi;
+                                    }
+                                }
+                                else if (lineTrim.StartsWith("neighbor "))
+                                {
+                                    string value = lineTrim.Substring(9);
+                                    string neighbor = value.Substring(0, value.IndexOfAny(new char[] { ' ', ';' }));
+
+                                    current = new PERouteUseToDatabase();
+                                    current.RouteNameID = currentRouteNameID;
+                                    current.Type = "B";
+                                    current.Neighbor = neighbor;
+                                    current.BGPAS = currentBGPAS;
+                                    current.InterfaceID = FindInterfaceByNeighbor(neighbor, currentRouteNameID, interfacelive);
+
+                                    string key = currentRouteNameID + "_B_" + neighbor + "_" + currentBGPAS;
+                                    routeuselive.Add(key, current);
+
+                                    int ras = -1;
+                                    if (currentRemoteAS != null && int.TryParse(currentRemoteAS, out ras)) current.RemoteAS = ras;
+                                    current.RoutePolicyOut = currentRPLOUT;
+                                    current.RoutePolicyIn = currentRPLIN;
+                                    current.MaximumPrefix = currentMaximumPrefix;
+                                }
+                            }
+
+                            #endregion
+                        }
+                        else if (currentRouter == "O")
+                        {
+                            #region OSPF
+                            #endregion
+                        }
+                    }
                 }
 
                 #endregion
@@ -5448,6 +5992,51 @@ Last input 00:00:00, output 00:00:00
                 return lastDown;
             }
             else return null;
+        }
+
+        private string FindInterfaceByNeighbor(string neighbor, string routeNameID, SortedDictionary<string, PEInterfaceToDatabase> interfacelive)
+        {
+            if (neighbor == null) return null;
+
+            IPAddress neighborIP = IPAddress.Parse(neighbor);
+
+            string interfaceID = null;
+
+            if (neighborIP != null)
+            {
+                foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
+                {
+                    PEInterfaceToDatabase li = pair.Value;
+
+                    if (li.RouteID == routeNameID)
+                    {
+                        if (li.IP != null)
+                        {
+                            foreach (string cip in li.IP)
+                            {
+                                string[] cips = cip.Split(StringSplitTypes.Underscore);
+
+                                if (cips.Length == 3 && cips[0] == "0")
+                                {
+                                    string ipcidr = cips[2];
+                                    string thip = ipcidr.Split(new char[] { '/' })[0];
+
+                                    IPNetwork net = IPNetwork.Parse(ipcidr);
+
+                                    if (neighborIP.IsInSameSubnet(net.FirstUsable, net.Netmask))
+                                    {
+                                        // satu subnet, bisa jadi neighbor tembakan
+                                        interfaceID = li.ID;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return interfaceID;
         }
     }
 }

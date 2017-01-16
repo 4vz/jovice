@@ -178,7 +178,7 @@ namespace Center
                 if (input.Length > 5 && input.StartsWith("100GE")) input = "Hu" + input.Substring(5);
                 input = string.Join("", input.Split('-'));
 
-                if (char.IsLetter(input[0]))
+                if (input.Length > 0 && char.IsLetter(input[0]))
                 {
                     // search digit
                     int portIndexOf = -1;

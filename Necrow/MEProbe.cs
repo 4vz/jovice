@@ -2626,6 +2626,30 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 if (!int.TryParse(poe.Substring(9), out aggr)) aggr = -1;
                             }
                         }
+                        
+                        // untuk huawei 5.9
+                        if (nodeVersion == "5.90")
+                        {
+                            string lineTrim = line.Trim();
+                            string[] tokens = lineTrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                            // 0 => interface, 1 => status, 2 => protocol
+                            if (tokens.Length >= 3)
+                            {
+                                NetworkInterface nif = NetworkInterface.Parse(tokens[0]);
+                                if (nif != null)
+                                {
+                                    string ifname = nif.Name;
+
+                                    if (interfacelive.ContainsKey(ifname))
+                                    {
+                                        interfacelive[ifname].Status = tokens[1] == "up";
+                                        interfacelive[ifname].Protocol = tokens[2] == "up";
+                                        interfacelive[ifname].Enable = tokens[1] != "*down";
+                                    }
+                                }
+                            }
+                        }
                     }
                     else
                     {
@@ -3483,14 +3507,21 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             result = batch.Commit();
             Event(result, EventActions.Delete, EventElements.Interface, false);
 
-            // RESERVED INTERFACES
+            // RESERVES
             batch.Begin();
             foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
             {
-                if (reservedInterfaces.ContainsKey(pair.Key)) batch.Execute("delete from ReservedInterface where RI_ID = {0}", reservedInterfaces[pair.Key]["RI_ID"].ToString());
+                foreach (KeyValuePair<string, Row> pair2 in reserves)
+                {
+                    string key2 = pair2.Key;
+                    if (key2.StartsWith(pair.Value.Name + "-") || key2.EndsWith("-" + pair.Value.ServiceSID))
+                    {
+                        batch.Execute("delete from Reserve where RE_ID = {0}", pair2.Value["RE_ID"].ToString());
+                    }
+                }
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " reserved interface" + (result.AffectedRows > 1 ? "s have " : " has ") + " been found");
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " reserved entr" + (result.AffectedRows > 1 ? "ies have " : "y has ") + " been found");
 
             #endregion
 

@@ -88,6 +88,14 @@ namespace Center
             get { return serviceID; }
             set { serviceID = value; }
         }
+
+        private string serviceSID;
+
+        public string ServiceSID
+        {
+            get { return serviceSID; }
+            set { serviceSID = value; }
+        }
     }
 
     internal abstract class InterfaceToDatabase : ServiceBaseToDatabase
@@ -547,7 +555,7 @@ namespace Center
 
         private char[] newline = new char[] { (char)13, (char)10 };
 
-        private Dictionary<string, Row> reservedInterfaces;
+        private Dictionary<string, Row> reserves;
         private Dictionary<string, Row> popInterfaces;
 
         public new bool IsConnected
@@ -971,11 +979,14 @@ namespace Center
 
                         batch.Begin();
 
-                        // RESERVED INTERFACES
-                        reservedInterfaces = QueryDictionary("select * from ReservedInterface where RI_NO = {0}", "RI_Name", delegate (Row row)
+                        // RESERVES
+                        reserves = QueryDictionary("select * from Reserve where RE_NO = {0}", delegate(Row row)
                         {
-                            // delete duplicated RI_Name per RI_NO
-                            batch.Execute("delete from ReservedInterface where RI_ID = {0}", row["RI_ID"].ToString());
+                            return row["RE_By_Name"].ToString() + "-" + row["RE_By_SID"].ToString();
+                        }, delegate (Row row)
+                        {
+                            // delete duplicated
+                            batch.Execute("delete from Reserve where RE_ID = {0}", row["RE_ID"].ToString());
                         }, nodeID);
 
                         // POP
@@ -1934,7 +1945,9 @@ namespace Center
             Update(UpdateTypes.TimeStamp, DateTime.UtcNow);
 
             // check node manufacture
-            if (nodeManufacture == alu || nodeManufacture == cso || nodeManufacture == hwe || nodeManufacture == jun) ;
+            if (nodeManufacture == alu || nodeManufacture == cso || nodeManufacture == hwe || nodeManufacture == jun)
+            {
+            }
             else
             {
                 Event("Unsupported node manufacture");
@@ -3470,6 +3483,9 @@ namespace Center
                 #endregion
 
                 #region se
+
+                tuple.Item1.ServiceSID = sid;
+
                 if (servicedb.ContainsKey(sid))
                 {
                     s_id = servicedb[sid]["SE_ID"].ToString();
@@ -3485,6 +3501,7 @@ namespace Center
                     }
 
                     tuple.Item1.ServiceID = s_id;
+                    
                 }
                 else
                 {

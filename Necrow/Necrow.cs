@@ -607,8 +607,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             }
 
             #endregion
-
-
+            
             bool neighborAffected = false;
 
             #region Neighbor already exists in node

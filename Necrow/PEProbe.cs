@@ -3627,14 +3627,21 @@ Last input 00:00:00, output 00:00:00
             result = batch.Commit();
             Event(result, EventActions.Delete, EventElements.Interface, false);
 
-            // RESERVED INTERFACES
+            // RESERVES
             batch.Begin();
             foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
             {
-                if (reservedInterfaces.ContainsKey(pair.Key)) batch.Execute("delete from ReservedInterface where RI_ID = {0}", reservedInterfaces[pair.Key]["RI_ID"].ToString());
+                foreach (KeyValuePair<string, Row> pair2 in reserves)
+                {
+                    string key2 = pair2.Key;
+                    if (key2.StartsWith(pair.Value.Name + "-") || key2.EndsWith("-" + pair.Value.ServiceSID))
+                    {
+                        batch.Execute("delete from Reserve where RE_ID = {0}", pair2.Value["RE_ID"].ToString());
+                    }
+                }
             }
             result = batch.Commit();
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " reserved interface" + (result.AffectedRows > 1 ? "s have" : " has") + " been found");
+            if (result.AffectedRows > 0) Event(result.AffectedRows + " reserved entr" + (result.AffectedRows > 1 ? "ies have" : "y has") + " been found");
 
             // POP
             batch.Begin();

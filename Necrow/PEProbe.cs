@@ -2595,6 +2595,9 @@ Last input 00:00:00, output 00:00:00
                                 status = line.Substring(30, 7).Trim();
                                 protocol = line.Substring(38, 7).Trim();
 
+                                if (inf.StartsWith("Eth-Trunk"))
+                                    Event("test");
+
                                 NetworkInterface nif = NetworkInterface.Parse(inf);
                                 if (nif != null)
                                 {

@@ -3,7 +3,6 @@
     var uipage;
 
     // functions
-    var showLoading, hideLoading;
     var enterSearchResult, setResults, setFilters, clearSearchResult, setRelated;
 
     // features
@@ -72,9 +71,9 @@
                 }
             });
 
-            showLoading();            
+            center.startLoading();
             searchJQXHR = $$.get(101, { s: search, p: page, n: npage, o: sortBy, ot: sortType, m: 1 }, function (d) {
-                hideLoading();
+                center.endLoading();
                 count = d.n; type = d.t; subType = d.st;
                 var refsearch = d.rs;
                 if (refsearch != null) {
@@ -231,10 +230,10 @@
         if (modify) {
             var ar = getSortListIndex();
             if (results[ar][page * npage] == null) {
-                showLoading();
+                center.startLoading();
                 //debug(page, npage, search);
                 searchJQXHR = $$.get(101, { s: search, p: page, n: npage, o: sortBy, ot: sortType, sid: searchid, m: 1 }, function (d) {
-                    hideLoading();
+                    center.endLoading();
                     captureResults(d.r);
                     setResults(getCurrentEntries());
                 });
@@ -256,26 +255,6 @@
     ui("search", {
         init: function (p) {
             uipage = center.init(p);
-
-            var area = ui.box(p)({ size: ["100%", "100%"], color: 100, hide: true, z: 1000, opacity: 0.6 });
-            var circleBox = ui.box(p)({ size: [50, 50], center: true, z: 1001 });
-            var circle = ui.loading(circleBox)({ size: [50, 50], stop: true });
-                
-            showLoading = function () {
-                if (!area.isShown()) {
-                    area.show();
-                    circleBox.fadeIn();
-                    circle.start();
-                }
-            };
-            hideLoading = function () {
-                if (area.isShown()) {
-                    area.hide();
-                    circleBox.fadeOut(200, function () {
-                        circle.stop();
-                    });
-                }
-            };
 
             var titlearea = ui.box(p)({ size: ["100%", 40], top: 0 });
 

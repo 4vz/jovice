@@ -95,12 +95,7 @@ namespace Aphysoft.Share
         {
             return value == nullIf ? null : value;
         }
-
-
-
-
-
-
+        
         public static string[] RemoveDuplicatedEntries(this string[] values)
         {
             if (values == null) return null;

@@ -79,6 +79,7 @@
     <Content Include="Resources\Scripts\ui.js" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="app.config" />
     <None Include="Resources\Fonts\avenir65.ttf" />
     <None Include="Resources\Fonts\avenir65.woff" />
     <None Include="Resources\Fonts\avenir85.ttf" />

@@ -1250,7 +1250,9 @@
                             if (version == null) version = ver;
                             else {
                                 if (version != ver) {
-                                    location.reload();
+                                    $.each(handlers, function (i, v) {
+                                        v("update");
+                                    });
                                 }
                             }
                         }
@@ -1289,7 +1291,7 @@
                                 }
 
                                 if (type == "unavailable" || type == "disconnected")
-                                    setTimeout(start, 60000); // try again
+                                    setTimeout(start, 5000); // try again
                             }
                             else {
                                 if (type == "updatestreamdomain") {
@@ -3449,6 +3451,13 @@
         ui.tooltipBox = _tooltipBox;
         ui.page = page;
         ui.script = script;
+
+        ui.width = function () {
+            return page().width() + marginLeft() + marginRight();
+        };
+        ui.height = function () {
+            return page().height() + marginTop() + marginBottom();
+        };
         
         window.ui = ui;
 
@@ -7049,9 +7058,8 @@
                         else {
                             //debug("here");
                             var obj = { fill: s };
-                            if (!$.isUndefined(a.duration)) obj.ms = a.duration;
-                            //debug(obj);
-                            path.animate(obj);
+                            if (!$.isUndefined(a.duration)) path.animate(obj, a.duration);
+                            else path.animate(obj);
                         }
                     }
                 };

@@ -393,18 +393,26 @@ namespace Aphysoft.Share
         {
             HttpResponse httpResponse = result.Context.Response;
             HttpRequest httpRequest = result.Context.Request;
-            
-            httpResponse.Write("for(;;); ");
 
-            StreamHeartbeatData hb = new StreamHeartbeatData();
-            hb.serverTime = DateTime.Now;
+            try
+            {
+                httpResponse.Write("for(;;); ");
 
-            string heartbeat = WebUtilities.Serializer.Serialize(hb);
+                StreamHeartbeatData hb = new StreamHeartbeatData();
+                hb.serverTime = DateTime.Now;
 
-            StringBuilder padding = new StringBuilder();
-            int ipadding = 1024 - heartbeat.Length;
-            for (int i = 0; i < ipadding; i++) padding.Append(" ");
-            httpResponse.Write(heartbeat + padding.ToString() + "\n");
+                string heartbeat = WebUtilities.Serializer.Serialize(hb);
+
+                StringBuilder padding = new StringBuilder();
+                int ipadding = 1024 - heartbeat.Length;
+                for (int i = 0; i < ipadding; i++) padding.Append(" ");
+                httpResponse.Write(heartbeat + padding.ToString() + "\n");
+            }
+            catch
+            {
+                result.SetCompleted();
+                return;
+            }
             
             if (Service.IsConnected)
             {

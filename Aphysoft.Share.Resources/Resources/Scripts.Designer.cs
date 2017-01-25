@@ -109,13 +109,7 @@ namespace Aphysoft.Share.Resources.Resources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to // ┌────────────────────────────────────────────────────────────────────┐ \\
-        ///// │ Raphaël 2.1.2 - JavaScript Vector Library                          │ \\
-        ///// ├────────────────────────────────────────────────────────────────────┤ \\
-        ///// │ Copyright © 2008-2012 Dmitry Baranovskiy (http://raphaeljs.com)    │ \\
-        ///// │ Copyright © 2008-2012 Sencha Labs (http://sencha.com)              │ \\
-        ///// ├────────────────────────────────────────────────────────────────────┤ \\
-        ///// │ Licensed under the MIT (http://raphaelj [rest of string was truncated]&quot;;.
+        ///   Looks up a localized string similar to !function t(e,r){&quot;object&quot;==typeof exports&amp;&amp;&quot;object&quot;==typeof module?module.exports=r():&quot;function&quot;==typeof define&amp;&amp;define.amd?define([],r):&quot;object&quot;==typeof exports?exports.Raphael=r():e.Raphael=r()}(this,function(){return function(t){function e(i){if(r[i])return r[i].exports;var n=r[i]={exports:{},id:i,loaded:!1};return t[i].call(n.exports,n,n.exports,e),n.loaded=!0,n.exports}var r={};return e.m=t,e.c=r,e.p=&quot;&quot;,e(0)}([function(t,e,r){var i,n;i=[r(1),r(3),r(4)],n=function(t){return t}.apply(e,i),!(void 0!==n&amp;&amp;( [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string raphael {
             get {

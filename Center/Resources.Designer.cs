@@ -72,19 +72,27 @@ namespace Center {
         ///        var page = null;
         ///        var onmain = false;
         ///
+        ///        var shade;
+        ///
+        ///        var close, offline;
         ///        var ctop;
         ///        var nbox;
         ///        var asea;
         ///
+        ///        var tbox;
+        ///        var ttitle;
+        ///
+        ///        var loadingStarted = false;
+        ///        var lbox;
+        ///
+        ///        var ogbox;
+        ///
+        ///
+        ///        // sign in
+        ///        var signinArea = null;
+        ///
         ///        center = function () { };
-        ///        center.init = function (p) {
-        ///            page = p;
-        ///            if (inited) return p; inited = true;
-        ///
-        ///            // ctop
-        ///            ctop = ui.box(ui.topContainer())({ color: 98, height: 40, width: &quot;100%&quot; });
-        ///
-        ///            // ctop height        /// [rest of string was truncated]&quot;;.
+        ///        center.init = f [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string center {
             get {
@@ -107,15 +115,13 @@ namespace Center {
         ///        return ar;
         ///    };
         ///
-        ///    ui(&quot;search_jovice_service&quot;, function (b, r, f) {
+        ///    ui(&quot;search_jovice_service&quot;, function (b, r, f, p, t) {
         ///
         ///        //--- match properties
-        ///        f.setButton();
-        ///        //f.setExpand(185, 500, null, null, null, null);
-        ///        f.setSize(100);
-        ///        
-        ///        //--- entry values
-        ///        v [rest of string was truncated]&quot;;.
+        ///        f.setButton(function () {
+        ///            p.transfer(&quot;/network/service/&quot; + serviceID, {
+        ///                transferData: {
+        ///                    s [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string jovice_search_service {
             get {
@@ -126,25 +132,24 @@ namespace Center {
         /// <summary>
         ///   Looks up a localized string similar to (function () {
         ///
+        ///    var page;
+        ///    var transfer = null;
         ///
-        ///    ui(&quot;service&quot;, {
+        ///    var topbox, serviceID, customerName, serviceType;
+        ///
+        ///
+        ///    ui(&quot;jovice_service&quot;, {
         ///        init: function (p) {
+        ///            page = center.init(p);
+        ///            transfer = p.transfer();
         ///
-        ///        },
-        ///        start: function (p) {
         ///
-        ///        },
-        ///        resize: function (p) {
         ///
-        ///        },
-        ///        local: function (p) {
+        ///            //debug(p.transfer());
+        ///            //debug(page.endUrl());
         ///
-        ///        },
-        ///        unload: function (p) {
-        ///
-        ///        }
-        ///    });
-        ///})();.
+        ///            topbox = ui.box(p)({ color: &quot;accent&quot;, position: [20, 20], size: [30, 3] });
+        ///            serviceID = ui.text(p)({ position: [20, 35], text: &quot;SID&quot;, font: [&quot;body&quot;, 15],  [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string jovice_service {
             get {
@@ -177,8 +182,11 @@ namespace Center {
         ///    var uipage;
         ///
         ///    // functions
-        ///    var showLoading, hideLoading;
         ///    var enterSearchResult, setResults, setFilters, clearSearchResult, setRelated;
+        ///
+        ///    // features
+        ///    var animTransferedClick;
+        ///
         ///    var isfiltersexists = false, ispagingexists = false, isnomatchexists = false;
         ///    var necrowonline = false;
         ///
@@ -186,8 +194,7 @@ namespace Center {
         ///    var search, columns, results, sortList, sortBy, sortType, page, npage, mpage, count, type, subType, searchid = null, filters;
         ///    var registerstream = {};
         ///      
-        ///    function searchDo(p) {
-        ///     [rest of string was truncated]&quot;;.
+        ///    function sea [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string search {
             get {

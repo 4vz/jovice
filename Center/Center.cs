@@ -60,6 +60,10 @@ namespace Center
 
             #endregion
 
+            #region User
+
+            #endregion
+
             #region Jovice
 
             Resource.Register("search_jovice_service", ResourceType.JavaScript, Resources.ResourceManager, "jovice_search_service", "~/View/Jovice/Search/service.js");

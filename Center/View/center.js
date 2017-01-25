@@ -9,31 +9,101 @@
         var page = null;
         var onmain = false;
 
+        var shade;
+
+        var close, offline;
         var ctop;
         var nbox;
         var asea;
 
+        var tbox;
+        var ttitle;
+
+        var loadingStarted = false;
+        var lbox;
+
+        var ogbox;
+
+
+        // sign in
+        var signinArea = null;
+
         center = function () { };
         center.init = function (p) {
             page = p;
-            if (inited) return p; inited = true;
+
+            // page resize
+            var opageresize = page.resize;
+            page.resize = function () {
+                onResize();
+                opageresize.apply(this, [page]);
+            };
+            
+            if (inited) {
+                onChangePage();
+                return p;
+            }
+            inited = true;
 
             // ctop
             ctop = ui.box(ui.topContainer())({ color: 98, height: 40, width: "100%" });
+            close = ui.box(ui.topContainer())({ color: 95, width: "100%", z: 999 });
+            offline = ui.text(close)({ hide: true, text: "OFFLINE", color: 50, font: 30, center: true });
+            shade = ui.box(ui.topContainer())({ hide: true, color: 95, width: "100%", z: 888 });
 
-            // ctop height
+            // loading bar
+            lbox = ui.box(ui.topContainer())({ color: "accent", opacity: 0, height: 2, left: "0%", width: "0%", z: 600 });
+
+            // page margin top
             ui.marginTop(40);
 
-            nbox = ui.box(ctop)({ size: 40 });
-            ui.icon(nbox, center.icon("hex"))({ size: 18, color: 75, position: [3, 17], rotation: 90 });
-            ui.icon(nbox, center.icon("hex"))({ size: 18, color: 75, position: [16.25, 17], rotation: 90 });
-            ui.icon(nbox, center.icon("hex"))({ size: 18, color: 75, position: [9.5, 5.5], rotation: 90 });
-                        
+            // logo & title
+            nbox = ui.box(ctop)({ left: 15, size: 40, cursor: "pointer", click: function () { page.transfer("/"); } });
+            var ileft = ui.icon(nbox, center.icon("hex"))({ size: 18, color: 75, position: [3, 17], rotation: 90 });
+            var iright = ui.icon(nbox, center.icon("hex"))({ size: 18, color: 75, position: [16.25, 17], rotation: 90 });
+            var itop = ui.icon(nbox, center.icon("hex"))({ size: 18, color: 75, position: [9.5, 5.5], rotation: 90 });
+            nbox.hover(function () {
+                itop.color(25, { duration: 66 });
+                ileft.color("accent", { duration: 66 });
+                iright.color(55, { duration: 66 });
+            }, function () {
+                itop.color(75, { duration: 166 });
+                ileft.color(75, { duration: 166 });
+                iright.color(75, { duration: 166 });
+            });
+
+            ui.box(ctop)({ left: 55, height: 27, top: 7, width: 1, color: 85 });
+
+            tbox = ui.box(ctop)({ left: 56, height: 40, cursor: "pointer", hide: true });
+            ttitle = ui.text(tbox)({ left: 10, top: 9, noSelect: true, noBreak: true, font: ["body", 18], weight: "600", color: 75, resize: function(r) {
+                tbox.width(r.width + 20);
+            }});
+            tbox.width(ttitle.textSize().width + 20);
+            tbox.hover(function () {
+                tbox.color(100, { duration: 100 });
+                ttitle.color(35, { duration: 100 });
+            }, function () {
+                tbox.color(null, { duration: 166 });
+                ttitle.color(75, { duration: 166 });
+            });
+
+            // login
+            ogbox = ui.box(ctop)({ right: 15, width: 100, height: 40, cursor: "pointer", click: function () { center.showSignIn(); } });
+            var ogtext = ui.text(ogbox)({ text: "SIGN IN", font: ["head", 12], position: [26, 14], color: 55 });
+            ogbox.hover(function () {
+                ogbox.color(100, { duration: 100 });
+                ogtext.color(35, { duration: 100 });
+            }, function () {
+                ogbox.color(null, { duration: 166 });
+                ogtext.color(55, { duration: 166 });
+            });
+            
+            
+            // search
             var aseaentered = false;
             var aseadowned = false;
-            var aseaactive = false;
-            
-            asea = ui.box(ctop)({ color: 98, left: 40, height: 40, width: 400, cursor: "text" });
+            var aseaactive = false;            
+            asea = ui.box(ctop)({ color: 98, height: 40, width: 400, cursor: "text", left: 56 });
             var aseasearch = ui.textinput(asea)({ font: 14, leftRight: [40, 10], top: 0, height: 40, design: false, opacity: 0 });
             var aseaglass = ui.icon(asea, center.icon("glass"))({ size: [32, 32], color: 75, position: [4, 4] });
             var aseaclear = ui.icon(asea, center.icon("arrow"))({ size: [23, 23], color: 75, position: [8, 10], hide: true });
@@ -74,7 +144,6 @@
                     }
                 }
             });
-
             aseasearch.keydown(function (c) {
                 if (c.key == 13) {
                     var s = aseasearch.value();
@@ -84,6 +153,8 @@
                     page.transfer("/search/" + s);
                 }
             });
+
+            //, attach: [tbox, "right"]
 
             center.setSearchBoxValue = function (s) {
                 if (!aseasearch.isFocus()) {
@@ -96,6 +167,21 @@
             };
 
             $$.stream(function (type, data) {
+
+                if (type == "online") {
+                    close.fadeOut(100);
+                }
+                else if (type == "offline") {
+                    offline.fadeIn(100);
+                    offline.text("OFFLINE");
+                    close.fadeIn(100);
+                    $(':focus').blur();
+                }
+                else if (type == "update") {
+                    close.fadeIn(100);
+                    offline.text("UPDATE!");
+                }
+
                 //if (type == "online") offline.hide();
                 //else if (type == "offline") offline.show();
             });
@@ -158,10 +244,133 @@
         center.searchExecute = function (s) {
             page.transfer("/search/" + prepareQuery(s));
         };
+        center.startLoading = function () {
+            if (!loadingStarted) {
+                loadingStarted = true;
 
+                lbox.opacity(0.5);
+                lboxExpand();
+            }
+        };
+        center.endLoading = function () {
+            if (loadingStarted) {
+                loadingStarted = false;
+
+                $$(500, function () {
+                    lbox.$.animate({ opacity: 0 }, {
+                        duration: 300, queue: false, complete: function () {
+                            lbox.$.stop();
+                        }
+                    });
+                });
+            }
+        };
+        center.showSignIn = function () {
+            shade.show();
+            shade.height(page.height() + ui.marginTop() + ui.marginBottom());
+            shade.width(page.width() + ui.marginLeft() + ui.marginRight());
+            shade.$.css({ opacity: 0 }).animate({ opacity: .8 }, { duration: 166, queue: false });
+
+            if (signinArea == null) {
+                signinArea = ui.box(ui.topContainer())({ size: [500, 400], z: 889 });
+                signinArea.position((ui.width() - signinArea.width()) / 2, (ui.height() - signinArea.height()) / 2);                
+                signInHexaAnim();
+            }
+        };
+        center.formatBytes = function (bytes, decimals) {
+            if (bytes == 0) return '0 Byte';
+            var k = 1024;
+            var dm = decimals + 1 || 3;
+            var sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+            var i = Math.floor(Math.log(bytes) / Math.log(k));
+            return [(bytes / Math.pow(k, i)).toPrecision(dm), sizes[i]];
+        };
+        
+        
+        function onResize() {
+
+            var hw = ui.height();
+            var ww = ui.width();
+
+            close.height(hw);
+            close.width(ww);
+            if (shade.isShown()) {
+                shade.height(hw);
+                shade.width(ww);
+            }
+            if (signinArea != null && signinArea.isShown()) {
+                signinArea.position((ww - signinArea.width()) / 2, (hw - signinArea.height()) / 2);
+            }
+        };
+        function onChangePage() {
+            if (shade.isShown()) {
+                shade.hide();
+            }
+        };
+        function lboxExpand() {
+            lbox.$.css({ width: "0%", left: "0%" }).animate({ width: "100%" }, { duration: 500, queue: false, complete: function () { lboxCollapse(); } });
+        };
+        function lboxCollapse() {
+            lbox.$.css({ width: "100%", left: "0%" }).animate({ left: "100%", width: "0%" }, { duration: 500, queue: false, complete: function () { lboxExpand(); } });
+        };
+
+        function signInHexaAnimRec(el, paths, count) {
+
+            if (count >= paths.length) return;
+
+            var path;
+            for (var i = 0; i <= count; i++) {
+                path += paths[i];
+            }
+
+            var last = count == paths.length - 1;
+
+            el.animate({ path: path }, last ? 750 : 66, last ? "easeOut" : "linear", function () {
+                signInHexaAnimRec(el, paths, count + 1);
+            });
+        };
+
+        function hex_corner(x, y, size, i) {
+            var angle_deg = 60 * i + 30
+            var angle_rad = Math.PI / 180 * angle_deg
+            return { x: x + size * Math.cos(angle_rad), y: y + size * Math.sin(angle_rad) };
+        };
+        function signInHexPos(center, size, i) {
+            var pos = hex_corner(center.x, center.y, size, i);
+            return pos.x + "," + pos.y;
+        };
+
+        function signInHexaAnim() {
+            var area = ui.raphael(signinArea)({ size: [500, 200] });
+            var paper = area.paper();
+            
+            var center1 = { x: 250, y: 50 };
+            var center2 = { x: 220.25, y: 102 };
+            var center3 = { x: 279.75, y: 102 };
+            var size = 30;
+
+            var paths1 = ("M" + signInHexPos(center1, size, 0) + "L" + signInHexPos(center1, size, 1) + "L" + signInHexPos(center1, size, 2) + " L" +
+                 signInHexPos(center1, size, 3) + " L" + signInHexPos(center1, size, 4) + " L" + signInHexPos(center1, size, 5) + " Z").split(" ");
+            var paths2 = ("M" + signInHexPos(center2, size, 4) + "L" + signInHexPos(center2, size, 5) + "L" + signInHexPos(center2, size, 0) + " L" +
+                signInHexPos(center2, size, 1) + " L" + signInHexPos(center2, size, 2) + " L" + signInHexPos(center2, size, 3) + " Z").split(" ");
+            var paths3 = ("M" + signInHexPos(center3, size, 0) + "L" + signInHexPos(center3, size, 5) + "L" + signInHexPos(center3, size, 4) + " L" +
+                signInHexPos(center3, size, 3) + " L" + signInHexPos(center3, size, 2) + " L" + signInHexPos(center3, size, 1) + " Z").split(" ");
+            var el1 = paper.path(paths1[0]).attr({ stroke: ui.color(25), opacity: 0, "stroke-width": 2 });
+            var el2 = paper.path(paths2[0]).attr({ stroke: ui.color("accent"), opacity: 0, "stroke-width": 2 });
+            var el3 = paper.path(paths3[0]).attr({ stroke: ui.color(55), opacity: 0, "stroke-width": 2 });
+            signInHexaAnimRec(el1, paths1, 1);
+            signInHexaAnimRec(el2, paths2, 1);
+            signInHexaAnimRec(el3, paths3, 1);
+            el1.animate({ opacity: 1 }, 1516, function () { el1.animate({ transform: "s0.5,0.5,250,20", "stroke-width": 1 }, 1000, "easeInOut"); });
+            el2.animate({ opacity: 1 }, 1516, function () { el2.animate({ transform: "s0.5,0.5,250,20", "stroke-width": 1 }, 1000, "easeInOut"); });
+            el3.animate({ opacity: 1 }, 1516, function () { el3.animate({ transform: "s0.5,0.5,250,20", "stroke-width": 1 }, 1000, "easeInOut"); });
+
+            
+        };
+        
         window.center = center;
         window.onerror = function (e) {
-            
+
         };
 
         function prepareQuery(q) {
@@ -171,20 +380,4 @@
         };
 
     })(window);
-
-    // .formatBytes
-    (function (center){
-
-        var formatBytes = function (bytes, decimals) {
-            if (bytes == 0) return '0 Byte';
-            var k = 1024;
-            var dm = decimals + 1 || 3;
-            var sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-            var i = Math.floor(Math.log(bytes) / Math.log(k));
-            return [(bytes / Math.pow(k, i)).toPrecision(dm), sizes[i]];
-        };
-
-        center.formatBytes = formatBytes;
-
-    })(center);
 })();

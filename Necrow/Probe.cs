@@ -1445,8 +1445,6 @@ namespace Center
         {
             Event("Request [" + command + "]...");
 
-            Thread.Sleep(100);
-
             bool requestLoop = true;
             bool timeout = false;
             lines = null;
@@ -1470,6 +1468,8 @@ namespace Center
                 {
                     if (outputs.Count > 0)
                     {
+                        ending = false;
+
                         lock (outputs)
                         {
                             wait = 0;
@@ -1531,7 +1531,8 @@ namespace Center
                                 }
                             }
 
-                            if (losb.TrimEnd().EndsWith(nodeTerminal.Trim())) ending = true;
+                            if (losb.TrimEnd().EndsWith(nodeTerminal.Trim()))
+                                ending = true;
                         }
                     }
                     else

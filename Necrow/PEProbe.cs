@@ -2080,6 +2080,49 @@ Last input 00:00:00, output 00:00:00
                         #endregion
                     }
 
+                    // port-channel
+                    if (Request("sh etherchannel detail | in Port:|Port-channel:", out lines)) return;
+
+                    //0123456789012345678
+                    //Port: Gi1/3
+                    //Port: Gi5/1
+                    //Port-channel: Po1    (Primary Aggregator)
+                    List<string> currentPorts = new List<string>();
+
+                    foreach (string line in lines)
+                    {
+                        if (line.StartsWith("Port: "))
+                        {
+                            string port = line.Substring(6).Trim();
+                            NetworkInterface nif = NetworkInterface.Parse(port);
+                            if (nif != null)
+                            {
+                                currentPorts.Add(nif.Name);
+                            }
+                        }
+                        else if (line.StartsWith("Port-channel: "))
+                        {
+                            string port = line.Substring(14).Split(StringSplitTypes.Space)[0];
+                            NetworkInterface nif = NetworkInterface.Parse(port);
+                            if (nif != null)
+                            {
+                                string portn = nif.PortName;
+                                int porti;
+                                if (int.TryParse(portn, out porti))
+                                {
+                                    foreach (string child in currentPorts)
+                                    {
+                                        if (interfacelive.ContainsKey(child))
+                                        {
+                                            interfacelive[child].Aggr = porti;
+                                        }
+                                    }
+                                }
+                            }
+                            currentPorts.Clear();
+                        }
+                    }
+
                     // rate-limit
                     if (Request("show interface rate-limit", out lines)) return;
 

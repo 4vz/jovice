@@ -2279,7 +2279,7 @@ Last input 00:00:00, output 00:00:00
                 bool physicalInterface = false;
                 bool collectAddress = false;
                 int ipv4SecondaryAddressCtr = 1;
-
+                int ipv6SecondaryAddressCtr = 1;
 
                 foreach (string line in lines)
                 {
@@ -2319,6 +2319,7 @@ Last input 00:00:00, output 00:00:00
                         {
                             current = new PEInterfaceToDatabase();
                             current.Name = nif.Name;
+
                             if (subifStatProt.ContainsKey(nif.Name))
                             {
                                 current.Enable = subifStatProt[nif.Name].Item1;
@@ -2406,13 +2407,21 @@ Last input 00:00:00, output 00:00:00
                                         if (!int.TryParse(slashs[1], out slash)) slash = -1;
                                         if (slash > -1)
                                         {
-                                            string[] locals = locl.Split(new char[] { ':' });
+                                            string[] locals = locl.Split(new char[] { ':' }, 2);
                                             if (locals.Length == 2)
                                             {
                                                 string iplocal = locals[1].Trim() + "/" + slash;
                                                 if (current.IP == null) current.IP = new List<string>();
-                                                current.IP.Add("0_" + ipv4SecondaryAddressCtr + "_" + iplocal);
-                                                ipv4SecondaryAddressCtr++;
+                                                if (iplocal.IndexOf(':') > -1)
+                                                {
+                                                    current.IP.Add("1_" + ipv6SecondaryAddressCtr + "_" + iplocal);
+                                                    ipv6SecondaryAddressCtr++;
+                                                }
+                                                else
+                                                {
+                                                    current.IP.Add("0_" + ipv4SecondaryAddressCtr + "_" + iplocal);
+                                                    ipv4SecondaryAddressCtr++;
+                                                }
                                             }
                                         }
                                     }
@@ -6014,6 +6023,9 @@ Last input 00:00:00, output 00:00:00
 
             if (IPAddress.TryParse(neighbor, out neighborIP))
             {
+                bool ipv4 = true;
+                if (neighbor.IndexOf(':') > -1) ipv4 = false;
+
                 foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
                 {
                     PEInterfaceToDatabase li = pair.Value;
@@ -6026,7 +6038,7 @@ Last input 00:00:00, output 00:00:00
                             {
                                 string[] cips = cip.Split(StringSplitTypes.Underscore);
 
-                                if (cips.Length == 3 && cips[0] == "0")
+                                if (cips.Length == 3 && cips[0] == (ipv4 ? "0" : "1"))
                                 {
                                     string ipcidr = cips[2];
                                     string thip = ipcidr.Split(new char[] { '/' })[0];

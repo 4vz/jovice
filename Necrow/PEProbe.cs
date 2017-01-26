@@ -6008,11 +6008,11 @@ Last input 00:00:00, output 00:00:00
         {
             if (neighbor == null) return null;
 
-            IPAddress neighborIP = IPAddress.Parse(neighbor);
+            IPAddress neighborIP;
 
             string interfaceID = null;
 
-            if (neighborIP != null)
+            if (IPAddress.TryParse(neighbor, out neighborIP))
             {
                 foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
                 {

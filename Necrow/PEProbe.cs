@@ -6031,13 +6031,15 @@ Last input 00:00:00, output 00:00:00
                                     string ipcidr = cips[2];
                                     string thip = ipcidr.Split(new char[] { '/' })[0];
 
-                                    IPNetwork net = IPNetwork.Parse(ipcidr);
-
-                                    if (neighborIP.IsInSameSubnet(net.FirstUsable, net.Netmask))
+                                    IPNetwork net;
+                                    if (IPNetwork.TryParse(ipcidr, out net))
                                     {
-                                        // satu subnet, bisa jadi neighbor tembakan
-                                        interfaceID = li.ID;
-                                        break;
+                                        if (neighborIP.IsInSameSubnet(net.FirstUsable, net.Netmask))
+                                        {
+                                            // satu subnet, bisa jadi neighbor tembakan
+                                            interfaceID = li.ID;
+                                            break;
+                                        }
                                     }
                                 }
                             }

@@ -225,7 +225,7 @@ namespace Center
                         {
                             //if (probeloc.Length > 0) probeloc.Append(", ");
 
-                            probeloc.Append("\nProbe#" + (actv + 1) + " " + ins.Value.NodeName + " is running for " + Math.Round((DateTime.UtcNow - ins.Value.NodeProbeStartTime).TotalSeconds) + "s using " + 
+                            probeloc.Append("\nPROBE" + ins.Key.Trim() + " " + ins.Value.NodeName + " is running for " + Math.Round((DateTime.UtcNow - ins.Value.NodeProbeStartTime).TotalSeconds) + "s using " + 
                                 ins.Value.Properties.TacacUser);
 
                             actv++;
@@ -318,7 +318,7 @@ namespace Center
                 //};
                 //Service.Register(typeof(ServerNecrowServiceMessage), NecrowServiceMessageHandler);
 
-                Event("Checking Jovice Database connection...");
+                Event("Checking Jovice Database connection... ");
 
                 bool joviceDatabaseConnected = false;
                 j = Jovice.Database;

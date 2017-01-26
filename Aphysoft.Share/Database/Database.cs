@@ -818,7 +818,14 @@ namespace Aphysoft.Share
 
         private SqlCommand Begin(string sql, SqlConnection connection)
         {
-            connection.Open();
+            try
+            {
+                connection.Open();
+            }
+            catch (Exception ex)
+            {
+                database.OnException(ex, sql);
+            }
 
             SqlCommand command = new SqlCommand(sql, connection);
             if (database.Timeout > 0)

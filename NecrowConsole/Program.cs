@@ -17,14 +17,7 @@ namespace NecrowConsole
 #if DEBUG
             if (Necrow.Debug())
             {
-                //Necrow.Test("me-d1-pgki-tsel");
-                Necrow.Test("me4-d2-sm1");
-                //Necrow.Test("ME8-D5-KBL");
-
-                //Necrow.Test("PE-D5-KLM-INET");
-                //Necrow.Test("ME-D5-KLM");
-
-                //Necrow.Test("PE2-D2-JT2-TRANSIT");
+                Necrow.Test("Pe-d5-mtr-speedy");
 #endif
                 Necrow.Start();
 #if DEBUG

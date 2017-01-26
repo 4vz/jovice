@@ -544,6 +544,21 @@ namespace Center
         private DateTime nodeProbeStartTime = DateTime.MinValue;
         private bool nodeConnected = false;
 
+        public string NodeName
+        {
+            get { return nodeName; }
+        }
+
+        public DateTime NodeProbeStartTime
+        {
+            get { return nodeProbeStartTime; }
+        }
+
+        public bool NodeConnected
+        {
+            get { return nodeConnected; }
+        }
+
         private bool noMore = false;
 
         private readonly string alu = "ALCATEL-LUCENT";
@@ -557,6 +572,8 @@ namespace Center
 
         private Dictionary<string, Row> reserves;
         private Dictionary<string, Row> popInterfaces;
+
+        private TelegramInformation nodeTelegramInfo = null;
 
         public new bool IsConnected
         {
@@ -892,10 +909,14 @@ namespace Center
                 Row node = null;
                 bool prioritizeProcess = false;
 
-                string prioritizeNode = Necrow.NextPrioritize();
+                nodeTelegramInfo = null;
 
-                if (prioritizeNode != null)
+                Tuple<string, TelegramInformation> prioritize = Necrow.NextPrioritize();
+                
+                if (prioritize != null)
                 {
+                    string prioritizeNode = prioritize.Item1;
+
                     if (prioritizeNode.EndsWith("*"))
                     {
                         prioritizeNode = prioritizeNode.TrimEnd(new char[] { '*' });
@@ -908,6 +929,13 @@ namespace Center
                     if (rnode.Count == 1)
                     {
                         node = rnode[0];
+
+                        if (prioritize.Item2 != null)
+                        {
+                            nodeTelegramInfo = prioritize.Item2;
+
+                            Necrow.telegram.SendTextMessageAsync(nodeTelegramInfo.ChatID, "Starting the probe process to " + prioritizeNode, false, false, nodeTelegramInfo.MessageID, null);
+                        }
                     }
                     else
                     {
@@ -927,7 +955,7 @@ namespace Center
                 if (node != null)
                 {
                     bool continueProcess = false;
-
+                    bool caughtError = false;
 #if !DEBUG
                     try
                     {
@@ -959,6 +987,8 @@ namespace Center
                         }
                         else if (info != null)
                             Event("Caught error: " + info);
+
+                        caughtError = true;
                     }
 #endif
                     if (continueProcess)
@@ -1021,6 +1051,7 @@ namespace Center
 
                         batch.Commit();
 
+                        
 #if !DEBUG
                         try
                         {
@@ -1044,10 +1075,11 @@ namespace Center
                                 Necrow.Log(nodeName, ex.Message, ex.StackTrace);
                                 Event("Caught error: " + ex.Message + ", exiting current node...");
                                 Update(UpdateTypes.Remark, "PROBEFAILED");
+                                caughtError = true;
                             }
                         }
 #endif
-
+                        
                         Update(UpdateTypes.Active, 1);
                         SaveExit();
 
@@ -1056,6 +1088,19 @@ namespace Center
                             idleThread.Abort();
                             idleThread = null;
                         }
+                    }
+
+
+                    if (nodeTelegramInfo != null)
+                    {
+                        string info;
+                        if (caughtError || !continueProcess)
+                            info = "I am sorry, an error has been caught during probe process in " + nodeName + ". Probe process has been terminated, please review Node's log or ProbeLog for further investigations";
+                        else
+                            info = nodeName + " has successfully probed, thanks";
+
+                        Necrow.telegram.SendTextMessageAsync(nodeTelegramInfo.ChatID, info, false, false, nodeTelegramInfo.MessageID, null);
+
                     }
 
                     if (!Necrow.InTime(properties)) stopping = true;

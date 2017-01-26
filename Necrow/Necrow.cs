@@ -7,6 +7,7 @@ using System.Globalization;
 using System.IO;
 
 using Aphysoft.Share;
+using Telegram.Bot;
 
 namespace Center
 {
@@ -81,6 +82,29 @@ namespace Center
         #endregion
     }
 
+    public class TelegramInformation
+    {
+        private long chatID;
+
+        public long ChatID
+        {
+            get { return chatID; }
+        }
+
+        private int messageID;
+
+        public int MessageID
+        {
+            get { return messageID; }
+        }
+
+        public TelegramInformation(long chatID, int messageID)
+        {
+            this.chatID = chatID;
+            this.messageID = messageID;
+        }
+    }
+
     public static class Necrow
     {
         #region Fields
@@ -96,11 +120,15 @@ namespace Center
 #endif
         private static Queue<Tuple<int, string>> list = null;
 
-        private static Queue<string> prioritize = new Queue<string>();
+        private static Queue<Tuple<string, TelegramInformation>> prioritize = new Queue<Tuple<string, TelegramInformation>>();
 
         private static List<Tuple<string, string, string>> supportedVersions = null;
 
         private static bool mainLoop = true;
+
+        internal static TelegramBotClient telegram = null;
+
+        private static Dictionary<string, Probe> instances = null;
 
         #endregion
 
@@ -137,17 +165,12 @@ namespace Center
 #if DEBUG
         public static bool Debug()
         {
-
-            //NetworkInterface nif = NetworkInterface.Parse("GE1/0/0(10G)");
-
-            //Event(nif.ShortName);
-
             return true;
         }
 
         public static void Test(string name)
         {
-            prioritize.Enqueue(name + "*");
+            prioritize.Enqueue(new Tuple<string, TelegramInformation>(name.ToUpper() + "*", null));
         }
 #else
         internal static void Log(string source, string message, string stacktrace)
@@ -175,6 +198,106 @@ namespace Center
             return (start < end && start < time && time < end) ||
                    (start > end && (time > start || time < end)) ||
                    (start == end);
+        }
+
+        private static void Telegram_OnMessage(object sender, Telegram.Bot.Args.MessageEventArgs e)
+        {
+            string msg = e.Message.Text;
+            string rsp = null;
+
+            if (msg != null)
+            {
+                if (msg.StartsWith("/probestatus"))
+                {
+                    #region /probestatus
+
+                    int intime = 0;
+                    foreach (KeyValuePair<string, Probe> ins in instances)
+                    {
+                        if (InTime(ins.Value.Properties)) intime++;
+                    }
+
+                    StringBuilder probeloc = new StringBuilder();
+                    int actv = 0;
+                    foreach (KeyValuePair<string, Probe> ins in instances)
+                    {
+                        if (ins.Value.NodeConnected)
+                        {
+                            //if (probeloc.Length > 0) probeloc.Append(", ");
+
+                            probeloc.Append("\nProbe#" + (actv + 1) + " " + ins.Value.NodeName + " is running for " + Math.Round((DateTime.UtcNow - ins.Value.NodeProbeStartTime).TotalSeconds) + "s using " + 
+                                ins.Value.Properties.TacacUser);
+
+                            actv++;
+                        }
+                    }
+
+                    if (intime > 0)
+                    {
+                        if (actv > 0)
+                        {
+                            rsp = "There " + (actv > 1 ? "are" : "is") + " " + actv + " active probe" + (actv > 1 ? "s" : "") + " (" + intime + " on duty): " + probeloc.ToString();
+                        }
+                        else rsp = "There is no currently active probe (" + intime + " on duty)";
+                    }
+                    else rsp = "There is no probe currently on duty";
+
+                    #endregion
+                }
+                else if (msg.StartsWith("/probe"))
+                {
+                    #region /probe
+                    string[] tokens = msg.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                    if (tokens.Length != 2)
+                    {
+                        rsp = "The usage of that command is /probe <node name>";
+                    }
+                    else
+                    {
+                        string node = tokens[1].ToUpper();
+
+                        Result rnode = Jovice.Database.Query("select * from Node where NO_Name = {0}", node);
+
+                        if (rnode.Count == 1)
+                        {
+                            bool already = false;
+                            foreach (Tuple<string, TelegramInformation> tup in prioritize)
+                            {
+                                if (tup.Item1.Contains(node) || tup.Item1.Contains(node + "*"))
+                                {
+                                    already = true;
+                                    break;
+                                }
+                            }
+
+                            if (already) rsp = "The node is currently on my list, I'll keep you updated";
+                            else
+                            {
+                                prioritize.Enqueue(new Tuple<string, TelegramInformation>(node + "*", new TelegramInformation(e.Message.Chat.Id, e.Message.MessageId)));
+                                rsp = "Got It, I'll keep you updated";
+                            }
+                        }
+                        else rsp = "I am sorry, I couldn't find " + node + " in my database";
+                    }
+                    #endregion
+                }
+
+                if (rsp != null)
+                {
+                    telegram.SendTextMessageAsync(e.Message.Chat.Id, rsp, false, false, e.Message.MessageId, null);
+                }
+            }
+        }
+        
+        private static void Telegram_OnReceiveError(object sender, Telegram.Bot.Args.ReceiveErrorEventArgs e)
+        {
+            Event("Telegram Bot Error: " + e.ApiRequestException.Message);
+        }
+
+        private static void Telegram_OnReceiveGeneralError(object sender, Telegram.Bot.Args.ReceiveGeneralErrorEventArgs e)
+        {
+            Event("Telegram Bot General Error: " + e.Exception.Message);
         }
 
         public static void Start()
@@ -264,6 +387,28 @@ namespace Center
 
                     #endregion
 
+                    #region Bot
+                    
+                    Event("Starting Telegram Bot handling...");
+
+                    //329048230:AAFDHCcNNyDpAyfMe5vn-oLzvKjmIrIG4Hg dev
+                    //298092052:AAFrX-tcSnPR_8y9xwukMwhaZC2A5wpFHYI prod
+#if DEBUG
+                    telegram = new TelegramBotClient("329048230:AAFDHCcNNyDpAyfMe5vn-oLzvKjmIrIG4Hg");
+#else
+                    telegram = new TelegramBotClient("298092052:AAFrX-tcSnPR_8y9xwukMwhaZC2A5wpFHYI");
+#endif
+
+                    telegram.OnMessage += Telegram_OnMessage;
+                    telegram.OnReceiveError += Telegram_OnReceiveError;
+                    telegram.OnReceiveGeneralError += Telegram_OnReceiveGeneralError;
+
+                    telegram.StartReceiving();
+
+                    Event("Telegram Bot started");
+
+                    #endregion
+                    
                     #region Etc
 
                     interfaceTestPrefixes = new Dictionary<string, string[]>();
@@ -312,7 +457,7 @@ namespace Center
 
                     #endregion
 
-                    Dictionary<string, Probe> instances = new Dictionary<string, Probe>();
+                    instances = new Dictionary<string, Probe>();
 
                     long loops = 0;
 
@@ -458,10 +603,6 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
                         Thread.Sleep(1000);
                         loops++;
                     }
-                }
-                else
-                {
-                    Event("Problem with database, please check database data source in the *.config file");
                 }
             }));
             start.Start();
@@ -696,9 +837,9 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
             return noded;
         }
 
-        internal static string NextPrioritize()
+        internal static Tuple<string, TelegramInformation> NextPrioritize()
         {
-            string node = null;
+            Tuple<string, TelegramInformation> node = null;
 
             lock (prioritize)
             {
@@ -761,7 +902,7 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
                     if (cs.Clauses.Count == 2)
                     {
                         string nodename = cs.Clauses[1];
-                        prioritize.Enqueue(nodename);
+                        prioritize.Enqueue(new Tuple<string, TelegramInformation>(nodename.ToUpper(), null));
                     }
                 }
             }

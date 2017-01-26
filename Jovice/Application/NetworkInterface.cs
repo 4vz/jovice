@@ -293,7 +293,7 @@ namespace Center
                             ci.type = "HundredGigE";
                             ci.type = "Hu";
                         }
-                        else if (interfaceType == "ag" || interfaceType == "ethtrunk" || interfaceType == "ae")
+                        else if (interfaceType == "ag" || interfaceType == "ethtrunk" || interfaceType == "ae" || interfaceType == "po")
                         {
                             ci.type = "AggregatedInterface";
                             ci.type = "Ag";

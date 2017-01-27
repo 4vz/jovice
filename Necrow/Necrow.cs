@@ -200,6 +200,10 @@ namespace Center
                    (start == end);
         }
 
+        private static int telegram_lastMessageId = 0;
+        private static string telegram_waitingYesForThisNode = null;
+        private static int telegram_waitingYesForThisNode_msgID = 0;
+
         private static void Telegram_OnMessage(object sender, Telegram.Bot.Args.MessageEventArgs e)
         {
             string msg = e.Message.Text;
@@ -207,6 +211,9 @@ namespace Center
 
             if (msg != null)
             {
+                telegram_lastMessageId = e.Message.MessageId;
+                int currentMessageId = e.Message.MessageId;
+
                 if (msg.StartsWith("/probestatus"))
                 {
                     #region /probestatus
@@ -271,21 +278,57 @@ namespace Center
                                 }
                             }
 
-                            if (already) rsp = "The node is currently on my list, I'll keep you updated";
+                            if (already) rsp = "The node is currently on my list and will starting as soon as a probe on duty is available";
                             else
                             {
-                                prioritize.Enqueue(new Tuple<string, TelegramInformation>(node + "*", new TelegramInformation(e.Message.Chat.Id, e.Message.MessageId)));
-                                rsp = "Got It, I'll keep you updated";
+                                int intime = 0;
+                                foreach (KeyValuePair<string, Probe> ins in instances)
+                                {
+                                    if (InTime(ins.Value.Properties)) intime++;
+                                }
+
+                                if (intime == 0)
+                                {
+                                    rsp = "There is no probe currently on duty, do you want to probe the node as soon as a probe is available?";
+                                    telegram_waitingYesForThisNode = node;
+                                    telegram_waitingYesForThisNode_msgID = e.Message.MessageId;
+                                }
+                                else
+                                {
+                                    prioritize.Enqueue(new Tuple<string, TelegramInformation>(node + "*", new TelegramInformation(e.Message.Chat.Id, e.Message.MessageId)));
+                                    rsp = "Got It, I'll keep you updated";
+                                }
                             }
                         }
                         else rsp = "I am sorry, I couldn't find " + node + " in my database";
                     }
                     #endregion
                 }
+                else if (telegram_waitingYesForThisNode != null && msg.ToLower().IndexOf("yes", "ya", "yaa", "yaaa", "yess", "yesss", "hell yes", "yeah", "iya", "lakukan", "baiklah") > -1)
+                {
+                    #region /probe + yes
+                    prioritize.Enqueue(new Tuple<string, TelegramInformation>(telegram_waitingYesForThisNode + "*", new TelegramInformation(e.Message.Chat.Id, telegram_waitingYesForThisNode_msgID)));
+                    rsp = "Got It, I'll keep you updated";
+                    currentMessageId = telegram_waitingYesForThisNode_msgID;
+                    telegram_waitingYesForThisNode = null;
+                    telegram_waitingYesForThisNode_msgID = 0;
+                    #endregion
+                }
+                else if (telegram_waitingYesForThisNode != null && msg.ToLower().IndexOf("no", "noo", "hell no", "nooo", "tidak", "gak", "enggak", "gak usah", "nanti aja", "ga", "ga usah", "pass", "later") > -1)
+                {
+                    #region /probe + no
+                    rsp = "Okay";
+                    telegram_waitingYesForThisNode = null;
+                    telegram_waitingYesForThisNode_msgID = 0;
+                    #endregion
+                }
 
                 if (rsp != null)
                 {
-                    telegram.SendTextMessageAsync(e.Message.Chat.Id, rsp, false, false, e.Message.MessageId, null);
+                    if (telegram_lastMessageId != currentMessageId)
+                        telegram.SendTextMessageAsync(e.Message.Chat.Id, rsp, false, false, currentMessageId, null);
+                    else
+                        telegram.SendTextMessageAsync(e.Message.Chat.Id, rsp, false, false, 0, null);
                 }
             }
         }
@@ -298,6 +341,14 @@ namespace Center
         private static void Telegram_OnReceiveGeneralError(object sender, Telegram.Bot.Args.ReceiveGeneralErrorEventArgs e)
         {
             Event("Telegram Bot General Error: " + e.Exception.Message);
+        }
+
+        internal static void Telegram_SendMessage(TelegramInformation info, string msg)
+        {
+            if (telegram_lastMessageId != info.MessageID)
+                telegram_lastMessageId = telegram.SendTextMessageAsync(info.ChatID, msg, false, false, info.MessageID, null).Id;
+            else
+                telegram_lastMessageId = telegram.SendTextMessageAsync(info.ChatID, msg, false, false, 0, null).Id;
         }
 
         public static void Start()

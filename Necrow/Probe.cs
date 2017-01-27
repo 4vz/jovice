@@ -933,8 +933,7 @@ namespace Center
                         if (prioritize.Item2 != null)
                         {
                             nodeTelegramInfo = prioritize.Item2;
-
-                            Necrow.telegram.SendTextMessageAsync(nodeTelegramInfo.ChatID, "Starting the probe process to " + prioritizeNode, false, false, nodeTelegramInfo.MessageID, null);
+                            Necrow.Telegram_SendMessage(nodeTelegramInfo, "Starting the probe process to " + prioritizeNode);
                         }
                     }
                     else
@@ -1099,8 +1098,7 @@ namespace Center
                         else
                             info = nodeName + " has successfully probed, thanks";
 
-                        Necrow.telegram.SendTextMessageAsync(nodeTelegramInfo.ChatID, info, false, false, nodeTelegramInfo.MessageID, null);
-
+                        Necrow.Telegram_SendMessage(nodeTelegramInfo, info);
                     }
 
                     if (!Necrow.InTime(properties)) stopping = true;
@@ -3811,6 +3809,8 @@ namespace Center
 
         public string FindNeighborPart(string description, string name)
         {
+            if (description == null || name == null) return null;
+
             int find = description.IndexOf(name);
             int findLength = name.Length;
 

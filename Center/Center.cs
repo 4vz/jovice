@@ -38,6 +38,12 @@ namespace Center
         {
             BaseResources.Init();
 
+            #region Development
+#if DEBUG
+            Resource.Common(Resource.Register("development", ResourceType.JavaScript, Resources.ResourceManager, "development", "~/Development/development.js").NoMinify().NoCache());
+#endif
+            #endregion
+
             #region Center
 
             Resource.Common(Resource.Register("center", ResourceType.JavaScript, Resources.ResourceManager, "center", "~/View/center.js"));

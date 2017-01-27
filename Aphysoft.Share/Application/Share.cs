@@ -30,6 +30,13 @@ namespace Aphysoft.Share
                 if (share == null)
                 {
                     string database = ConfigurationHelper.Settings("database");
+                    if (database == null)
+                    {
+                        database = "localhost";
+#if DEBUG
+                        database = "localhost\\SQLEXPRESS";
+#endif
+                    }
                     string connectionString = string.Format("Data Source={0};Initial Catalog=share;User ID=telkom.center;Password=t3lk0mdotc3nt3r;async=true", database);
                     share = new Database(connectionString, DatabaseType.SqlServer);
                 }

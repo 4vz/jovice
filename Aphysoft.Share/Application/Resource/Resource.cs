@@ -19,7 +19,6 @@ namespace Aphysoft.Share
 
         private static Dictionary<string, Resource> registeredResources = new Dictionary<string, Resource>();
         private static Dictionary<string, string> keyHashes = new Dictionary<string, string>();
-        private static bool resourceLoaded = false;
 
         private static int commonResourceScriptIndex = 100;
         private static int commonResourceCSSIndex = 100;
@@ -37,17 +36,6 @@ namespace Aphysoft.Share
 
         internal static void Init()
         {
-#if DEBUG
-            Common(Register("__debug__development_javascript", ResourceType.JavaScript, "~/Development/javascript.js").NoCache().NoMinify());
-
-            Content.Register("__debug__test",
-                new ContentPage[] {
-                    new ContentPage("/test")
-                },
-                new ContentPackage(
-                    Resource.Register("test", ResourceType.JavaScript, "~/Development/test.js"),
-                    null));
-#endif
         }
 
         internal static IAsyncResult Begin(HttpContext context, AsyncCallback cb, object extraData)

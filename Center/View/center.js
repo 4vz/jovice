@@ -9,9 +9,7 @@
         var page = null;
         var onmain = false;
 
-        var shade;
-
-        var close, offline;
+        var shade, close, closeThings, offline, update, frontLogo, frontLogoElements, frontLogoDone = false;
         var ctop;
         var nbox;
         var asea;
@@ -48,7 +46,14 @@
             // ctop
             ctop = ui.box(ui.topContainer())({ color: 98, height: 40, width: "100%" });
             close = ui.box(ui.topContainer())({ color: 95, width: "100%", z: 999 });
-            offline = ui.text(close)({ hide: true, text: "OFFLINE", color: 50, font: 30, center: true });
+            closeThings = ui.box(close)({ size: [500, 300], center: true });
+
+            offline = ui.text(closeThings)({ hide: true, text: "OFFLINE", color: 50, font: 30, top: 80 });
+            update = ui.text(closeThings)({ hide: true, text: "PLEASE REFRESH YOUR BROWSER", color: 50, top: 125 });
+
+            frontLogo = ui.box(closeThings)({ size: [200, 200], left: 150 });
+            frontLogoHexaAnim();
+
             shade = ui.box(ui.topContainer())({ hide: true, color: 95, width: "100%", z: 888 });
 
             // loading bar
@@ -88,7 +93,7 @@
             });
 
             // login
-            ogbox = ui.box(ctop)({ right: 15, width: 100, height: 40, cursor: "pointer", click: function () { center.showSignIn(); } });
+            ogbox = ui.box(ctop)({ right: 15, width: 100, height: 40, cursor: "pointer", hide: true, click: function () { center.showSignIn(); } });
             var ogtext = ui.text(ogbox)({ text: "SIGN IN", font: ["head", 12], position: [26, 14], color: 55 });
             ogbox.hover(function () {
                 ogbox.color(100, { duration: 100 });
@@ -154,8 +159,6 @@
                 }
             });
 
-            //, attach: [tbox, "right"]
-
             center.setSearchBoxValue = function (s) {
                 if (!aseasearch.isFocus()) {
                     if (s != null && s.length > 0) {
@@ -166,20 +169,53 @@
                 else aseasearch.value(s);
             };
 
-            $$.stream(function (type, data) {
+            var firstTime = true;
 
+            $$.stream(function (type, data) {
                 if (type == "online") {
-                    close.fadeOut(100);
+                    if (firstTime) {
+                        firstTime = false;
+
+                        $$(function () {}, 100, function () {                            
+                            if (!frontLogoDone) return -1;
+                            else close.fadeOut(100);
+                        });
+                    }
+                    else close.fadeOut(100);
                 }
                 else if (type == "offline") {
-                    offline.fadeIn(100);
-                    offline.text("OFFLINE");
-                    close.fadeIn(100);
-                    $(':focus').blur();
+                    if (firstTime) {
+                        $.each(frontLogoElements, function (eli, el) {
+                            el.animate({ transform: "s0.5,0.5,100,20", "stroke-width": 1, stroke: ui.color(35) }, 500, "easeInOut");
+                        });
+                        offline.text("OFFLINE");
+                        offline.left((500 - offline.textSize().width) / 2);
+                        $$(600, function () { offline.fadeIn(100); });
+                        firstTime = false;
+                    }
+                    else {
+                        $.each(frontLogoElements, function (eli, el) {
+                            el.transform("s0.5,0.5,100,20");
+                            el.attr({ "stroke-width": 1, stroke: ui.color(35) });
+                        });
+                        offline.show();
+                        update.hide();
+                        offline.text("OFFLINE");
+                        offline.left((500 - offline.textSize().width) / 2);
+                        close.fadeIn(100);
+                        $(':focus').blur();
+                    }
                 }
                 else if (type == "update") {
+                    $.each(frontLogoElements, function (eli, el) {
+                        el.transform("s0.5,0.5,100,20");
+                        el.attr({ "stroke-width": 1, stroke: ui.color(35) });
+                    });
                     close.fadeIn(100);
-                    offline.text("UPDATE!");
+                    offline.text("UPDATE");
+                    offline.left((500 - offline.textSize().width) / 2);
+                    update.show();
+                    update.left((500 - update.textSize().width) / 2);
                 }
 
                 //if (type == "online") offline.hide();
@@ -274,7 +310,7 @@
             if (signinArea == null) {
                 signinArea = ui.box(ui.topContainer())({ size: [500, 400], z: 889 });
                 signinArea.position((ui.width() - signinArea.width()) / 2, (ui.height() - signinArea.height()) / 2);                
-                signInHexaAnim();
+                //signInHexaAnim();
             }
         };
         center.formatBytes = function (bytes, decimals) {
@@ -285,8 +321,7 @@
             var i = Math.floor(Math.log(bytes) / Math.log(k));
             return [(bytes / Math.pow(k, i)).toPrecision(dm), sizes[i]];
         };
-        
-        
+                
         function onResize() {
 
             var hw = ui.height();
@@ -313,10 +348,23 @@
         function lboxCollapse() {
             lbox.$.css({ width: "100%", left: "0%" }).animate({ left: "100%", width: "0%" }, { duration: 500, queue: false, complete: function () { lboxExpand(); } });
         };
+        
+        function hex_corner(x, y, size, i) {
+            var angle_deg = 60 * i + 30
+            var angle_rad = Math.PI / 180 * angle_deg
+            return { x: x + size * Math.cos(angle_rad), y: y + size * Math.sin(angle_rad) };
+        };
+        function hex_pos(center, size, i) {
+            var pos = hex_corner(center.x, center.y, size, i);
+            return pos.x + "," + pos.y;
+        };
 
-        function signInHexaAnimRec(el, paths, count) {
+        function frontLogoHexaAnimRec(el, paths, count) {
 
-            if (count >= paths.length) return;
+            if (count >= paths.length) {
+                frontLogoDone = true;
+                return;
+            }
 
             var path;
             for (var i = 0; i <= count; i++) {
@@ -325,47 +373,35 @@
 
             var last = count == paths.length - 1;
 
-            el.animate({ path: path }, last ? 750 : 66, last ? "easeOut" : "linear", function () {
-                signInHexaAnimRec(el, paths, count + 1);
+            el.animate({ path: path }, last ? 166 : 33, last ? "easeOut" : "linear", function () {
+                frontLogoHexaAnimRec(el, paths, count + 1);
             });
         };
-
-        function hex_corner(x, y, size, i) {
-            var angle_deg = 60 * i + 30
-            var angle_rad = Math.PI / 180 * angle_deg
-            return { x: x + size * Math.cos(angle_rad), y: y + size * Math.sin(angle_rad) };
-        };
-        function signInHexPos(center, size, i) {
-            var pos = hex_corner(center.x, center.y, size, i);
-            return pos.x + "," + pos.y;
-        };
-
-        function signInHexaAnim() {
-            var area = ui.raphael(signinArea)({ size: [500, 200] });
+        function frontLogoHexaAnim() {
+            var area = ui.raphael(frontLogo)({ size: [200, 200] });
             var paper = area.paper();
             
-            var center1 = { x: 250, y: 50 };
-            var center2 = { x: 220.25, y: 102 };
-            var center3 = { x: 279.75, y: 102 };
+            var center1 = { x: 100, y: 50 };
+            var center2 = { x: 70.25, y: 102 };
+            var center3 = { x: 129.75, y: 102 };
             var size = 30;
 
-            var paths1 = ("M" + signInHexPos(center1, size, 0) + "L" + signInHexPos(center1, size, 1) + "L" + signInHexPos(center1, size, 2) + " L" +
-                 signInHexPos(center1, size, 3) + " L" + signInHexPos(center1, size, 4) + " L" + signInHexPos(center1, size, 5) + " Z").split(" ");
-            var paths2 = ("M" + signInHexPos(center2, size, 4) + "L" + signInHexPos(center2, size, 5) + "L" + signInHexPos(center2, size, 0) + " L" +
-                signInHexPos(center2, size, 1) + " L" + signInHexPos(center2, size, 2) + " L" + signInHexPos(center2, size, 3) + " Z").split(" ");
-            var paths3 = ("M" + signInHexPos(center3, size, 0) + "L" + signInHexPos(center3, size, 5) + "L" + signInHexPos(center3, size, 4) + " L" +
-                signInHexPos(center3, size, 3) + " L" + signInHexPos(center3, size, 2) + " L" + signInHexPos(center3, size, 1) + " Z").split(" ");
+            var paths1 = ("M" + hex_pos(center1, size, 0) + "L" + hex_pos(center1, size, 1) + "L" + hex_pos(center1, size, 2) + " L" +
+                 hex_pos(center1, size, 3) + " L" + hex_pos(center1, size, 4) + " L" + hex_pos(center1, size, 5) + " Z").split(" ");
+            var paths2 = ("M" + hex_pos(center2, size, 4) + "L" + hex_pos(center2, size, 5) + "L" + hex_pos(center2, size, 0) + " L" +
+                hex_pos(center2, size, 1) + " L" + hex_pos(center2, size, 2) + " L" + hex_pos(center2, size, 3) + " Z").split(" ");
+            var paths3 = ("M" + hex_pos(center3, size, 0) + "L" + hex_pos(center3, size, 5) + "L" + hex_pos(center3, size, 4) + " L" +
+                hex_pos(center3, size, 3) + " L" + hex_pos(center3, size, 2) + " L" + hex_pos(center3, size, 1) + " Z").split(" ");
             var el1 = paper.path(paths1[0]).attr({ stroke: ui.color(25), opacity: 0, "stroke-width": 2 });
             var el2 = paper.path(paths2[0]).attr({ stroke: ui.color("accent"), opacity: 0, "stroke-width": 2 });
             var el3 = paper.path(paths3[0]).attr({ stroke: ui.color(55), opacity: 0, "stroke-width": 2 });
-            signInHexaAnimRec(el1, paths1, 1);
-            signInHexaAnimRec(el2, paths2, 1);
-            signInHexaAnimRec(el3, paths3, 1);
-            el1.animate({ opacity: 1 }, 1516, function () { el1.animate({ transform: "s0.5,0.5,250,20", "stroke-width": 1 }, 1000, "easeInOut"); });
-            el2.animate({ opacity: 1 }, 1516, function () { el2.animate({ transform: "s0.5,0.5,250,20", "stroke-width": 1 }, 1000, "easeInOut"); });
-            el3.animate({ opacity: 1 }, 1516, function () { el3.animate({ transform: "s0.5,0.5,250,20", "stroke-width": 1 }, 1000, "easeInOut"); });
-
-            
+            frontLogoHexaAnimRec(el1, paths1, 1);
+            frontLogoHexaAnimRec(el2, paths2, 1);
+            frontLogoHexaAnimRec(el3, paths3, 1);
+            el1.animate({ opacity: 1 }, 516);
+            el2.animate({ opacity: 1 }, 516);
+            el3.animate({ opacity: 1 }, 516);
+            frontLogoElements = [el1, el2, el3];
         };
         
         window.center = center;

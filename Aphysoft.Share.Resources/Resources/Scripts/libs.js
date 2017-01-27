@@ -2218,17 +2218,9 @@
 })(jQuery);
 
 /*! jQuery Color Animation https://github.com/jquery/jquery-color/ */
+/*! jQuery Color Animations v2.1.2 - SVG Color Names */
 (function ($) {
-    /*!
- * jQuery Color Animations v2.1.2
- * https://github.com/jquery/jquery-color
- *
- * Copyright 2013 jQuery Foundation and other contributors
- * Released under the MIT license.
- * http://jquery.org/license
- *
- * Date: Wed Jan 16 08:47:09 2013 -0600
- */
+
     (function (jQuery, undefined) {
 
         var stepHooks = "backgroundColor borderBottomColor borderLeftColor borderRightColor borderTopColor color columnRuleColor outlineColor textDecorationColor textEmphasisColor",
@@ -2882,20 +2874,6 @@
         };
 
     })(jQuery);
-
-    /*!
-     * jQuery Color Animations v2.1.2 - SVG Color Names
-     * https://github.com/jquery/jquery-color
-     *
-     * Remaining HTML/CSS color names per W3C's CSS Color Module Level 3.
-     * http://www.w3.org/TR/css3-color/#svg-color
-     *
-     * Copyright 2013 jQuery Foundation and other contributors
-     * Released under the MIT license.
-     * http://jquery.org/license
-     *
-     * Date: Wed Jan 16 08:47:09 2013 -0600
-     */
     jQuery.extend(jQuery.Color.names, {
         // 4.3. Extended color keywords (minus the basic ones in core color plugin)
         aliceblue: "#f0f8ff",
@@ -3029,6 +3007,7 @@
         whitesmoke: "#f5f5f5",
         yellowgreen: "#9acd32"
     });
+
 })(jQuery);
 
 /*! jQuery Additional Easing 1.3 http://gsgd.co.uk/sandbox/jquery/easing/ */

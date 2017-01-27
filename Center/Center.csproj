@@ -100,8 +100,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Development\javascript.js" />
-    <Content Include="Development\test.js" />
+    <Content Include="Development\development.js" />
     <Content Include="View\center.js" />
     <Content Include="View\main.js" />
     <Content Include="View\search.js" />

@@ -299,6 +299,9 @@
                             chainingFunctions(iteration + 1, functions);
                         }, returnValue);
                     }
+                    else if (returnValue == 0) { // 0, retry
+                        chainingFunctions(iteration, functions);
+                    }
                 }
                 else if (returnValue == false) { }
                 else chainingFunctions(iteration + 1, functions);
@@ -1766,6 +1769,2492 @@
 
         share.once = once;
         share.removeOnce = removeOnce;
+
+    })(share);
+
+    // .deltaperfdom
+    (function (share) {
+
+        var deltaperfdom = function () {
+            if (Modernizr.performance)
+                return performance.timing.domComplete - performance.timing.domLoading;
+            else
+                return 200;
+        };
+
+        share.deltaperfdom = deltaperfdom;
+
+    })(share);
+
+    // .args
+    (function (share) {
+
+        var args = function () {
+            var args = arguments;
+
+            if (!$.isUndefined(args[0])) {
+
+                var o = {};
+                var margs = args[0];
+
+                for (var i = 0; i < margs.length; i++) {
+                    o[i] = margs[i];
+                }
+
+                if (args.length > 1) {
+
+                    var j = 1;
+
+                    if ($.isNumber(args[1])) {
+                        var ra = args[1];
+                        if (ra > margs.length) return null;
+                        j = 2;
+                    }
+
+                    for (var i = 0; i < margs.length; i++) {
+
+                        var marg = margs[i];
+                        var mismatch = true;
+
+                        if ($.isUndefined(marg)) break;
+
+                        while (j < args.length) {
+
+                            var optional = false, type, key, required = false;
+
+                            var targkv = args[j++].split(" ");
+
+                            if (targkv[0] == "optional") {
+                                optional = true;
+                                type = targkv[1];
+                                key = targkv[2];
+                            }
+                            else if (targkv[0] == "required") {
+                                required = true;
+                                type = targkv[1];
+                                key = targkv[2];
+                            }
+                            else {
+                                type = targkv[0];
+                                key = targkv[1];
+                            }
+                            var tetype = $.type(marg);
+
+                            if (tetype == "object") {
+                                if ($.isJQuery(marg)) tetype = "jquery";
+                            }
+
+                            if (tetype == "null" && required == false) {
+                                o[key] = null;
+                                mismatch = false;
+                            }
+                            else {
+                                if (type.indexOf("/") > -1) {
+                                    var typealts = type.split("/");
+                                    var typealtb = false;
+
+                                    for (var typealti = 0; typealti < typealts.length; typealti++) {
+                                        if (tetype == typealts[typealti]) {
+                                            mismatch = false;
+                                            o[key] = marg;
+                                            typealtb = true;
+                                            break;
+                                        }
+                                    }
+
+                                    if (typealtb == false) {
+                                        if (optional) {
+                                            o[key] = null;
+                                            continue;
+                                        }
+                                    }
+                                }
+                                else if (type.indexOf("<") > -1) {
+                                    var typeconvs = type.split("<");
+                                    var typeconvto = typeconvs[0];
+                                    var typeconvb = false;
+
+                                    if (tetype == typeconvto) {
+                                        o[key] = marg;
+                                        mismatch = false;
+                                        typeconvb = true;
+                                    }
+                                    else {
+                                        for (var typeconvi = 1; typeconvi < typeconvs.length; typeconvi++) {
+                                            if (tetype == typeconvs[typeconvi]) {
+                                                mismatch = false;
+
+                                                if (typeconvto == "string") {
+                                                    o[key] = marg + "";
+                                                }
+                                                else if (typeconvto == "number") {
+                                                    if (tetype == "string") o[key] = parseInt(marg);
+                                                    else if (tetype == "boolean") o[key] = marg ? 1 : 0;
+                                                    else o[key] = null;
+                                                }
+                                                else if (typeconvto == "boolean") {
+                                                    if (tetype == "string") o[key] = marg == "true" ? true : marg == "false" ? false : "";
+                                                    else if (tytype == "number") o[key] = marg >= 1 ? true : false;
+                                                }
+
+                                                typeconvb = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+
+                                    if (typeconvb == false) {
+                                        if (optional)
+                                            continue;
+                                    }
+                                }
+                                else {
+                                    if (tetype == type) {
+                                        o[key] = marg;
+                                        mismatch = false;
+                                    }
+                                    else if (optional) {
+                                        o[key] = null;
+                                        continue;
+                                    }
+                                }
+                            }
+
+                            break;
+                        }
+
+                        if (mismatch) return null;
+                    }
+
+                    for (; j < args.length; j++) {
+                        var targkv = args[j].split(" ");
+                        if (targkv[0] != "optional") return null;
+                        else o[targkv[2]] = null;
+                    }
+                }
+
+                return o;
+            }
+            else return null;
+        };
+
+        share.args = args;
+
+    })(share);
+
+    // .cookie .removeCookie
+    (function (share) {
+
+        var cookie = function () {
+            var o = share.args(arguments, "string key", "optional string<number<boolean value", "optional string path", "optional date expires");
+
+            if (o) {
+
+                var dc = document.cookie;
+                var cs = dc.split(";");
+                var c = {};
+
+                $.each(cs, function (i, v) {
+                    var iv = v.trim();
+                    var ivfe = iv.indexOf("=");
+                    var key = iv.substr(0, ivfe);
+                    var value = iv.substr(ivfe + 1);
+
+                    if (c[key] != null) {
+                        if (!$.isArray(c[key])) c[key] = [c[key]];
+                        c[key].push(value);
+                    }
+                    else c[key] = value;
+                });
+
+                if (o.value == null) {
+                    return $.isUndefined(c[o.key]) ? null : c[o.key];
+                }
+                else {
+                    var sdom = share.domain();
+                    var s = o.key + "=" + o.value + (sdom != null ? "; domain=" + sdom : "");
+
+                    if (o.path != null)
+                        s += "; path=" + o.path;
+                    if (o.expires != null) {
+                        s += "; expires= " + share.date("{ddd}, {DD}-{MMM}-{YYYY} {HH}:{mm}:{ss} {tz}", o.expires);
+                    }
+
+                    //alert(s);
+
+                    document.cookie = s;
+                }
+            }
+        };
+        var removeCookie = function (key, a, b) {
+            if ($.isString(key)) {
+                var sdom = null;
+                var spath = null;
+                if ($.isString(b)) {
+                    if ($.isString(a)) {
+                        spath = b;
+                        sdom = a;
+                    }
+                }
+                else if ($.isString(a)) {
+                    sdom = a;
+                }
+
+                document.cookie = key + "=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT" + (sdom != null ? "; domain=" + sdom : "") + (spath != null ? "; path=" + spath : "");
+            }
+        };
+
+        share.cookie = cookie;
+        share.removeCookie = removeCookie;
+
+    })(share);
+
+    // .event .removeEvent .triggerEvent .disableEvent .enableEvent
+    // .down .up .move .click .enter .leave .wheel .keydown .keyup .keypress .change .scroll .resize
+    (function (share) {
+
+        var guid = 0;
+        var handlers = {};
+        var disabledHandlers = [];
+
+        var event = function () {
+
+            var o = share.args(arguments, "optional jquery object", "string type", "optional string/number id", "function callback", "optional boolean once", "optional function caller");
+
+            if (o) {
+                if (o.object != null) {
+                    if (o.type == "down" || o.type == "up" || o.type == "move" || o.type == "click" ||
+                        o.type == "enter" || o.type == "leave" || o.type == "over" || o.type == "out" ||
+                        o.type == "wheel" || o.type == "scroll" ||
+                        o.type == "keydown" || o.type == "keyup" || o.type == "keypress" ||
+                        o.type == "change" || o.type == "resize" ||
+                        o.type == "focusin" || o.type == "focusout" ||
+                        o.type == "position"
+                        ) {
+
+                        var so = o.object;
+                        var id = null;
+                        var newHandle;
+
+                        if (o.id != null) {
+                            if (disabledHandlers.indexOf(o.id) > -1) { // we're going to enable again
+                                newHandle = false;
+                                id = o.id;
+                            }
+                            else if ($.isUndefined(handlers[o.id]) || $.isNull(handlers[o.id])) { // new handler with specified id
+                                newHandle = true;
+                                id = o.id;
+                            }
+                            else {
+                                newHandle = true;
+                                id = null;
+                            }
+                        }
+                        else newHandle = true;
+
+                        if (id == null && newHandle) {
+                            guid = share.lookup(guid, handlers);
+                            id = guid;
+                        }
+
+                        var handle = { type: o.type, object: so, tag: null, once: o.once, callback: o.callback };
+
+                        if (newHandle) {
+                            handlers[id] = handle;
+                        }
+
+                        if (o.type == "down") {
+                            if (Modernizr.touchevents) {
+                                so.on("touchstart." + id + ".event.share", function (event) {
+                                    var pev = pointingEvent(true, event, 1);
+                                    if (o.once) removeEvent(id);
+                                    var ev = o.callback.call(o.caller, pev);
+                                    return ev;
+                                });
+                            }
+                            else {
+                                so.on("mousedown." + id + ".event.share", function (event) {
+                                    var pev = pointingEvent(false, event, 1);
+                                    if (o.once) removeEvent(id);
+                                    var ev = o.callback.call(o.caller, pev);
+                                    return ev;
+                                });
+                            }
+                        }
+                        else if (o.type == "up") {
+                            if (Modernizr.touchevents) {
+                                so.on("touchend." + id + ".event.share", function (event) {
+                                    var pev = pointingEvent(true, event, 2);
+                                    if (o.once) removeEvent(id);
+                                    var ev = o.callback.call(o.caller, pev);
+                                    return ev;
+                                });
+                            }
+                            else {
+                                so.on("mouseup." + id + ".event.share", function (event) {
+                                    var pev = pointingEvent(false, event, 2);
+                                    if (o.once) removeEvent(id);
+                                    var ev = o.callback.call(o.caller, pev);
+                                    return ev;
+                                });
+                            }
+                        }
+                        else if (o.type == "move") {
+                            if (Modernizr.touchevents) {
+                                so.on("touchmove." + id + ".event.share", function (event) {
+                                    var pev = pointingEvent(true, event, 3);
+                                    if (o.once) removeEvent(id);
+                                    var ev = o.callback.call(o.caller, pev);
+                                    return ev;
+                                });
+                            }
+                            else {
+                                so.on("mousemove." + id + ".event.share", function (event) {
+                                    var pev = pointingEvent(false, event, 3);
+                                    if (o.once) removeEvent(id);
+                                    var ev = o.callback.call(o.caller, pev);
+                                    return ev;
+                                });
+                            }
+                        }
+                        else if (o.type == "click") {
+                            if (Modernizr.touchevents) {
+                                so.on("tap." + id + ".event.share", function (event) {
+                                    var pev = pointingEvent(true, event, 7);
+                                    if (o.once) removeEvent(id);
+                                    var ev = o.callback.call(o.caller, pev);
+                                    return ev;
+                                });
+                            }
+                            else {
+                                so.on("click." + id + ".event.share", function (event) {
+                                    var pev = pointingEvent(false, event, 7);
+                                    if (o.once) removeEvent(id);
+                                    var ev = o.callback.call(o.caller, pev);
+                                    return ev;
+                                });
+                            }
+                        }
+                        else if (o.type == "enter") {
+                            so.on("mouseenter." + id + ".event.share", function (event) {
+                                var pev = pointingEvent(false, event, 4);
+                                if (o.once) removeEvent(id);
+                                var ev = o.callback.call(o.caller, pev);
+                                return ev;
+                            });
+                        }
+                        else if (o.type == "leave") {
+                            so.on("mouseleave." + id + ".event.share", function (event) {
+                                var pev = pointingEvent(false, event, 5);
+                                if (o.once) removeEvent(id);
+                                var ev = o.callback.call(o.caller, pev);
+                                return ev;
+                            });
+                        }
+                        else if (o.type == "over") {
+                            so.on("mouseover." + id + ".event.share", function (event) {
+                                var pev = pointingEvent(false, event, 8);
+                                if (o.once) removeEvent(id);
+                                var ev = o.callback.call(o.caller, pev);
+                                return ev;
+                            });
+                        }
+                        else if (o.type == "out") {
+                            so.on("mouseout." + id + ".event.share", function (event) {
+                                var pev = pointingEvent(false, event, 9);
+                                if (o.once) removeEvent(id);
+                                var ev = o.callback.call(o.caller, pev);
+                                return ev;
+                            });
+                        }
+                        else if (o.type == "wheel") {
+                            so.on("mousewheel." + id + ".event.share", function (event, delta, deltaX, deltaY) {
+                                var pev = pointingEvent(false, event, 6, delta, deltaX, deltaY);
+                                if (o.once) removeEvent(id);
+                                var ev = o.callback.call(o.caller, pev);
+                                return ev;
+                            });
+                        }
+                        else if (o.type == "scroll") {
+                            so.on("scroll." + id + ".event.share", function (event) {
+                                var pev = scrollEvent(event);
+                                if (o.once) removeEvent(id);
+                                var ev = o.callback.call(o.caller, pev);
+                                return ev;
+                            });
+                        }
+                        else if (o.type == "keydown") {
+                            so.on("keydown." + id + ".event.share", function (event) {
+                                var pev = keyboardEvent(event, 1);
+                                var ev = o.callback.call(o.caller, pev);
+                                return ev;
+                            });
+                        }
+                        else if (o.type == "keyup") {
+                            so.on("keyup." + id + ".event.share", function (event) {
+                                var pev = keyboardEvent(event, 2);
+                                if (o.once) removeEvent(id);
+                                var ev = o.callback.call(o.caller, pev);
+                                return ev;
+                            });
+                        }
+                        else if (o.type == "keypress") {
+                            so.on("keypress." + id + ".event.share", function (event) {
+                                var pev = keyboardEvent(event, 3);
+                                if (o.once) removeEvent(id);
+                                var ev = o.callback.call(o.caller, pev);
+                                return ev;
+                            });
+                        }
+                        else if (o.type == "change") {
+                            so.on("change." + id + ".event.share", function (event) {
+                                var pev = formEvent(event, 1);
+                                if (o.once) removeEvent(id);
+                                var ev = o.callback.call(o.caller, pev);
+                                return ev;
+                            });
+                        }
+                        else if (o.type == "focusin") {
+                            so.on("focusin." + id + ".event.share", function (event) {
+                                var pev = focusEvent(event, 1);
+                                if (o.once) removeEvent(id);
+                                var ev = o.callback.call(o.caller, pev);
+                                return ev;
+                            });
+                        }
+                        else if (o.type == "focusout") {
+                            so.on("focusout." + id + ".event.share", function (event) {
+                                var pev = focusEvent(event, 2);
+                                if (o.once) removeEvent(id);
+                                var ev = o.callback.call(o.caller, pev);
+                                return ev;
+                            });
+                        }
+                        else if (o.type == "resize") {
+                            $.each(so, function (i, v) {
+                                var obj = $(v);
+                                var dom = obj.get(0);
+                                var data = obj.data("share.event.resize.data");
+
+                                if (data == undefined) {
+                                    var lw = parseInt(window.getComputedStyle(dom, null)["width"]);
+                                    var lh = parseInt(window.getComputedStyle(dom, null)["height"]);
+                                    data = {
+                                        width: isNaN(lw) ? -1 : lw,
+                                        height: isNaN(lh) ? -1 : lh,
+                                        instance: 1,
+                                        window: null,
+                                        observer: null,
+                                        targets: []
+                                    };
+                                    obj.data("share.event.resize.data", data);
+
+                                    resizeTraverse(obj, obj);
+                                }
+                                else {
+                                    data.instance = data.instance + 1;
+                                }
+                            });
+                            so.on("_resize." + id + ".event.share", function (event, width, height, lastWidth, lastHeight) {
+                                var pev = resizeEvent(event, width, height, lastWidth, lastHeight);
+                                if (o.once) removeEvent(id);
+                                var ev = o.callback.call(o.caller, pev);
+                                event.stopPropagation();
+                                return ev;
+                            });
+                        }
+                        else if (o.type == "position") {
+                            $.each(so, function (i, v) {
+                                var obj = $(v);
+                                var dom = obj.get(0);
+                                var data = obj.data("share.event.position.data");
+
+                                if (data == undefined) {
+                                    var ll = parseInt(window.getComputedStyle(dom, null)["left"]);
+                                    var lt = parseInt(window.getComputedStyle(dom, null)["top"]);
+                                    data = {
+                                        left: isNaN(ll) ? 0 : ll,
+                                        top: isNaN(lt) ? 0 : lt,
+                                        instance: 1,
+                                        observer: new MutationObserver(function (mutations) {
+                                            var ol = data.left;
+                                            var ot = data.top;
+                                            var cl = parseInt(window.getComputedStyle(dom, null)["left"]);
+                                            var ct = parseInt(window.getComputedStyle(dom, null)["top"]);
+                                            if (isNaN(cl)) cl = 0;
+                                            if (isNaN(ct)) ct = 0;
+                                            data.left = cl;
+                                            data.top = ct;
+                                            if (ol != cl || ot != ct) {
+                                                obj.trigger("_position", [cl, ct, ol, ot]);
+                                            }
+                                        }),
+                                    };
+                                    obj.data("share.event.position.data", data);
+                                }
+                                else {
+                                    data.instance = data.instance + 1;
+                                }
+                                data.observer.observe(dom, { attributes: true });
+                            });
+                            so.on("_position." + id + ".event.share", function (event, left, top, lastLeft, lastTop) {
+                                var pev = positionEvent(event, left, top, lastLeft, lastTop);
+                                if (o.once) removeEvent(id);
+                                var ev = o.callback.call(o.caller, pev);
+                                event.stopPropagation();
+                                return ev;
+                            });
+                        }
+
+                        return id;
+                    }
+                }
+                else {
+                    if (o.type == "change" || o.type == "resize") // o.object required
+                        return null;
+                    else
+                        return event($.window, o.type, o.id, o.callback, o.once);
+                }
+            }
+        };
+
+        function resizeTraverse(cobj, oobj) {
+
+            var cdom = cobj.get(0);
+            var data = oobj.data("share.event.resize.data");
+
+            data.targets.push(cdom);
+
+            if (sizeChangedParentResized(cdom)) {
+                resizeTraverse(cobj.parent(), oobj);
+            }
+            else {
+                var observerOptions = { attributes: true, childList: true, characterData: true, subtree: true };
+
+                if (data.observer == null) {
+                    data.observer = new MutationObserver(function (mutations) {
+                        var trigger = false;
+                        var lid = data.targets.length;
+                        var xid = [];
+
+                        $.each(mutations, function (i, mutation) {
+                            if (mutation.type == "characterData"
+                                || mutation.type == "childList"
+                                || mutation.type == "attributes"
+                                ) trigger = true;
+                            var did = data.targets.indexOf(mutation.target);
+                            if (did > -1 && xid.indexOf(did) == -1) xid.push(did);
+                        });
+
+                        xid.sort(function (a, b) { return a - b; });
+
+                        $.each(xid, function (i, did) {
+                            trigger = true;
+
+                            var mdom = data.targets[did];
+                            var mobj = $(mdom);
+
+                            if (!sizeChangedParentResized(mdom)) {
+                                if (did < lid - 1) {
+                                    data.observer.disconnect();
+                                    data.targets.splice(did + 1, Number.MAX_VALUE);
+                                    data.observer.observe(mdom, observerOptions);
+                                    if (data.window != null) {
+                                        $$.removeResize(data.window);
+                                    }
+                                    return false;
+                                }
+                            }
+                            else {
+                                if (did == lid - 1) {
+                                    data.observer.disconnect();
+                                    resizeTraverse(mobj.parent(), oobj);
+                                    return false;
+                                }
+                            }
+                        });
+
+                        if (trigger) resizeTrigger(oobj);
+                    });
+                }
+                data.observer.observe(cdom, observerOptions);
+
+                if (cobj.hasClass("_PG")) {
+                    if (data.window != null) {
+                        $$.removeResize(data.window);
+                    }
+                    data.window = $$.resize(function (v) {
+                        if (v != null) resizeTrigger(oobj);
+                    });
+                }
+            }
+
+        };
+        function resizeTrigger(obj) {
+            var dom = obj.get(0);
+            var data = obj.data("share.event.resize.data");
+
+            if (data != undefined && obj.is(":visible")) {
+                var lw = data.width;
+                var lh = data.height;
+                var cw = parseInt(window.getComputedStyle(dom, null)["width"]);
+                var ch = parseInt(window.getComputedStyle(dom, null)["height"]);
+                if (cw < 0 || isNaN(cw)) cw = 0;
+                if (ch < 0 || isNaN(ch)) ch = 0;
+                data.width = cw;
+                data.height = ch;
+                if (lw != cw || lh != ch) {
+                    obj.trigger("_resize", [cw, ch, lw, lh]);
+                }
+            }
+        };
+        function sizeChangedParentResized(dom) {
+
+            if (dom.className == "_PG") return false;
+
+            //debug(dom.className);
+
+            var po = (dom.style.position + "").toLowerCase();
+            var pw = (dom.style.width + "");
+            var ph = (dom.style.height + "");
+            var pt = (dom.style.top + "");
+            var pb = (dom.style.bottom + "");
+            var pl = (dom.style.left + "");
+            var pr = (dom.style.right + "");
+
+            if (
+                (pw.indexOf("%") > -1) || (ph.indexOf("%") > -1) ||
+                (pr != "" && pw == "") || (pb != "" && ph == "") ||
+                //(pt != "" && pb != "" && ph == "") || (pl != "" && pr != "" && pw == "") ||
+                (po == "relative" && pw == "")
+               ) {
+                return true;
+            }
+            else {
+                return false;
+            }
+        };
+
+        var deleteEvent = function () {
+            var o = arguments;
+
+            if ($.isNumber(o[0]) || $.isString(o[0])) {
+                var id = o[0];
+                var handle = handlers[id];
+
+                if (handle.type == "resize") {
+                    $.each(handle.object, function (i, v) {
+                        var obj = $(v);
+                        var data = obj.data("share.event.resize.data");
+
+                        if (data != undefined) {
+                            var instance = data.instance;
+
+                            if (instance > 0) instance--;
+
+                            if (instance == 0) {
+                                if (data.window != null)
+                                    $$.removeResize(data.window);
+                                if (data.observer != null) {
+                                    data.observer.disconnect();
+                                    data.observer = null;
+                                }
+                                data = null;
+                                obj.removeData("share.event.resize.data");
+                            }
+
+                        }
+                    });
+                }
+                else if (handle.type == "position") {
+                    $.each(handle.object, function (i, v) {
+                        var obj = $(v);
+                        var data = obj.data("share.event.position.data");
+
+                        if (data != undefined) {
+                            var instance = data.instance;
+
+                            if (instance > 0) instance--;
+
+                            if (instance == 0) {
+                                if (data.observer != null) {
+                                    data.observer.disconnect();
+                                    data.observer = null;
+                                }
+                                data = null;
+                                obj.removeData("share.event.position.data");
+                            }
+
+                        }
+                    });
+                }
+                handle.object.off("." + id + ".event.share");
+            }
+        };
+        var removeEvent = function () {
+            var o = arguments;
+
+            if ($.isNumber(o[0]) || $.isString(o[0])) {
+                var id = o[0];
+                if (!$.isUndefined(handlers[id])) {
+                    var handle = handlers[id];
+                    deleteEvent(id);
+                    delete handlers[id];
+                }
+            }
+            else if ($.isArray(o[0])) {
+                $.each(o[0], function (i, v) {
+                    removeEvent(v);
+                });
+            }
+        };
+        var disableEvent = function () {
+            var o = arguments;
+
+            if ($.isNumber(o[0]) || $.isString(o[0])) {
+                var id = o[0];
+                if (!$.isUndefined(handlers[id]) && disabledHandlers.indexOf(id) == -1) {
+                    disabledHandlers.push(id);
+                    deleteEvent(id);
+                }
+            }
+            else if ($.isArray(o[0])) {
+                $.each(o[0], function (i, v) {
+                    disableEvent(v);
+                });
+            }
+        };
+        var enableEvent = function () {
+            var o = arguments;
+
+            if ($.isNumber(o[0]) || $.isString(o[0])) {
+                var id = o[0];
+                var did = disabledHandlers.indexOf(id);
+
+                if (!$.isUndefined(handlers[id]) && did > -1) {
+                    var handle = handlers[id];
+                    event(handle.object, handle.type, id, handle.callback, handle.once);
+                    disabledHandlers.splice(did, 1);
+                }
+            }
+            else if ($.isArray(o[0])) {
+                $.each(o[0], function (i, v) {
+                    enableEvent(v);
+                });
+            }
+        };
+        var triggerEvent = function () {
+            var o = arguments;
+
+            if ($.isNumber(o[0]) || $.isString(o[0])) {
+                var id = o[0];
+
+                if (!$.isUndefined(handlers[id]) && disabledHandlers.indexOf(id) == -1) {
+                    var handle = handlers[id];
+
+                    if (handle.type == "resize") {
+                        handle.object.trigger("_resize", o[1]);
+                    }
+                }
+            }
+            else if ($.isArray(o[0])) {
+                $.each(o[0], function (i, v) {
+                    triggerEvent(v);
+                });
+            }
+        };
+        var getEventHandle = function () {
+            var o = arguments;
+            if ($.isNumber(o[0]) || $.isString(o[0])) {
+                var id = o[0];
+                if (!$.isUndefined(handlers[id])) {
+                    var handle = handlers[id];
+                    return handle;
+                }
+            }
+        };
+
+        var down = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return event(o[0], "down", o[1], o[2], o[3]);
+            else
+                return event("down", o[0], o[1], o[2]);
+        };
+        var up = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return event(o[0], "up", o[1], o[2], o[3]);
+            else {
+                return event("up", o[0], o[1], o[2]);
+            }
+        };
+        var press = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return [
+                    down(o[0], null, o[1], o[3]),
+                    up(o[0], null, o[2], o[3])
+                ];
+            else
+                return [
+                    down(null, o[0], o[2]),
+                    up(null, o[1], o[2])
+                ];
+        };
+        var move = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return event(o[0], "move", o[1], o[2], o[3]);
+            else
+                return event("move", o[0], o[1], o[2]);
+        };
+        var click = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return event(o[0], "click", o[1], o[2], o[3]);
+            else
+                return event("click", o[0], o[1], o[2]);
+        };
+        var enter = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return event(o[0], "enter", o[1], o[2], o[3]);
+            else
+                return event("enter", o[0], o[1], o[2]);
+        };
+        var leave = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return event(o[0], "leave", o[1], o[2], o[3]);
+            else
+                return event("leave", o[0], o[1], o[2]);
+        };
+        var over = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return event(o[0], "over", o[1], o[2], o[3]);
+            else
+                return event("over", o[0], o[1], o[2]);
+        };
+        var out = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return event(o[0], "out", o[1], o[2], o[3]);
+            else
+                return event("out", o[0], o[1], o[2]);
+        };
+        var hover = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return [
+                    enter(o[0], null, o[1], o[3]),
+                    leave(o[0], null, o[2], o[3])
+                ];
+            else
+                return [
+                    enter(null, o[0], o[2]),
+                    leave(null, o[1], o[2])
+                ];
+        };
+        var wheel = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return event(o[0], "wheel", o[1], o[2], o[3]);
+            else
+                return event("wheel", o[0], o[1], o[2]);
+        };
+        var keydown = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return event(o[0], "keydown", o[1], o[2], o[3]);
+            else
+                return event("keydown", o[0], o[1], o[2]);
+        };
+        var keyup = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return event(o[0], "keyup", o[1], o[2], o[3]);
+            else
+                return event("keyup", o[0], o[1], o[2]);
+        };
+        var keypress = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return event(o[0], "keypress", o[1], o[2], o[3]);
+            else
+                return event("keypress", o[0], o[1], o[2]);
+        };
+        var change = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return event(o[0], "change", o[1], o[2], o[3]);
+            else
+                return event("change", o[0], o[1], o[2]);
+        };
+        var scroll = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return event(o[0], "scroll", o[1], o[2], o[3]);
+            else
+                return event("scroll", o[0], o[1], o[2]);
+        };
+        var focusin = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return event(o[0], "focusin", o[1], o[2], o[3]);
+            else
+                return event("focusin", o[0], o[1], o[2]);
+        };
+        var focusout = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return event(o[0], "focusout", o[1], o[2], o[3]);
+            else
+                return event("focusout", o[0], o[1], o[2]);
+        };
+
+        // 1: down, 2: up, 3: move, 7: click
+        // 4: enter, 5: leave, 8: over, 9: out
+        // 6: wheel
+        function pointingEvent(touch, event, type, a1, a2, a3) {
+            var o = {
+                x: null, y: null, touches: [], isTouch: false, id: null,
+                button: null, // 1: left, 2: middle, 3: right
+                preventDefault: function () {
+                    event.preventDefault();
+                },
+                stopPropagation: function () {
+                    event.stopPropagation();
+                },
+                stopImmediatePropagation: function () {
+                    event.stopImmediatePropagation();
+                },
+                isPropagationStopped: function () {
+                    return event.isPropagationStopped();
+                },
+                isImmediatePropagationStopped: function () {
+                    return event.isImmediatePropagationStopped();
+                },
+            };
+
+            if (!touch) {
+                o.x = event.pageX;
+                o.y = event.pageY;
+
+                if (type == 6) {
+                    o.delta = a1;
+                    o.deltaX = a2;
+                    o.deltaY = a3;
+                }
+                else if (type == 1 || type == 2 || type == 3 || type == 7) {
+                    o.button = event.which;
+                }
+            }
+            else {
+                o.isTouch = true;
+                //event.preventDefault();
+
+                var ct = event.originalEvent.changedTouches;
+                var t = event.originalEvent.touches;
+
+                $.each(t, function (cti, ctv) {
+                    o.touches.push({
+                        x: ctv.pageX,
+                        y: ctv.pageY,
+                        id: ctv.identifier
+                    });
+                });
+
+                if (type != 3 || ct.length == 1) {
+                    o.x = ct[0].pageX;
+                    o.y = ct[0].pageY;
+                    o.id = ct[0].identifier;
+                }
+            }
+
+            return o;
+        };
+
+        // 1: keydown, 2: keyup, 3: keypress
+        function keyboardEvent(event, type) {
+            var o = {
+                key: event.which,
+                shift: event.shiftKey,
+                ctrl: event.ctrlKey,
+                alt: event.altKey,
+                event: event,
+                preventDefault: function () {
+                    event.preventDefault();
+                }
+            };
+
+            return o;
+        };
+
+        // 1: change
+        function formEvent(event, type) {
+            var o = {};
+            return o;
+        };
+
+        // scroll
+        function scrollEvent(event) {
+            var el = $(event.currentTarget);
+            var o = {
+                top: el.scrollTop(),
+                left: el.scrollLeft(),
+                width: el.width(),
+                height: el.height()
+            };
+            return o;
+        };
+
+        // resize
+        function resizeEvent(event, width, height, lastWidth, lastHeight) {
+            var o = {
+                width: width,
+                height: height,
+                lastWidth: lastWidth,
+                lastHeight: lastHeight,
+                widthChanged: width != lastWidth,
+                heightChanged: height != lastHeight
+            };
+
+            return o;
+        };
+
+        // position
+        function positionEvent(event, left, top, lastLeft, lastTop) {
+            var o = {
+                left: left,
+                top: top,
+                lastLeft: lastLeft,
+                lastTop: lastTop,
+                leftChanged: left != lastLeft,
+                topChanged: top != lastTop
+            };
+
+            return o;
+        };
+
+        // focus 1: in 2: out
+        function focusEvent(event, type) {
+            var o = {
+                type: type == 1 ? "in" : "out"
+            };
+            return o;
+        };
+
+        // mutation
+        function mutationEvent(event) {
+            var o = {
+
+            };
+            return o;
+        };
+
+        share.event = event;
+        share.removeEvent = removeEvent;
+        share.disableEvent = disableEvent;
+        share.enableEvent = enableEvent;
+        share.triggerEvent = triggerEvent;
+        share.getEventHandle = getEventHandle;
+
+        share.down = down;
+        share.up = up;
+        share.press = press;
+        share.move = move;
+        share.click = click;
+        share.enter = enter;
+        share.leave = leave;
+        share.over = over;
+        share.out = out;
+        share.hover = hover;
+        share.wheel = wheel;
+        share.keydown = keydown;
+        share.keyup = keyup;
+        share.keypress = keypress;
+        share.change = change;
+        share.scroll = scroll;
+        share.focusin = focusin;
+        share.focusout = focusout;
+
+    })(share);
+
+    // .stream .removeStream .isStreamAvailable
+    (function (share) {
+
+        var version = null;
+
+        var guid = 0;
+        var handlers = {};
+        var portal = {};
+        var streamDomain;
+        var streamPath;
+        var instance;
+        var isAvailable = -1;
+        var isAvailable_ = -1;
+
+        var serverRegisters = [];
+        var registers = [];
+
+        var timeToUpdate = 200;
+        var timeOutID;
+
+        var stream = function (callback) {
+            if ($.isFunction(callback)) {
+                guid = share.lookup(guid, handlers);
+                handlers[guid] = callback;
+                return guid;
+            }
+        };
+        var removeStream = function (id) {
+            if (id == null) return;
+            if (!$.isUndefined(handlers[id])) {
+                delete handlers[id];
+            }
+        };
+        var isStreamAvailable = function () {
+            return isAvailable == 1;
+        };
+        var register = function (s) {
+            if (arguments.length > 1) {
+                $.each(arguments, function (ia, va) {
+                    register(va);
+                });
+            }
+            else if ($.isArray(s)) {
+                $.each(s, function (is, vs) {
+                    register(vs);
+                });
+            }
+            else if ($.isString(s)) {
+                if (registers.indexOf(s) == -1) {
+                    clearTimeout(timeOutID);
+                    registers.push(s);
+                    timeOutID = setTimeout(updateRegister, timeToUpdate);
+                }
+            }
+        };
+        var removeRegister = function (s) {
+            if (arguments.length > 1) {
+                $.each(arguments, function (ia, va) {
+                    removeRegister(va);
+                });
+            }
+            else if ($.isArray(s)) {
+                $.each(s, function (is, vs) {
+                    removeRegister(vs);
+                });
+            }
+            else if ($.isString(s)) {
+                var idx = registers.indexOf(s);
+                if (idx > -1) {
+                    clearTimeout(timeOutID);
+                    registers.splice(idx, 1);
+                    timeOutID = setTimeout(updateRegister, timeToUpdate);
+                }
+            }
+        };
+
+        function updateRegister() {
+            if (isStreamAvailable()) {
+
+                var registerAdd = $$.diff(registers, serverRegisters);
+                var registerRemove = $$.diff(serverRegisters, registers);
+
+                var modifications = [];
+
+                if (registerRemove.length > 0) {
+                    $.each(registerRemove, function (ir, vr) {
+                        modifications.push("-" + vr);
+                    });
+                }
+                if (registerAdd.length > 0) {
+                    $.each(registerAdd, function (ir, vr) {
+                        modifications.push(vr);
+                    });
+                }
+
+                if (modifications.length > 0)
+                    $$.post(10, { x: modifications.join() });
+
+                serverRegisters = registers.slice();
+            }
+        };
+        function start() {
+            isAvailable = -1;
+            instance = portal.open("", {
+                credentials: true,
+                transports: ["streamxhr"],
+                urlBuilder: function () {
+                    var urlHead = share.protocol() + "://" + streamDomain;
+                    return urlHead + streamPath + "?c=" + share.client() + "&_=" + share.date().getTime();
+                },
+                sharing: false,
+                streamParser: function (chunk) {
+                    if (chunk == "") return [];
+                    var lines = chunk.split("\n");
+                    if (lines.length == 0) return [];
+                    var relines = [];
+                    for (var il = 0; il < lines.length; il++) {
+                        var line;
+                        if (lines[il] == "") continue;
+                        if (lines[il].startsWith("for(;;); ")) line = lines[il].substr(9);
+                        else line = lines[il];
+                        if (line != "") relines.push(line);
+                    }
+                    return relines;
+                },
+                inbound: function (line) {
+                    if (line == "" || line == null) return;
+                    var data = JSON.parse(line);
+
+                    if (data) {
+                        var type = data.t;
+                        var obj = data.d;
+
+                        if (type == "heartbeat") {
+                            var ver = data.v;
+                            if (version == null) version = ver;
+                            else {
+                                if (version != ver) {
+                                    $.each(handlers, function (i, v) {
+                                        v("update");
+                                    });
+                                }
+                            }
+                        }
+                        else {
+                            if (type == "available") {
+
+                                isAvailable = 1;
+                                if (isAvailable_ != isAvailable) {
+
+                                    // send all registers to server
+                                    if (registers.length > 0) {
+                                        $$.post(11, { x: registers.join() });
+                                        serverRegisters = registers.slice();
+                                    }
+
+                                    isAvailable_ = 1;
+                                    $.each(handlers, function (i, v) {
+                                        if ($.isFunction(v)) v("online");
+                                    });
+                                }
+                            }
+                            else if (type == "unavailable" || type == "disconnected" || type == "pageend") {
+
+                                instance.close();
+                                instance = null;
+
+                                isAvailable = 0;
+                                if (isAvailable_ != isAvailable) {
+
+                                    serverRegisters = [];
+
+                                    isAvailable_ = 0
+                                    $.each(handlers, function (i, v) {
+                                        if ($.isFunction(v)) v("offline");
+                                    });
+                                }
+
+                                if (type == "unavailable" || type == "disconnected")
+                                    setTimeout(start, 5000); // try again
+                            }
+                            else {
+                                if (type == "updatestreamdomain") {
+                                    streamDomain = obj;
+                                }
+                                else if (type == "ping") {
+                                }
+                                else if (type == "continue") {
+                                }
+                                else if (type == "chat") {
+                                }
+                                else {
+                                    $.each(handlers, function (i, v) {
+                                        if ($.isFunction(v)) v(type, obj);
+                                    });
+                                }
+                            }
+                        }
+                    }
+                },
+                outbound: function (event) {
+                }
+            });
+        };
+
+        share.stream = stream;
+        share.removeStream = removeStream;
+        share.isStreamAvailable = isStreamAvailable;
+        share.register = register;
+        share.removeRegister = removeRegister;
+
+        $(function () {
+            streamDomain = share.system("streamDomain");
+            streamPath = share.system("streamPath");
+            if (streamDomain != null) {
+                share.unload(function () { if (instance != null) instance.close(); });
+                setTimeout(start, 500);
+            }
+        });
+
+        (function (portal) {
+            // Portal 1.0 http://github.com/flowersinthesand/portal - modded -> removing some common functions
+            "use strict";
+
+            var // A global identifier
+                guid,
+                // Is the unload event being processed?
+                unloading,
+                // Socket instances
+                sockets = {},
+                // Callback names for JSONP
+                jsonpCallbacks = [],
+                // Core prototypes
+                toString = Object.prototype.toString,
+                hasOwn = Object.prototype.hasOwnProperty,
+                slice = Array.prototype.slice;
+
+            // Convenience utilities
+            // Most utility functions are borrowed from jQuery
+            portal.support = {
+                getAbsoluteURL: function (url) {
+                    var div = document.createElement("div");
+
+                    // Uses an innerHTML property to obtain an absolute URL
+                    div.innerHTML = '<a href="' + url + '"/>';
+
+                    // encodeURI and decodeURI are needed to normalize URL between IE and non-IE, 
+                    // since IE doesn't encode the href property value and return it - http://jsfiddle.net/Yq9M8/1/
+                    return encodeURI(decodeURI(div.firstChild.href));
+                },
+                iterate: function (fn) {
+                    var timeoutId;
+
+                    // Though the interval is 1ms for real-time application, there is a delay between setTimeout calls
+                    // For detail, see https://developer.mozilla.org/en/window.setTimeout#Minimum_delay_and_timeout_nesting
+                    (function loop() {
+                        timeoutId = setTimeout(function () {
+                            if (fn() === false) {
+                                return;
+                            }
+
+                            loop();
+                        }, 1);
+                    })();
+
+                    return function () {
+                        clearTimeout(timeoutId);
+                    };
+                },
+                extend: function (target) {
+                    var i, options, name;
+
+                    for (i = 1; i < arguments.length; i++) {
+                        if ((options = arguments[i]) != null) {
+                            for (name in options) {
+                                target[name] = options[name];
+                            }
+                        }
+                    }
+
+                    return target;
+                },
+                param: function (params) {
+                    var prefix,
+                        s = [];
+
+                    function add(key, value) {
+                        value = $.isFunction(value) ? value() : (value == null ? "" : value);
+                        s.push(encodeURIComponent(key) + "=" + encodeURIComponent(value));
+                    }
+
+                    function buildParams(prefix, obj) {
+                        var name;
+
+                        if ($.isArray(obj)) {
+                            $.each(obj, function (i, v) {
+                                if (/\[\]$/.test(prefix)) {
+                                    add(prefix, v);
+                                } else {
+                                    buildParams(prefix + "[" + (typeof v === "object" ? i : "") + "]", v);
+                                }
+                            });
+                        } else if (toString.call(obj) === "[object Object]") {
+                            for (name in obj) {
+                                buildParams(prefix + "[" + name + "]", obj[name]);
+                            }
+                        } else {
+                            add(prefix, obj);
+                        }
+                    }
+
+                    for (prefix in params) {
+                        buildParams(prefix, params[prefix]);
+                    }
+
+                    return s.join("&").replace(/%20/g, "+");
+                },
+                xhr: function () {
+                    try {
+                        return new window.XMLHttpRequest();
+                    } catch (e1) {
+                        try {
+                            return new window.ActiveXObject("Microsoft.XMLHTTP");
+                        } catch (e2) { }
+                    }
+                },
+                browser: {},
+                storage: !!(window.localStorage && window.StorageEvent)
+            };
+            portal.support.corsable = "withCredentials" in portal.support.xhr();
+            guid = share.date();
+
+            // Browser sniffing
+            (function () {
+                var ua = navigator.userAgent.toLowerCase(),
+                    match = /(chrome)[ \/]([\w.]+)/.exec(ua) ||
+                        /(webkit)[ \/]([\w.]+)/.exec(ua) ||
+                        /(opera)(?:.*version|)[ \/]([\w.]+)/.exec(ua) ||
+                        /(msie) ([\w.]+)/.exec(ua) ||
+                        ua.indexOf("compatible") < 0 && /(mozilla)(?:.*? rv:([\w.]+)|)/.exec(ua) ||
+                        [];
+
+                portal.support.browser[match[1] || ""] = true;
+                portal.support.browser.version = match[2] || "0";
+
+                // The storage event of Internet Explorer and Firefox 3 works strangely
+                if (portal.support.browser.msie || (portal.support.browser.mozilla && portal.support.browser.version.split(".")[0] === "1")) {
+                    portal.support.storage = false;
+                }
+            })();
+
+            // Finds the socket object which is mapped to the given url
+            portal.find = function (url) {
+                var i;
+
+                // Returns the first socket in the document
+                if (!arguments.length) {
+                    for (i in sockets) {
+                        if (sockets[i]) {
+                            return sockets[i];
+                        }
+                    }
+                    return null;
+                }
+
+                // The url is a identifier of this socket within the document
+                return sockets[portal.support.getAbsoluteURL(url)] || null;
+            };
+            // Creates a new socket and connects to the given url 
+            portal.open = function (url, options) {
+                // Makes url absolute to normalize URL
+                url = portal.support.getAbsoluteURL(url);
+                sockets[url] = socket(url, options);
+
+                return portal.find(url);
+            };
+            // Default options
+            portal.defaults = {
+                // Socket options
+                transports: ["streamxhr"],
+                timeout: false,
+                heartbeat: false,
+                lastEventId: 0,
+                sharing: false,
+                prepare: function (connect) {
+                    connect();
+                },
+                reconnect: function (lastDelay) {
+                    return 2 * (lastDelay || 250);
+                },
+                idGenerator: function () {
+                    // Generates a random UUID 
+                    // Logic borrowed from http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript/2117523#2117523
+                    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+                        var r = Math.random() * 16 | 0,
+                            v = c === "x" ? r : (r & 0x3 | 0x8);
+
+                        return v.toString(16);
+                    });
+                },
+                urlBuilder: function (url, params, when) {
+                    return url + (/\?/.test(url) ? "&" : "?") + "when=" + when + "&" + portal.support.param(params);
+                },
+                inbound: JSON.parse,
+                outbound: JSON.stringify,
+
+                // Transport options
+                credentials: false,
+                notifyAbort: false,
+                streamParser: function (chunk) {
+                    // Chunks are formatted according to the event stream format 
+                    // http://www.w3.org/TR/eventsource/#event-stream-interpretation
+                    var reol = /\r\n|[\r\n]/g, lines = [], data = this.data("data"), array = [], i = 0,
+                        match, line;
+
+                    // Strips off the left padding of the chunk
+                    // the first chunk of some streaming transports and every chunk for Android browser 2 and 3 has padding
+                    chunk = chunk.replace(/^\s+/g, "");
+
+                    // String.prototype.split is not reliable cross-browser
+                    while (match = reol.exec(chunk)) {
+                        lines.push(chunk.substring(i, match.index));
+                        i = match.index + match[0].length;
+                    }
+                    lines.push(chunk.length === i ? "" : chunk.substring(i));
+
+                    if (!data) {
+                        data = [];
+                        this.data("data", data);
+                    }
+
+                    // Processes the data field only
+                    for (i = 0; i < lines.length; i++) {
+                        line = lines[i];
+                        if (!line) {
+                            // Finish
+                            array.push(data.join("\n"));
+                            data = [];
+                            this.data("data", data);
+                        } else if (/^data:\s/.test(line)) {
+                            // A single data field
+                            data.push(line.substring("data: ".length));
+                        } else {
+                            // A fragment of a data field
+                            data[data.length - 1] += line;
+                        }
+                    }
+
+                    return array;
+                },
+
+                // Undocumented
+                _heartbeat: 5000,
+                longpollTest: true
+                // method: null
+                // initIframe: null
+            };
+
+            // Callback function
+            function callbacks(deferred) {
+                var list = [],
+                    locked,
+                    memory,
+                    firing,
+                    firingStart,
+                    firingLength,
+                    firingIndex,
+                    fire = function (context, args) {
+                        args = args || [];
+                        memory = !deferred || [context, args];
+                        firing = true;
+                        firingIndex = firingStart || 0;
+                        firingStart = 0;
+                        firingLength = list.length;
+                        for (; firingIndex < firingLength; firingIndex++) {
+                            list[firingIndex].apply(context, args);
+                        }
+                        firing = false;
+                    },
+                    self = {
+                        add: function (fn) {
+                            var length = list.length;
+
+                            list.push(fn);
+                            if (firing) {
+                                firingLength = list.length;
+                            } else if (!locked && memory && memory !== true) {
+                                firingStart = length;
+                                fire(memory[0], memory[1]);
+                            }
+                        },
+                        remove: function (fn) {
+                            var i;
+
+                            for (i = 0; i < list.length; i++) {
+                                if (fn === list[i] || (fn.guid && fn.guid === list[i].guid)) {
+                                    if (firing) {
+                                        if (i <= firingLength) {
+                                            firingLength--;
+                                            if (i <= firingIndex) {
+                                                firingIndex--;
+                                            }
+                                        }
+                                    }
+                                    list.splice(i--, 1);
+                                }
+                            }
+                        },
+                        fire: function (context, args) {
+                            if (!locked && !firing && !(deferred && memory)) {
+                                fire(context, args);
+                            }
+                        },
+                        lock: function () {
+                            locked = true;
+                        },
+                        locked: function () {
+                            return !!locked;
+                        },
+                        unlock: function () {
+                            locked = memory = firing = firingStart = firingLength = firingIndex = undefined;
+                        }
+                    };
+
+                return self;
+            }
+
+            // Socket function
+            function socket(url, options) {
+                var	// Final options
+                    opts,
+                    // Transport
+                    transport,
+                    // The state of the connection
+                    state,
+                    // Event helpers
+                    events = {},
+                    eventId = 0,
+                    // Reply callbacks
+                    replyCallbacks = {},
+                    // Buffer
+                    buffer = [],
+                    // Reconnection
+                    reconnectTimer,
+                    reconnectDelay,
+                    reconnectTry,
+                    // Map of the connection-scoped values
+                    connection = {},
+                    parts = /^([\w\+\.\-]+:)(?:\/\/([^\/?#:]*)(?::(\d+))?)?/.exec(url.toLowerCase()),
+                    // Socket object
+                    self = {
+                        // Finds the value of an option
+                        option: function (key, /* undocumented */ value) {
+                            if (value === undefined) {
+                                return opts[key];
+                            }
+
+                            opts[key] = value;
+
+                            return this;
+                        },
+                        // Gets or sets a connection-scoped value
+                        data: function (key, value) {
+                            if (value === undefined) {
+                                return connection[key];
+                            }
+
+                            connection[key] = value;
+
+                            return this;
+                        },
+                        // Returns the state
+                        state: function () {
+                            return state;
+                        },
+                        // Adds event handler
+                        on: function (type, fn) {
+                            var event;
+
+                            // Handles a map of type and handler
+                            if (typeof type === "object") {
+                                for (event in type) {
+                                    self.on(event, type[event]);
+                                }
+                                return this;
+                            }
+
+                            // For custom event
+                            event = events[type];
+                            if (!event) {
+                                if (events.message.locked()) {
+                                    return this;
+                                }
+
+                                event = events[type] = callbacks();
+                                event.order = events.message.order;
+                            }
+
+                            event.add(fn);
+
+                            return this;
+                        },
+                        // Removes event handler
+                        off: function (type, fn) {
+                            var event = events[type];
+
+                            if (event) {
+                                event.remove(fn);
+                            }
+
+                            return this;
+                        },
+                        // Adds one time event handler
+                        one: function (type, fn) {
+                            function proxy() {
+                                self.off(type, proxy);
+                                fn.apply(self, arguments);
+                            }
+
+                            fn.guid = fn.guid || guid++;
+                            proxy.guid = fn.guid;
+
+                            return self.on(type, proxy);
+                        },
+                        // Fires event handlers
+                        fire: function (type) {
+                            var event = events[type];
+
+                            if (event) {
+                                event.fire(self, slice.call(arguments, 1));
+                            }
+
+                            return this;
+                        },
+                        // Establishes a connection
+                        open: function () {
+                            var type,
+                                latch,
+                                connect = function () {
+                                    var candidates, type;
+
+                                    if (!latch) {
+                                        latch = true;
+                                        candidates = connection.candidates = slice.call(opts.transports);
+                                        while (!transport && candidates.length) {
+                                            type = candidates.shift();
+                                            connection.transport = type;
+                                            connection.url = self.buildURL("open");
+                                            transport = portal.transports[type](self, opts);
+                                        }
+
+                                        // Increases the number of reconnection attempts
+                                        if (reconnectTry) {
+                                            reconnectTry++;
+                                        }
+
+                                        // Fires the connecting event and connects
+                                        if (transport) {
+                                            self.fire("connecting");
+                                            transport.open();
+                                        } else {
+                                            self.fire("close", "notransport");
+                                        }
+                                    }
+                                },
+                                cancel = function () {
+                                    if (!latch) {
+                                        latch = true;
+                                        self.fire("close", "canceled");
+                                    }
+                                };
+
+                            // Cancels the scheduled connection
+                            if (reconnectTimer) {
+                                clearTimeout(reconnectTimer);
+                            }
+
+                            // Resets the connection scope and event helpers
+                            connection = {};
+                            for (type in events) {
+                                events[type].unlock();
+                            }
+
+                            // Chooses transport
+                            transport = undefined;
+
+                            // From null or waiting state
+                            state = "preparing";
+
+                            // Check if possible to make use of a shared socket
+                            if (opts.sharing) {
+                                connection.transport = "session";
+                                transport = portal.transports.session(self, opts);
+                            }
+
+                            // Executes the prepare handler if a physical connection is needed
+                            if (transport) {
+                                connect();
+                            } else {
+                                opts.prepare.call(self, connect, cancel, opts);
+                            }
+
+                            return this;
+                        },
+                        // Sends an event to the server via the connection
+                        send: function (type, data, doneCallback, failCallback) {
+                            var event;
+
+                            // Defers sending an event until the state become opened
+                            if (state !== "opened") {
+                                buffer.push(arguments);
+                                return this;
+                            }
+
+                            // Outbound event
+                            event = {
+                                id: ++eventId,
+                                socket: opts.id,
+                                type: type,
+                                data: data,
+                                reply: !!(doneCallback || failCallback)
+                            };
+
+                            if (event.reply) {
+                                // Shared socket needs to know the callback event name 
+                                // because it fires the callback event directly instead of using reply event 
+                                if (connection.transport === "session") {
+                                    event.doneCallback = doneCallback;
+                                    event.failCallback = failCallback;
+                                } else {
+                                    replyCallbacks[eventId] = { done: doneCallback, fail: failCallback };
+                                }
+                            }
+
+                            // Delegates to the transport
+                            transport.send($.isBinary(data) ? data : opts.outbound.call(self, event));
+
+                            return this;
+                        },
+                        // Disconnects the connection
+                        close: function () {
+                            var script, head;
+
+                            // Prevents reconnection
+                            opts.reconnect = false;
+                            if (reconnectTimer) {
+                                clearTimeout(reconnectTimer);
+                            }
+
+                            // Fires the close event immediately for transport which doesn't give feedback on disconnection
+                            if (unloading || !transport || !transport.feedback) {
+                                self.fire("close", unloading ? "error" : "aborted");
+                                if (opts.notifyAbort && connection.transport !== "session") {
+                                    head = document.head || document.getElementsByTagName("head")[0] || document.documentElement;
+                                    script = document.createElement("script");
+                                    script.async = false;
+                                    script.src = self.buildURL("abort");
+                                    script.onload = script.onreadystatechange = function () {
+                                        if (!script.readyState || /loaded|complete/.test(script.readyState)) {
+                                            script.onload = script.onreadystatechange = null;
+                                            if (script.parentNode) {
+                                                script.parentNode.removeChild(script);
+                                            }
+                                        }
+                                    };
+                                    head.insertBefore(script, head.firstChild);
+                                }
+                            }
+
+                            // Delegates to the transport
+                            if (transport) {
+                                transport.close();
+                            }
+
+                            return this;
+                        },
+                        // Broadcasts event to session sockets
+                        broadcast: function (type, data) {
+                            // TODO rename
+                            var broadcastable = connection.broadcastable;
+                            if (broadcastable) {
+                                broadcastable.broadcast({ type: "fire", data: { type: type, data: data } });
+                            }
+
+                            return this;
+                        },
+                        // For internal use only
+                        // fires events from the server
+                        _fire: function (data, isChunk) {
+                            var array;
+
+                            if (isChunk) {
+                                data = opts.streamParser.call(self, data);
+                                while (data.length) {
+                                    self._fire(data.shift());
+                                }
+                                return this;
+                            }
+
+                            if ($.isBinary(data)) {
+                                array = [{ type: "message", data: data }];
+                            } else {
+                                array = opts.inbound.call(self, data);
+                                array = array == null ? [] : !$.isArray(array) ? [array] : array;
+                            }
+
+                            connection.lastEventIds = [];
+                            $.each(array, function (i, event) {
+                                var latch, args = [event.type, event.data];
+
+                                opts.lastEventId = event.id;
+                                connection.lastEventIds.push(event.id);
+                                if (event.reply) {
+                                    args.push(function (result) {
+                                        if (!latch) {
+                                            latch = true;
+                                            self.send("reply", { id: event.id, data: result });
+                                        }
+                                    });
+                                }
+
+                                self.fire.apply(self, args).fire("_message", args);
+                            });
+
+                            return this;
+                        },
+                        // For internal use only
+                        // builds an effective URL
+                        buildURL: function (when, params) {
+                            var p = when === "open" ?
+							{
+							    transport: connection.transport,
+							    heartbeat: opts.heartbeat,
+							    lastEventId: opts.lastEventId
+							} :
+                                    when === "poll" ?
+							{
+							    transport: connection.transport,
+							    lastEventIds: connection.lastEventIds && connection.lastEventIds.join(","),
+							    /* deprecated */lastEventId: opts.lastEventId
+							} :
+							{};
+
+                            portal.support.extend(p, { id: opts.id, _: guid++ }, opts.params && opts.params[when], params);
+                            return opts.urlBuilder.call(self, url, p, when);
+                        }
+                    };
+
+                // Create the final options
+                opts = portal.support.extend({}, portal.defaults, options);
+                if (options) {
+                    // Array should not be deep extended
+                    if (options.transports) {
+                        opts.transports = slice.call(options.transports);
+                    }
+                }
+                // Saves original URL
+                opts.url = url;
+                // Generates socket id,
+                opts.id = opts.idGenerator.call(self);
+                opts.crossDomain = !!(parts &&
+                    // protocol and hostname
+                    (parts[1] != location.protocol || parts[2] != location.hostname ||
+                    // port
+                    (parts[3] || (parts[1] === "http:" ? 80 : 443)) != (location.port || (location.protocol === "http:" ? 80 : 443))));
+
+                $.each(["connecting", "open", "message", "close", "waiting"], function (i, type) {
+                    // Creates event helper
+                    events[type] = callbacks(type !== "message");
+                    events[type].order = i;
+
+                    // Shortcuts for on method
+                    var old = self[type],
+                        on = function (fn) {
+                            return self.on(type, fn);
+                        };
+
+                    self[type] = !old ? on : function (fn) {
+                        return ($.isFunction(fn) ? on : old).apply(this, arguments);
+                    };
+                });
+
+                // Initializes
+                self.on({
+                    connecting: function () {
+                        // From preparing state
+                        state = "connecting";
+
+                        var timeoutTimer;
+
+                        // Sets timeout timer
+                        function setTimeoutTimer() {
+                            timeoutTimer = setTimeout(function () {
+                                transport.close();
+                                self.fire("close", "timeout");
+                            }, opts.timeout);
+                        }
+
+                        // Clears timeout timer
+                        function clearTimeoutTimer() {
+                            clearTimeout(timeoutTimer);
+                        }
+
+                        // Makes the socket sharable
+                        function share() {
+                            var traceTimer,
+                                server,
+                                name = "socket-" + url,
+                                servers = {
+                                    // Powered by the storage event and the localStorage
+                                    // http://www.w3.org/TR/webstorage/#event-storage
+                                    storage: function () {
+                                        if (!portal.support.storage) {
+                                            return;
+                                        }
+
+                                        var storage = window.localStorage;
+
+                                        return {
+                                            init: function () {
+                                                function onstorage(event) {
+                                                    // When a deletion, newValue initialized to null
+                                                    if (event.key === name && event.newValue) {
+                                                        listener(event.newValue);
+                                                    }
+                                                }
+
+                                                // Handles the storage event 
+                                                $.window.on("storage", onstorage);
+                                                self.one("close", function () {
+                                                    $.window.off("storage", onstorage);
+                                                    // Defers again to clean the storage
+                                                    self.one("close", function () {
+                                                        storage.removeItem(name);
+                                                        storage.removeItem(name + "-opened");
+                                                        storage.removeItem(name + "-children");
+                                                    });
+                                                });
+                                            },
+                                            broadcast: function (obj) {
+                                                var string = JSON.stringify(obj);
+                                                storage.setItem(name, string);
+                                                setTimeout(function () {
+                                                    listener(string);
+                                                }, 50);
+                                            },
+                                            get: function (key) {
+                                                return JSON.parse(storage.getItem(name + "-" + key));
+                                            },
+                                            set: function (key, value) {
+                                                storage.setItem(name + "-" + key, JSON.stringify(value));
+                                            }
+                                        };
+                                    },
+                                    // Powered by the window.open method
+                                    // https://developer.mozilla.org/en/DOM/window.open
+                                    windowref: function () {
+                                        // Internet Explorer raises an invalid argument error
+                                        // when calling the window.open method with the name containing non-word characters
+                                        var neim = name.replace(/\W/g, ""),
+                                            container = document.getElementById(neim),
+                                            win;
+
+                                        if (!container) {
+                                            container = document.createElement("div");
+                                            container.id = neim;
+                                            container.style.display = "none";
+                                            container.innerHTML = '<iframe name="' + neim + '" />';
+                                            document.body.appendChild(container);
+                                        }
+
+                                        win = container.firstChild.contentWindow;
+
+                                        return {
+                                            init: function () {
+                                                // Callbacks from different windows
+                                                win.callbacks = [listener];
+                                                // In IE 8 and less, only string argument can be safely passed to the function in other window
+                                                win.fire = function (string) {
+                                                    var i;
+
+                                                    for (i = 0; i < win.callbacks.length; i++) {
+                                                        win.callbacks[i](string);
+                                                    }
+                                                };
+                                            },
+                                            broadcast: function (obj) {
+                                                if (!win.closed && win.fire) {
+                                                    win.fire(JSON.stringify(obj));
+                                                }
+                                            },
+                                            get: function (key) {
+                                                return !win.closed ? win[key] : null;
+                                            },
+                                            set: function (key, value) {
+                                                if (!win.closed) {
+                                                    win[key] = value;
+                                                }
+                                            }
+                                        };
+                                    }
+                                };
+
+                            // Receives send and close command from the children
+                            function listener(string) {
+                                var command = JSON.parse(string), data = command.data;
+
+                                if (!command.target) {
+                                    if (command.type === "fire") {
+                                        self.fire(data.type, data.data);
+                                    }
+                                } else if (command.target === "p") {
+                                    switch (command.type) {
+                                        case "send":
+                                            self.send(data.type, data.data, data.doneCallback, data.failCallback);
+                                            break;
+                                        case "close":
+                                            self.close();
+                                            break;
+                                    }
+                                }
+                            }
+
+                            function propagateMessageEvent(args) {
+                                server.broadcast({ target: "c", type: "message", data: args });
+                            }
+
+                            function leaveTrace() {
+                                document.cookie = encodeURIComponent(name) + "=" +
+                                    // Opera 12.00's parseFloat and JSON.stringify causes a strange bug with a number larger than 10 digit
+                                    // JSON.stringify(parseFloat(10000000000) + 1).length === 11;
+                                    // JSON.stringify(parseFloat(10000000000 + 1)).length === 10;
+                                    encodeURIComponent(JSON.stringify({ ts: share.date() + 1, heir: (server.get("children") || [])[0] }));
+                            }
+
+                            // Chooses a server
+                            server = servers.storage() || servers.windowref();
+                            server.init();
+
+                            // For broadcast method
+                            connection.broadcastable = server;
+
+                            // List of children sockets
+                            server.set("children", []);
+                            // Flag indicating the parent socket is opened
+                            server.set("opened", false);
+
+                            // Leaves traces
+                            leaveTrace();
+                            traceTimer = setInterval(leaveTrace, 1000);
+
+                            self.on("_message", propagateMessageEvent)
+                            .one("open", function () {
+                                server.set("opened", true);
+                                server.broadcast({ target: "c", type: "open" });
+                            })
+                            .one("close", function (reason) {
+                                // Clears trace timer 
+                                clearInterval(traceTimer);
+                                // Removes the trace
+                                document.cookie = encodeURIComponent(name) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+                                // The heir is the parent unless unloading
+                                server.broadcast({ target: "c", type: "close", data: { reason: reason, heir: !unloading ? opts.id : (server.get("children") || [])[0] } });
+                                self.off("_message", propagateMessageEvent);
+                            });
+                        }
+
+                        if (opts.timeout > 0) {
+                            setTimeoutTimer();
+                            self.one("open", clearTimeoutTimer).one("close", clearTimeoutTimer);
+                        }
+
+                        // Share the socket if possible
+                        if (opts.sharing && connection.transport !== "session") {
+                            share();
+                        }
+                    },
+                    open: function () {
+                        // From connecting state
+                        state = "opened";
+
+                        var heartbeatTimer;
+
+                        // Sets heartbeat timer
+                        function setHeartbeatTimer() {
+                            heartbeatTimer = setTimeout(function () {
+                                self.send("heartbeat").one("heartbeat", function () {
+                                    clearHeartbeatTimer();
+                                    setHeartbeatTimer();
+                                });
+
+                                heartbeatTimer = setTimeout(function () {
+                                    transport.close();
+                                    self.fire("close", "error");
+                                }, opts._heartbeat);
+                            }, opts.heartbeat - opts._heartbeat);
+                        }
+
+                        // Clears heartbeat timer
+                        function clearHeartbeatTimer() {
+                            clearTimeout(heartbeatTimer);
+                        }
+
+                        if (opts.heartbeat > opts._heartbeat) {
+                            setHeartbeatTimer();
+                            self.one("close", clearHeartbeatTimer);
+                        }
+
+                        // Locks the connecting event
+                        events.connecting.lock();
+
+                        // Initializes variables related with reconnection
+                        reconnectTimer = reconnectDelay = reconnectTry = null;
+
+                        // Flushes buffer
+                        while (buffer.length) {
+                            self.send.apply(self, buffer.shift());
+                        }
+                    },
+                    close: function () {
+                        // From preparing, connecting, or opened state 
+                        state = "closed";
+
+                        var type, event, order = events.close.order;
+
+                        // Locks event whose order is lower than close event
+                        for (type in events) {
+                            event = events[type];
+                            if (event.order < order) {
+                                event.lock();
+                            }
+                        }
+
+                        // Schedules reconnection
+                        if (opts.reconnect) {
+                            self.one("close", function () {
+                                reconnectTry = reconnectTry || 1;
+                                reconnectDelay = opts.reconnect.call(self, reconnectDelay, reconnectTry);
+
+                                if (reconnectDelay !== false) {
+                                    reconnectTimer = setTimeout(function () {
+                                        self.open();
+                                    }, reconnectDelay);
+                                    self.fire("waiting", reconnectDelay, reconnectTry);
+                                }
+                            });
+                        }
+                    },
+                    waiting: function () {
+                        // From closed state
+                        state = "waiting";
+                    },
+                    reply: function (reply) {
+                        var fn,
+                            id = reply.id,
+                            data = reply.data,
+                            exception = reply.exception,
+                            callback = replyCallbacks[id];
+
+                        if (callback) {
+                            fn = exception ? callback.fail : callback.done;
+                            if (fn) {
+                                if ($.isFunction(fn)) {
+                                    fn.call(self, data);
+                                } else {
+                                    self.fire(fn, data).fire("_message", [fn, data]);
+                                }
+
+                                delete replyCallbacks[id];
+                            }
+                        }
+                    }
+                });
+
+                return self.open();
+            }
+
+            // Transports
+            portal.transports = {
+                // HTTP Support
+                httpbase: function (socket, options) {
+                    var send,
+                        sending,
+                        queue = [];
+
+                    function post() {
+                        if (queue.length) {
+                            send(options.url, queue.shift());
+                        } else {
+                            sending = false;
+                        }
+                    }
+
+                    // The Content-Type is not application/x-www-form-urlencoded but text/plain on account of XDomainRequest
+                    // See the fourth at http://blogs.msdn.com/b/ieinternals/archive/2010/05/13/xdomainrequest-restrictions-limitations-and-workarounds.aspx
+                    send = !options.crossDomain || portal.support.corsable ?
+                    function (url, data) {
+                        var xhr = portal.support.xhr();
+
+                        xhr.onreadystatechange = function () {
+                            if (xhr.readyState === 4) {
+                                post();
+                            }
+                        };
+
+                        xhr.open("POST", url);
+                        xhr.setRequestHeader("Content-Type", "text/plain; charset=UTF-8");
+                        if (portal.support.corsable) {
+                            xhr.withCredentials = options.credentials;
+                        }
+
+                        xhr.send("data=" + data);
+
+                    } : window.XDomainRequest && options.xdrURL && options.xdrURL.call(socket, "t") ?
+                    function (url, data) {
+                        var xdr = new window.XDomainRequest();
+
+                        xdr.onload = xdr.onerror = post;
+                        xdr.open("POST", options.xdrURL.call(socket, url));
+                        xdr.send("data=" + data);
+                    } :
+                    function (url, data) {
+                        var iframe,
+                            textarea,
+                            form = document.createElement("form");
+
+                        form.action = url;
+                        form.target = "socket-" + (++guid);
+                        form.method = "POST";
+                        // IE 6 needs encoding property
+                        form.enctype = form.encoding = "text/plain";
+                        form.acceptCharset = "UTF-8";
+                        form.style.display = "none";
+                        form.innerHTML = '<textarea name="data"></textarea><iframe name="' + form.target + '"></iframe>';
+
+                        textarea = form.firstChild;
+                        textarea.value = data;
+
+                        iframe = form.lastChild;
+                        $(iframe).on("load", function () {
+                            document.body.removeChild(form);
+                            post();
+                        });
+
+                        document.body.appendChild(form);
+                        form.submit();
+                    };
+
+                    return {
+                        send: function (data) {
+                            queue.push(data);
+
+                            if (!sending) {
+                                sending = true;
+                                post();
+                            }
+                        }
+                    };
+                },
+                // Streaming - XMLHttpRequest
+                streamxhr: function (socket, options) {
+                    var xhr;
+
+                    if ((portal.support.browser.msie && +portal.support.browser.version < 10) || (options.crossDomain && !portal.support.corsable)) {
+                        return;
+                    }
+
+                    return portal.support.extend(portal.transports.httpbase(socket, options), {
+                        open: function () {
+                            var stop;
+
+                            xhr = portal.support.xhr();
+                            xhr.onreadystatechange = function () {
+                                function onprogress() {
+                                    var index = socket.data("index"),
+                                        length = xhr.responseText.length;
+
+                                    if (!index) {
+                                        socket.fire("open")._fire(xhr.responseText, true);
+                                    } else if (length > index) {
+                                        socket._fire(xhr.responseText.substring(index, length), true);
+                                    }
+
+                                    socket.data("index", length);
+                                }
+
+                                if (xhr.readyState === 3 && xhr.status === 200) {
+                                    // Despite the change in response, Opera doesn't fire the readystatechange event
+                                    if (portal.support.browser.opera && !stop) {
+                                        stop = portal.support.iterate(onprogress);
+                                    } else {
+                                        onprogress();
+                                    }
+                                } else if (xhr.readyState === 4) {
+                                    if (stop) {
+                                        stop();
+                                    }
+
+                                    socket.fire("close", xhr.status === 200 ? "done" : "error");
+                                }
+                            };
+
+                            xhr.open(options.method || "GET", socket.data("url"));
+                            if (portal.support.corsable) {
+                                xhr.withCredentials = options.credentials;
+                            }
+
+                            xhr.send(null);
+                        },
+                        close: function () {
+                            xhr.abort();
+                        }
+                    });
+                },
+            };
+
+            // Closes all sockets
+            portal.finalize = function () {
+                var url, socket;
+
+                for (url in sockets) {
+                    socket = sockets[url];
+                    if (socket.state() !== "closed") {
+                        socket.close();
+                    }
+
+                    // To run the test suite
+                    delete sockets[url];
+                }
+            };
+
+            share.unload(function () {
+                // Check the unload event is fired by the browser
+                unloading = true;
+                // Closes all sockets when the document is unloaded 
+                portal.finalize();
+            });
+            $.window.on("online", function () {
+                var url, socket;
+                for (url in sockets) {
+                    socket = sockets[url];
+                    // There is no reason to wait
+                    if (socket.state() === "waiting") {
+                        socket.open();
+                    }
+                }
+            });
+            $.window.on("offline", function () {
+                var url, socket;
+                for (url in sockets) {
+                    socket = sockets[url];
+                    // Closes sockets which cannot detect disconnection manually
+                    if (socket.state() === "opened") {
+                        socket.fire("close", "error");
+                    }
+                }
+            });
+
+            // Exposes portal to the global object
+            //window.portal = portal;
+
+        })(portal);
+
+    })(share);
+
+    // .debug (server debug);
+    (function (share) {
+
+        var _debug = function (msg) {
+            $$.get(1, { m: msg });
+        };
+
+        share.debug = _debug;
 
     })(share);
 

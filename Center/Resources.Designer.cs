@@ -72,9 +72,7 @@ namespace Center {
         ///        var page = null;
         ///        var onmain = false;
         ///
-        ///        var shade;
-        ///
-        ///        var close, offline;
+        ///        var shade, close, closeThings, offline, update, frontLogo, frontLogoElements, frontLogoDone = false;
         ///        var ctop;
         ///        var nbox;
         ///        var asea;
@@ -90,13 +88,42 @@ namespace Center {
         ///
         ///        // sign in
         ///        var signinArea = null;
-        ///
-        ///        center = function () { };
-        ///        center.init = f [rest of string was truncated]&quot;;.
+        ///        /// [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string center {
             get {
                 return ResourceManager.GetString("center", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to /*! development javascript */
+        ///(function () {
+        ///    &quot;use strict&quot;;
+        ///
+        ///})();
+        ///
+        ////*! Development Mode - 2 */
+        ///(function () {
+        ///    if (ui) {
+        ///        var t = $(&quot;#top&quot;);
+        ///        var b = $(&quot;#bottom&quot;);
+        ///        // debug on screen
+        ///        (function () {
+        ///            var x = [];
+        ///            var maxLine = 15;
+        ///            var last = null;
+        ///            var lastCount = 1;
+        ///            var lastDate = null;
+        ///
+        ///            var _debug = window.debug;
+        ///            var debug = function () {
+        ///                //return;
+        ///     [rest of string was truncated]&quot;;.
+        /// </summary>
+        internal static string development {
+            get {
+                return ResourceManager.GetString("development", resourceCulture);
             }
         }
         

@@ -47,13 +47,19 @@ namespace Aphysoft.Share
                     Resource.Register("script_raphael", ResourceType.JavaScript, Resources.Resources.Scripts.ResourceManager, "raphael").NoMinify();
                     Resource.Group(Resource.CommonResourceScript, "script_raphael", 5);
                 }
-
-                Resource.Register("script_share", ResourceType.JavaScript, Resources.Resources.Scripts.ResourceManager, "share").NoMinify();
+                
+                Resource script_share = Resource.Register("script_share", ResourceType.JavaScript, Resources.Resources.Scripts.ResourceManager, "share");
+#if DEBUG
+                script_share.NoMinify();
+#endif
                 Resource.Group(Resource.CommonResourceScript, "script_share", 10);
 
                 if (Settings.EnableUI)
                 {
-                    Resource.Register("script_ui", ResourceType.JavaScript, Resources.Resources.Scripts.ResourceManager, "ui");
+                    Resource script_ui = Resource.Register("script_ui", ResourceType.JavaScript, Resources.Resources.Scripts.ResourceManager, "ui");
+#if DEBUG
+                    script_ui.NoMinify();
+#endif
                     Resource.Group(Resource.CommonResourceScript, "script_ui", 11);
                 }
 

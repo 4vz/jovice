@@ -18,12 +18,9 @@ namespace Aphysoft.Share
         {
             return HttpContext.Current.Request.Path;
         }
-
-
-        public static string Absolute(string virtualpath)
-        {
-            return VirtualPathUtility.ToAbsolute(virtualpath);
-        }
+        
+        // C:\a\b\c  = 4
+        // ../../afis/lima.txt
 
         /// <summary>
         /// Convert specific application path to physical path, eg. ~/path/to/file.aspx to C:\app\path\to\file.aspx
@@ -31,9 +28,32 @@ namespace Aphysoft.Share
         /// <returns></returns>
         public static string PhysicalPath(string virtualpath)
         {
-            string path = string.Format("{0}{1}", HttpContext.Current.Request.PhysicalApplicationPath, Absolute(virtualpath).Substring(1).Replace('/', '\\'));
+            if (virtualpath.StartsWith("../"))
+            {
+                string[] appPaths = HttpContext.Current.Request.PhysicalApplicationPath.Split(new char[] { '\\' }, StringSplitOptions.RemoveEmptyEntries);
+                string[] vPaths = virtualpath.Split(StringSplitTypes.Slash, StringSplitOptions.RemoveEmptyEntries);
+
+                int appPathCount = appPaths.Length;
+                int vPathCount = 0;
+                foreach (string vp in vPaths)
+                {
+                    if (vp == "..")
+                    {
+                        appPathCount--;
+                        vPathCount++;
+                    }
+                    else break;
+                }
+                return string.Join("\\", appPaths, 0, appPathCount) + "\\" + string.Join("\\", vPaths, vPathCount, vPaths.Length - vPathCount);
+            }
+            else
+            {
+                return HttpContext.Current.Server.MapPath(virtualpath);
+            }
+
+            //string path = string.Format("{0}{1}", HttpContext.Current.Request.PhysicalApplicationPath, Absolute(virtualpath).Substring(1).Replace('/', '\\'));
             
-            return path;
+            //return path;
         }
     }
 }

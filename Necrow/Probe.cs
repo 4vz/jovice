@@ -510,10 +510,7 @@ namespace Center
 
         #region Fields
 
-        private bool stopping = false;
-
         private ProbeProperties properties;
-
         internal ProbeProperties Properties { get { return properties; } }
 
         private Thread mainLoop = null;
@@ -526,6 +523,9 @@ namespace Center
         private string outputIdentifier = null;
 
         private Database j;
+
+        private string lastNodeName = null;
+        private DateTime lastProbeEndTime = DateTime.MinValue;
 
         private string nodeID;
         private string nodeName;
@@ -542,16 +542,29 @@ namespace Center
         private TimeSpan nodeTimeOffset;
         private int probeProgressID = -1;
         private DateTime nodeProbeStartTime = DateTime.MinValue;
+
         private bool nodeConnected = false;
+
+        private DateTime sshProbeStartTime = DateTime.MinValue;
 
         public string NodeName
         {
             get { return nodeName; }
         }
 
+        public string LastNodeName
+        {
+            get { return lastNodeName; }
+        }
+
         public DateTime NodeProbeStartTime
         {
             get { return nodeProbeStartTime; }
+        }
+
+        public DateTime LastProbeEndTime
+        {
+            get { return lastProbeEndTime; }
         }
 
         public bool NodeConnected
@@ -590,6 +603,22 @@ namespace Center
             get { return started; }
         }
 
+        private bool toBeStopped = false;
+
+        public bool ToBeStopped
+        {
+            get { return toBeStopped; }
+            set { toBeStopped = value; }
+        }
+
+        private bool toBeRestarted = false;
+
+        public bool ToBeRestarted
+        {
+            get { return toBeRestarted; }
+            set { toBeRestarted = value; }
+        }
+
         #endregion
 
         #region Constructors
@@ -612,66 +641,79 @@ namespace Center
 
         public Batch Batch()
         {
+            if (j == null) j = Jovice.Database;
             return j.Batch();
         }
 
         public Insert Insert(string table)
         {
+            if (j == null) j = Jovice.Database;
             return j.Insert(table);
         }
 
         public Update Update(string table)
         {
+            if (j == null) j = Jovice.Database;
             return j.Update(table);
         }
 
         public Dictionary<string, Row> QueryDictionary(string sql, string key, params object[] args)
         {
+            if (j == null) j = Jovice.Database;
             return j.QueryDictionary(sql, key, args);
         }
 
         public Dictionary<string, Row> QueryDictionary(string sql, string key, QueryDictionaryDuplicateCallback duplicate, params object[] args)
         {
+            if (j == null) j = Jovice.Database;
             return j.QueryDictionary(sql, key, duplicate, args);
         }
 
         public Dictionary<string, Row> QueryDictionary(string sql, QueryDictionaryKeyCallback callback, params object[] args)
         {
+            if (j == null) j = Jovice.Database;
             return j.QueryDictionary(sql, callback, args);
         }
 
         public Dictionary<string, Row> QueryDictionary(string sql, QueryDictionaryKeyCallback callback, QueryDictionaryDuplicateCallback duplicate, params object[] args)
         {
+            if (j == null) j = Jovice.Database;
             return j.QueryDictionary(sql, callback, duplicate, args);
         }
 
         public List<string> QueryList(string sql, string key, params object[] args)
         {
+            if (j == null) j = Jovice.Database;
             return j.QueryList(sql, key, args);
         }
 
         public string Format(string sql, params object[] args)
         {
+            if (j == null) j = Jovice.Database;
             return j.Format(sql, args);
         }
 
         public Result Query(string sql, params object[] args)
         {
+            if (j == null) j = Jovice.Database;
             return j.Query(sql, args);
         }
 
         public Column Scalar(string sql, params object[] args)
         {
+            if (j == null) j = Jovice.Database;
             return j.Scalar(sql, args);
         }
 
         public Result Execute(string sql, params object[] args)
         {
+            if (j == null) j = Jovice.Database;
             return j.Execute(sql, args);
         }
 
         public Result ExecuteIdentity(string sql, params object[] args)
         {
+            if (j == null) j = Jovice.Database;
             return j.ExecuteIdentity(sql, args);
         }
 
@@ -783,34 +825,30 @@ namespace Center
         {
             if (!IsStarted)
             {
-                started = true;
+                toBeRestarted = false;
+                toBeStopped = false;
 
+                started = true;
                 Event("Connecting... (" + properties.SSHUser + "@" + properties.SSHServerAddress + " [" + properties.TacacUser + "])");
                 new Thread(new ThreadStart(delegate ()
                 {
+                    Thread.Sleep(RandomHelper.Next(0, 500));
                     Start(properties.SSHServerAddress, properties.SSHUser, properties.SSHPassword);
                 })).Start();
-            }           
+            }  
         }
 
-        internal void QueueStop()
+        internal new void Stop()
         {
-            if (stopping == false)
-            {
-                Event("Stop initiated");
-                stopping = true;
-            }
+            toBeStopped = false;
+            base.Stop();
         }
 
         internal void BeginRestart()
         {
-            stopping = false;
-
-            if (IsConnected)
-            {
-                Event("Restart initiated");
-                Stop();
-            }
+            Event("Restart initiated");
+            toBeRestarted = true;
+            Stop();
         }
 
         private void Failure()
@@ -829,6 +867,8 @@ namespace Center
                 mainLoop = null;
             }
 
+            sshProbeStartTime = DateTime.UtcNow;
+
             mainLoop = new Thread(new ThreadStart(MainLoop));
             mainLoop.Start();
         }
@@ -837,6 +877,8 @@ namespace Center
         {
             outputIdentifier = null;
             Event("Disconnected");
+
+            sshProbeStartTime = DateTime.MinValue;
 
             if (mainLoop != null)
             {
@@ -856,35 +898,25 @@ namespace Center
 
             started = false;
 
-            if (stopping)
-            {
-                stopping = false;
-                Event("Probe session has ended");
-            }
+            if (toBeRestarted) Start();
+            else Event("Probe session has ended");
         }
         
         private void OnConnectionFailed(object sender, Exception exception)
         {
+            started = false;
             string message = exception.Message;
 
             if (message.IndexOf("Auth fail") > -1) Event("Connection failed: Authentication failed");
             else if (message.IndexOf("unreachable") > -1) Event("Connection failed: Server unreachable");
             else Event("Connection failed");
-                      
 
-            if (!Necrow.InTime(properties)) stopping = true;
+            if (!Necrow.InTime(properties)) toBeStopped = true;
 
-            if (stopping)
-            {
-                stopping = false;
-                Event("Connection attempt aborted");
-                started = false;
-            }
-            else
+            if (!toBeStopped)
             {
                 Event("Reconnecting in 20 seconds...");
                 Thread.Sleep(20000);
-                started = false;
             }
         }
         
@@ -909,7 +941,7 @@ namespace Center
                 Row node = null;
                 bool prioritizeProcess = false;
 
-                nodeTelegramInfo = null;
+                nodeTelegramInfo = null;                
 
                 Tuple<string, TelegramInformation> prioritize = Necrow.NextPrioritize();
                 
@@ -1088,8 +1120,7 @@ namespace Center
                             idleThread = null;
                         }
                     }
-
-
+                    
                     if (nodeTelegramInfo != null)
                     {
                         string info;
@@ -1101,19 +1132,16 @@ namespace Center
                         Necrow.Telegram_SendMessage(nodeTelegramInfo, info);
                     }
 
-                    if (!Necrow.InTime(properties)) stopping = true;
+                    if (!Necrow.InTime(properties)) toBeStopped = true;
+                    else if ((DateTime.UtcNow - sshProbeStartTime).TotalHours >= 3)
+                    {
+                        // Manual Stop & Restart
+                        toBeRestarted = true;
+                        toBeStopped = true;
+                    }
 
-                    if (stopping)
-                    {
-                        Stop();
-                        break;
-                    }
-                    else
-                    {
-                        // delay after probing finished
-                        Event("Next node in 5 seconds...");
-                        Thread.Sleep(5000);
-                    }
+                    Thread.Sleep(5000);
+                    toBeStopped = false;
                 }
             }
         }
@@ -1457,6 +1485,8 @@ namespace Center
             Event("Exit!");
 
             nodeConnected = false;
+            lastNodeName = nodeName;
+            lastProbeEndTime = DateTime.UtcNow;
         }
 
         private void Exit(string manufacture)
@@ -1845,6 +1875,10 @@ namespace Center
 
         private void Save()
         {
+#if !DEBUG
+            try
+            {
+#endif
             Insert insert;
             Update update;
             Result result;
@@ -1943,6 +1977,19 @@ namespace Center
                 }
             }
             batch.Commit();
+
+#if !DEBUG
+            }
+            catch (Exception ex)
+            {
+                Necrow.Log(nodeName, ex.Message, ex.StackTrace);
+                Event("Caught error on Save(): " + ex.Message + ", try again");
+
+                //Necrow.Telegram_SendMessage("Hi Afis, I caught THAT error on this weird section, I handled the exception, log stuff, and try to restart the block. Please /probestatus to check if I'm still alive or not. Have a nice day.");
+
+                Save();
+            }
+#endif
 
             if (probeProgressID != -1)
             {

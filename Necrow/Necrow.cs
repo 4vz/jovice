@@ -8,6 +8,9 @@ using System.IO;
 
 using Aphysoft.Share;
 using Telegram.Bot;
+using System.Diagnostics;
+using Microsoft.VisualBasic.Devices;
+using System.Management;
 
 namespace Center
 {
@@ -130,6 +133,11 @@ namespace Center
 
         private static Dictionary<string, Probe> instances = null;
 
+        private readonly static PerformanceCounter cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
+        private readonly static PerformanceCounter ramCounter = new PerformanceCounter("Memory", "Available MBytes");
+        private readonly static ComputerInfo computerInfo = new ComputerInfo();
+        private readonly static ManagementObjectSearcher mos = new ManagementObjectSearcher("root\\CIMV2", "SELECT * FROM Win32_Processor");
+
         #endregion
 
         #region Helpers
@@ -200,6 +208,7 @@ namespace Center
                    (start == end);
         }
 
+        private static long telegram_lastChatId = 0;
         private static int telegram_lastMessageId = 0;
         private static string telegram_waitingYesForThisNode = null;
         private static int telegram_waitingYesForThisNode_msgID = 0;
@@ -211,6 +220,7 @@ namespace Center
 
             if (msg != null)
             {
+                telegram_lastChatId = e.Message.Chat.Id;
                 telegram_lastMessageId = e.Message.MessageId;
                 int currentMessageId = e.Message.MessageId;
 
@@ -232,10 +242,17 @@ namespace Center
                         {
                             //if (probeloc.Length > 0) probeloc.Append(", ");
 
-                            probeloc.Append("\nPROBE" + ins.Key.Trim() + " " + ins.Value.NodeName + " is running for " + Math.Round((DateTime.UtcNow - ins.Value.NodeProbeStartTime).TotalSeconds) + "s using " + 
-                                ins.Value.Properties.TacacUser);
+                            probeloc.Append("\nPROBE" + ins.Key.Trim() + " on " + ins.Value.NodeName + " (" + Math.Round((DateTime.UtcNow - ins.Value.NodeProbeStartTime).TotalSeconds) + "s) [" +
+                                ins.Value.Properties.TacacUser + "]");
 
                             actv++;
+                        }
+                        else if (InTime(ins.Value.Properties))
+                        {
+                            if (ins.Value.LastNodeName != null)
+                                probeloc.Append("\nPROBE" + ins.Key.Trim() + " -- (was on " + ins.Value.LastNodeName + " " + Math.Round((DateTime.UtcNow - ins.Value.LastProbeEndTime).TotalSeconds) + "s ago)");
+                            else
+                                probeloc.Append("\nPROBE" + ins.Key.Trim() + " -- ");
                         }
                     }
 
@@ -245,7 +262,7 @@ namespace Center
                         {
                             rsp = "There " + (actv > 1 ? "are" : "is") + " " + actv + " active probe" + (actv > 1 ? "s" : "") + " (" + intime + " on duty): " + probeloc.ToString();
                         }
-                        else rsp = "There is no currently active probe (" + intime + " on duty)";
+                        else rsp = "There is no currently active probe (" + intime + " on duty): " + probeloc.ToString();
                     }
                     else rsp = "There is no probe currently on duty";
 
@@ -322,6 +339,39 @@ namespace Center
                     telegram_waitingYesForThisNode_msgID = 0;
                     #endregion
                 }
+                else if (msg == "/cpu" || msg == "/memory" || msg == "/ram")
+                {
+                    float availableRam = ramCounter.NextValue();
+                    float totalRam = (float)Math.Round((double)(computerInfo.TotalPhysicalMemory / 1024000));
+                    float percentageRam = 100 - (float)Math.Round(availableRam / totalRam * 100, 2);
+
+                    
+                    rsp = "";
+                    string oname = null;
+                    int ocpu = 0;
+                    foreach (ManagementObject mo in mos.Get())
+                    {
+                        string cname = mo["Name"].ToString();
+                        ocpu += int.Parse(mo["NumberOfLogicalProcessors"].ToString());
+                        if (oname != null && cname != oname)
+                        {
+                            rsp += cname + " " + ocpu + " Logical Processors\n";
+                            oname = cname;
+                            ocpu = 0;
+                        }
+                        else if (oname == null) oname = cname;
+                    }
+                    if (oname != null)
+                    {
+                        rsp += oname + " " + ocpu + " Logical Processors\n";
+                    }
+
+                    rsp += "CPU Usage: " + Math.Round(cpuCounter.NextValue(), 2) + "%\n" +
+                        "RAM Usage: " + percentageRam + "%\n" +
+                        "RAM Available/Total: " + availableRam + "MB/" + totalRam + "MB";
+
+                    cpuCounter.NextValue();
+                }
 
                 if (rsp != null)
                 {
@@ -345,10 +395,19 @@ namespace Center
 
         internal static void Telegram_SendMessage(TelegramInformation info, string msg)
         {
-            if (telegram_lastMessageId != info.MessageID)
-                telegram_lastMessageId = telegram.SendTextMessageAsync(info.ChatID, msg, false, false, info.MessageID, null).Id;
-            else
-                telegram_lastMessageId = telegram.SendTextMessageAsync(info.ChatID, msg, false, false, 0, null).Id;
+            if (info != null)
+            {
+                if (telegram_lastMessageId != info.MessageID)
+                    telegram_lastMessageId = telegram.SendTextMessageAsync(info.ChatID, msg, false, false, info.MessageID, null).Id;
+                else
+                    telegram_lastMessageId = telegram.SendTextMessageAsync(info.ChatID, msg, false, false, 0, null).Id;
+            }
+        }
+
+        internal static void Telegram_SendMessage(string msg)
+        {
+            if (telegram_lastChatId != 0)
+                telegram.SendTextMessageAsync(telegram_lastChatId, msg, false, false, 0, null);
         }
 
         public static void Start()
@@ -360,6 +419,10 @@ namespace Center
 
                 Culture.Default();
                 Event("Necrow Starting...");
+
+                Event("Initiating performance counter...");
+                cpuCounter.NextValue();
+                Event("Performance counter initiated");
 
                 //Service.Client();
                 //Service.Connected += delegate (Connection connection)
@@ -514,6 +577,7 @@ namespace Center
 
                     while (mainLoop)
                     {
+                        #region Check Regularly
                         if (loops % 10 == 0)
                         {
                             result = j.Query(@"
@@ -537,6 +601,7 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
                                     prop.TimeStart = row["XA_TimeStart"].ToTimeSpan(TimeSpan.MinValue);
                                     prop.TimeEnd = row["XA_TimeEnd"].ToTimeSpan(TimeSpan.MaxValue);
 
+                                    Thread.Sleep(100);
                                     instances.Add(id, Probe.Create(prop, "PROBE" + id.Trim()));
 
                                     Event("ADD PROBE" + id.Trim() + ": " + prop.SSHUser + "@" + prop.SSHServerAddress + " [" + prop.TacacUser + "] " + ((prop.TimeStart == TimeSpan.Zero || prop.TimeEnd == TimeSpan.Zero) ? "" : (prop.TimeStart + "-" + prop.TimeEnd)));
@@ -636,19 +701,22 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
                                 if (!found)
                                 {
                                     Event("DELETE PROBE" + pair.Key.Trim());
-                                    pair.Value.QueueStop();
+                                    pair.Value.ToBeStopped = true;
                                     remove.Add(pair.Key);
                                 }
                             }
                             foreach (string key in remove)
                                 instances.Remove(key);
                         }
-
+                        #endregion
 
                         foreach (KeyValuePair<string, Probe> pair in instances)
                         {
                             Probe probe = pair.Value;
-                            if (InTime(probe.Properties)) pair.Value.Start();
+
+                            if (pair.Value.ToBeStopped) pair.Value.Stop();
+                            else if (pair.Value.ToBeRestarted) { }
+                            else if (InTime(probe.Properties) && !pair.Value.IsStarted) pair.Value.Start();
                         }
 
                         Thread.Sleep(1000);
@@ -971,5 +1039,4 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
 
         #endregion
     }
-
 }

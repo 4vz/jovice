@@ -20,6 +20,13 @@ namespace Center
                 if (center == null)
                 {
                     string database = ConfigurationHelper.Settings("database");
+                    if (database == null)
+                    {
+                        database = "localhost";
+#if DEBUG
+                        database = "localhost\\SQLEXPRESS";
+#endif
+                    }
                     string connectionString = string.Format("Data Source={0};Initial Catalog=center;User ID=telkom.center;Password=t3lk0mdotc3nt3r;async=true", database);
                     center = new Database(connectionString, DatabaseType.SqlServer);
                 }
@@ -40,7 +47,10 @@ namespace Center
 
             #region Development
 #if DEBUG
-            Resource.Common(Resource.Register("development", ResourceType.JavaScript, Resources.ResourceManager, "development", "~/Development/development.js").NoMinify().NoCache());
+            Resource.Common(Resource.Register("script_share", ResourceType.JavaScript, "../Aphysoft.Share.Resources/Resources/Scripts/share.js").NoMinify().NoCache());
+            Resource.Common(Resource.Register("script_ui", ResourceType.JavaScript, "../Aphysoft.Share.Resources/Resources/Scripts/ui.js").NoMinify().NoCache());
+
+            BaseResources.InitDebug();
 #endif
             #endregion
 
@@ -68,6 +78,13 @@ namespace Center
 
             #region User
 
+            Content.Register("user_signin",
+                new ContentPage[] {
+                    new ContentPage("/signin")
+                },
+                new ContentPackage(
+                    Resource.Register("user_signin", ResourceType.JavaScript, Resources.ResourceManager, "user_signin", "~/View/User/signin.js"),
+                    null));
             #endregion
 
             #region Jovice

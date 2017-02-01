@@ -555,8 +555,11 @@ namespace Aphysoft.Share
                         lock (receivingThreadsWaitSync)
                         {
                             Debug("Add receiving thread " + messageID);
-                            receivingThreads.Add(messageID, thread);
-                            thread.Start(rto);
+                            if (!receivingThreads.ContainsKey(messageID))
+                            {
+                                receivingThreads.Add(messageID, thread);
+                                thread.Start(rto);
+                            }
                         }
                     }
                 }
@@ -589,8 +592,11 @@ namespace Aphysoft.Share
                     lock (receivingThreadsWaitSync)
                     {
                         Debug("Add receiving thread " + messageID);
-                        receivingThreads.Add(messageID, thread);
-                        thread.Start(rto);
+                        if (!receivingThreads.ContainsKey(messageID))
+                        {
+                            receivingThreads.Add(messageID, thread);
+                            thread.Start(rto);
+                        }
                     }
                 }
             }

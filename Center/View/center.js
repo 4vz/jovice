@@ -1,4 +1,5 @@
-﻿(function () {
+﻿/*! Center Main */
+(function () {
 
     var center;
 
@@ -46,11 +47,10 @@
             // ctop
             ctop = ui.box(ui.topContainer())({ color: 98, height: 40, width: "100%" });
             close = ui.box(ui.topContainer())({ color: 95, width: "100%", z: 999 });
+
             closeThings = ui.box(close)({ size: [500, 300], center: true });
-
             offline = ui.text(closeThings)({ hide: true, text: "OFFLINE", color: 50, font: 30, top: 80 });
-            update = ui.text(closeThings)({ hide: true, text: "PLEASE REFRESH YOUR BROWSER", color: 50, top: 125 });
-
+            update = ui.text(closeThings)({ hide: true, text: "PLEASE REFRESH YOUR BROWSER", color: 50, top: 125 })
             frontLogo = ui.box(closeThings)({ size: [200, 200], left: 150 });
             frontLogoHexaAnim();
 
@@ -93,7 +93,7 @@
             });
 
             // login
-            ogbox = ui.box(ctop)({ right: 15, width: 100, height: 40, cursor: "pointer", hide: true, click: function () { center.showSignIn(); } });
+            ogbox = ui.box(ctop)({ right: 15, width: 100, height: 40, cursor: "pointer", hide: true, click: function () { page.transfer("/signin", { transition: "slideleft" }); } });
             var ogtext = ui.text(ogbox)({ text: "SIGN IN", font: ["head", 12], position: [26, 14], color: 55 });
             ogbox.hover(function () {
                 ogbox.color(100, { duration: 100 });
@@ -165,8 +165,16 @@
                         aseasearch({ opacity: 1, value: s, color: 65 });
                         aseastart.hide();
                     }
+                    else {
+                        aseasearch.value(null);
+                        aseastart.show();
+                    }
                 }
-                else aseasearch.value(s);
+                else {
+                    aseasearch.value(s == null ? "" : s);
+                    if (s == null || s.length == 0) aseastart.show();
+                    else aseastart.hide();
+                }
             };
 
             var firstTime = true;
@@ -327,14 +335,13 @@
             var hw = ui.height();
             var ww = ui.width();
 
-            close.height(hw);
-            close.width(ww);
+            if (close.isShown()) {
+                close.height(hw);
+                close.width(ww);
+            }
             if (shade.isShown()) {
                 shade.height(hw);
                 shade.width(ww);
-            }
-            if (signinArea != null && signinArea.isShown()) {
-                signinArea.position((ww - signinArea.width()) / 2, (hw - signinArea.height()) / 2);
             }
         };
         function onChangePage() {

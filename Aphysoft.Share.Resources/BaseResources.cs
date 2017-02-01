@@ -47,20 +47,18 @@ namespace Aphysoft.Share
                     Resource.Register("script_raphael", ResourceType.JavaScript, Resources.Resources.Scripts.ResourceManager, "raphael").NoMinify();
                     Resource.Group(Resource.CommonResourceScript, "script_raphael", 5);
                 }
-                
-                Resource script_share = Resource.Register("script_share", ResourceType.JavaScript, Resources.Resources.Scripts.ResourceManager, "share");
-#if DEBUG
-                script_share.NoMinify();
-#endif
-                Resource.Group(Resource.CommonResourceScript, "script_share", 10);
 
+#if !DEBUG
+                Resource.Register("script_share", ResourceType.JavaScript, Resources.Resources.Scripts.ResourceManager, "share");
+                Resource.Group(Resource.CommonResourceScript, "script_share", 10);
+#endif
+                
                 if (Settings.EnableUI)
                 {
-                    Resource script_ui = Resource.Register("script_ui", ResourceType.JavaScript, Resources.Resources.Scripts.ResourceManager, "ui");
-#if DEBUG
-                    script_ui.NoMinify();
-#endif
+#if !DEBUG
+                    Resource.Register("script_ui", ResourceType.JavaScript, Resources.Resources.Scripts.ResourceManager, "ui");
                     Resource.Group(Resource.CommonResourceScript, "script_ui", 11);
+#endif
                 }
 
                 // Images
@@ -109,6 +107,13 @@ namespace Aphysoft.Share
                         null);
                 }
             }
+        }
+
+        public static void InitDebug()
+        {
+#if DEBUG
+            Resource.Common(Resource.Register("script_ui_debug", ResourceType.JavaScript, Resources.Resources.Scripts.ResourceManager, "ui_debug"));
+#endif
         }
     }
 }

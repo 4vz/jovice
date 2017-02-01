@@ -217,10 +217,11 @@ namespace Aphysoft.Share
             return Register(key, null, resourceType, beginHandler, endHandler);
         }
 
-        internal static Resource Register(string key, string keyHash, ResourceType resourceType, string rootRelativePath)
+        public static Resource Register(string key, string keyHash, ResourceType resourceType, string rootRelativePath)
         {
             if (rootRelativePath == null) return null;
             string physicalPath = Path.PhysicalPath(rootRelativePath);
+
             FileInfo pathInfo = new FileInfo(physicalPath);
             if (!pathInfo.Exists) return null;
 
@@ -234,7 +235,7 @@ namespace Aphysoft.Share
             return resource;
         }
 
-        internal static Resource Register(string key, ResourceType resourceType, string rootRelativePath)
+        public static Resource Register(string key, ResourceType resourceType, string rootRelativePath)
         {
             return Resource.Register(key, null, resourceType, rootRelativePath);
         }
@@ -652,14 +653,16 @@ namespace Aphysoft.Share
 
         #region Method
 
-        public void SetData(Byte[] data)
-        {
-            // trim BOM
-            byte[] utf16BE = new byte[] { 254, 255 };
-            byte[] utf16LE = new byte[] { 255, 254 };
-            byte[] utf8 = new byte[] { 239, 187, 191 };
+        private readonly byte[] utf16BigEndian = new byte[] { 254, 255 };
+        private readonly byte[] utf16LittleEndian = new byte[] { 255, 254 };
+        private readonly byte[] utf8 = new byte[] { 239, 187, 191 };
 
+        public unsafe void SetData(byte[] data)
+        {
+            //byte[] beginDebug = System.Text.Encoding.UTF8.GetBytes("//DEBUG");
+            //byte[] endDebug = Encoding.UTF8.Get
             byte[] endData = null;
+
             if (data.Length >= 3)
             {
                 if (data[0] == utf8[0] && data[1] == utf8[1] && data[2] == utf8[2])
@@ -670,8 +673,8 @@ namespace Aphysoft.Share
             }
             if (data.Length >= 2)
             {
-                if ((data[0] == utf16BE[0] && data[1] == utf16BE[1]) ||
-                    (data[0] == utf16LE[0] && data[1] == utf16LE[1]))
+                if ((data[0] == utf16BigEndian[0] && data[1] == utf16BigEndian[1]) ||
+                    (data[0] == utf16LittleEndian[0] && data[1] == utf16LittleEndian[1]))
                 {
                     endData = new byte[data.Length - 2];
                     Buffer.BlockCopy(data, 2, endData, 0, data.Length - 2);

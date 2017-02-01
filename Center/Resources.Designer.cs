@@ -97,37 +97,6 @@ namespace Center {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to /*! development javascript */
-        ///(function () {
-        ///    &quot;use strict&quot;;
-        ///
-        ///})();
-        ///
-        ////*! Development Mode - 2 */
-        ///(function () {
-        ///    if (ui) {
-        ///        var t = $(&quot;#top&quot;);
-        ///        var b = $(&quot;#bottom&quot;);
-        ///        // debug on screen
-        ///        (function () {
-        ///            var x = [];
-        ///            var maxLine = 15;
-        ///            var last = null;
-        ///            var lastCount = 1;
-        ///            var lastDate = null;
-        ///
-        ///            var _debug = window.debug;
-        ///            var debug = function () {
-        ///                //return;
-        ///     [rest of string was truncated]&quot;;.
-        /// </summary>
-        internal static string development {
-            get {
-                return ResourceManager.GetString("development", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to 
         ///(function () {
         ///
@@ -226,6 +195,34 @@ namespace Center {
         internal static string search {
             get {
                 return ResourceManager.GetString("search", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to (function () {
+        ///
+        ///    var page;
+        ///    ui(&quot;user_signin&quot;, {
+        ///        init: function (p) {
+        ///            page = center.init(p);
+        ///            
+        ///            var b = ui.text(p)({ text: &quot;SIGN IN&quot;, position: [100, 100] });
+        ///
+        ///
+        ///            p.done();
+        ///        },
+        ///        start: function (p) {
+        ///            center.setSearchBoxValue(null);
+        ///            p.done();
+        ///        },
+        ///        resize: function (p) {
+        ///        }
+        ///    });
+        ///})();.
+        /// </summary>
+        internal static string user_signin {
+            get {
+                return ResourceManager.GetString("user_signin", resourceCulture);
             }
         }
     }

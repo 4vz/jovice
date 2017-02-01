@@ -100,14 +100,14 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Development\development.js" />
-    <Content Include="View\center.js" />
-    <Content Include="View\main.js" />
-    <Content Include="View\search.js" />
-    <Content Include="View\Jovice\Search\interface.js" />
-    <Content Include="View\Jovice\Search\node.js" />
-    <Content Include="View\Jovice\Search\service.js" />
-    <Content Include="View\Jovice\service.js" />
+    <None Include="View\center.js" />
+    <None Include="View\main.js" />
+    <None Include="View\search.js" />
+    <None Include="View\Jovice\Search\interface.js" />
+    <None Include="View\Jovice\Search\node.js" />
+    <None Include="View\Jovice\Search\service.js" />
+    <None Include="View\Jovice\service.js" />
+    <None Include="View\User\signin.js" />
     <Content Include="Web.config">
       <SubType>Designer</SubType>
     </Content>
@@ -124,7 +124,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="View\Satellite\" />
-    <Folder Include="View\User\" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

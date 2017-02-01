@@ -159,15 +159,59 @@ namespace Aphysoft.Share.Resources.Resources {
         /// <summary>
         ///   Looks up a localized string similar to /*! Aphysoft.Share UI | share.aphysoft.com */
         ///(function ($) {
-        ///    // use strict failed... :(
-        ///
+        ///    &quot;use strict&quot;;
         ///    
-        ///})(jQuery);
-        ///.
+        ///    var ui;
+        ///
+        ///    // ui .load .marginTop .marginLeft .marginBottom .marginRight
+        ///    (function (window, share, jQuery) {
+        ///
+        ///        var loaded = false;
+        ///        var count = 0;
+        ///        var transferring;
+        ///        var pages = [];
+        ///        var css = {};
+        ///        var transferData = null;
+        ///        var objects = {};
+        ///        var scripts = {};
+        ///        var ajaxify;
+        ///        var contentProviderUrl;
+        ///        var urlPrefix;
+        ///    [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string ui {
             get {
                 return ResourceManager.GetString("ui", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to (function () {
+        ///
+        ///    // .development
+        ///    (function (ui) {
+        ///
+        ///        var t = $(&quot;#top&quot;);
+        ///        var b = $(&quot;#bottom&quot;);
+        ///        // debug on screen
+        ///        (function () {
+        ///            var x = [];
+        ///            var maxLine = 15;
+        ///            var last = null;
+        ///            var lastCount = 1;
+        ///            var lastDate = null;
+        ///
+        ///            var _debug = window.debug;
+        ///            var debug = function () {
+        ///                //return;
+        ///                var o = arguments;
+        ///                var s = null;
+        ///
+        ///          [rest of string was truncated]&quot;;.
+        /// </summary>
+        internal static string ui_debug {
+            get {
+                return ResourceManager.GetString("ui_debug", resourceCulture);
             }
         }
     }

@@ -1,7 +1,7 @@
 ﻿/*! Aphysoft.Share UI | share.aphysoft.com */
 (function ($) {
     "use strict";
-
+    
     var ui;
 
     // ui .load .marginTop .marginLeft .marginBottom .marginRight
@@ -251,6 +251,7 @@
                 var endUrl = null;
                 var transferLeave = null;
 
+                page.lastPage = last;
                 page.family = o.family;
                 page.titles = o.titles;
                 page.urls = o.urls;
@@ -596,10 +597,17 @@
                             last.leave(last);
 
                             // if last page available, check for page transition
-                            var transition;
+                            var transition = null;
 
-                            if (page.prototype.transfer == null)
-                                transition = null;
+                            if (page.prototype.transfer == null) {
+                                if (last.lastPage != null) {
+                                    if (last.lastPage.family == page.family && last.prototype.transfer != null) {
+                                        var lastTransition = last.prototype.transfer.transition;
+                                        if (lastTransition == "slideleft") transition = "slideright";
+                                        else if (lastTransition == "slideright") transition = "slideleft";
+                                    }
+                                }
+                            }
                             else
                                 transition = page.prototype.transfer.transition;
 
@@ -613,21 +621,23 @@
                                     last.done();
                                 }
 
+                                var ndur = 250;
+
                                 transition.is("slideright", function () {
                                     var width = jqThisPage.width();
 
-                                    jqLastPage.css({ left: 0 }).animate({ left: width }, { duration: 1000, complete: onCompleted });
-                                    jqThisPage.css({ left: -width }).animate({ left: 0 }, { duration: 1000 });
+                                    jqLastPage.css({ left: 0 }).animate({ left: width }, { duration: ndur, complete: onCompleted });
+                                    jqThisPage.css({ left: -width }).animate({ left: 0 }, { duration: ndur });
                                 });
                                 transition.is("slideleft", function () {
                                     var width = jqThisPage.width();
 
-                                    jqLastPage.css({ left: 0 }).animate({ left: -width }, { duration: 1000, complete: onCompleted });
-                                    jqThisPage.css({ left: width }).animate({ left: 0 }, { duration: 1000 });
+                                    jqLastPage.css({ left: 0 }).animate({ left: -width }, { duration: ndur, complete: onCompleted });
+                                    jqThisPage.css({ left: width }).animate({ left: 0 }, { duration: ndur });
                                 });
                                 transition.is("fadein", function () {
-                                    jqLastPage.css({ opacity: 1 }).animate({ opacity: 0 }, { duration: 1000, complete: onCompleted });
-                                    jqThisPage.css({ opacity: 0 }).animate({ opacity: 1 }, { duration: 1000 });
+                                    jqLastPage.css({ opacity: 1 }).animate({ opacity: 0 }, { duration: ndur, complete: onCompleted });
+                                    jqThisPage.css({ opacity: 0 }).animate({ opacity: 1 }, { duration: ndur });
                                 });
                             }
                         }
@@ -4844,4 +4854,5 @@
         ui.performance = performance_;
 
     })(ui);
+
 })(jQuery);

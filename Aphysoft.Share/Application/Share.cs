@@ -32,6 +32,7 @@ namespace Aphysoft.Share
                     string database = ConfigurationHelper.Settings("database");
                     if (database == null)
                     {
+                        
                         database = "localhost";
 #if DEBUG
                         database = "localhost\\SQLEXPRESS";

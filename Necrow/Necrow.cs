@@ -137,6 +137,8 @@ namespace Center
         private readonly static PerformanceCounter ramCounter = new PerformanceCounter("Memory", "Available MBytes");
         private readonly static ComputerInfo computerInfo = new ComputerInfo();
         private readonly static ManagementObjectSearcher mos = new ManagementObjectSearcher("root\\CIMV2", "SELECT * FROM Win32_Processor");
+        
+        internal static Dictionary<string, Dictionary<string, object>> keeperNode = null;
 
         #endregion
 
@@ -573,6 +575,28 @@ namespace Center
 
                     #endregion
 
+                    #region Keepers
+
+                    #region Node Keeper
+
+                    result = j.Query("select * from Node");
+                    keeperNode = new Dictionary<string, Dictionary<string, object>>();
+
+                    foreach (Row row in result)
+                    {
+                        Dictionary<string, object> values = new Dictionary<string, object>();
+                        keeperNode.Add(row["NO_ID"].ToString(), values);
+
+                        values.Add("NO_Name", row["NO_Name"].ToString());
+                        values.Add("NO_Type", row["NO_Type"].ToString());
+                        values.Add("NO_Manufacture", row["NO_Manufacture"].ToString());
+                        values.Add("NO_IP", row["NO_IP"].ToString());
+                    }
+
+                    #endregion
+
+                    #endregion
+
                     instances = new Dictionary<string, Probe>();
 
                     long loops = 0;
@@ -582,6 +606,45 @@ namespace Center
                         #region Check Regularly
                         if (loops % 10 == 0)
                         {
+                            result = j.Query("select * from Node");
+
+                            batch.Begin();
+                            foreach (Row row in result)
+                            {
+                                string id = row["NO_ID"].ToString();
+
+                                if (keeperNode.ContainsKey(id))
+                                {
+                                    Dictionary<string, object> keeper = keeperNode[id];
+
+                                    Update update = j.Update("Node");
+                                    update.Where("NO_ID", id);
+
+                                    if ((string)keeper["NO_Name"] != row["NO_Name"].ToString()) update.Set("NO_Name", (string)keeper["NO_Name"]);
+                                    if ((string)keeper["NO_Type"] != row["NO_Type"].ToString()) update.Set("NO_Type", (string)keeper["NO_Type"]);
+                                    if ((string)keeper["NO_Manufacture"] != row["NO_Manufacture"].ToString()) update.Set("NO_Manufacture", (string)keeper["NO_Manufacture"]);
+                                    if ((string)keeper["NO_IP"] != row["NO_IP"].ToString()) update.Set("NO_IP", (string)keeper["NO_IP"]);
+
+                                    batch.Execute(update);
+                                }
+                                else
+                                {
+                                    Dictionary<string, object> values = new Dictionary<string, object>();
+                                    keeperNode.Add(row["NO_ID"].ToString(), values);
+
+                                    string newNodeName = row["NO_Name"].ToString();
+                                    values.Add("NO_Name", newNodeName);
+                                    values.Add("NO_Type", row["NO_Type"].ToString());
+                                    values.Add("NO_Manufacture", row["NO_Manufacture"].ToString());
+                                    values.Add("NO_IP", row["NO_IP"].ToString());
+
+                                    prioritize.Enqueue(new Tuple<string, TelegramInformation>(newNodeName, null));
+
+                                    Event("New Node Registered: " + newNodeName);
+                                }
+                            }
+                            batch.Commit();
+
                             result = j.Query(@"
 select XA_ID, XA_TimeStart, XA_TimeEnd, XU_ServerUser, XU_ServerPassword, XU_TacacUser, XU_TacacPassword, XS_Address, XS_ConsolePrefixFormat
 from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID");
@@ -863,6 +926,15 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             Database jovice = Necrow.j;
             Result result;
             Batch batch = jovice.Batch();
+
+
+
+
+
+
+
+
+
 
             #region Upper case node name
 

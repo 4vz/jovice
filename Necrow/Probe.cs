@@ -1865,7 +1865,18 @@ namespace Center
             Batch batch = Batch();
             
             update = Update("Node");
-            foreach (KeyValuePair<string, object> pair in updates) update.Set(pair.Key, pair.Value);
+            foreach (KeyValuePair<string, object> pair in updates)
+            {
+                if (Necrow.keeperNode.ContainsKey(nodeID))
+                {
+                    Dictionary<string, object> keeper = Necrow.keeperNode[nodeID];
+                    if (pair.Key == "NO_IP")
+                    {
+                        keeper["NO_IP"] = pair.Value;
+                    }
+                }
+                update.Set(pair.Key, pair.Value);
+            }
             update.Where("NO_ID", nodeID);
             update.Execute();
             
@@ -2303,10 +2314,10 @@ namespace Center
                 }
                 else
                 {
-                    if (previousRemark == "CONNECTFAIL")
-                        Update(UpdateTypes.Active, 0);
-                    else
-                        Update(UpdateTypes.Remark, "CONNECTFAIL");
+                    //if (previousRemark == "CONNECTFAIL")
+                    //    Update(UpdateTypes.Active, 0);
+                    //else
+                    Update(UpdateTypes.Remark, "CONNECTFAIL");
 
                 }
 

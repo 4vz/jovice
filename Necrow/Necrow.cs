@@ -238,7 +238,7 @@ namespace Center
                     int actv = 0;
                     foreach (KeyValuePair<string, Probe> ins in instances)
                     {
-                        if (ins.Value.NodeConnected)
+                        if (ins.Value.IsProbing)
                         {
                             //if (probeloc.Length > 0) probeloc.Append(", ");
 
@@ -339,8 +339,9 @@ namespace Center
                     telegram_waitingYesForThisNode_msgID = 0;
                     #endregion
                 }
-                else if (msg == "/cpu" || msg == "/memory" || msg == "/ram")
+                else if (msg == "/cpu")
                 {
+                    #region /cpu
                     float availableRam = ramCounter.NextValue();
                     float totalRam = (float)Math.Round((double)(computerInfo.TotalPhysicalMemory / 1024000));
                     float percentageRam = 100 - (float)Math.Round(availableRam / totalRam * 100, 2);
@@ -371,6 +372,7 @@ namespace Center
                         "RAM Available/Total: " + availableRam + "MB/" + totalRam + "MB";
 
                     cpuCounter.NextValue();
+                    #endregion
                 }
 
                 if (rsp != null)
@@ -385,12 +387,12 @@ namespace Center
         
         private static void Telegram_OnReceiveError(object sender, Telegram.Bot.Args.ReceiveErrorEventArgs e)
         {
-            Event("Telegram Bot Error: " + e.ApiRequestException.Message);
+            //Event("Telegram Bot Error: " + e.ApiRequestException.Message);
         }
 
         private static void Telegram_OnReceiveGeneralError(object sender, Telegram.Bot.Args.ReceiveGeneralErrorEventArgs e)
         {
-            Event("Telegram Bot General Error: " + e.Exception.Message);
+            //Event("Telegram Bot General Error: " + e.Exception.Message);
         }
 
         internal static void Telegram_SendMessage(TelegramInformation info, string msg)
@@ -679,7 +681,7 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
                                     if (updatessh)
                                     {
                                         prop.SSHTerminal = string.Format(row["XS_ConsolePrefixFormat"].ToString(), prop.SSHUser);
-                                        instances[id].BeginRestart();
+                                        instances[id].QueueStop();
                                     }
                                 }
                             }
@@ -701,7 +703,7 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
                                 if (!found)
                                 {
                                     Event("DELETE PROBE" + pair.Key.Trim());
-                                    pair.Value.ToBeStopped = true;
+                                    pair.Value.QueueStop();
                                     remove.Add(pair.Key);
                                 }
                             }
@@ -710,13 +712,55 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
                         }
                         #endregion
 
+                        /* 
+                         * STARTED = probe is started
+                         * CONNECTED = probe is connected to SSH
+                         * PROBING = probe is probing to Node
+                         * 
+                         */
+
                         foreach (KeyValuePair<string, Probe> pair in instances)
                         {
                             Probe probe = pair.Value;
-
-                            if (pair.Value.ToBeStopped) pair.Value.Stop();
-                            else if (pair.Value.ToBeRestarted) { }
-                            else if (InTime(probe.Properties) && !pair.Value.IsStarted) pair.Value.Start();
+                            
+                            if (probe.IsStarted)
+                            {
+                                if (probe.IsConnected)
+                                {
+                                    if (probe.IsProbing)
+                                    {
+                                    }
+                                    else
+                                    {
+                                        if (!InTime(probe.Properties))
+                                        {
+                                            Event("Probe session has ended");
+                                            probe.SessionStart = false;
+                                            probe.Stop();
+                                        }
+                                        else if ((DateTime.UtcNow - probe.SSHProbeStartTime).TotalHours > 3)
+                                        {
+                                            Event("Restarting the probe");
+                                            probe.Stop();
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                }
+                            }
+                            else
+                            {
+                                if (InTime(probe.Properties))
+                                {
+                                    if (!probe.SessionStart)
+                                    {
+                                        Event("Probe session has started");
+                                        probe.SessionStart = true;
+                                    }
+                                    probe.Start();
+                                }
+                            }
                         }
 
                         Thread.Sleep(1000);
@@ -830,8 +874,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             batch.Begin();
             foreach (Row row in result)
             {
-                string id = row["NO_ID"].ToString();
-                
+                string id = row["NO_ID"].ToString();                
 
                 Update update = jovice.Update("Node");
                 update.Where("NO_ID", id);

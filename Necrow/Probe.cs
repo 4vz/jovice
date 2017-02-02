@@ -541,10 +541,8 @@ namespace Center
         private int nodeNVER;
         private TimeSpan nodeTimeOffset;
         private int probeProgressID = -1;
+
         private DateTime nodeProbeStartTime = DateTime.MinValue;
-
-        private bool nodeConnected = false;
-
         private DateTime sshProbeStartTime = DateTime.MinValue;
 
         public string NodeName
@@ -567,11 +565,6 @@ namespace Center
             get { return lastProbeEndTime; }
         }
 
-        public bool NodeConnected
-        {
-            get { return nodeConnected; }
-        }
-
         private bool noMore = false;
 
         private readonly string alu = "ALCATEL-LUCENT";
@@ -588,13 +581,6 @@ namespace Center
 
         private TelegramInformation nodeTelegramInfo = null;
 
-        public new bool IsConnected
-        {
-            get
-            {
-                return mainLoop != null;
-            }
-        }
 
         private bool started = false;
 
@@ -603,20 +589,34 @@ namespace Center
             get { return started; }
         }
 
-        private bool toBeStopped = false;
-
-        public bool ToBeStopped
+        public new bool IsConnected
         {
-            get { return toBeStopped; }
-            set { toBeStopped = value; }
+            get
+            {
+                return mainLoop != null;
+            }
         }
 
-        private bool toBeRestarted = false;
+        private bool probing = false;
 
-        public bool ToBeRestarted
+        public bool IsProbing
         {
-            get { return toBeRestarted; }
-            set { toBeRestarted = value; }
+            get { return probing; }
+        }
+
+        public DateTime SSHProbeStartTime
+        {
+            get { return sshProbeStartTime; }
+        }
+
+        private bool queueStop = false;
+
+        private bool sessionStart = false;
+
+        public bool SessionStart
+        {
+            get { return sessionStart; }
+            set { sessionStart = value; }
         }
 
         #endregion
@@ -821,13 +821,15 @@ namespace Center
             }
         }
 
+        internal void QueueStop()
+        {
+            queueStop = true;
+        }
+
         internal void Start()
         {
             if (!IsStarted)
             {
-                toBeRestarted = false;
-                toBeStopped = false;
-
                 started = true;
                 Event("Connecting... (" + properties.SSHUser + "@" + properties.SSHServerAddress + " [" + properties.TacacUser + "])");
                 new Thread(new ThreadStart(delegate ()
@@ -840,15 +842,8 @@ namespace Center
 
         internal new void Stop()
         {
-            toBeStopped = false;
+            queueStop = false;
             base.Stop();
-        }
-
-        internal void BeginRestart()
-        {
-            Event("Restart initiated");
-            toBeRestarted = true;
-            Stop();
         }
 
         private void Failure()
@@ -878,46 +873,37 @@ namespace Center
             outputIdentifier = null;
             Event("Disconnected");
 
+            probing = false;
+
             sshProbeStartTime = DateTime.MinValue;
 
             if (mainLoop != null)
             {
                 mainLoop.Abort();
                 mainLoop = null;
-                Event("Main thread loop aborted");
             }
             if (idleThread != null)
             {
                 idleThread.Abort();
-                mainLoop = null;
-                Event("Idle thread aborted");
+                idleThread = null;
             }
 
-            int c = j.Cancel();
-            if (c > 0) Event("Canceled " + c + " database transactions");
-
             started = false;
-
-            if (toBeRestarted) Start();
-            else Event("Probe session has ended");
         }
         
         private void OnConnectionFailed(object sender, Exception exception)
-        {
-            started = false;
+        {            
             string message = exception.Message;
-
             if (message.IndexOf("Auth fail") > -1) Event("Connection failed: Authentication failed");
             else if (message.IndexOf("unreachable") > -1) Event("Connection failed: Server unreachable");
             else Event("Connection failed");
 
-            if (!Necrow.InTime(properties)) toBeStopped = true;
-
-            if (!toBeStopped)
+            if (Necrow.InTime(properties))
             {
                 Event("Reconnecting in 20 seconds...");
                 Thread.Sleep(20000);
             }
+            started = false;
         }
         
         private void OnReceived(object sender, string output)
@@ -1010,7 +996,7 @@ namespace Center
 
                         Save();
 
-                        if (nodeConnected)
+                        if (probing)
                         {
                             if (info != null)
                                 Event("Caught error: " + info + ", exiting current node...");
@@ -1132,16 +1118,7 @@ namespace Center
                         Necrow.Telegram_SendMessage(nodeTelegramInfo, info);
                     }
 
-                    if (!Necrow.InTime(properties)) toBeStopped = true;
-                    else if ((DateTime.UtcNow - sshProbeStartTime).TotalHours >= 3)
-                    {
-                        // Manual Stop & Restart
-                        toBeRestarted = true;
-                        toBeStopped = true;
-                    }
-
-                    Thread.Sleep(5000);
-                    toBeStopped = false;
+                    Thread.Sleep(5000); // GRACE PERIOD BETWEEN NODES OR NECROW TO DO SOMETHING
                 }
             }
         }
@@ -1484,9 +1461,12 @@ namespace Center
             outputIdentifier = null;
             Event("Exit!");
 
-            nodeConnected = false;
+            probing = false;
             lastNodeName = nodeName;
             lastProbeEndTime = DateTime.UtcNow;
+
+            if (queueStop)
+                Stop();
         }
 
         private void Exit(string manufacture)
@@ -2339,7 +2319,7 @@ namespace Center
 
             Event("Connected!");
 
-            nodeConnected = true;
+            probing = true;
 
             string terminal = null;
 

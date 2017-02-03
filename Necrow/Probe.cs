@@ -1838,7 +1838,7 @@ namespace Center
             {
                 #region jun
 
-                expect = MCEExpect("password:");
+                expect = MCEExpect("assword:");
                 if (expect == 0)
                 {
                     Event("Authenticating: Password");

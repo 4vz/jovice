@@ -850,6 +850,10 @@ namespace Center
         {
             outputIdentifier = null;
             Event("Connection failure has occured");
+            Thread.Sleep(5000);
+            Stop();
+
+            started = false;
         }
 
         private void OnConnected(object sender)
@@ -1485,7 +1489,7 @@ namespace Center
             else if (manufacture == cso) SendLine("exit");
             else if (manufacture == jun) SendLine("exit");
 
-            WaitUntilMCETerminalReady("MCE Waiting on Exit");
+            WaitUntilMCETerminalReady("MCE Waiting on exit node");
         }
 
         private void SaveExit()
@@ -1995,7 +1999,7 @@ namespace Center
 
             continueProcess = false;
 
-            WaitUntilMCETerminalReady("MCE Waiting I");
+            WaitUntilMCETerminalReady("MCE Waiting on preparation to connect");
 
             updates = new Dictionary<string, object>();
             summaries = new Dictionary<string, string>();
@@ -2210,7 +2214,7 @@ namespace Center
 
             while (true)
             {
-                WaitUntilMCETerminalReady("MCE Waiting II");
+                WaitUntilMCETerminalReady("MCE Waiting before connect node");
 
                 string currentConnectType = null;
 
@@ -2250,7 +2254,7 @@ namespace Center
                 int loop = 0;
                 while (true)
                 {
-                    WaitUntilMCETerminalReady("MCE Waiting III");
+                    WaitUntilMCETerminalReady("MCE Waiting before trying to other node");
 
                     string testOtherNode;
 

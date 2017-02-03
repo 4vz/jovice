@@ -1645,6 +1645,7 @@ namespace Center
                     if (improperCommand)
                     {
                         Event("Improper command, send request again...");
+                        outputs.Clear();
                         Thread.Sleep(500);
                     }
                     else

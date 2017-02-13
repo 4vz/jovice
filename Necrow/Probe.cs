@@ -2716,13 +2716,22 @@ namespace Center
                         //Time Last Modified        : 2016/11/07 17:35:36
                         //01234567890123456789012345
                         string datetime = line.Substring(25).Trim(new char[] { ' ', ':' });
-                        lastConfLive = DateTime.Parse(datetime);
-                        lastConfLive = new DateTime(
-                            lastConfLive.Ticks - (lastConfLive.Ticks % TimeSpan.TicksPerSecond),
-                            lastConfLive.Kind
-                            );
-                        lastConfLiveRetrieved = true;
-                        break;
+                        if (datetime == "N/A")
+                        {
+                            lastConfLive = new DateTime(2000, 1, 1, 0, 0, 0);
+                            lastConfLiveRetrieved = true;
+                            break;
+                        }
+                        else
+                        {
+                            lastConfLive = DateTime.Parse(datetime);
+                            lastConfLive = new DateTime(
+                                lastConfLive.Ticks - (lastConfLive.Ticks % TimeSpan.TicksPerSecond),
+                                lastConfLive.Kind
+                                );
+                            lastConfLiveRetrieved = true;
+                            break;
+                        }
                     }
                 }
 
@@ -2738,7 +2747,13 @@ namespace Center
                             //Time Last Saved        : 2015/01/13 01:13:56
                             //01234567890123456789012345
                             string datetime = line.Substring(25).Trim();
-                            if (DateTime.TryParse(datetime, out lastConfLive))
+                            if (datetime == "N/A")
+                            {
+                                lastConfLive = new DateTime(2000, 1, 1, 0, 0, 0);
+                                lastConfLiveRetrieved = true;
+                                break;
+                            }
+                            else if (DateTime.TryParse(datetime, out lastConfLive))
                             {
                                 lastConfLive = new DateTime(
                                     lastConfLive.Ticks - (lastConfLive.Ticks % TimeSpan.TicksPerSecond),

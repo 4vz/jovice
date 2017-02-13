@@ -2511,7 +2511,14 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
 
                 //main interface
-                if (Request("display interface main | in current state|down time|BW", out lines)) return;
+                if (nodeVersion != "5.90")
+                {
+                    if (Request("display interface main | in current state|down time|BW", out lines)) return;
+                }
+                else
+                {
+                    if (Request("display interface | in current state|down time|BW", out lines)) return;
+                }
 
                 MEInterfaceToDatabase currentInterfaceToDatabase = null;
 
@@ -2522,7 +2529,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         currentInterfaceToDatabase = null;
                         string[] splits = line.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
                         NetworkInterface nif = NetworkInterface.Parse(splits[0]);
-                        if (nif != null)
+                        if (nif != null && !nif.IsSubInterface)
                         {
                             string name;
                             if (nif.Type == "Hu" || nif.Type == "Te") name = "Gi" + nif.PortName;

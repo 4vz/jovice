@@ -2443,7 +2443,11 @@ namespace Center
                         //2016-05-06 16:52:51+08:00
                         //0123456789012345678901234
                         string[] ps = line.Split('+');
-                        if (DateTime.TryParseExact(ps[0], "yyyy-MM-dd HH:mm:ss", null, DateTimeStyles.None, out nodeTime)) { nodeTimeRetrieved = true; }
+                        string date = ps[0].Trim();
+                        if (DateTime.TryParseExact(date, "yyyy-MM-dd HH:mm:ss", null, DateTimeStyles.None, out nodeTime))
+                        {
+                            nodeTimeRetrieved = true;
+                        }
                         break;
                     }
                 }
@@ -2472,9 +2476,7 @@ namespace Center
 
             if (!nodeTimeRetrieved)
             {
-                Event("Failure on node time retrieval");
-                SaveExit();
-                return;
+                throw new Exception("Failure on node time retrieval");
             }
 
             utcTime = new DateTime(
@@ -2686,9 +2688,7 @@ namespace Center
 
             if (nodeVersion == null)
             {
-                Event("Cant determined node version.");
-                SaveExit();
-                return;
+                throw new Exception("Cant determined node version.");
             }
 
             Event("Version: " + nodeVersion + ((nodeSubVersion != null) ? ":" + nodeSubVersion : ""));
@@ -3014,9 +3014,7 @@ namespace Center
 
             if (!lastConfLiveRetrieved)
             {
-                Event("Failure on last configuration retrieval");
-                SaveExit();
-                return;
+                throw new Exception("Failure on last configuration retrieval");
             }
 
             lastConfLive = lastConfLive - nodeTimeOffset;

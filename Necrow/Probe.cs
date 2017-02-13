@@ -2415,9 +2415,10 @@ namespace Center
 
                 foreach (string line in lines)
                 {
-                    if (line.Length > 0 && char.IsDigit(line[0]))
+                    string lineTrim = line.Trim(new char[] { '*', ' ' });
+                    if (lineTrim.Length > 0 && char.IsDigit(lineTrim[0]))
                     {
-                        string[] ps = line.Split('.');
+                        string[] ps = lineTrim.Split('.');
                         //00:26:20.139 WIB Sat May 7 2016
                         string[] pt = ps[1].Split(' ');
                         if (DateTime.TryParseExact(string.Format("{0} {1} {2} {3}", ps[0], pt[3], pt[4], pt[5]), "HH:mm:ss MMM d yyyy", null, DateTimeStyles.None, out nodeTime)) { nodeTimeRetrieved = true; }

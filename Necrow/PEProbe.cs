@@ -3500,7 +3500,7 @@ Last input 00:00:00, output 00:00:00
             #region Execute
 
             // SERVICE REFERENCE
-            ServiceExecute(interfaceServiceReference);
+            ServiceDiscovery(interfaceServiceReference);
 
             // ADD
             batch.Begin();

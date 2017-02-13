@@ -1558,7 +1558,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
             #region Execute
 
             // SERVICE REFERENCE
-            ServiceExecute(circuitServiceReference);
+            ServiceDiscovery(circuitServiceReference);
 
             // ADD
             batch.Begin();
@@ -3426,7 +3426,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             #region Execute
 
             // SERVICE REFERENCE
-            ServiceExecute(interfaceServiceReference);
+            ServiceDiscovery(interfaceServiceReference);
 
             // ADD
             batch.Begin();

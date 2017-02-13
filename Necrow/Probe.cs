@@ -3495,7 +3495,7 @@ namespace Center
                 UpdateInfo(updateInfo, title, from, to);
         }
 
-        private void ServiceExecute(ServiceReference reference)
+        private void ServiceDiscovery(ServiceReference reference)
         {
             Batch batch = Batch();
             Result result;

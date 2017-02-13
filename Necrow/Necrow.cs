@@ -927,15 +927,6 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             Result result;
             Batch batch = jovice.Batch();
 
-
-
-
-
-
-
-
-
-
             #region Upper case node name
 
             result = jovice.Query("select * from Node");

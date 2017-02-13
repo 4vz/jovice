@@ -2037,9 +2037,7 @@ namespace Center
             }
             else
             {
-                Event("Unsupported node manufacture");
-                Save();
-                return;
+                throw new Exception("Unsupported node manufacture");
             }
 
             #region CHECK IP
@@ -2361,9 +2359,7 @@ namespace Center
 
                 if (terminal.EndsWith(">"))
                 {
-                    Event("Error: Not In Privileged EXEC mode");
-                    SaveExit();
-                    return;
+                    throw new Exception("This CISCO node is not in previledge mode");
                 }
             }
             else if (nodeManufacture == jun)
@@ -2773,6 +2769,25 @@ namespace Center
                             string ps = line.Substring(56, 19);
                             if (DateTime.TryParseExact(ps, "yyyy-MM-dd HH:mm:ss", null, DateTimeStyles.None, out lastConfLive)) lastConfLiveRetrieved = true;
                             break;
+                        }
+                    }
+                }
+                else if (nodeVersion == "5.70")
+                {
+                    if (Request("display saved-configuration time", out lines)) return;
+
+                    foreach (string line in lines)
+                    {
+                        //02:38:04 WIB 2017/02/13
+                        string[] tokens = line.Split(StringSplitTypes.Space);
+                        if (tokens.Length == 3)
+                        {
+                            string date = string.Join(" ", tokens[0], tokens[2]);
+                            if (DateTime.TryParseExact(date, "HH:mm:ss yyyy/MM/dd", null, DateTimeStyles.None, out lastConfLive))
+                            {
+                                lastConfLiveRetrieved = true;
+                                break;
+                            }
                         }
                     }
                 }

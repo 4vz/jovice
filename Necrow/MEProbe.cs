@@ -2427,97 +2427,161 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
                 bool begin = false;
                 string port = null;
-                string status = null;
-                string protocol = null;
                 StringBuilder description = new StringBuilder();
 
-                foreach (string line in lines)
+                if (nodeVersion == "5.70" || nodeVersion == "5.90")
                 {
-                    if (line.Length > 0)
+                    // 5.90
+                    //GigabitEthernet0/0/0          H
+                    //0123456789012345678901234567890
+                    //          1         2         3
+
+                    // 5.70
+                    //Eth-Trunk1.110              IPTV_Multicast
+                    //0123456789012345678901234567890
+                    //          1         2         3
+
+                    foreach (string line in lines)
                     {
-                        if (begin)
+                        if (line.Length > 0)
                         {
-                            if (line[0] != ' ' && line.Length >= 30)
+                            if (begin)
                             {
-                                if (port != null)
+                                if (line[0] != ' ' && line.Length >= (nodeVersion == "5.70" ? 29 : 31))
                                 {
-                                    if (!interfacelive.ContainsKey(port))
+                                    if (port != null)
                                     {
-                                        MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
-                                        mid.Name = port;
-                                        mid.Description = description.Length > 0 ? description.ToString() : null;
-                                        mid.Status = (status == "up" || status == "up(s)");
-                                        mid.Protocol = (status == "up" || status == "up(s)");
-                                        interfacelive.Add(port, mid);
+                                        if (!interfacelive.ContainsKey(port))
+                                        {
+                                            MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
+                                            mid.Name = port;
+                                            mid.Description = description.Length > 0 ? description.ToString() : null;
+                                            interfacelive.Add(port, mid);
+                                        }
+
+                                        description.Clear();
+                                        port = null;
                                     }
 
-                                    description.Clear();
-                                    port = null;
-                                    status = null;
-                                    protocol = null;
+                                    string inf = line.Substring(0, (nodeVersion == "5.70" ? 28 : 30)).Trim();
+
+                                    NetworkInterface nif = NetworkInterface.Parse(inf);
+                                    if (nif != null)
+                                    {
+                                        if (nif.Type == "Hu" || nif.Type == "Te") port = "Gi" + nif.PortName;
+                                        else port = nif.Name;
+                                    }
+
+                                    if (port != null)
+                                    {
+                                        string descarea = null;
+                                        if (nodeVersion == "5.70")
+                                            descarea = line.Substring(28).TrimStart();
+                                        else
+                                            descarea = line.Substring(30).TrimStart();
+
+                                        description.Append(descarea);
+                                    }
                                 }
-
-                                // 5.90
-                                //GigabitEthernet0/0/0          H
-                                //0123456789012345678901234567890
-                                //          1         2         3
-
-                                // 5.120
-                                //Aux0/0/1                      *down   down     H
-                                //012345678901234567890123456789012345678901234567
-                                //          1         2         3         4
-
-                                // 5.160
-                                //Aux0/0/1                      down    down     HUAWEI, Aux0/0/1 Interface
-
-                                string inf = line.Substring(0, 30).Trim();
-                                status = line.Substring(30, 7).Trim();
-                                protocol = line.Substring(38, 7).Trim();
-
-                                NetworkInterface nif = NetworkInterface.Parse(inf);
-                                if (nif != null)
-                                {
-                                    if (nif.Type == "Hu" || nif.Type == "Te") port = "Gi" + nif.PortName;
-                                    else port = nif.Name;
-                                }
-
-                                if (port != null)
-                                {
-                                    string descarea = null;
-                                    if (nodeVersion == "5.90")
-                                        descarea = line.Substring(30).TrimStart();
-                                    else
-                                        descarea = line.Substring(47).TrimStart();
-
-                                    description.Append(descarea);
-                                }
+                                else if (port != null) description.Append(line.TrimStart());
                             }
-                            else if (port != null) description.Append(line.TrimStart());
+                            else if (line.StartsWith("Interface")) begin = true;
                         }
-                        else if (line.StartsWith("Interface")) begin = true;
+                    }
+                    if (port != null)
+                    {
+                        if (!interfacelive.ContainsKey(port))
+                        {
+                            MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
+                            mid.Name = port;
+                            mid.Description = description.Length > 0 ? description.ToString() : null;
+                            interfacelive.Add(port, mid);
+                        }
                     }
                 }
-                if (port != null)
+                else
                 {
-                    if (!interfacelive.ContainsKey(port))
+                    string status = null;
+                    string protocol = null;
+
+                    // 5.120
+                    //Aux0/0/1                      *down   down     H
+                    //012345678901234567890123456789012345678901234567
+                    //          1         2         3         4
+
+                    // 5.160
+                    //Aux0/0/1                      down    down     HUAWEI, Aux0/0/1 Interface
+
+                    foreach (string line in lines)
                     {
-                        MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
-                        mid.Name = port;
-                        mid.Description = description.Length > 0 ? description.ToString() : null;
-                        mid.Status = (status == "up" || status == "up(s)");
-                        mid.Protocol = (status == "up" || status == "up(s)");
-                        interfacelive.Add(port, mid);
+                        if (line.Length > 0)
+                        {
+                            if (begin)
+                            {
+                                if (line[0] != ' ' && line.Length >= 30)
+                                {
+                                    if (port != null)
+                                    {
+                                        if (!interfacelive.ContainsKey(port))
+                                        {
+                                            MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
+                                            mid.Name = port;
+                                            mid.Description = description.Length > 0 ? description.ToString() : null;
+                                            mid.Status = (status == "up" || status == "up(s)");
+                                            mid.Protocol = (status == "up" || status == "up(s)");
+                                            interfacelive.Add(port, mid);
+                                        }
+
+                                        description.Clear();
+                                        port = null;
+                                        status = null;
+                                        protocol = null;
+                                    }
+                                    
+                                    string inf = line.Substring(0, 30).Trim();
+                                    status = line.Substring(30, 7).Trim();
+                                    protocol = line.Substring(38, 7).Trim();
+
+                                    NetworkInterface nif = NetworkInterface.Parse(inf);
+                                    if (nif != null)
+                                    {
+                                        if (nif.Type == "Hu" || nif.Type == "Te") port = "Gi" + nif.PortName;
+                                        else port = nif.Name;
+                                    }
+
+                                    if (port != null)
+                                    {
+                                        string descarea = line.Substring(47).TrimStart();
+                                        description.Append(descarea);
+                                    }
+                                }
+                                else if (port != null) description.Append(line.TrimStart());
+                            }
+                            else if (line.StartsWith("Interface")) begin = true;
+                        }
+                    }
+                    if (port != null)
+                    {
+                        if (!interfacelive.ContainsKey(port))
+                        {
+                            MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
+                            mid.Name = port;
+                            mid.Description = description.Length > 0 ? description.ToString() : null;
+                            mid.Status = (status == "up" || status == "up(s)");
+                            mid.Protocol = (status == "up" || status == "up(s)");
+                            interfacelive.Add(port, mid);
+                        }
                     }
                 }
 
                 //main interface
-                if (nodeVersion != "5.90")
+                if (nodeVersion == "5.90" || nodeVersion == "5.70")
                 {
-                    if (Request("display interface main | in current state|down time|BW", out lines)) return;
+                    if (Request("display interface | in current state|down time|BW", out lines)) return;                    
                 }
                 else
                 {
-                    if (Request("display interface | in current state|down time|BW", out lines)) return;
+                    if (Request("display interface main | in current state|down time|BW", out lines)) return;
                 }
 
                 MEInterfaceToDatabase currentInterfaceToDatabase = null;
@@ -2634,8 +2698,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             }
                         }
                         
-                        // untuk huawei 5.9
-                        if (nodeVersion == "5.90")
+                        // untuk huawei 5.7 dan 5.9
+                        if (nodeVersion == "5.70" || nodeVersion == "5.90")
                         {
                             string lineTrim = line.Trim();
                             string[] tokens = lineTrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
@@ -2729,6 +2793,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 //0123456789012345678901234567890123456789012345678901234567890123456789
                 //          1         2         3         4         5         6
                 //                                    1234567890123456789012345678901
+                //Eth-Trunk2.50                       Speedy_Management_Punung_50
 
                 foreach (string line in lines)
                 {

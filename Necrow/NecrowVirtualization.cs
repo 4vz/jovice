@@ -72,6 +72,15 @@ namespace Center
             get { return aliases; }
         }
 
+        internal static object DACSync = new object();
+
+        private static Dictionary<string, Tuple<string, string, string, string>> derivedAreaConnections = null;
+
+        internal static Dictionary<string, Tuple<string, string, string, string>> DerivedAreaConnections
+        {
+            get { return derivedAreaConnections; }
+        }
+
         #endregion
 
         #region Methods
@@ -192,6 +201,25 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
             Necrow.Event("Loaded " + counts.Item1 + " neighbors");
             Necrow.Event("Loaded " + counts.Item2 + " neighbor interfaces");
             Necrow.Event("Loaded " + counts.Item3 + " neighbor references");
+
+            #endregion
+
+            #region Derived Area Connections
+
+            result = jovice.Query("select * from DerivedAreaConnection");
+
+            derivedAreaConnections = new Dictionary<string, Tuple<string, string, string, string>>();
+            
+            foreach (Row row in result)
+            {
+                string id = row["DAC_ID"].ToString();
+                string ar1 = row["DAC_AR_1"].ToString();
+                string ar2 = row["DAC_AR_2"].ToString();
+                string mi1 = row["DAC_MI_1"].ToString();
+                string mi2 = row["DAC_MI_2"].ToString();
+
+                derivedAreaConnections.Add(id, new Tuple<string, string, string, string>(ar1, ar2, mi1, mi2));
+            }
 
             #endregion
 

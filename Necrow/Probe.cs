@@ -2017,6 +2017,7 @@ namespace Center
             nodeAreaID = row["NO_AR"].ToString();
             nodeType = row["NO_Type"].ToString();
             nodeNVER = row["NO_NVER"].ToInt(0);
+
             this.probeProgressID = probeProgressID;
 
             string previousRemark = row["NO_Remark"].ToString();

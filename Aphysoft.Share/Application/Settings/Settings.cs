@@ -12,9 +12,9 @@ namespace Aphysoft.Share
 
         private static Dictionary<string, string> applicationSettings = new Dictionary<string, string>();
 
-        public static string Get(string key)
+        public static string Get(string name)
         {
-            string settingLower = key.ToLower();
+            string settingLower = name.ToLower();
 
             if (applicationSettings.ContainsKey(settingLower))
                 return applicationSettings[settingLower];
@@ -22,19 +22,19 @@ namespace Aphysoft.Share
                 return null;
         }
 
-        public static void Set(string key, string value)
+        public static void Set(string name, string value)
         {
-            string settingLower = key.ToLower();
+            string settingLower = name.ToLower();
 
             if (applicationSettings.ContainsKey(settingLower))
             {
                 applicationSettings[settingLower] = value;
-                Share.Database.Execute("update Setting set S_Value = {0} where lower(S_Key) = {1}", value, settingLower);
+                Share.Database.Execute("update Setting set S_Value = {0} where lower(S_Name) = {1}", value, settingLower);
             }
             else
             {
                 applicationSettings.Add(settingLower, value);
-                Share.Database.Execute("insert into Setting(S_Key, S_Value) values({0}, {1})", settingLower, value);
+                Share.Database.Execute("insert into Setting(S_Name, S_Value) values({0}, {1})", settingLower, value);
             }
         }
 

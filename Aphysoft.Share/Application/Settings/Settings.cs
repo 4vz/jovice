@@ -12,14 +12,30 @@ namespace Aphysoft.Share
 
         private static Dictionary<string, string> applicationSettings = new Dictionary<string, string>();
 
-        public static string Get(string setting)
+        public static string Get(string key)
         {
-            string settingLower = setting.ToLower();
+            string settingLower = key.ToLower();
 
             if (applicationSettings.ContainsKey(settingLower))
                 return applicationSettings[settingLower];
             else
                 return null;
+        }
+
+        public static void Set(string key, string value)
+        {
+            string settingLower = key.ToLower();
+
+            if (applicationSettings.ContainsKey(settingLower))
+            {
+                applicationSettings[settingLower] = value;
+                Share.Database.Execute("update Setting set S_Value = {0} where lower(S_Key) = {1}", value, settingLower);
+            }
+            else
+            {
+                applicationSettings.Add(settingLower, value);
+                Share.Database.Execute("insert into Setting(S_Key, S_Value) values({0}, {1})", settingLower, value);
+            }
         }
 
         private static List<string> notInApplicationSettings = new List<string>();
@@ -178,7 +194,7 @@ namespace Aphysoft.Share
             }
         }
 
-        internal static void ServerInit()
+        public static void ServerInit()
         {
             if (!applicationSettingsLoaded)
             {

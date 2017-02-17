@@ -14,23 +14,16 @@ namespace Center
 
         public static void Init()
         {
-            #region Necrow
-
-            // Register bind to necrow
-            Service.Register(typeof(ServerNecrowServiceMessage), ServerNecrowServiceMessageHandler);
-            // Register bind to client
-            Service.Register(typeof(ClientNecrowServiceMessage), ClientNecrowServiceMessageHandler);
+            Settings.ServerInit();
+            TelegramBot.Init();
+                        
+            Service.Register(typeof(ServerNecrowServiceMessage), ServerNecrowServiceMessageHandler); // Register bind to necrow            
+            Service.Register(typeof(ClientNecrowServiceMessage), ClientNecrowServiceMessageHandler); // Register bind to client
             Service.Disconnected += NecrowConnectionDisconnected;
+
             // Callback if register necrowa being registered to the server
             Provider.RegisterCallback("necrow", NecrowRegistered);
-
-            #endregion
-
-            #region Service
-
-            #endregion
-
-            
+           
         }
 
         #endregion
@@ -39,7 +32,7 @@ namespace Center
 
         private static Connection necrowConnection = null;
 
-        private static bool IsNecrowConnected()
+        internal static bool IsNecrowConnected()
         {
             return necrowConnection != null && necrowConnection.IsConnected;
         }
@@ -48,7 +41,6 @@ namespace Center
         {
             // Tell registerer about necrow availability status
             //Provider.SetActionByRegister("necrow");
-
         }
 
         private static void NecrowConnectionDisconnected(Connection connection)
@@ -62,7 +54,9 @@ namespace Center
                 }
             }
         }
-        
+
+        #region Server to Necrow
+
         private static void ServerNecrowServiceMessageHandler(MessageEventArgs e)
         {
             ServerNecrowServiceMessage m = (ServerNecrowServiceMessage)e.Message;
@@ -71,13 +65,32 @@ namespace Center
             {
                 necrowConnection = e.Connection;
 
-                Service.Debug("Necrow Connected");
+                TelegramBot.NecrowOnline();
 
-                Provider.SetActionByRegisterMatch("service_[ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=]+", "yayaya");
+                //Provider.SetActionByRegisterMatch("service_[ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=]+", "yayaya");
                 //Provider.SetActionByRegisterMatch("service", "service", "yayaya");
                 //Provider.SetActionByRegister("necrowavailability", "necrow", "online");
             }
+            else if (m.Type == NecrowServiceMessageType.ProbeStatus)
+            {
+                TelegramBot.NecrowProbeStatus(m);
+            }
+            else if (m.Type == NecrowServiceMessageType.Probe)
+            {
+                TelegramBot.NecrowProbe(m);
+            }
         }
+
+        public static void NecrowSend(ServerNecrowServiceMessage message)
+        {
+            if (IsNecrowConnected())
+            {
+                necrowConnection.Send(message);
+            }
+        }
+
+
+        #endregion
 
         private static void ClientNecrowServiceMessageHandler(MessageEventArgs e)
         {
@@ -160,6 +173,10 @@ namespace Center
     public enum NecrowServiceMessageType
     {
         Hello,
+        ProbeStatus,
+        Probe,
+
+
         Request
     }
 
@@ -182,6 +199,38 @@ namespace Center
         {
             get { return requestID; }
             set { requestID = value; }
+        }
+
+        private object identifierData1;
+
+        public object IdentifierData1
+        {
+            get { return identifierData1; }
+            set { identifierData1 = value; }
+        }
+
+        private object identifierData2;
+
+        public object IdentifierData2
+        {
+            get { return identifierData2; }
+            set { identifierData2 = value; }
+        }
+
+        private object identifierData3;
+
+        public object IdentifierData3
+        {
+            get { return identifierData3; }
+            set { identifierData3 = value; }
+        }
+
+        private object[] data;
+
+        public object[] Data
+        {
+            get { return data; }
+            set { data = value; }
         }
 
         #endregion

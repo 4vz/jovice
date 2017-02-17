@@ -3496,15 +3496,20 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         if (!existInVir)
                         {
                             // add
-                            string dacID = Database.ID()
-                            add.Add(new Tuple<string, Tuple<string, string, string, string>>(dacID, new Tuple<string, string, string, string>(nodeAreaID, topologyAreaID, interfaceID,  li.TopologyMEInterfaceID)));
-                            Insert insert = Insert("DerivedAreaConnection");
-                            insert.Value("DAC_ID", dacID);
-                            insert.Value("DAC_AR_1", nodeAreaID);
-                            insert.Value("DAC_AR_2", topologyAreaID);
-                            insert.Value("DAC_MI_1", interfaceID);
-                            insert.Value("DAC_MI_2", li.TopologyMEInterfaceID);
-                            batch.Execute(insert);
+                            string dacID = Database.ID();
+                            result = Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
+                            if (result.Count == 1)
+                            {
+                                string topologyAreaID = result[0]["NO_AR"].ToString();
+                                add.Add(new Tuple<string, Tuple<string, string, string, string>>(dacID, new Tuple<string, string, string, string>(nodeAreaID, topologyAreaID, interfaceID, li.TopologyMEInterfaceID)));
+                                Insert insert = Insert("DerivedAreaConnection");
+                                insert.Value("DAC_ID", dacID);
+                                insert.Value("DAC_AR_1", nodeAreaID);
+                                insert.Value("DAC_AR_2", topologyAreaID);
+                                insert.Value("DAC_MI_1", interfaceID);
+                                insert.Value("DAC_MI_2", li.TopologyMEInterfaceID);
+                                batch.Execute(insert);
+                            }
                         }
                     }
                 }
@@ -3646,7 +3651,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     // remove dac from virtualization
                     foreach (KeyValuePair<string, Tuple<string, string, string, string>> entry in NecrowVirtualization.DerivedAreaConnections)
                     {
-                        if (entry.Value.Item3 == s.ID || entry.Value.Item4 == s.ID)
+                        if (entry.Value.Item3 == tuple.Item2 || entry.Value.Item4 == tuple.Item2)
                         {
                             dacRemove.Add(entry.Key);
                             break;

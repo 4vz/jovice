@@ -61,7 +61,10 @@ namespace Center {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to (function () {
+        ///   Looks up a localized string similar to 
+        ///
+        ////*! Center Main */
+        ///(function () {
         ///
         ///    var center;
         ///
@@ -87,12 +90,20 @@ namespace Center {
         ///
         ///
         ///        // sign in
-        ///        var signinArea = null;
-        ///        /// [rest of string was truncated]&quot;;.
+        ///        v [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string center {
             get {
                 return ResourceManager.GetString("center", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to .
+        /// </summary>
+        internal static string jovice_network {
+            get {
+                return ResourceManager.GetString("jovice_network", resourceCulture);
             }
         }
         

@@ -579,7 +579,7 @@ namespace Center
         private Dictionary<string, Row> reserves;
         private Dictionary<string, Row> popInterfaces;
 
-        private TelegramInformation nodeTelegramInfo = null;
+        private ProbeRequestData probeRequestData = null;
 
 
         private bool started = false;
@@ -930,10 +930,11 @@ namespace Center
                 int xpID = -1;
                 Row node = null;
                 bool prioritizeProcess = false;
+                bool prioritizeAsk = false;
 
-                nodeTelegramInfo = null;                
+                probeRequestData = null;                
 
-                Tuple<string, TelegramInformation> prioritize = Necrow.NextPrioritize();
+                Tuple<string, ProbeRequestData> prioritize = Necrow.NextPrioritize();
                 
                 if (prioritize != null)
                 {
@@ -944,6 +945,12 @@ namespace Center
                         prioritizeNode = prioritizeNode.TrimEnd(new char[] { '*' });
                         prioritizeProcess = true;
                     }
+                    else if (prioritizeNode.EndsWith("?"))
+                    {
+                        prioritizeNode = prioritizeNode.TrimEnd(new char[] { '?' });
+                        prioritizeAsk = true;
+                    }
+
 
                     Event("Prioritizing Probe: " + prioritizeNode);
                     Result rnode = Query("select * from Node where upper(NO_Name) = {0}", prioritizeNode);
@@ -954,8 +961,9 @@ namespace Center
 
                         if (prioritize.Item2 != null)
                         {
-                            nodeTelegramInfo = prioritize.Item2;
-                            Necrow.Telegram_SendMessage(nodeTelegramInfo, "Starting the probe process to " + prioritizeNode);
+                            probeRequestData = prioritize.Item2;
+                            probeRequestData.Message.Data = new object[] { node["NO_Name"].ToString(), "STARTING" };
+                            probeRequestData.Connection.Reply(probeRequestData.Message);
                         }
                     }
                     else
@@ -977,18 +985,17 @@ namespace Center
                 {
                     bool continueProcess = false;
                     bool caughtError = false;
+                    string info = null;
 #if !DEBUG
                     try
                     {
 #endif
 
-                    Enter(node, xpID, out continueProcess, prioritizeProcess);
+                    Enter(node, xpID, out continueProcess, prioritizeProcess, prioritizeAsk);
 #if !DEBUG
                     }
                     catch (Exception ex)
-                    {
-                        string info = null;
-                        
+                    {              
                         if (ex.Message.IndexOf("was being aborted") == -1)
                         {
                             info = ex.Message;
@@ -1093,6 +1100,7 @@ namespace Center
                         {
                             if (ex.Message.IndexOf("was being aborted") == -1)
                             {
+                                info = ex.Message;
                                 Necrow.Log(nodeName, ex.Message, ex.StackTrace);
                                 Event("Caught error: " + ex.Message + ", exiting current node...");
                                 Update(UpdateTypes.Remark, "PROBEFAILED");
@@ -1111,15 +1119,20 @@ namespace Center
                         }
                     }
                     
-                    if (nodeTelegramInfo != null)
+                    if (probeRequestData != null)
                     {
-                        string info;
-                        if (caughtError || !continueProcess)
-                            info = "I am sorry, an error has been caught during probe process in " + nodeName + ". Probe process has been terminated, please review Node's log or ProbeLog for further investigations";
+                        if (!continueProcess) { }
+                        else if (caughtError)
+                        {
+                            probeRequestData.Message.Data = new object[] { nodeName, "ERROR", info };
+                            probeRequestData.Connection.Reply(probeRequestData.Message);
+                        }
                         else
-                            info = nodeName + " has successfully probed, thanks";
-
-                        Necrow.Telegram_SendMessage(nodeTelegramInfo, info);
+                        {
+                            probeRequestData.Message.Data = new object[] { nodeName, "FINISH" };
+                            probeRequestData.Connection.Reply(probeRequestData.Message);
+                        }
+                        
                     }
 
                     Thread.Sleep(5000); // GRACE PERIOD BETWEEN NODES OR NECROW TO DO SOMETHING
@@ -1994,7 +2007,7 @@ namespace Center
             }
         }
 
-        private void Enter(Row row, int probeProgressID, out bool continueProcess, bool prioritizeProcess)
+        private void Enter(Row row, int probeProgressID, out bool continueProcess, bool prioritizeProcess, bool prioritizeAsk)
         {
             string[] lines = null;
 
@@ -3438,6 +3451,13 @@ namespace Center
             {
                 Event("Prioritized node, continuing process");
                 continueProcess = true;
+            }
+            else if (prioritizeAsk)
+            {
+                probeRequestData.Message.Data = new object[] { nodeName, "UPTODATE", lastConfLive };
+                probeRequestData.Connection.Reply(probeRequestData.Message);
+
+                SaveExit();
             }
             else
             {

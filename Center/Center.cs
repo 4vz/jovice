@@ -4,7 +4,6 @@ using System.Linq;
 using System.Web;
 using Aphysoft.Share;
 
-
 namespace Center
 {
     public class Center : Share
@@ -19,14 +18,11 @@ namespace Center
             {
                 if (center == null)
                 {
-                    string database = ConfigurationHelper.Settings("database");
-                    if (database == null)
-                    {
-                        database = "localhost";
 #if DEBUG
-                        database = "localhost\\SQLEXPRESS";
+                    string database = "localhost\\SQLEXPRESS";
+#else
+                    string database = "localhost";
 #endif
-                    }
                     string connectionString = string.Format("Data Source={0};Initial Catalog=center;User ID=telkom.center;Password=t3lk0mdotc3nt3r;async=true", database);
                     center = new Database(connectionString, DatabaseType.SqlServer);
                 }
@@ -49,10 +45,10 @@ namespace Center
 #if DEBUG
             Resource.Common(Resource.Register("script_share", ResourceType.JavaScript, "../Aphysoft.Share.Resources/Resources/Scripts/share.js").NoMinify().NoCache());
             Resource.Common(Resource.Register("script_ui", ResourceType.JavaScript, "../Aphysoft.Share.Resources/Resources/Scripts/ui.js").NoMinify().NoCache());
-
-            BaseResources.InitDebug();
 #endif
             #endregion
+
+            BaseResources.InitDebug();
 
             #region Center
 
@@ -98,8 +94,17 @@ namespace Center
                     Resource.Register("jovice_service", ResourceType.JavaScript, Resources.ResourceManager, "jovice_service", "~/View/Jovice/service.js"),
                     null));
 
+            Content.Register("jovice_network",
+                new ContentPage[] {
+                    new ContentPage("/network", true)
+                },
+                new ContentPackage(
+                    Resource.Register("jovice_network", ResourceType.JavaScript, Resources.ResourceManager, "jovice_network", "~/View/Jovice/network.js"),
+                    null));
+
             #endregion
 
+            Provider.Register(15001, Providers.Network.ProviderRequest); // network map
             Provider.Register(101, Providers.Search.ProviderRequest); // Search
         }
 

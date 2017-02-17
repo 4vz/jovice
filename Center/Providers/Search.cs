@@ -119,7 +119,7 @@ namespace Center.Providers
 
                 #endregion
 
-                ProviderSearchResult searchResult = null;
+                SearchResultProviderPacket searchResult = null;
 
                 Result r;
 
@@ -219,7 +219,7 @@ namespace Center.Providers
                         matchResult.Results = results.ToArray();
                     }
 
-                    searchResult = new ProviderSearchResult(matchResult.Type);
+                    searchResult = new SearchResultProviderPacket(matchResult.Type);
 
                     searchResult.Results = matchResult.Results;
 
@@ -274,7 +274,7 @@ namespace Center.Providers
                 }
                 else
                 {
-                    searchResult = new ProviderSearchResult("");
+                    searchResult = new SearchResultProviderPacket("");
                     
                     List<string> exQueries = new List<string>();
                     List<string> exExplainations = new List<string>();
@@ -1025,7 +1025,7 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
     }
 
     [DataContractAttribute]
-    public class ProviderSearchResult : ProviderPacket
+    public class SearchResultProviderPacket : ProviderPacket
     {
         #region Fields
 
@@ -1186,7 +1186,7 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
 
         #region Constructors
 
-        public ProviderSearchResult(string type)
+        public SearchResultProviderPacket(string type)
         {
             this.type = type;
         }

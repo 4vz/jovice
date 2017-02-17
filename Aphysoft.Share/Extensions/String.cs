@@ -43,7 +43,15 @@ namespace Aphysoft.Share
             return rv;
         }
 
-        //public static int In(this string value, params string[])
+        public static string Random(this string[] values)
+        {
+            if (values == null) return null;
+            else
+            {
+                if (values.Length == 0) return null;
+                else return values[RandomHelper.Next(values.Length)];               
+            }
+        }
 
         public static bool StartsWith(this string value, params string[] values)
         {

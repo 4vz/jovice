@@ -7,10 +7,7 @@ using System.Globalization;
 using System.IO;
 
 using Aphysoft.Share;
-using Telegram.Bot;
-using System.Diagnostics;
-using Microsoft.VisualBasic.Devices;
-using System.Management;
+
 
 namespace Center
 {
@@ -85,27 +82,35 @@ namespace Center
         #endregion
     }
 
-    public class TelegramInformation
+    public class ProbeRequestData
     {
-        private long chatID;
+        #region Fields
 
-        public long ChatID
+        private Connection connection;
+
+        public Connection Connection
         {
-            get { return chatID; }
+            get { return connection; }
         }
 
-        private int messageID;
+        private ServerNecrowServiceMessage message;
 
-        public int MessageID
+        public ServerNecrowServiceMessage Message
         {
-            get { return messageID; }
+            get { return message; }
         }
 
-        public TelegramInformation(long chatID, int messageID)
+        #endregion
+
+        #region Constructors
+
+        public ProbeRequestData(Connection connection, ServerNecrowServiceMessage message)
         {
-            this.chatID = chatID;
-            this.messageID = messageID;
+            this.connection = connection;
+            this.message = message;
         }
+
+        #endregion
     }
 
     public static class Necrow
@@ -123,21 +128,14 @@ namespace Center
 #endif
         private static Queue<Tuple<int, string>> list = null;
 
-        private static Queue<Tuple<string, TelegramInformation>> prioritize = new Queue<Tuple<string, TelegramInformation>>();
+        private static Queue<Tuple<string, ProbeRequestData>> prioritize = new Queue<Tuple<string, ProbeRequestData>>();
 
         private static List<Tuple<string, string, string>> supportedVersions = null;
 
         private static bool mainLoop = true;
 
-        internal static TelegramBotClient telegram = null;
-
         private static Dictionary<string, Probe> instances = null;
-
-        private readonly static PerformanceCounter cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
-        private readonly static PerformanceCounter ramCounter = new PerformanceCounter("Memory", "Available MBytes");
-        private readonly static ComputerInfo computerInfo = new ComputerInfo();
-        private readonly static ManagementObjectSearcher mos = new ManagementObjectSearcher("root\\CIMV2", "SELECT * FROM Win32_Processor");
-        
+       
         internal static Dictionary<string, Dictionary<string, object>> keeperNode = null;
 
         #endregion
@@ -180,7 +178,7 @@ namespace Center
 
         public static void Test(string name)
         {
-            prioritize.Enqueue(new Tuple<string, TelegramInformation>(name.ToUpper() + "*", null));
+            prioritize.Enqueue(new Tuple<string, ProbeRequestData>(name.ToUpper() + "*", null));
         }
 #else
         internal static void Log(string source, string message, string stacktrace)
@@ -210,210 +208,6 @@ namespace Center
                    (start == end);
         }
 
-        private static long telegram_lastChatId = 0;
-        private static int telegram_lastMessageId = 0;
-        private static string telegram_waitingYesForThisNode = null;
-        private static int telegram_waitingYesForThisNode_msgID = 0;
-
-        private static void Telegram_OnMessage(object sender, Telegram.Bot.Args.MessageEventArgs e)
-        {
-            string msg = e.Message.Text;
-            string rsp = null;
-
-            if (msg != null)
-            {
-                telegram_lastChatId = e.Message.Chat.Id;
-                telegram_lastMessageId = e.Message.MessageId;
-                int currentMessageId = e.Message.MessageId;
-
-                if (msg.StartsWith("/probestatus"))
-                {
-                    #region /probestatus
-
-                    int intime = 0;
-                    foreach (KeyValuePair<string, Probe> ins in instances)
-                    {
-                        if (InTime(ins.Value.Properties)) intime++;
-                    }
-
-                    StringBuilder probeloc = new StringBuilder();
-                    int actv = 0;
-                    foreach (KeyValuePair<string, Probe> ins in instances)
-                    {
-                        if (ins.Value.IsProbing)
-                        {
-                            //if (probeloc.Length > 0) probeloc.Append(", ");
-
-                            probeloc.Append("\nPROBE" + ins.Key.Trim() + " on " + ins.Value.NodeName + " (" + Math.Round((DateTime.UtcNow - ins.Value.NodeProbeStartTime).TotalSeconds) + "s) [" +
-                                ins.Value.Properties.TacacUser + "]");
-
-                            actv++;
-                        }
-                        else if (InTime(ins.Value.Properties))
-                        {
-                            if (ins.Value.LastNodeName != null)
-                                probeloc.Append("\nPROBE" + ins.Key.Trim() + " -- (was on " + ins.Value.LastNodeName + " " + Math.Round((DateTime.UtcNow - ins.Value.LastProbeEndTime).TotalSeconds) + "s ago)");
-                            else
-                                probeloc.Append("\nPROBE" + ins.Key.Trim() + " -- ");
-                        }
-                    }
-
-                    if (intime > 0)
-                    {
-                        if (actv > 0)
-                        {
-                            rsp = "There " + (actv > 1 ? "are" : "is") + " " + actv + " active probe" + (actv > 1 ? "s" : "") + " (" + intime + " on duty): " + probeloc.ToString();
-                        }
-                        else rsp = "There is no currently active probe (" + intime + " on duty): " + probeloc.ToString();
-                    }
-                    else rsp = "There is no probe currently on duty";
-
-                    #endregion
-                }
-                else if (msg.StartsWith("/probe"))
-                {
-                    #region /probe
-                    string[] tokens = msg.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-
-                    if (tokens.Length != 2)
-                    {
-                        rsp = "The usage of that command is /probe <node name>";
-                    }
-                    else
-                    {
-                        string node = tokens[1].ToUpper();
-
-                        Result rnode = Jovice.Database.Query("select * from Node where NO_Name = {0}", node);
-
-                        if (rnode.Count == 1)
-                        {
-                            bool already = false;
-                            foreach (Tuple<string, TelegramInformation> tup in prioritize)
-                            {
-                                if (tup.Item1.Contains(node) || tup.Item1.Contains(node + "*"))
-                                {
-                                    already = true;
-                                    break;
-                                }
-                            }
-
-                            if (already) rsp = "The node is currently on my list and will starting as soon as a probe on duty is available";
-                            else
-                            {
-                                int intime = 0;
-                                foreach (KeyValuePair<string, Probe> ins in instances)
-                                {
-                                    if (InTime(ins.Value.Properties)) intime++;
-                                }
-
-                                if (intime == 0)
-                                {
-                                    rsp = "There is no probe currently on duty, do you want to probe the node as soon as a probe is available?";
-                                    telegram_waitingYesForThisNode = node;
-                                    telegram_waitingYesForThisNode_msgID = e.Message.MessageId;
-                                }
-                                else
-                                {
-                                    prioritize.Enqueue(new Tuple<string, TelegramInformation>(node + "*", new TelegramInformation(e.Message.Chat.Id, e.Message.MessageId)));
-                                    rsp = "Got It, I'll keep you updated";
-                                }
-                            }
-                        }
-                        else rsp = "I am sorry, I couldn't find " + node + " in my database";
-                    }
-                    #endregion
-                }
-                else if (telegram_waitingYesForThisNode != null && msg.ToLower().IndexOf("yes", "ya", "yaa", "yaaa", "yess", "yesss", "hell yes", "yeah", "iya", "lakukan", "baiklah") > -1)
-                {
-                    #region /probe + yes
-                    prioritize.Enqueue(new Tuple<string, TelegramInformation>(telegram_waitingYesForThisNode + "*", new TelegramInformation(e.Message.Chat.Id, telegram_waitingYesForThisNode_msgID)));
-                    rsp = "Got It, I'll keep you updated";
-                    currentMessageId = telegram_waitingYesForThisNode_msgID;
-                    telegram_waitingYesForThisNode = null;
-                    telegram_waitingYesForThisNode_msgID = 0;
-                    #endregion
-                }
-                else if (telegram_waitingYesForThisNode != null && msg.ToLower().IndexOf("no", "noo", "hell no", "nooo", "tidak", "gak", "enggak", "gak usah", "nanti aja", "ga", "ga usah", "pass", "later") > -1)
-                {
-                    #region /probe + no
-                    rsp = "Okay";
-                    telegram_waitingYesForThisNode = null;
-                    telegram_waitingYesForThisNode_msgID = 0;
-                    #endregion
-                }
-                else if (msg == "/cpu")
-                {
-                    #region /cpu
-                    float availableRam = ramCounter.NextValue();
-                    float totalRam = (float)Math.Round((double)(computerInfo.TotalPhysicalMemory / 1024000));
-                    float percentageRam = 100 - (float)Math.Round(availableRam / totalRam * 100, 2);
-
-                    
-                    rsp = "";
-                    string oname = null;
-                    int ocpu = 0;
-                    foreach (ManagementObject mo in mos.Get())
-                    {
-                        string cname = mo["Name"].ToString();
-                        ocpu += int.Parse(mo["NumberOfLogicalProcessors"].ToString());
-                        if (oname != null && cname != oname)
-                        {
-                            rsp += cname + " " + ocpu + " Logical Processors\n";
-                            oname = cname;
-                            ocpu = 0;
-                        }
-                        else if (oname == null) oname = cname;
-                    }
-                    if (oname != null)
-                    {
-                        rsp += oname + " " + ocpu + " Logical Processors\n";
-                    }
-
-                    rsp += "CPU Usage: " + Math.Round(cpuCounter.NextValue(), 2) + "%\n" +
-                        "RAM Usage: " + percentageRam + "%\n" +
-                        "RAM Available/Total: " + availableRam + "MB/" + totalRam + "MB";
-
-                    cpuCounter.NextValue();
-                    #endregion
-                }
-
-                if (rsp != null)
-                {
-                    if (telegram_lastMessageId != currentMessageId)
-                        telegram.SendTextMessageAsync(e.Message.Chat.Id, rsp, false, false, currentMessageId, null);
-                    else
-                        telegram.SendTextMessageAsync(e.Message.Chat.Id, rsp, false, false, 0, null);
-                }
-            }
-        }
-        
-        private static void Telegram_OnReceiveError(object sender, Telegram.Bot.Args.ReceiveErrorEventArgs e)
-        {
-            //Event("Telegram Bot Error: " + e.ApiRequestException.Message);
-        }
-
-        private static void Telegram_OnReceiveGeneralError(object sender, Telegram.Bot.Args.ReceiveGeneralErrorEventArgs e)
-        {
-            //Event("Telegram Bot General Error: " + e.Exception.Message);
-        }
-
-        internal static void Telegram_SendMessage(TelegramInformation info, string msg)
-        {
-            if (info != null)
-            {
-                if (telegram_lastMessageId != info.MessageID)
-                    telegram_lastMessageId = telegram.SendTextMessageAsync(info.ChatID, msg, false, false, info.MessageID, null).Id;
-                else
-                    telegram_lastMessageId = telegram.SendTextMessageAsync(info.ChatID, msg, false, false, 0, null).Id;
-            }
-        }
-
-        internal static void Telegram_SendMessage(string msg)
-        {
-            if (telegram_lastChatId != 0)
-                telegram.SendTextMessageAsync(telegram_lastChatId, msg, false, false, 0, null);
-        }
-
         public static void Start()
         {
             Thread start = new Thread(new ThreadStart(delegate ()
@@ -424,17 +218,13 @@ namespace Center
                 Culture.Default();
                 Event("Necrow Starting...");
 
-                Event("Initiating performance counter...");
-                cpuCounter.NextValue();
-                Event("Performance counter initiated");
-
-                //Service.Client();
-                //Service.Connected += delegate (Connection connection)
-                //{
-                //    Event("Service Connected");
-                //    Service.Send(new ServerNecrowServiceMessage(NecrowServiceMessageType.Hello));
-                //};
-                //Service.Register(typeof(ServerNecrowServiceMessage), NecrowServiceMessageHandler);
+                Service.Client();
+                Service.Connected += delegate (Connection connection)
+                {
+                    Event("Service Connected");
+                    Service.Send(new ServerNecrowServiceMessage(NecrowServiceMessageType.Hello));
+                };
+                Service.Register(typeof(ServerNecrowServiceMessage), NecrowServiceMessageHandler);
 
                 Event("Checking Jovice Database connection... ");
 
@@ -502,28 +292,6 @@ namespace Center
                     NecrowVirtualization.Load();
 
                     Event("Database virtualizations completed");
-
-                    #endregion
-
-                    #region Bot
-                    
-                    Event("Starting Telegram Bot handling...");
-
-                    //329048230:AAFDHCcNNyDpAyfMe5vn-oLzvKjmIrIG4Hg dev
-                    //298092052:AAFrX-tcSnPR_8y9xwukMwhaZC2A5wpFHYI prod
-#if DEBUG
-                    telegram = new TelegramBotClient("329048230:AAFDHCcNNyDpAyfMe5vn-oLzvKjmIrIG4Hg");
-#else
-                    telegram = new TelegramBotClient("298092052:AAFrX-tcSnPR_8y9xwukMwhaZC2A5wpFHYI");
-#endif
-
-                    telegram.OnMessage += Telegram_OnMessage;
-                    telegram.OnReceiveError += Telegram_OnReceiveError;
-                    telegram.OnReceiveGeneralError += Telegram_OnReceiveGeneralError;
-
-                    telegram.StartReceiving();
-
-                    Event("Telegram Bot started");
 
                     #endregion
                     
@@ -638,7 +406,7 @@ namespace Center
                                     values.Add("NO_Manufacture", row["NO_Manufacture"].ToString());
                                     values.Add("NO_IP", row["NO_IP"].ToString());
 
-                                    prioritize.Enqueue(new Tuple<string, TelegramInformation>(newNodeName, null));
+                                    prioritize.Enqueue(new Tuple<string, ProbeRequestData>(newNodeName, null));
 
                                     Event("New Node Registered: " + newNodeName);
                                 }
@@ -1062,9 +830,9 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
             return noded;
         }
 
-        internal static Tuple<string, TelegramInformation> NextPrioritize()
+        internal static Tuple<string, ProbeRequestData> NextPrioritize()
         {
-            Tuple<string, TelegramInformation> node = null;
+            Tuple<string, ProbeRequestData> node = null;
 
             lock (prioritize)
             {
@@ -1127,7 +895,7 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
                     if (cs.Clauses.Count == 2)
                     {
                         string nodename = cs.Clauses[1];
-                        prioritize.Enqueue(new Tuple<string, TelegramInformation>(nodename.ToUpper(), null));
+                        prioritize.Enqueue(new Tuple<string, ProbeRequestData>(nodename.ToUpper(), null));
                     }
                 }
             }
@@ -1139,7 +907,36 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
 
             if (m.Type == NecrowServiceMessageType.Request)
             {
-                Event("We got request from server! = " + m.RequestID);
+                //Event("We got request from server! = " + m.RequestID);
+            }
+            else if (m.Type == NecrowServiceMessageType.ProbeStatus)
+            {
+                List<object> objects = new List<object>();
+
+                if (instances != null)
+                {
+                    foreach (KeyValuePair<string, Probe> ins in instances)
+                    {
+                        if (ins.Value.IsProbing)
+                        {
+                            objects.Add(new Tuple<string, string, string, DateTime, string>("A", ins.Key.Trim(), ins.Value.NodeName, ins.Value.NodeProbeStartTime, ins.Value.Properties.TacacUser));
+                        }
+                        else if (InTime(ins.Value.Properties))
+                        {
+                            objects.Add(new Tuple<string, string, string, DateTime, string>("I", ins.Key.Trim(), ins.Value.LastNodeName, ins.Value.LastProbeEndTime, null));
+                        }
+                    }
+                }
+
+                m.Data = objects.ToArray();
+                e.Connection.Reply(m);
+            }
+            else if (m.Type == NecrowServiceMessageType.Probe)
+            {
+                string node = (string)m.Data[0];
+                string option = "?";
+                if (m.Data.Length > 1 && (string)m.Data[1] == "FORCE") option = "*";
+                prioritize.Enqueue(new Tuple<string, ProbeRequestData>(node + option, new ProbeRequestData(e.Connection, m)));
             }
         }
 

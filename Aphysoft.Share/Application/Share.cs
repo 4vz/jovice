@@ -29,15 +29,11 @@ namespace Aphysoft.Share
             {
                 if (share == null)
                 {
-                    string database = ConfigurationHelper.Settings("database");
-                    if (database == null)
-                    {
-                        
-                        database = "localhost";
 #if DEBUG
-                        database = "localhost\\SQLEXPRESS";
+                    string database = "localhost\\SQLEXPRESS";
+#else
+                    string database = "localhost";
 #endif
-                    }
                     string connectionString = string.Format("Data Source={0};Initial Catalog=share;User ID=telkom.center;Password=t3lk0mdotc3nt3r;async=true", database);
                     share = new Database(connectionString, DatabaseType.SqlServer);
                 }
@@ -639,7 +635,7 @@ namespace Aphysoft.Share
         protected virtual void OnScriptDataBinding(HttpContext context, ScriptData data) { }
 
         protected virtual void OnStyleSheetDataBinding(HttpContext context, StyleSheetData data) { }
-
+        
         #endregion
 
         #region Methods

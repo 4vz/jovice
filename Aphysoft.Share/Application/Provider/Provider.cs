@@ -28,15 +28,6 @@ namespace Aphysoft.Share
 
         private static object instancesWaitSync = new object();
 
-        #region Properties
-
-        public static int ClientCount()
-        {
-            return clientInstances.Count;
-        }
-
-        #endregion
-
         internal static void ServerInit()
         {
             clientInstances = new Dictionary<string, StreamClientInstance>();
@@ -358,6 +349,11 @@ namespace Aphysoft.Share
             if (!registerCallbacks.ContainsKey(register))
                 registerCallbacks.Add(register, method);
         }
+        
+        public static int GetSessionCount()
+        {
+            return sessionInstances != null ? sessionInstances.Count : 0;
+        }
 
         #endregion
 
@@ -585,12 +581,7 @@ namespace Aphysoft.Share
 
         internal static void OnClientDisconnected(ProviderClientDisconnectedEventArgs e)
         {
-            ProviderClientDisconnectedEventHandler handler = ClientDisconnected;
-
-            if (handler != null)
-            {
-                handler(e);
-            }
+            ClientDisconnected?.Invoke(e);
         }
         
         public static void Register(int[] ids, ResourceRequest handler)
@@ -622,18 +613,7 @@ namespace Aphysoft.Share
                 }
             }
         }
-
-        public static void Register(string name, ServiceRequest handler)
-        {
-            if (!serviceRegisters.ContainsKey(name))
-            {
-                lock (serviceRegisters)
-                {
-                    serviceRegisters.Add(name, new ProviderRegister(handler));
-                }
-            }
-        }
-
+        
         #endregion
     }
     

@@ -1789,6 +1789,20 @@ namespace Aphysoft.Share
             else return ToDouble();
         }
 
+        public float ToFloat()
+        {
+            if (value.GetType() == typeof(double))
+                return (float)GetValue<double>();
+            else
+                return 0;
+        }
+
+        public float ToFloat(float ifNull)
+        {
+            if (IsNull) return ifNull;
+            else return ToFloat();
+        }
+
         public bool? ToNullableBool()
         {
             if (IsNull) return null;

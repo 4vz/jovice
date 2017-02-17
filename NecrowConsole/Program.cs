@@ -17,7 +17,7 @@ namespace NecrowConsole
 #if DEBUG
             if (Necrow.Debug())
             {
-                Necrow.Test("Pe-d5-mtr-speedy");
+                //Necrow.Test("PE-D7-SRU");
 #endif
                 Necrow.Start();
 #if DEBUG

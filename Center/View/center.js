@@ -1,4 +1,6 @@
-﻿/*! Center Main */
+﻿
+
+/*! Center Main */
 (function () {
 
     var center;
@@ -68,9 +70,9 @@
             var iright = ui.icon(nbox, center.icon("hex"))({ size: 18, color: 75, position: [16.25, 17], rotation: 90 });
             var itop = ui.icon(nbox, center.icon("hex"))({ size: 18, color: 75, position: [9.5, 5.5], rotation: 90 });
             nbox.hover(function () {
-                itop.color(25, { duration: 66 });
-                ileft.color("accent", { duration: 66 });
-                iright.color(55, { duration: 66 });
+                itop.color(25, { duration: 166 });
+                ileft.color("accent", { duration: 166 });
+                iright.color(55, { duration: 166 });
             }, function () {
                 itop.color(75, { duration: 166 });
                 ileft.color(75, { duration: 166 });
@@ -206,11 +208,12 @@
                             el.transform("s0.5,0.5,100,20");
                             el.attr({ "stroke-width": 1, stroke: ui.color(35) });
                         });
+                        close.fadeIn(100);
+                        onResize();
                         offline.show();
                         update.hide();
                         offline.text("OFFLINE");
                         offline.left((500 - offline.textSize().width) / 2);
-                        close.fadeIn(100);
                         $(':focus').blur();
                     }
                 }
@@ -220,7 +223,9 @@
                         el.attr({ "stroke-width": 1, stroke: ui.color(35) });
                     });
                     close.fadeIn(100);
-                    offline.text("UPDATE");
+                    onResize();
+                    offline.show();
+                    offline.text("NEW UPDATE IS AVAILABLE");
                     offline.left((500 - offline.textSize().width) / 2);
                     update.show();
                     update.left((500 - update.textSize().width) / 2);
@@ -329,6 +334,18 @@
             var i = Math.floor(Math.log(bytes) / Math.log(k));
             return [(bytes / Math.pow(k, i)).toPrecision(dm), sizes[i]];
         };
+        center.loadGoogleMaps = function (callback) {
+
+            if (googleMapsLoaded == false) {
+                $.getScript("https://maps.googleapis.com/maps/api/js?key=" + "AIzaSyCTfWC0APQfYHHL-2l-HlLXDWw2g_4zE80", function () {
+                    googleMapsLoaded = true;
+                    callback();
+                });
+            }
+            else callback();
+        };
+
+        var googleMapsLoaded = false;
                 
         function onResize() {
 

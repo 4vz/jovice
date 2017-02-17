@@ -884,7 +884,7 @@
                 r.overviewarea = ui.box(r.content)({ topBottom: [10, 0], width: 380, borderTop: { size: 1, color: 80 } });
                 r.contents[0] = r.overviewarea;
 
-                ui.text(r.overviewarea)({ position: [0, 15], text: "Last Checked", weight: "600", color: 25, font: 18, tooltipAreaHeight: 55, tooltip: "This date represents the oldest updated network element in the current topology." });
+                ui.text(r.overviewarea)({ position: [0, 15], text: "Last Checked", weight: "600", color: 25, font: 18, tooltip: "This date represents the oldest updated network element in the current topology." });
                 r.lastchecked = ui.text(r.overviewarea)({ position: [0, 45], color: 0, noBreak: true });
                 ui.text(r.overviewarea)({ position: [0, 90], text: "Local Access", weight: "600", color: 25, font: 18 });
                 r.localaccess = ui.text(r.overviewarea)({ position: [0, 120], color: 0, width: 380, lineHeight: 25 });

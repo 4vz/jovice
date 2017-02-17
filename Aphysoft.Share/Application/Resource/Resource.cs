@@ -194,7 +194,9 @@ namespace Aphysoft.Share
             }
             else
                 resource = registeredResources[key];
-
+#if DEBUG
+            resource.NoMinify();
+#endif
             return resource;
         }
 
@@ -277,13 +279,12 @@ namespace Aphysoft.Share
 
         public static Resource Register(string key, string keyHash, ResourceType resourceType, ResourceManager resourceManager, string objectName, string rootRelativePath)
         {
+            Resource resource;
+#if DEBUG
             if (rootRelativePath == null) return null;
             string physicalPath = Path.PhysicalPath(rootRelativePath);
             FileInfo pathInfo = new FileInfo(physicalPath);
             if (!pathInfo.Exists) return null;
-
-            Resource resource;
-#if DEBUG
             resource = Register(key, keyHash, resourceType);
             resource.OriginalFilePath = physicalPath;
             resource.LastModified = pathInfo.LastWriteTime;

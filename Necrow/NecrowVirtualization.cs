@@ -221,6 +221,8 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
                 derivedAreaConnections.Add(id, new Tuple<string, string, string, string>(ar1, ar2, mi1, mi2));
             }
 
+            Necrow.Event("Loaded " + derivedAreaConnections.Count + " derived area connections");
+
             #endregion
 
             ready = true;

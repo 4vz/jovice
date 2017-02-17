@@ -1465,6 +1465,9 @@
                 else
                     return this.$.css(c, d);
             };
+            box.dom = function () {
+                return this.$.get(0);
+            };
             function getCSS(el, prop) {
                 var o = window.getComputedStyle(el.get(0), null)[prop];
                 if (o != null) {
@@ -2087,7 +2090,6 @@
 
             var tooltipOver = null, tooltipOut = null;
             var tooltipText = null, tooltipColor = null;
-            var tooltipArea = [null, null];
 
             box.tooltip = function (t) {
                 if (tooltipOver == null) {
@@ -2107,7 +2109,7 @@
                             contents.size(400, 270);
 
                             if ($.isString(t)) {
-                                tooltipText = ui.text(contents)({ font: 13, position: [10, 10], color: 90, text: t });
+                                tooltipText = ui.text(contents)({ font: 11, position: [10, 10], color: 90, text: t });
                                 tooltipText.text(t);
                                 contents.width(tooltipText.computedWidth() + 20);
                                 contents.height(tooltipText.computedHeight() + 20);
@@ -2132,35 +2134,43 @@
                             var boxWidth = box.width();
                             var boxHeight = box.height();
 
-                            if (tooltipArea[0] != null) boxWidth = tooltipArea[0];
-                            if (tooltipArea[1] != null) boxHeight = tooltipArea[1];
-
-
-                            if (absleft < 10) {
+                            if (absleft < 30) {
                                 to.left(10);
                             }
-                            else if ((absleft + width) > ($$.pageWidth() - 10)) {
+                            else if (absleft > ($$.pageWidth() - 30)) {
                                 to.left($$.pageWidth() - width - 10);
                             }
+                            else if ((absleft - 20 + width) > ($$.pageWidth() - 10)) {
+                                to.left($$.pageWidth() - width - 10);
+                                arrowbot.left(absleft - ($$.pageWidth() - width - 10));
+                                arrowtop.left(absleft - ($$.pageWidth() - width - 10));
+                            }
                             else {
-                                if (box.width() < 40) {
-                                    to.left((boxWidth / 2) - 30 + absleft)
-                                }
-                                else {
-                                    to.left(absleft);
-                                }
+                                to.left(absleft - 20);
+                                arrowbot.left(20);
+                                arrowtop.left(20);
                             }
 
                             if ((abstop + height + boxHeight + 10) > ($$.pageHeight() - 10)) {
                                 arrowtop.hide();
-                                arrowbot.show();
-                                arrowbot.top(height - 16);
+
+                                if (absleft < 30 || absleft > ($$.pageWidth() - 30)) arrowbot.hide();
+                                else {
+                                    arrowbot.show();
+                                    arrowbot.top(height - 16);
+                                }
+
                                 contents.top(0);
                                 to.top(abstop - height);
                             }
                             else {
-                                arrowtop.show();
                                 arrowbot.hide();
+
+                                if (absleft < 30 || absleft > ($$.pageWidth() - 30)) arrowtop.hide();
+                                else {
+                                    arrowtop.show();
+                                }
+                                
                                 contents.top(8);
                                 to.top(abstop + boxHeight);
                             }
@@ -2178,19 +2188,6 @@
                     });
                 }
             };
-            box.tooltipArea = function (w, h) {
-                if ($.isUndefined(w)) return { width: tooltipArea[0], height: tooltipArea[1] };
-                else if ($.isArray(w)) tooltipArea = w;
-                else tooltipArea = [w, h];
-            };
-            box.tooltipAreaHeight = function (h) {
-                if ($.isUndefined(h)) return tooltipArea[1];
-                else tooltipArea[1] = h;
-            };
-            box.tooltipAreaWidth = function (w) {
-                if ($.isUndefined(w)) return tooltipArea[0];
-                else tooltipArea[0] = w;
-            };
             box.tooltipSpanColor = function (a, b, c, d, e) {
                 tooltipColor = [a, b, c, d, e];
                 if (tooltipText != null) {
@@ -2203,6 +2200,7 @@
                 ui.tooltipBox().hide();
                 tooltipOver = null;
                 tooltipOut = null;
+                tooltipCenter = false;
                 tooltipColor = [undefined, undefined, undefined, undefined, undefined];
             };
 
@@ -3116,6 +3114,14 @@
                     // remove no user-select
                     box.$.css("user-select", "");
                     box.removeEvent(interactionEvents);
+                }
+            };
+
+
+            box.overflow = function (i) {
+                if ($.isBoolean(i)) {
+                    if (i) box.css("overflow", "visible");
+                    else box.css("overflow", null);
                 }
             };
 
@@ -4581,8 +4587,19 @@
                         if (!$.isPlainObject(a))
                             path.attr({ fill: s });
                         else {
-                            //debug("here");
                             var obj = { fill: s };
+                            if (!$.isUndefined(a.duration)) path.animate(obj, a.duration);
+                            else path.animate(obj);
+                        }
+                    }
+                };
+                icon.colorOpacity = function (c, a) {
+                    if ($.isUndefined(c)) return path.attr("fill-opacity");
+                    else {
+                        if (!$.isPlainObject(a))
+                            path.attr({ "fill-opacity": c });
+                        else {
+                            var obj = { "fill-opacity": c };
                             if (!$.isUndefined(a.duration)) path.animate(obj, a.duration);
                             else path.animate(obj);
                         }
@@ -4663,6 +4680,14 @@
                         calculate();
                     }
                 };
+                icon.stroke = function (c) {
+                    if ($.isPlainObject(c)) {
+                        path.attr({ stroke: ui.color(c.color), "stroke-width": c.size });
+                    }
+                    else {
+                        return { color: path.attr("stroke"), size: path.attr("stroke-width") };
+                    }
+                };
 
                 d.color("accent");
 
@@ -4670,163 +4695,11 @@
             }
             else return null;
         };
-        var loadingDefaults = {
-            type: "circle", // circle
-            indefinite: true
-        };
-        var loading = function (container, options) {
-            if (container == null) return;
-
-            var o = null;
-
-            if ($.isPlainObject(options)) {
-                o = $.extend({}, loadingDefaults, options);
-            }
-            else
-                o = $.extend({}, loadingDefaults);
-
-            if (o) {
-                var d = ui.raphael(container);
-                var paper = d.paper();
-
-                var loading = d;
-
-                if (o.type == "circle") {
-                    var radius = 30;
-                    var thickness = 5;
-                    var sweep = 90;
-
-                    loading.size(radius * 2, radius * 2);
-
-                    var el;
-                    var duration = 2000;
-                    var animobj = $({ n: 0 });
-                    var started = false;
-
-                    var draw = function () {
-
-                        var sa = 0;
-                        var ea = sweep;
-
-                        if (ea == 360) ea = 359.99999;
-
-                        radius -= 2;
-
-                        var larc = (ea - sa) <= 180 ? 0 : 1;
-                        var start = polarToCartesian(radius, radius, radius, sa);
-                        var end = polarToCartesian(radius, radius, radius, ea);
-                        var starti = polarToCartesian(radius, radius, radius - thickness, sa);
-                        var endi = polarToCartesian(radius, radius, radius - thickness, ea);
-
-                        var dpath = [
-                            "M", start.x, start.y,
-                            "A", radius, radius, 0, larc, 1, end.x, end.y,
-                            "L", endi.x, endi.y,
-                            "A", radius - thickness, radius - thickness, 0, larc, 0, starti.x, starti.y,
-                            "Z"
-                        ].join(" ");
-
-
-
-                        if (el == null) {
-                            el = paper.path(dpath);
-                            el.attr({ fill: ui.color(50), stroke: "none" });
-                        }
-                        else {
-                            el.attr({ path: dpath });
-                        }
-                    }
-                    draw();
-
-                    var dwidth = d.width;
-                    var dheight = d.height;
-                    loading.width = function () {
-                        return dwidth.apply(this, []);
-                    };
-                    loading.height = function () {
-                        return dheight.apply(this, []);
-                    };
-                    loading.size = function (s) {
-                        if ($.isNumber(s)) {
-                            if (s >= 10) {
-                                //debug("here");
-                                radius = s / 2;
-                                dwidth.apply(this, [s]);
-                                dheight.apply(this, [s]);
-                                draw();
-                            }
-                            else { }
-                        }
-                        else return radius * 2;
-                    };
-                    loading.sweep = function (s) {
-                        if ($.isNumber(s)) {
-                            if (s > 0 && s <= 360) {
-                                sweep = s;
-                                draw();
-                            }
-                        }
-                        else return sweep;
-                    };
-
-                    var animcyc = function () {
-                        if (!started) return;
-                        animobj.animate({ n: 359.9999999999 }, {
-                            duration: duration,
-                            easing: "linear",
-                            step: function (now, fx) {
-
-                                //var sbox = el.getBBox();
-                                //debug(sbox);
-                                //var tx = ((d.width() - sbox.width) / 2) - sbox.x;
-                                //var ty = ((d.height() - sbox.height) / 2) - sbox.y;
-
-                                //path.transform("r" + rotation + "," + (d.width() / 2) + "," + (d.height() / 2) + "t" + tx + "," + ty + "...");
-
-                                el.transform("t2,2r" + now + "," + radius + "," + radius);
-                            },
-                            complete: function () {
-                                animobj.attr({ n: 0 });
-                                animcyc();
-                            }
-                        });
-                    };
-
-                    loading.stop = function () {
-                        started = false;
-                    };
-                    loading.start = function () {
-                        started = true;
-                        animobj.attr({ n: 0 });
-                        animcyc();
-                    };
-                    loading.duration = function (s) {
-                        if ($.isNumber(s)) {
-                            if (s > 0) {
-                                duration = s;
-                                loading.stop();
-                                loading.start();
-                            }
-                        }
-                        else return duration;
-                    };
-                    loading.onColor = function (s) {
-                        if (s == null) return el.attr("fill");
-                        else el.attr({ fill: s });
-                    };
-                }
-
-                return loading;
-            }
-
-
-        };
         ui.raphael = function (container) {
             return graphics(container, "raphael");
         };
         ui.graphics = graphics;
         ui.icon = icon;
-        ui.loading = loading;
 
     })(ui);
 

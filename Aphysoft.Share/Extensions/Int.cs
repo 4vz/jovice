@@ -20,5 +20,12 @@ namespace Aphysoft.Share
             if (value == returnNullIf) return (long?)null;
             else return new long?(value);
         }
+        
+        public static bool Between(this int value, int min, int max)
+        {
+            if (min > max) return false;
+            else if (min <= value && value <= max) return true;
+            else return false;
+        }
     }
 }

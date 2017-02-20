@@ -43,6 +43,32 @@ namespace Aphysoft.Share
             return rv;
         }
 
+        public static bool OnlyContainsCharacters(this string value, string characters)
+        {
+            if (string.IsNullOrEmpty(characters)) return true;
+
+            bool pass = true;
+            foreach (char c in value)
+            {
+                bool found = false;
+                foreach (char s in characters)
+                {                    
+                    if (c == s)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found == false)
+                {
+                    pass = false;
+                    break;
+                }
+            }
+
+            return pass;
+        }
+
         public static string Random(this string[] values)
         {
             if (values == null) return null;

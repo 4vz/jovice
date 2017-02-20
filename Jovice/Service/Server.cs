@@ -153,10 +153,8 @@ namespace Center
 
             if (m.Type == NecrowServiceMessageType.Hello)
             {
-                Service.Debug(DateTime.Now.ToString() + " Received Hello Packet from Necrow");
-
+                NecrowSend(new ServerNecrowServiceMessage(NecrowServiceMessageType.HelloResponse));
                 necrowConnection = e.Connection;
-
                 TelegramBot.NecrowOnline();
 
                 //Provider.SetActionByRegisterMatch("service_[ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=]+", "yayaya");
@@ -265,6 +263,7 @@ namespace Center
     public enum NecrowServiceMessageType
     {
         Hello,
+        HelloResponse,
         ProbeStatus,
         Probe,
 

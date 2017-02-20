@@ -138,6 +138,8 @@ namespace Center
        
         internal static Dictionary<string, Dictionary<string, object>> keeperNode = null;
 
+        private static Timer helloTimer;
+
         #endregion
 
         #region Helpers
@@ -220,9 +222,13 @@ namespace Center
 
                 Service.Client();
                 Service.Connected += delegate (Connection connection)
-                {
-                    Event("Service Connected");
-                    Service.Send(new ServerNecrowServiceMessage(NecrowServiceMessageType.Hello));
+                {                    
+                    Event("Connecting to Service...");
+                    helloTimer = new Timer(new TimerCallback(delegate (object state)
+                    {
+                        Service.Send(new ServerNecrowServiceMessage(NecrowServiceMessageType.Hello));
+                    }), null, 0, 20000);
+                    
                 };
                 Service.Register(typeof(ServerNecrowServiceMessage), NecrowServiceMessageHandler);
 
@@ -905,7 +911,12 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
         {
             ServerNecrowServiceMessage m = (ServerNecrowServiceMessage)e.Message;
 
-            if (m.Type == NecrowServiceMessageType.Request)
+            if (m.Type == NecrowServiceMessageType.HelloResponse)
+            {
+                helloTimer.Dispose();
+                Event("Service Connected");
+            }
+            else if (m.Type == NecrowServiceMessageType.Request)
             {
                 //Event("We got request from server! = " + m.RequestID);
             }

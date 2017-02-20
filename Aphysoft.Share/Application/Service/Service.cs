@@ -222,7 +222,7 @@ namespace Aphysoft.Share
             instance.Register(messageType, method);
         }
 
-        public static void Debug(string message)
+        public static new void Debug(string message)
         {
             BaseService instance = Service.Instance;
 

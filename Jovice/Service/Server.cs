@@ -1,7 +1,10 @@
 ﻿using Aphysoft.Share;
+using Microsoft.VisualBasic.Devices;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Management;
 using System.Text;
 using System.Threading;
 using System.Web;
@@ -10,6 +13,31 @@ namespace Center
 {
     public static class Server
     {
+        #region Fields
+
+        private readonly static PerformanceCounter cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
+        private readonly static PerformanceCounter ramCounter = new PerformanceCounter("Memory", "Available MBytes");
+        private readonly static ComputerInfo computerInfo = new ComputerInfo();
+        private readonly static ManagementObjectSearcher mos = new ManagementObjectSearcher("root\\CIMV2", "SELECT * FROM Win32_Processor");
+
+        private static float cpu;
+        private static double cpuUsage;
+        private static float availableRam;
+        private static float totalRam;
+        private static float percentageRam;
+        private static string cpuClass;
+
+        public static float CPU { get { return cpu; } }
+        public static double CPUUsage { get { return cpuUsage; } }
+        public static float AvailableRam { get { return availableRam; } }
+        public static float TotalRam { get { return totalRam; } }
+        public static float PercentageRam { get { return percentageRam; } }
+        public static string CPUClass { get { return cpuClass; } }
+
+        private static Timer timer;
+
+        #endregion
+
         #region Methods
 
         public static void Init()
@@ -23,7 +51,67 @@ namespace Center
 
             // Callback if register necrowa being registered to the server
             Provider.RegisterCallback("necrow", NecrowRegistered);
-           
+
+            totalRam = (float)Math.Round((double)(computerInfo.TotalPhysicalMemory / 1024000));
+
+            #region Reading cpuClass
+            string oname = null;
+            int ocpu = 0;
+            foreach (ManagementObject mo in mos.Get())
+            {
+                string cname = mo["Name"].ToString();
+                ocpu += int.Parse(mo["NumberOfLogicalProcessors"].ToString());
+                if (oname != null && cname != oname)
+                {
+                    cpuClass = cname + " " + ocpu + " Logical Processors";
+                    oname = cname;
+                    ocpu = 0;
+                }
+                else if (oname == null) oname = cname;
+            }
+            if (oname != null) cpuClass = oname + " " + ocpu + " Logical Processors";
+            #endregion
+
+            DateTime markCpuWarning = DateTime.MinValue;
+            DateTime markCpuOkay = DateTime.MinValue;
+
+            cpuCounter.NextValue(); // shift 1 cpu counter cycle
+
+            timer = new Timer(new TimerCallback(delegate (object state)
+            {                
+                cpu = cpuCounter.NextValue();
+                cpuCounter.NextValue(); // shift 1 cpu counter cycle
+                cpuUsage = Math.Round(cpu, 2);
+                availableRam = ramCounter.NextValue();
+                percentageRam = 100 - (float)Math.Round(availableRam / totalRam * 100, 2);
+
+                if (cpuUsage > 90)
+                {
+                    if (markCpuWarning == DateTime.MinValue)
+                        markCpuWarning = DateTime.Now;
+                    else if (DateTime.Now - markCpuWarning > TimeSpan.FromSeconds(60))
+                    {
+                        // this already existed for mor than 60 seconds, give warning, continuesly
+                        TelegramBot.CPUWarning();
+                    }
+                }
+                else
+                {
+                    if (markCpuWarning > DateTime.MinValue)
+                    {
+                        if (markCpuOkay == DateTime.MinValue)
+                            markCpuOkay = DateTime.Now;
+                        else if (DateTime.Now - markCpuOkay > TimeSpan.FromSeconds(20))
+                        {
+                            // cpu is okay now
+                            markCpuOkay = DateTime.MinValue;
+                            markCpuWarning = DateTime.MinValue;
+                            TelegramBot.CPUOK();
+                        }
+                    }
+                }
+
+            }), null, 0, 10000);
         }
 
         #endregion
@@ -51,6 +139,8 @@ namespace Center
                 {
                     necrowConnection = null;
                     Provider.SetActionByRegister("necrowavailability", "necrow", "offline");
+
+                    TelegramBot.NecrowOffline();
                 }
             }
         }
@@ -63,6 +153,8 @@ namespace Center
 
             if (m.Type == NecrowServiceMessageType.Hello)
             {
+                Service.Debug(DateTime.Now.ToString() + " Received Hello Packet from Necrow");
+
                 necrowConnection = e.Connection;
 
                 TelegramBot.NecrowOnline();

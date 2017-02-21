@@ -1056,11 +1056,15 @@ namespace Center
                             {
                                 string storedID = row["OO_ID"].ToString();
                                 string interfaceName = row["OO_PI_Name"].ToString();
+                                string type = row["OO_Type"].ToString();
+
+                                string key = interfaceName + "_" + type;
+
                                 bool ooPINULL = row["OO_PI"].IsNull;
 
-                                if (!popInterfaces.ContainsKey(interfaceName))
+                                if (!popInterfaces.ContainsKey(key))
                                 {
-                                    popInterfaces.Add(interfaceName, row);
+                                    popInterfaces.Add(key, row);
 
                                     if (row["OO_NO_Name"].ToString() != nodeName)
                                     {

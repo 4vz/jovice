@@ -324,9 +324,9 @@ namespace Aphysoft.Share
             return sb.ToString();
         }
 
-        public void Execute()
+        public Result Execute()
         {
-            database.Execute(this);
+            return database.Execute(this);
         }
 
 

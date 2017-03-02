@@ -103,6 +103,8 @@ select NO_Name, LEN(NO_Name) as NO_LEN, PI_Name, LEN(PI_Name) as PI_LEN, PI_Type
 (select NO_Name, NO_ID from Node where NO_Type = 'P' and NO_Active = 1) n left join PEInterface on PI_NO = NO_ID and PI_Type in ('Hu', 'Te', 'Gi', 'Fa', 'Et')
 order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
 ");
+                if (!result.OK) throw new Exception("Virtualization failed");
+
                 pePhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string, string, string, string, string>>>>();
                 List<Tuple<string, string, string, string, string, string>> currentPEInterfaces = new List<Tuple<string, string, string, string, string, string>>();
 
@@ -149,6 +151,7 @@ select NO_Name, LEN(NO_Name) as NO_LEN, MI_Name, LEN(MI_Name) as MI_LEN, MI_Type
 (select NO_Name, NO_ID from Node where NO_Type = 'M' and NO_Active = 1) n left join MEInterface on MI_NO = NO_ID and MI_Type in ('Hu', 'Te', 'Gi', 'Fa', 'Et')
 order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
 ");
+                if (!result.OK) throw new Exception("Virtualization failed");
 
                 mePhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>>();
                 List<Tuple<string, string, string, string, string, string, string>> currentMEInterfaces = new List<Tuple<string, string, string, string, string, string, string>>();
@@ -207,6 +210,7 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
             #region Derived Area Connections
 
             result = jovice.Query("select * from DerivedAreaConnection");
+            if (!result.OK) throw new Exception("Virtualization failed");
 
             derivedAreaConnections = new Dictionary<string, Tuple<string, string, string, string>>();
             
@@ -364,6 +368,8 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
             Result result = Jovice.Database.Query(@"
 select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID order by NA_Name
 ");
+            if (!result.OK) throw new Exception("Virtualization failed");
+
             aliases = new Dictionary<string, List<string>>();
 
             int count = 0;
@@ -398,6 +404,7 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID order by NA_Nam
                 #region Node Neighbor
 
                 result = jovice.Query("select * from NodeNeighbor");
+                if (!result.OK) throw new Exception("Virtualization failed");
 
                 nodeNeighbors = new Dictionary<string, string>();
 
@@ -431,6 +438,7 @@ select NN_Name, LEN(NN_Name) as NN_LEN, NI_Name, LEN(NI_Name) as NI_LEN, NI_ID f
 ) n left join NeighborInterface on NI_NN = NN_ID and NI_Name <> 'UNSPECIFIED'
 order by NN_LEN desc, NN_Name, NI_LEN desc, NI_Name
 ");
+                if (!result.OK) throw new Exception("Virtualization failed");
 
                 nnPhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string>>>>();
                 List<Tuple<string, string>> currentNNInterfaces = new List<Tuple<string, string>>();
@@ -471,6 +479,8 @@ order by NN_LEN desc, NN_Name, NI_LEN desc, NI_Name
                 result = jovice.Query(@"
 select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NeighborInterface on NI_NN = NN_ID and NI_Name = 'UNSPECIFIED'
 ");
+                if (!result.OK) throw new Exception("Virtualization failed");
+
                 batch.Begin();
 
                 nnUnspecifiedInterfaces = new Dictionary<string, string>();
@@ -510,7 +520,8 @@ select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NeighborInterface on NI
                     }
                 }
 
-                batch.Commit();
+                result = batch.Commit();
+                if (!result.OK) throw new Exception("Virtualization failed");
 
                 count3 = nnUnspecifiedInterfaces.Count;
 

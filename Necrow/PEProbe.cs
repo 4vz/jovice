@@ -597,8 +597,10 @@ namespace Center
 
     internal sealed partial class Probe
     {
-        private void PEProcess()
+        private ProbeProcessResult PEProcess()
         {
+            ProbeProcessResult probe = new ProbeProcessResult();
+
             string[] lines = null;
             Batch batch = Batch();            
             Result result;
@@ -607,9 +609,12 @@ namespace Center
 
             Dictionary<string, PERouteNameToDatabase> routenamelive = new Dictionary<string, PERouteNameToDatabase>();
             Dictionary<string, Row> routenamedb = QueryDictionary("select * from PERouteName where PN_NO = {0}", "PN_Name", nodeID);
+            if (routenamedb == null) return DatabaseFailure(probe);
             Dictionary<string, List<string>> routetargetlocaldb = new Dictionary<string, List<string>>();
 
             result = Query("select * from PERouteName, PERouteTarget where PN_PR = PT_PR and PN_NO = {0}", nodeID);
+            if (!result.OK) return DatabaseFailure(probe);
+
             foreach (Row row in result)
             {
                 string name = row["PN_Name"].ToString();
@@ -649,7 +654,7 @@ namespace Center
                 if (nodeVersion == xr)
                 {
                     #region xr
-                    if (Request("show vrf all", out lines)) return;
+                    if (Request("show vrf all", out lines, probe)) return probe;
 
                     int linen = 0;
                     foreach (string line in lines)
@@ -710,7 +715,7 @@ namespace Center
                 {
                     #region ios
 
-                    if (Request("show ip vrf detail | in RD|Export VPN|Import VPN|RT", out lines)) return;
+                    if (Request("show ip vrf detail | in RD|Export VPN|Import VPN|RT", out lines, probe)) return probe;
 
                     int stage = 0;
 
@@ -772,7 +777,7 @@ namespace Center
                 #region jun
 
                 Dictionary<string, List<string>> communities = new Dictionary<string, List<string>>();
-                if (Request("show configuration policy-options", out junShowConfigurationPolicyOptions)) return;
+                if (Request("show configuration policy-options", out junShowConfigurationPolicyOptions, probe)) return probe;
 
                 string currentStatement = null;
                 foreach (string line in junShowConfigurationPolicyOptions)
@@ -816,7 +821,7 @@ namespace Center
                     }
                 }
 
-                if (Request("show configuration routing-instances", out junShowConfigurationRoutingInstancesLines)) return;
+                if (Request("show configuration routing-instances", out junShowConfigurationRoutingInstancesLines, probe)) return probe;
                 /*
                 0123456789
                 EOC_Test {
@@ -895,7 +900,7 @@ namespace Center
                 List<string> routeTargets = new List<string>();
 
                 // | include VPN-Instance Name and ID|Address family|Export VPN Targets|Import VPN Targets|Route Distinguisher
-                if (Request("display ip vpn-instance verbose", out hweDisplayIPVPNInstanceVerboseLines)) return;
+                if (Request("display ip vpn-instance verbose", out hweDisplayIPVPNInstanceVerboseLines, probe)) return probe;
 
                 foreach (string line in hweDisplayIPVPNInstanceVerboseLines)
                 {
@@ -1054,6 +1059,7 @@ namespace Center
                         "(select PT_PR, STR(CASE WHEN (PT_IPv6 IS NULL) THEN '0' ELSE '1' END) + LTRIM(STR(PT_Type)) + PT_Community as 'PT_TC' from PERouteTarget) a, " +
                         "(select PT_PR, COUNT(PT_PR) as 'COUNT' from PERouteTarget group by PT_PR) b " +
                         "where a.PT_PR = b.PT_PR and COUNT = {0} order by a.PT_PR ", length);
+                    if (!r.OK) return DatabaseFailure(probe);
                     routesearch.Add(length, r);
                 }
                 else r = routesearch[length];
@@ -1098,6 +1104,7 @@ namespace Center
                 batch.Execute("insert into PERoute(PR_ID) values({0})", pair.Key);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.VRF, false);
 
             // Route Target
@@ -1116,6 +1123,7 @@ namespace Center
                 }
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.VRFRouteTarget, false);
 
             // Route Name
@@ -1132,6 +1140,7 @@ namespace Center
                 batch.Execute(insert);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.VRFReference, false);
 
             // UPDATE
@@ -1146,11 +1155,13 @@ namespace Center
                 batch.Execute(update);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.VRFReference, false);
 
             #endregion
 
             routenamedb = QueryDictionary("select * from PERouteName where PN_NO = {0}", "PN_Name", nodeID);
+            if (routenamedb == null) return DatabaseFailure(probe);
 
             #endregion
 
@@ -1158,6 +1169,7 @@ namespace Center
 
             Dictionary<string, PEQOSToDatabase> qoslive = new Dictionary<string, PEQOSToDatabase>();
             Dictionary<string, Row> qosdb = QueryDictionary("select * from PEQOS where PQ_NO = {0}", "PQ_Name", nodeID);
+            if (qosdb == null) return DatabaseFailure(probe);
             List<PEQOSToDatabase> qosinsert = new List<PEQOSToDatabase>();
 
             Event("Checking QOS");
@@ -1172,7 +1184,7 @@ namespace Center
                 {
                     #region xr
 
-                    if (Request("show policy-map list | in PolicyMap", out lines)) return;
+                    if (Request("show policy-map list | in PolicyMap", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -1197,7 +1209,7 @@ namespace Center
                 else
                 {
                     #region ios
-                    if (Request("show policy-map | in Policy Map", out lines)) return;
+                    if (Request("show policy-map | in Policy Map", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -1223,7 +1235,7 @@ namespace Center
             else if (nodeManufacture == jun)
             {
                 #region jun
-                if (Request("show configuration firewall | match \"policer|if-exceeding|bandwidth-limit\"", out lines)) return;
+                if (Request("show configuration firewall | match \"policer|if-exceeding|bandwidth-limit\"", out lines, probe)) return probe;
 
                 string name = null;
                 bool ifExceeding = false;
@@ -1272,7 +1284,7 @@ namespace Center
                 #region hwe
 
                 // not tested, pe hwe still dont use this
-                if (Request("display qos-profile configuration", out lines)) return;
+                if (Request("display qos-profile configuration", out lines, probe)) return probe;
 
                 bool qosCollect = false;
                 foreach (string line in lines)
@@ -1340,11 +1352,13 @@ namespace Center
                 batch.Execute(insert);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.QOS, false);
 
             #endregion
 
             qosdb = QueryDictionary("select * from PEQOS where PQ_NO = {0}", "PQ_Name", nodeID);
+            if (qosdb == null) return DatabaseFailure(probe);
 
             #endregion
 
@@ -1352,9 +1366,11 @@ namespace Center
 
             SortedDictionary<string, PEInterfaceToDatabase> interfacelive = new SortedDictionary<string, PEInterfaceToDatabase>();
             Dictionary<string, Row> interfacedb = QueryDictionary("select * from PEInterface where PI_NO = {0}", "PI_Name", nodeID);
+            if (interfacedb == null) return DatabaseFailure(probe);
             Dictionary<string, List<string[]>> ipdb = new Dictionary<string, List<string[]>>();
 
             result = Query("select PI_Name, PP_ID, CAST(PP_IPv6 as varchar) + '_' + CAST(PP_Order as varchar) + '_' + PP_IP as IPKEY from PEInterface, PEInterfaceIP where PP_PI = PI_ID and PI_NO = {0} order by PI_Name asc", nodeID);
+            if (!result.OK) return DatabaseFailure(probe);
             foreach (Row row in result)
             {
                 string name = row["PI_Name"].ToString();
@@ -1404,7 +1420,7 @@ Last input 00:00:00, output 00:00:00
                     #region xr
 
                     // interface
-                    if (Request("show interface | in \"line protocol|Description|802.1Q|Last input\"", out lines)) return;
+                    if (Request("show interface | in \"line protocol|Description|802.1Q|Last input\"", out lines, probe)) return probe;
                     
                     PEInterfaceToDatabase current = null;
                     StringBuilder descriptionBuffer = null;
@@ -1480,7 +1496,7 @@ Last input 00:00:00, output 00:00:00
                     if (current != null && descriptionBuffer != null) current.Description = descriptionBuffer.ToString().Trim();
 
                     // vrf to interface
-                    if (Request("show vrf all detail", out lines)) return;
+                    if (Request("show vrf all detail", out lines, probe)) return probe;
 
                     string currentVrf = null;
                     string currentVrfName = null;
@@ -1541,7 +1557,7 @@ Last input 00:00:00, output 00:00:00
                     }
 
                     // policy map
-                    if (Request("show policy-map targets", out lines)) return;
+                    if (Request("show policy-map targets", out lines, probe)) return probe;
 
                     string currentpolicy = null;
                     int currentconfigrate = -1;
@@ -1653,7 +1669,7 @@ Last input 00:00:00, output 00:00:00
                     }
 
                     // ipv4
-                    if (Request("show ipv4 vrf all interface | in \"Internet address|Secondary address|ipv4\"", out lines)) return;
+                    if (Request("show ipv4 vrf all interface | in \"Internet address|Secondary address|ipv4\"", out lines, probe)) return probe;
 
                     PEInterfaceToDatabase currentInterface = null;
                     int linen = 0;
@@ -1698,7 +1714,7 @@ Last input 00:00:00, output 00:00:00
                     }
 
                     // ipv6
-                    if (Request("show ipv6 vrf all interface | in \"ipv6 protocol|subnet is\"", out lines)) return;
+                    if (Request("show ipv6 vrf all interface | in \"ipv6 protocol|subnet is\"", out lines, probe)) return probe;
 
                     currentInterface = null;
                     int ipv6AddressCtr = 1;
@@ -1740,7 +1756,7 @@ Last input 00:00:00, output 00:00:00
                     #region ios
                     
                     // interface
-                    if (Request("show interface | in line protocol|Description|802.1Q|Last input", out lines)) return;
+                    if (Request("show interface | in line protocol|Description|802.1Q|Last input", out lines, probe)) return probe;
                     
                     PEInterfaceToDatabase current = null;
                     StringBuilder descriptionBuffer = null;
@@ -1812,7 +1828,7 @@ Last input 00:00:00, output 00:00:00
                     if (current != null && descriptionBuffer != null) current.Description = descriptionBuffer.ToString().Trim();
 
                     // vrf to interface
-                    if (Request("show ip vrf interfaces", out lines)) return;
+                    if (Request("show ip vrf interfaces", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -1829,7 +1845,7 @@ Last input 00:00:00, output 00:00:00
                     }
 
                     // policy map
-                    if (Request("show policy-map interface input brief", out lines)) return;
+                    if (Request("show policy-map interface input brief", out lines, probe)) return probe;
 
                     bool policyMapUsingBrief = true;
                     foreach (string line in lines)
@@ -1847,7 +1863,7 @@ Last input 00:00:00, output 00:00:00
                     if (!policyMapUsingBrief)
                     {
                         #region !Brief
-                        if (Request("show policy-map interface | in Service-policy_input|Service-policy_output|Ethernet|Serial", out lines)) return;
+                        if (Request("show policy-map interface | in Service-policy_input|Service-policy_output|Ethernet|Serial", out lines, probe)) return probe;
 
                         string currentif = null;
                         string parentPort = null;
@@ -1975,7 +1991,7 @@ Last input 00:00:00, output 00:00:00
                     {
                         #region Brief
                         string[] tlines;
-                        if (Request("show policy-map interface output brief", out tlines)) return;
+                        if (Request("show policy-map interface output brief", out tlines, probe)) return probe;
                         List<string> mlines = new List<string>(lines);
                         mlines.AddRange(tlines);
                         lines = mlines.ToArray();
@@ -2081,7 +2097,7 @@ Last input 00:00:00, output 00:00:00
                     }
 
                     // port-channel
-                    if (Request("sh etherchannel detail | in Port:|Port-channel:", out lines)) return;
+                    if (Request("sh etherchannel detail | in Port:|Port-channel:", out lines, probe)) return probe;
 
                     //0123456789012345678
                     //Port: Gi1/3
@@ -2124,7 +2140,7 @@ Last input 00:00:00, output 00:00:00
                     }
 
                     // rate-limit
-                    if (Request("show interface rate-limit", out lines)) return;
+                    if (Request("show interface rate-limit", out lines, probe)) return probe;
 
                     string currentinterface = null;
                     string currentmode = null;
@@ -2241,7 +2257,7 @@ Last input 00:00:00, output 00:00:00
                     }
 
                     // ip
-                    if (Request("show ip interface | in Internet address|Secondary address|line protocol", out lines)) return;
+                    if (Request("show ip interface | in Internet address|Secondary address|line protocol", out lines, probe)) return probe;
                     
                     PEInterfaceToDatabase currentInterface = null;
                     int linen = 0;
@@ -2296,7 +2312,7 @@ Last input 00:00:00, output 00:00:00
 
                 Dictionary<string, Tuple<bool, bool>> subifStatProt = new Dictionary<string, Tuple<bool, bool>>();
 
-                if (Request("show interfaces terse", out lines)) return;
+                if (Request("show interfaces terse", out lines, probe)) return probe;
                 foreach (string line in lines)
                 {
                     string lineTrim = line.Trim();
@@ -2312,7 +2328,7 @@ Last input 00:00:00, output 00:00:00
                     }
                 }
 
-                if (Request("show interfaces detail | match \"^ *(Physical interface|Logical interface|Description:|Flags:|Last flapped|Link-level type|Addresses,|Destination:|Policer:)\"", out lines)) return;
+                if (Request("show interfaces detail | match \"^ *(Physical interface|Logical interface|Description:|Flags:|Last flapped|Link-level type|Addresses,|Destination:|Policer:)\"", out lines, probe)) return probe;
 
                 //Physical interface: ge-6/0/0, Enabled, Physical link is Up
                 //012345678901234567890123456789
@@ -2536,7 +2552,7 @@ Last input 00:00:00, output 00:00:00
                     }
                 }
 
-                if (Request("show lacp interfaces", out lines)) return;
+                if (Request("show lacp interfaces", out lines, probe)) return probe;
 
                 int aesid = -1;
                 bool lacpif = false;
@@ -2603,7 +2619,7 @@ Last input 00:00:00, output 00:00:00
             {
                 #region hwe
 
-                if (Request("display interface description", out lines)) return;
+                if (Request("display interface description", out lines, probe)) return probe;
 
                 bool begin = false;
                 string port = null;
@@ -2678,7 +2694,7 @@ Last input 00:00:00, output 00:00:00
                 }
 
                 //main interface
-                if (Request("display interface main | in current state|down time|BW", out lines)) return;
+                if (Request("display interface main | in current state|down time|BW", out lines, probe)) return probe;
 
                 PEInterfaceToDatabase currentInterfaceToDatabase = null;
 
@@ -2758,7 +2774,7 @@ Last input 00:00:00, output 00:00:00
                     }
                 }
                 
-                if (Request("display interface brief", out lines)) return;
+                if (Request("display interface brief", out lines, probe)) return probe;
 
                 begin = false;
                 int aggr = -1;
@@ -2800,7 +2816,7 @@ Last input 00:00:00, output 00:00:00
                     }
                 }
 
-                if (Request(@"disp cur int | in interface|vlan-type\ dot1q|qos\ car\ cir|ip\ address|ipv6\ address", out lines)) return;
+                if (Request(@"disp cur int | in interface|vlan-type\ dot1q|qos\ car\ cir|ip\ address|ipv6\ address", out lines, probe)) return probe;
 
                 //interface Eth-Trunk25.3648
                 //01234567890123456
@@ -3134,6 +3150,7 @@ Last input 00:00:00, output 00:00:00
                                     // query lawan
                                     li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
                                     result = Query("select MI_ID, MI_DOT1Q, MI_TO_MI, MI_TO_PI from MEInterface where MI_MI = {0}", li.TopologyMEInterfaceID);
+                                    if (!result.OK) return DatabaseFailure(probe);
                                     foreach (Row row in result)
                                     {
                                         if (!row["MI_DOT1Q"].IsNull)
@@ -3540,6 +3557,7 @@ Last input 00:00:00, output 00:00:00
                 if (s.IP != null) ipinsert.Add(s.ID, s.IP);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.Interface, false);
 
             // UPDATE
@@ -3589,6 +3607,7 @@ Last input 00:00:00, output 00:00:00
                     ipdelete.Add(s.ID, s.DeleteIPID);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.Interface, false);
 
             batch.Begin();
@@ -3600,6 +3619,7 @@ Last input 00:00:00, output 00:00:00
                     batch.Execute("update MEInterface set MI_TO_PI = NULL where MI_TO_PI = {0}", tuple.Item2);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
 
             // IP ADD
             batch.Begin();
@@ -3619,6 +3639,7 @@ Last input 00:00:00, output 00:00:00
                 }
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.InterfaceIP, false);
 
             // IP DELETE
@@ -3631,6 +3652,7 @@ Last input 00:00:00, output 00:00:00
                 }
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.InterfaceIP, false);
 
             // DELETE
@@ -3650,6 +3672,7 @@ Last input 00:00:00, output 00:00:00
                 }
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.Interface, false);
 
             // redone vPEPhysicalInterfaces
@@ -3667,6 +3690,7 @@ Last input 00:00:00, output 00:00:00
                 batch.Execute("delete from PEInterfaceIP where PP_PI = {0}", id);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.InterfaceIP, false);
 
             batch.Begin();
@@ -3677,6 +3701,7 @@ Last input 00:00:00, output 00:00:00
                 batch.Execute("delete from PEInterface where PI_ID = {0}", id);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.Interface, false);
 
             // RESERVES
@@ -3693,6 +3718,7 @@ Last input 00:00:00, output 00:00:00
                 }
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             if (result.AffectedRows > 0) Event(result.AffectedRows + " reserved entr" + (result.AffectedRows > 1 ? "ies have" : "y has") + " been found");
 
             // POP
@@ -3716,6 +3742,7 @@ Last input 00:00:00, output 00:00:00
                 }
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.POPInterfaceReference, false);
 
             #endregion
@@ -3785,15 +3812,18 @@ Last input 00:00:00, output 00:00:00
                 return keysb.ToString();
 
             }, nodeID);
+            if (routeusedb == null) return DatabaseFailure(probe);
             List<PERouteUseToDatabase> routeuseinsert = new List<PERouteUseToDatabase>();
             List<PERouteUseToDatabase> routeuseupdate = new List<PERouteUseToDatabase>();
 
             Dictionary<string, Tuple<PEPrefixListToDatabase, List<PEPrefixEntryToDatabase>>> prefixlistlive = new Dictionary<string, Tuple<PEPrefixListToDatabase, List<PEPrefixEntryToDatabase>>>();
             Dictionary<string, Row> prefixlistdb = QueryDictionary("select * from PEPrefixList where PX_NO = {0}", "PX_Name", nodeID);
+            if (prefixlistdb == null) return DatabaseFailure(probe);
             Dictionary<string, Row> prefixentrydb = QueryDictionary("select PX_Name, PEPrefixEntry.* from PEPrefixEntry, PEPrefixList where PY_PX = PX_ID and PX_NO = {0}", delegate (Row row)
             {
                 return row["PX_Name"].ToString() + "_" + row["PY_Network"].ToString() + "_" + row["PY_Sequence"].ToIntShort(-1) + "_" + row["PY_Access"].ToString() + "_" + row["PY_Ge"].ToIntShort(-1) + "_" + row["PY_Le"].ToIntShort(-1);
             }, nodeID);
+            if (prefixentrydb == null) return DatabaseFailure(probe);
             List<PEPrefixListToDatabase> prefixlistinsert = new List<PEPrefixListToDatabase>();
             List<PEPrefixEntryToDatabase> prefixentryinsert = new List<PEPrefixEntryToDatabase>();
             List<PEPrefixEntryToDatabase> prefixentryupdate = new List<PEPrefixEntryToDatabase>();
@@ -3819,7 +3849,7 @@ Last input 00:00:00, output 00:00:00
                     string currentInterface = null;
 
                     #region STATIC
-                    if (Request("sh run router static", out lines)) return;
+                    if (Request("sh run router static", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -3906,7 +3936,7 @@ Last input 00:00:00, output 00:00:00
 
                     #region PREFIX-SET and ROUTE POLICY LANGUAGE
 
-                    if (Request(@"show rpl prefix-set", out lines)) return;
+                    if (Request(@"show rpl prefix-set", out lines, probe)) return probe;
                     //Wed Sep 21 15:23:41.177 GMT
                     //Listing for all Prefix Set objects
 
@@ -3992,7 +4022,7 @@ Last input 00:00:00, output 00:00:00
                     //!
                     Dictionary<string, string> rpl = new Dictionary<string, string>();
 
-                    if (Request(@"show rpl route-policy", out lines)) return;
+                    if (Request(@"show rpl route-policy", out lines, probe)) return probe;
 
                     StringBuilder caps = new StringBuilder();
                     string currentRPL = null;
@@ -4021,7 +4051,7 @@ Last input 00:00:00, output 00:00:00
                     #endregion
 
                     #region BGP
-                    if (Request("sh run router bgp", out lines)) return;
+                    if (Request("sh run router bgp", out lines, probe)) return probe;
 
                     currentRouteNameID = null;
                     currentNeighbor = null;
@@ -4190,7 +4220,7 @@ Last input 00:00:00, output 00:00:00
                     #endregion
 
                     #region OSPF
-                    if (Request("sh run router ospf", out lines)) return;
+                    if (Request("sh run router ospf", out lines, probe)) return probe;
 
                     currentRouteNameID = null;
                     currentProcess = null;
@@ -4300,7 +4330,7 @@ Last input 00:00:00, output 00:00:00
                     #endregion
 
                     #region RIP
-                    if (Request("sh run router rip", out lines)) return;
+                    if (Request("sh run router rip", out lines, probe)) return probe;
 
                     currentRouteNameID = null;
                     currentInterface = null;
@@ -4361,7 +4391,7 @@ Last input 00:00:00, output 00:00:00
                     #endregion
 
                     #region EIGRP
-                    if (Request("sh run router eigrp", out lines)) return;
+                    if (Request("sh run router eigrp", out lines, probe)) return probe;
 
                     currentRouteNameID = null;
                     currentInterface = null;
@@ -4432,7 +4462,7 @@ Last input 00:00:00, output 00:00:00
                     //ip route vrf Astinet 203.130.235.128 255.255.255.248 192.168.3.218
                     //ip route vrf Astinet 203.130.235.128 255.255.255.248 GigabitEthernet1/19.2185
                     //01234567890123456
-                    if (Request("sh run | in ip route vrf", out lines)) return;
+                    if (Request("sh run | in ip route vrf", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -4498,7 +4528,7 @@ Last input 00:00:00, output 00:00:00
 
                     #region PREFIX-LIST
 
-                    if (Request(@"show ip prefix-list", out lines)) return;
+                    if (Request(@"show ip prefix-list", out lines, probe)) return probe;
                     //PE-D2-JT2-INET#show ip prefix-list
                     //ip prefix-list ADV-DEFAULT: 1 entries
                     //   seq 5 permit 0.0.0.0/0
@@ -4585,7 +4615,7 @@ Last input 00:00:00, output 00:00:00
                     int currentBGPAS = -1;
 
                     //sh run | in \ address-family|\ \ neighbor|\ exit-address-family
-                    if (Request(@"sh run | in router\ bgp|router\ rip|router\ ospf|router\ eigrp|\ address-family\ ipv4\ vrf|\ \ neighbor|\ exit-address-family|\ network\ ", out lines)) return;
+                    if (Request(@"sh run | in router\ bgp|router\ rip|router\ ospf|router\ eigrp|\ address-family\ ipv4\ vrf|\ \ neighbor|\ exit-address-family|\ network\ ", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -5179,7 +5209,7 @@ Last input 00:00:00, output 00:00:00
                 //ip route vrf Astinet 203.130.235.128 255.255.255.248 192.168.3.218
                 //ip route vrf Astinet 203.130.235.128 255.255.255.248 GigabitEthernet1/19.2185
                 //01234567890123456
-                if (Request("display cur | in ip route-static vpn-instance", out lines)) return;
+                if (Request("display cur | in ip route-static vpn-instance", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -5250,7 +5280,7 @@ Last input 00:00:00, output 00:00:00
                 #region PREFIX-LIST
 
                 //>display ip ip-prefix
-                if (Request(@"display ip ip-prefix | in Prefix-list|index:", out lines)) return;
+                if (Request(@"display ip ip-prefix | in Prefix-list|index:", out lines, probe)) return probe;
                 //Prefix-list bogons
                 //0123456789012
                 //Permitted 668
@@ -5321,7 +5351,7 @@ Last input 00:00:00, output 00:00:00
 
                 #region BGP
 
-                if (Request("disp cur | in \"bgp\\ |\\ ipv4-family\\ vpn-instance\\ |\\ ipv6-family\\ vpn-instance\\ |\\ \\ peer\\ |\\ #\"", out lines)) return;
+                if (Request("disp cur | in \"bgp\\ |\\ ipv4-family\\ vpn-instance\\ |\\ ipv6-family\\ vpn-instance\\ |\\ \\ peer\\ |\\ #\"", out lines, probe)) return probe;
 
                 string currentRouter = null;
                 string currentRouteNameID = null;
@@ -5773,6 +5803,7 @@ Last input 00:00:00, output 00:00:00
                 batch.Execute(insert);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.PrefixList, false);
 
             // PREFIX-ENTRY
@@ -5792,6 +5823,7 @@ Last input 00:00:00, output 00:00:00
                 batch.Execute(insert);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.PrefixEntry, false);
 
             // UPDATE
@@ -5807,6 +5839,7 @@ Last input 00:00:00, output 00:00:00
                 batch.Execute(update);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.PrefixEntry, false);
 
             // DELETE
@@ -5816,6 +5849,7 @@ Last input 00:00:00, output 00:00:00
                 batch.Execute("delete from PEPrefixEntry where PY_ID = {0}", s);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.PrefixEntry, false);
 
             // ROUTEUSE
@@ -5871,6 +5905,7 @@ Last input 00:00:00, output 00:00:00
                 batch.Execute(insert);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.Routing, false);
 
             // UPDATE
@@ -5896,6 +5931,7 @@ Last input 00:00:00, output 00:00:00
                 batch.Execute(update);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.Routing, false);
 
             // DELETE
@@ -5945,6 +5981,7 @@ Last input 00:00:00, output 00:00:00
                 }
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.Routing, false);
 
             #endregion
@@ -5966,6 +6003,7 @@ Last input 00:00:00, output 00:00:00
                 }
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.PrefixList, false);
 
             // DELETE QOS
@@ -5979,6 +6017,7 @@ Last input 00:00:00, output 00:00:00
                 }
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.QOS, false);
 
             // DELETE ROUTE
@@ -5995,22 +6034,28 @@ Last input 00:00:00, output 00:00:00
                     routenamedelete.Add(id);
                 }
             }
-            batch.Commit();
+            result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             batch.Begin();
             foreach (string id in routenamedelete)
             {
                 batch.Execute("delete from PERouteName where PN_ID = {0}", id);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.VRFReference, false);
 
             result = Execute("delete from PERouteTarget where PT_PR in (select PR_ID from PERoute left join PERouteName on PN_PR = PR_ID where PN_ID is null)");
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.VRFRouteTarget, false);
 
             result = Execute("delete from PERoute where PR_ID in (select PR_ID from PERoute left join PERouteName on PN_PR = PR_ID where PN_ID is null)");
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.VRF, false);
 
             #endregion
+
+            return probe;
         }
 
         private DateTime? ParseLastInput(string lastInput)

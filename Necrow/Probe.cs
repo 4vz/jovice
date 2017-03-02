@@ -475,6 +475,38 @@ namespace Center
         }
     }
 
+    internal enum FailureTypes
+    {
+        None,
+        Connection,
+        Database,
+        Request
+    }
+
+    internal class ProbeProcessResult
+    {
+        #region Fields
+
+        private FailureTypes failure;
+
+        public FailureTypes FailureType
+        {
+            get { return failure; }
+            set { failure = value; }
+        }
+
+        #endregion
+
+        #region Constructors
+
+        public ProbeProcessResult()
+        {
+
+        }
+
+        #endregion
+    }
+
     internal sealed partial class Probe : SshConnection
     {
         #region Enums
@@ -846,7 +878,7 @@ namespace Center
             base.Stop();
         }
 
-        private void Failure()
+        private void ConnectionFailure()
         {
             outputIdentifier = null;
             Event("Connection failure has occured");
@@ -854,6 +886,16 @@ namespace Center
             Stop();
 
             started = false;
+        }
+
+        private ProbeProcessResult DatabaseFailure(ProbeProcessResult probe)
+        {
+            Event("Database failure has occured");
+            Thread.Sleep(5000);
+
+            probe.FailureType = FailureTypes.Database;
+
+            return probe;
         }
 
         private void OnConnected(object sender)
@@ -880,6 +922,7 @@ namespace Center
             probing = false;
 
             sshProbeStartTime = DateTime.MinValue;
+            started = false;
 
             if (mainLoop != null)
             {
@@ -986,12 +1029,32 @@ namespace Center
                     bool continueProcess = false;
                     bool caughtError = false;
                     string info = null;
+                    ProbeProcessResult probe = null;
 #if !DEBUG
                     try
                     {
 #endif
 
-                    Enter(node, xpID, out continueProcess, prioritizeProcess, prioritizeAsk);
+                    probe = Enter(node, xpID, out continueProcess, prioritizeProcess, prioritizeAsk);
+
+                    if (probe != null)
+                    {
+                        if (probe.FailureType != FailureTypes.None)
+                        {
+                            string errorMessage = null;
+                            if (probe.FailureType == FailureTypes.Connection) errorMessage = "Connection error";
+                            else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error";
+                            else if (probe.FailureType == FailureTypes.Request) errorMessage = "Request error";
+#if !DEBUG
+                            throw new Exception(errorMessage);
+#else
+                            Event("Probe error: " + errorMessage);
+                            Update(UpdateTypes.Remark, "PROBEFAILED");
+                            caughtError = true;
+                            continueProcess = false;
+#endif
+                        }
+                    }
 #if !DEBUG
                     }
                     catch (Exception ex)
@@ -1019,8 +1082,10 @@ namespace Center
                         caughtError = true;
                     }
 #endif
+
                     if (continueProcess)
                     {
+                        #region Continue Process
                         idleThread = new Thread(new ThreadStart(delegate ()
                         {
                             while (true)
@@ -1082,19 +1147,30 @@ namespace Center
                         else popInterfaces = null;
 
                         batch.Commit();
-
-                        
 #if !DEBUG
                         try
                         {
 #endif
-                        if (nodeType == "P")
+
+                        if (nodeType == "P") probe = PEProcess();
+                        else if (nodeType == "M") probe = MEProcess();
+
+                        if (probe != null)
                         {
-                            PEProcess();
-                        }
-                        else if (nodeType == "M")
-                        {
-                            MEProcess();
+                            if (probe.FailureType != FailureTypes.None)
+                            {
+                                string errorMessage = null;
+                                if (probe.FailureType == FailureTypes.Connection) errorMessage = "Connection error";
+                                else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error";
+                                else if (probe.FailureType == FailureTypes.Request) errorMessage = "Request error";
+#if !DEBUG
+                                throw new Exception(errorMessage);
+#else
+                                Event("Probe error: " + errorMessage);
+                                Update(UpdateTypes.Remark, "PROBEFAILED");
+                                caughtError = true;
+#endif
+                            }
                         }
 
                         Necrow.AcknowledgeNodeVersion(nodeManufacture, nodeVersion, nodeSubVersion);
@@ -1112,17 +1188,32 @@ namespace Center
                             }
                         }
 #endif
-                        
-                        Update(UpdateTypes.Active, 1);
-                        SaveExit();
-
                         if (idleThread != null)
                         {
                             idleThread.Abort();
                             idleThread = null;
                         }
+                        #endregion
                     }
-                    
+
+                    Update(UpdateTypes.Active, 1);
+
+                    if (probe.FailureType == FailureTypes.Connection)
+                    {
+                        Save();
+
+                        outputIdentifier = null;
+                        Event("Connection failure has occured");
+                        Thread.Sleep(5000);
+                        Stop();
+
+                        started = false;
+                    }
+                    else
+                    {
+                        SaveExit();
+                    }
+
                     if (probeRequestData != null)
                     {
                         if (!continueProcess) { }
@@ -1171,7 +1262,7 @@ namespace Center
                 if (res == false)
                 {
                     if (saveOnFailure) Save();
-                    Failure();
+                    ConnectionFailure();
                 }
             }
         }
@@ -1182,7 +1273,7 @@ namespace Center
             {
                 Thread.Sleep(250);
                 bool res = Write(line);
-                if (res == false) Failure();
+                if (res == false) ConnectionFailure();
             }
         }
 
@@ -1236,7 +1327,7 @@ namespace Center
 
                 // else continue wait...
                 loop++;
-                if (loop == 3) Failure(); // loop 3 times, its a failure
+                if (loop == 3) ConnectionFailure(); // loop 3 times, its a failure
 
                 // print message where we are waiting (or why)
                 Event(waitMessage + "... (" + loop + ")");
@@ -1385,7 +1476,7 @@ namespace Center
 
             bool timeout;
             List<string> lines = MCESendLine("cat /etc/hosts | grep -i " + hostname, out timeout);
-            if (timeout) Failure();
+            if (timeout) ConnectionFailure();
 
             Dictionary<string, string> greppair = new Dictionary<string, string>();
             foreach (string line in lines)
@@ -1515,7 +1606,12 @@ namespace Center
             Exit();
         }
 
-        private bool Request(string command, out string[] lines)
+        //private bool Request(string command, out string[] lines)
+        //{
+        //    return Request(command, out lines, null);
+        //}
+
+        private bool Request(string command, out string[] lines, ProbeProcessResult probe)
         {
             Event("Request [" + command + "]...");
 
@@ -1614,26 +1710,27 @@ namespace Center
                         if (ending) break;
 
                         wait++;
-
                         if (wait % 200 == 0 && wait < 1600)
                         {
                             Event("Waiting...");
                             SendLine("");
                         }
-
                         Thread.Sleep(100);
                         if (wait == 1600)
                         {
-                            timeout = true;
                             Event("Reading timeout, cancel the reading...");
+                            timeout = true;
                         }
-                        if (wait >= 1600 && wait % 50 == 0)
+                        else if (wait >= 1600 && wait % 50 == 0)
                         {
                             SendControlC();
                         }
-                        if (wait == 2000)
+                        else if (wait == 2000)
                         {
-                            Failure();
+                            if (probe != null)
+                            {
+                                probe.FailureType = FailureTypes.Connection;
+                            }
                         }
                     }
                 }
@@ -1643,9 +1740,7 @@ namespace Center
                 if (!timeout)
                 {
                     lines = listlines.ToArray();
-
                     bool improperCommand = false;
-
                     if (lines.Length < 10)
                     {
                         improperCommand = true;
@@ -1678,7 +1773,10 @@ namespace Center
             if (!timeout) return false;
             else
             {
-                SaveExit();
+                if (probe != null)
+                {
+                    probe.FailureType = FailureTypes.Request;
+                }
                 return true;
             }
         }
@@ -1908,6 +2006,7 @@ namespace Center
             
             // nodesummary
             result = Query("select * from NodeSummary where NS_NO = {0}", nodeID);
+            //if (!result.OK) return DatabaseFailure(probe);
             Dictionary<string, Tuple<string, string>> dbsummaries = new Dictionary<string, Tuple<string, string>>();
 
             batch.Begin();
@@ -1997,9 +2096,6 @@ namespace Center
             {
                 Necrow.Log(nodeName, ex.Message, ex.StackTrace);
                 Event("Caught error on Save(): " + ex.Message + ", try again");
-
-                //Necrow.Telegram_SendMessage("Hi Afis, I caught THAT error on this weird section, I handled the exception, log stuff, and try to restart the block. Please /probestatus to check if I'm still alive or not. Have a nice day.");
-
                 Save();
             }
 #endif
@@ -2011,8 +2107,9 @@ namespace Center
             }
         }
 
-        private void Enter(Row row, int probeProgressID, out bool continueProcess, bool prioritizeProcess, bool prioritizeAsk)
+        private ProbeProcessResult Enter(Row row, int probeProgressID, out bool continueProcess, bool prioritizeProcess, bool prioritizeAsk)
         {
+            ProbeProcessResult probe = new ProbeProcessResult();
             string[] lines = null;
 
             continueProcess = false;
@@ -2080,7 +2177,7 @@ namespace Center
                         Update(UpdateTypes.Remark, "UNRESOLVED");
 
                     Save();
-                    return;
+                    return probe;
                 }
                 else
                 {
@@ -2176,7 +2273,7 @@ namespace Center
                             Update(UpdateTypes.Active, 0);
 
                             Save();
-                            return;
+                            return probe;
                         }                        
                     }
                     else
@@ -2195,7 +2292,7 @@ namespace Center
                         }
 
                         Save();
-                        return;
+                        return probe;
                     }
                 }
                 else if (nodeIP != resolvedIP)
@@ -2205,7 +2302,7 @@ namespace Center
                     Update(UpdateTypes.Active, 0);
 
                     Save();
-                    return;
+                    return probe;
                 }
             }
 
@@ -2343,7 +2440,7 @@ namespace Center
                 }
 
                 Save();
-                return;
+                return probe;
             }
 
             if (nodeConnectType == null || connectBy != connectType)
@@ -2410,7 +2507,7 @@ namespace Center
             {
                 #region alu
 
-                if (Request("show system time", out lines)) return;
+                if (Request("show system time", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -2429,7 +2526,7 @@ namespace Center
             else if (nodeManufacture == cso)
             {
                 #region cso
-                if (Request("show clock", out lines)) return;
+                if (Request("show clock", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -2449,7 +2546,7 @@ namespace Center
             else if (nodeManufacture == hwe)
             {
                 #region hwe
-                if (Request("display clock", out lines)) return;
+                if (Request("display clock", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -2472,7 +2569,7 @@ namespace Center
             else if (nodeManufacture == jun)
             {
                 #region jun
-                if (Request("show system uptime", out junShowSystemUptimeLines)) return;
+                if (Request("show system uptime", out junShowSystemUptimeLines, probe)) return probe;
 
                 foreach (string line in junShowSystemUptimeLines)
                 {
@@ -2514,8 +2611,8 @@ namespace Center
 
             if (nodeManufacture == alu)
             {
-                if (Request("environment no saved-ind-prompt", out lines)) return;
-                if (Request("environment no more", out lines)) return;
+                if (Request("environment no saved-ind-prompt", out lines, probe)) return probe;
+                if (Request("environment no more", out lines, probe)) return probe;
 
                 string oline = string.Join(" ", lines);
                 if (oline.IndexOf("CLI Command not allowed for this user.") > -1)
@@ -2525,15 +2622,15 @@ namespace Center
             }
             else if (nodeManufacture == hwe)
             {
-                if (Request("screen-length 0 temporary", out lines)) return;
+                if (Request("screen-length 0 temporary", out lines, probe)) return probe;
             }
             else if (nodeManufacture == cso)
             {
-                if (Request("terminal length 0", out lines)) return;
+                if (Request("terminal length 0", out lines, probe)) return probe;
             }
             else if (nodeManufacture == jun)
             {
-                if (Request("set cli screen-length 0", out lines)) return;
+                if (Request("set cli screen-length 0", out lines, probe)) return probe;
             }
 
             #endregion
@@ -2561,7 +2658,7 @@ namespace Center
                 if (nodeManufacture == alu)
                 {
                     #region alu
-                    if (Request("show version | match TiMOS", out lines)) return;
+                    if (Request("show version | match TiMOS", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -2578,7 +2675,7 @@ namespace Center
                 else if (nodeManufacture == hwe)
                 {
                     #region hwe
-                    if (Request("display version", out lines)) return;
+                    if (Request("display version", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -2601,7 +2698,7 @@ namespace Center
                 else if (nodeManufacture == cso)
                 {
                     #region cso
-                    if (Request("show version | in IOS", out lines)) return;
+                    if (Request("show version | in IOS", out lines, probe)) return probe;
 
                     string sl = string.Join("", lines.ToArray());
 
@@ -2640,7 +2737,7 @@ namespace Center
                         }
 
                         // model
-                        if (Request("show version | in bytes of memory", out lines)) return;
+                        if (Request("show version | in bytes of memory", out lines, probe)) return probe;
 
                         sl = string.Join("", lines.ToArray());
                         string slo = sl.ToLower();
@@ -2664,7 +2761,7 @@ namespace Center
                 else if (nodeManufacture == jun)
                 {
                     #region jun
-                    if (Request("show version | match \"JUNOS Base OS boot\"", out lines)) return;
+                    if (Request("show version | match \"JUNOS Base OS boot\"", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -2721,7 +2818,7 @@ namespace Center
             if (nodeManufacture == alu)
             {
                 #region alu
-                if (Request("show system information | match \"Time Last Modified\"", out lines)) return;
+                if (Request("show system information | match \"Time Last Modified\"", out lines, probe)) return probe;
 
                 bool lastModified = false;
 
@@ -2755,7 +2852,7 @@ namespace Center
 
                 if (lastModified == false)
                 {
-                    if (Request("show system information | match \"Time Last Saved\"", out lines)) return;
+                    if (Request("show system information | match \"Time Last Saved\"", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -2791,7 +2888,7 @@ namespace Center
 
                 if (nodeVersion.StartsWith("8"))
                 {
-                    if (Request("display configuration commit list 1", out lines)) return;
+                    if (Request("display configuration commit list 1", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -2808,7 +2905,7 @@ namespace Center
                 }
                 else if (nodeVersion == "5.70")
                 {
-                    if (Request("display saved-configuration time", out lines)) return;
+                    if (Request("display saved-configuration time", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -2827,7 +2924,7 @@ namespace Center
                 }
                 else
                 {
-                    if (Request("display changed-configuration time", out lines)) return;
+                    if (Request("display changed-configuration time", out lines, probe)) return probe;
 
                     StringBuilder datesection = null;
                     foreach (string line in lines)
@@ -2862,7 +2959,7 @@ namespace Center
                 if (nodeVersion == xr)
                 {
                     #region xr
-                    if (Request("show configuration history commit last 1 | in commit", out lines)) return;
+                    if (Request("show configuration history commit last 1 | in commit", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -2899,7 +2996,7 @@ namespace Center
                     bool passed = false;
 
                     // most of ios version will work this way
-                    if (Request("show configuration id detail", out lines)) return;
+                    if (Request("show configuration id detail", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -2931,7 +3028,7 @@ namespace Center
                     {
                         // using xr-like command history
                         //show configuration history
-                        if (Request("show configuration history", out lines)) return;
+                        if (Request("show configuration history", out lines, probe)) return probe;
 
                         string lastline = null;
                         foreach (string line in lines)
@@ -2967,7 +3064,7 @@ namespace Center
                     if (passed == false)
                     {
                         // and here we are, using forbidden command ever
-                        if (Request("show log | in CONFIG_I", out lines)) return;
+                        if (Request("show log | in CONFIG_I", out lines, probe)) return probe;
 
                         string lastline = null;
                         foreach (string line in lines)
@@ -3007,7 +3104,7 @@ namespace Center
                     if (passed == false)
                     {
                         // and... if everything fail, we will use this slowlest command ever
-                        if (Request("show run | in Last config", out lines)) return;
+                        if (Request("show run | in Last config", out lines, probe)) return probe;
 
                         foreach (string line in lines)
                         {
@@ -3099,7 +3196,7 @@ namespace Center
             if (nodeManufacture == cso)
             {
                 #region cso
-                if (Request("show processes cpu | in CPU", out lines)) return;
+                if (Request("show processes cpu | in CPU", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -3118,7 +3215,7 @@ namespace Center
                 if (nodeVersion == xr)
                 {
                     //show memory summary | in Physical Memory
-                    if (Request("show memory summary | in Physical Memory", out lines)) return;
+                    if (Request("show memory summary | in Physical Memory", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -3155,7 +3252,7 @@ namespace Center
                 else
                 {
                     //show process memory  | in Processor Pool
-                    if (Request("show process memory | in Total:", out lines)) return;
+                    if (Request("show process memory | in Total:", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -3202,7 +3299,7 @@ namespace Center
             else if (nodeManufacture == alu)
             {
                 #region alu
-                if (Request("show system cpu | match \"Busiest Core\"", out lines)) return;
+                if (Request("show system cpu | match \"Busiest Core\"", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -3226,7 +3323,7 @@ namespace Center
                 }
 
                 //show system memory-pools | match bytes
-                if (Request("show system memory-pools | match bytes", out lines)) return;
+                if (Request("show system memory-pools | match bytes", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -3262,7 +3359,7 @@ namespace Center
             else if (nodeManufacture == hwe)
             {
                 #region hwe
-                if (Request("display cpu-usage", out lines)) return;
+                if (Request("display cpu-usage", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -3296,7 +3393,7 @@ namespace Center
                     }
                 }
 
-                if (Request("display memory-usage", out lines)) return;
+                if (Request("display memory-usage", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -3338,7 +3435,7 @@ namespace Center
                 #region jun
 
                 //show chassis routing-engine | match Idle
-                if (Request("show chassis routing-engine | match Idle", out lines)) return;
+                if (Request("show chassis routing-engine | match Idle", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -3365,7 +3462,7 @@ namespace Center
                 }
 
                 //show task memory
-                if (Request("show task memory", out lines)) return;
+                if (Request("show task memory", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -3467,6 +3564,8 @@ namespace Center
             {
                 SaveExit();
             }
+
+            return probe;
         }
 
         private void UpdateInfo(StringBuilder updateInfo, string title, string info)

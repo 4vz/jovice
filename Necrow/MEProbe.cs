@@ -443,12 +443,41 @@ namespace Center
         }
     }
 
+    class MEMACToDatabase : ToDatabase
+    {
+        private string macID;
+
+        public string MacID
+        {
+            get { return macID; }
+            set { macID = value; }
+        }
+
+        private string address;
+
+        public string Address
+        {
+            get { return address; }
+            set { address = value; }
+        }
+
+        private string circuitID;
+
+        public string CircuitID
+        {
+            get { return circuitID; }
+            set { circuitID = value; }
+        }
+    }
+
     #endregion
 
     internal sealed partial class Probe
     {
-        private void MEProcess()
+        private ProbeProcessResult MEProcess()
         {
+            ProbeProcessResult probe = new ProbeProcessResult();
+
             string[] lines = null;
             Batch batch = Batch();
             Result result;
@@ -465,10 +494,11 @@ namespace Center
                 Event("Checking Circuit Customer");
 
                 alucustdb = QueryDictionary("select * from MECustomer where MU_NO = {0}", "MU_UID", nodeID);
+                if (alucustdb == null) return DatabaseFailure(probe);
 
                 #region Live
 
-                if (Request("show service customer | match \"Customer-ID\"", out lines)) return;
+                if (Request("show service customer | match \"Customer-ID\"", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -511,6 +541,7 @@ namespace Center
                     batch.Execute(insert);
                 }
                 result = batch.Commit();
+                if (!result.OK) return DatabaseFailure(probe);
                 Event(result, EventActions.Add, EventElements.ALUCustomer, false);
 
                 // UPDATE
@@ -522,11 +553,13 @@ namespace Center
                     //if (v.Count > 0) batch.Execute("update MECustomer set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MU_ID = {0}", s.ID);
                 }
                 result = batch.Commit();
+                if (!result.OK) return DatabaseFailure(probe);
                 Event(result, EventActions.Update, EventElements.ALUCustomer, false);
 
                 #endregion
 
                 alucustdb = QueryDictionary("select * from MECustomer where MU_NO = {0}", "MU_UID", nodeID);
+                if (alucustdb == null) return DatabaseFailure(probe);
             }
 
             #endregion
@@ -536,9 +569,8 @@ namespace Center
             Event("Checking QOS");
 
             Dictionary<string, MEQOSToDatabase> qoslive = new Dictionary<string, MEQOSToDatabase>();
-            //debug1:
             Dictionary<string, Row> qosdb = QueryDictionary("select * from MEQOS where MQ_NO = {0}", delegate (Row row) { return (row["MQ_Type"].ToBool() ? "1" : "0") + "_" + row["MQ_Name"].ToString(); }, nodeID);
-            //goto debug2;
+            if (qosdb == null) return DatabaseFailure(probe);
             List<MEQOSToDatabase> qosinsert = new List<MEQOSToDatabase>();
             List<MEQOSToDatabase> qosupdate = new List<MEQOSToDatabase>();
 
@@ -548,7 +580,7 @@ namespace Center
             {
                 #region alu
 
-                if (Request("show qos sap-ingress", out lines)) return;
+                if (Request("show qos sap-ingress", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -563,7 +595,7 @@ namespace Center
                     }
                 }
 
-                if (Request("show qos sap-egress", out lines)) return;
+                if (Request("show qos sap-egress", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -591,7 +623,7 @@ namespace Center
             {
                 #region hwe
 
-                if (Request("display qos-profile configuration", out lines)) return;
+                if (Request("display qos-profile configuration", out lines, probe)) return probe;
 
                 bool qosCollect = false;
                 foreach (string line in lines)
@@ -683,6 +715,7 @@ namespace Center
                 batch.Execute(insert);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.QOS, false);
 
             // UPDATE
@@ -695,11 +728,13 @@ namespace Center
                 batch.Execute(update);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.QOS, false);
 
             #endregion
 
             qosdb = QueryDictionary("select * from MEQOS where MQ_NO = {0}", delegate (Row row) { return (row["MQ_Type"].ToBool() ? "1" : "0") + "_" + row["MQ_Name"].ToString(); }, nodeID);
+            if (qosdb == null) return DatabaseFailure(probe);
 
             #endregion
 
@@ -709,7 +744,9 @@ namespace Center
 
             Dictionary<string, MESDPToDatabase> sdplive = new Dictionary<string, MESDPToDatabase>();
             Dictionary<string, Row> sdpdb = QueryDictionary("select * from MESDP where MS_NO = {0}", "MS_SDP", nodeID);
+            if (sdpdb == null) return DatabaseFailure(probe);
             Dictionary<string, Row> ipnodedb = QueryDictionary("select NO_IP, NO_ID from Node where NO_IP is not null", "NO_IP");
+            if (ipnodedb == null) return DatabaseFailure(probe);
             List<MESDPToDatabase> sdpinsert = new List<MESDPToDatabase>();
             List<MESDPToDatabase> sdpupdate = new List<MESDPToDatabase>();
 
@@ -719,7 +756,7 @@ namespace Center
             {
                 #region alu
 
-                if (Request("show service sdp", out lines)) return;
+                if (Request("show service sdp", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -779,7 +816,7 @@ namespace Center
                 #region hwe
 
                 // dari mpls
-                if (Request("display mpls ldp remote-peer", out lines)) return;
+                if (Request("display mpls ldp remote-peer", out lines, probe)) return probe;
 
                 string farend = null;
                 bool active = false;
@@ -816,7 +853,7 @@ namespace Center
                 }
 
                 // dari vsi
-                if (Request("display vsi verbose | in Peer Router ID", out lines)) return;
+                if (Request("display vsi verbose | in Peer Router ID", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -847,7 +884,7 @@ namespace Center
 
                 // dari mpls
                 //
-                if (Request("display mpls l2vc | in destination", out lines)) return;
+                if (Request("display mpls l2vc | in destination", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -988,6 +1025,7 @@ namespace Center
                 batch.Execute(insert);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.SDP, false);
 
             // UPDATE
@@ -1006,11 +1044,13 @@ namespace Center
                 batch.Execute(update);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.SDP, false);
 
             #endregion
 
             sdpdb = QueryDictionary("select * from MESDP where MS_NO = {0}", "MS_SDP", nodeID);
+            if (sdpdb == null) return DatabaseFailure(probe);
 
             #endregion
 
@@ -1053,11 +1093,12 @@ namespace Center
                 }
 
                 circuitdb = QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_VCID", nodeID);
+                if (circuitdb == null) return DatabaseFailure(probe);
 
                 //goto debug3;
 
                 // STEP 1, dari display config untuk epipe dan vpls, biar dapet mtu dan deskripsinya
-                if (Request("admin display-config | match customer context children | match \"epipe|vpls|description|service-mtu\" expression", out lines)) return;
+                if (Request("admin display-config | match customer context children | match \"epipe|vpls|description|service-mtu\" expression", out lines, probe)) return probe;
 
                 MECircuitToDatabase cservice = null;
                 foreach (string line in lines)
@@ -1109,7 +1150,7 @@ namespace Center
                 }
 
                 // STEP 2, dari service-using, sisanya
-                if (Request("show service service-using", out lines)) return;
+                if (Request("show service service-using", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -1144,12 +1185,13 @@ namespace Center
                 #region hwe
 
                 circuitdb = QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_Description", nodeID);
+                if (circuitdb == null) return DatabaseFailure(probe);
 
                 // display vsi verbose | in VSI
                 // display mpls l2vc brief
 
                 // STEP 1, VSI Name dan VSI ID
-                if (Request("display vsi verbose | in VSI Name|VSI ID", out lines)) return;
+                if (Request("display vsi verbose | in VSI Name|VSI ID", out lines, probe)) return probe;
 
                 MECircuitToDatabase cservice = null;
                 foreach (string line in lines)
@@ -1192,7 +1234,7 @@ namespace Center
                 }
 
                 // STEP 2, VSI Name and VSI Detail
-                if (Request("display vsi", out lines)) return;
+                if (Request("display vsi", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -1222,7 +1264,7 @@ namespace Center
                 // STEP 3, dari MPLS L2VC
                 hweCircuitMplsL2vc = new List<string[]>();
 
-                if (Request("display mpls l2vc | in client interface|VC ID|local VC MTU|destination|primary or secondary", out lines)) return;
+                if (Request("display mpls l2vc | in client interface|VC ID|local VC MTU|destination|primary or secondary", out lines, probe)) return probe;
 
                 string cinterface = null;
                 string cinterfaceVCID = null;
@@ -1356,7 +1398,7 @@ intf1: GigabitEthernet7/1/10.2463 (up), access-port: false
 
 intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 */
-                if (Request("display vll ccc", out lines)) return;
+                if (Request("display vll ccc", out lines, probe)) return probe;
 
                 string cccname = null;
                 string cccif1 = null;
@@ -1452,6 +1494,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                     if (adjacentPeers == null)
                     {
                         result = Query("select MP_VCID, MP_ID from MEPeer, MESDP, Node where MP_MS = MS_ID and MS_IP = NO_IP and NO_ID = {0}", nodeID);
+                        if (!result.OK) return DatabaseFailure(probe);
                         adjacentPeers = new Dictionary<string, List<string>>();
                         if (result.OK)
                         {
@@ -1578,6 +1621,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 batch.Execute(insert);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.Circuit, false);
 
             batch.Begin();
@@ -1590,6 +1634,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 }
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.CircuitReference, false);
 
             // UPDATE
@@ -1611,12 +1656,14 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 batch.Execute(update);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.Circuit, false);
 
             #endregion
 
             if (nodeManufacture == alu) circuitdb = QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_VCID", nodeID);
             else if (nodeManufacture == hwe) circuitdb = QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_Description", nodeID);
+            if (circuitdb == null) return DatabaseFailure(probe);
 
             #endregion
 
@@ -1627,6 +1674,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
             Dictionary<string, MEPeerToDatabase> peerlive = new Dictionary<string, MEPeerToDatabase>();
             List<string> duplicatedpeers = new List<string>();
             Dictionary<string, Row> peerdb = QueryDictionary("select * from MEPeer, MECircuit, MESDP where MP_MC = MC_ID and MP_MS = MS_ID and MC_NO = {0}", delegate (Row row) { return row["MS_SDP"].ToString() + ":" + row["MP_VCID"].ToString(); }, delegate (Row row) { duplicatedpeers.Add(row["MP_ID"].ToString()); }, nodeID);
+            if (peerdb == null) return DatabaseFailure(probe);
             List<MEPeerToDatabase> peerinsert = new List<MEPeerToDatabase>();
             List<MEPeerToDatabase> peerupdate = new List<MEPeerToDatabase>();
 
@@ -1635,6 +1683,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 Event(duplicatedpeers.Count + " peer-per-circuit(s) are found duplicated, began deleting...");
                 string duplicatedpeerstr = "'" + string.Join("', '", duplicatedpeers.ToArray()) + "'";
                 result = Execute("delete from MEPeer where MP_ID in (" + duplicatedpeerstr + ")");
+                if (!result.OK) return DatabaseFailure(probe);
                 Event(result, EventActions.Delete, EventElements.Peer, true);
             }
 
@@ -1644,7 +1693,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
             {
                 #region alu
 
-                if (Request("show service sdp-using", out lines)) return;
+                if (Request("show service sdp-using", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -1696,7 +1745,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 #region hwe
 
                 // peernya vsi
-                if (Request("display vsi peer-info", out lines)) return;
+                if (Request("display vsi peer-info", out lines, probe)) return probe;
 
                 string cvsi = null;
                 foreach (string line in lines)
@@ -1795,7 +1844,9 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 MEPeerToDatabase li = pair.Value;
 
                 result = Query("select MC_ID from MESDP, MECircuit where MS_TO_NO = MC_NO and MS_ID = {0} and MC_VCID = {1}", li.SDPID, li.VCID);
-                if (result.OK && result.Count > 0) li.ToCircuitID = result[0]["MC_ID"].ToString();
+                if (!result.OK) return DatabaseFailure(probe);
+
+                if (result.Count > 0) li.ToCircuitID = result[0]["MC_ID"].ToString();
 
                 if (!peerdb.ContainsKey(pair.Key))
                 {
@@ -1868,6 +1919,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 batch.Execute(insert);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.Peer, false);
 
             // UPDATE
@@ -1882,6 +1934,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 batch.Execute(update);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.Peer, false);
 
             // DELETE
@@ -1895,6 +1948,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 }
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.Peer, false);
 
             #endregion
@@ -1908,6 +1962,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
             SortedDictionary<string, MEInterfaceToDatabase> interfacelive = new SortedDictionary<string, MEInterfaceToDatabase>();
             List<string> duplicatedinterfaces = new List<string>();
             Dictionary<string, Row> interfacedb = QueryDictionary("select * from MEInterface where MI_NO = {0}", "MI_Name", delegate (Row row) { duplicatedinterfaces.Add(row["MI_ID"].ToString()); }, nodeID);
+            if (interfacedb == null) return DatabaseFailure(probe);
             SortedDictionary<string, MEInterfaceToDatabase> interfaceinsert = new SortedDictionary<string, MEInterfaceToDatabase>();
             List<MEInterfaceToDatabase> interfaceupdate = new List<MEInterfaceToDatabase>();
 
@@ -1915,9 +1970,12 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
             {
                 Event(duplicatedinterfaces.Count + " interface(s) are found duplicated, began deleting...");
                 string duplicatedinterfacestr = "'" + string.Join("', '", duplicatedinterfaces.ToArray()) + "'";
-                Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI in (" + duplicatedinterfacestr + ")");
-                Execute("update MEInterface set MI_MI = NULL where MI_MI in (" + duplicatedinterfacestr + ")");
+                result = Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI in (" + duplicatedinterfacestr + ")");
+                if (!result.OK) return DatabaseFailure(probe);
+                result = Execute("update MEInterface set MI_MI = NULL where MI_MI in (" + duplicatedinterfacestr + ")");
+                if (!result.OK) return DatabaseFailure(probe);
                 result = Execute("delete from MEInterface where MI_ID in (" + duplicatedinterfacestr + ")");
+                if (!result.OK) return DatabaseFailure(probe);
                 Event(result, EventActions.Delete, EventElements.Interface, true);
             }
 
@@ -1928,7 +1986,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
             if (nodeManufacture == alu)
             {
                 #region alu
-                if (Request("show port description", out lines)) return;
+                if (Request("show port description", out lines, probe)) return probe;
 
                 string port = null;
                 StringBuilder description = new StringBuilder();
@@ -1987,7 +2045,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                     }
                 }
 
-                if (Request("show port", out lines)) return;
+                if (Request("show port", out lines, probe)) return probe;
 
                 foreach (string line in lines)
                 {
@@ -2016,7 +2074,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                     if (interfacelive[portex].Status == false)
                                     {
                                         string[] portlines;
-                                        if (Request("show port " + portdet + " | match \"Last State Change\"", out portlines)) return;
+                                        if (Request("show port " + portdet + " | match \"Last State Change\"", out portlines, probe)) return probe;
 
                                         foreach (string portline in portlines)
                                         {
@@ -2094,7 +2152,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
                 if (nodeVersion.StartsWith("TiMOS-B")) // sementara TiMOS-B ga bisa dapet deskripsi
                 {
-                    if (Request("show service sap-using", out lines)) return;
+                    if (Request("show service sap-using", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -2172,7 +2230,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 else
                 {
                     // make lag list
-                    if (Request("show lag description", out lines)) return;
+                    if (Request("show lag description", out lines, probe)) return probe;
 
                     /* lag
                 /*
@@ -2245,7 +2303,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
                     if (description != null && current != null) current.Description = description.ToString();
 
-                    if (Request("show service sap-using description", out lines)) return;
+                    if (Request("show service sap-using description", out lines, probe)) return probe;
 
                     port = null;
                     description = new StringBuilder();
@@ -2378,7 +2436,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         }
                     }
 
-                    if (Request("show service sap-using", out lines)) return;
+                    if (Request("show service sap-using", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -2423,7 +2481,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             {
                 #region hwe
 
-                if (Request("display interface description", out lines)) return;
+                if (Request("display interface description", out lines, probe)) return probe;
 
                 bool begin = false;
                 string port = null;
@@ -2577,11 +2635,11 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 //main interface
                 if (nodeVersion == "5.90" || nodeVersion == "5.70")
                 {
-                    if (Request("display interface | in current state|down time|BW", out lines)) return;                    
+                    if (Request("display interface | in current state|down time|BW", out lines, probe)) return probe;                    
                 }
                 else
                 {
-                    if (Request("display interface main | in current state|down time|BW", out lines)) return;
+                    if (Request("display interface main | in current state|down time|BW", out lines, probe)) return probe;
                 }
 
                 MEInterfaceToDatabase currentInterfaceToDatabase = null;
@@ -2662,7 +2720,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     }
                 }
 
-                if (Request("display interface brief", out lines)) return;
+                if (Request("display interface brief", out lines, probe)) return probe;
 
                 begin = false;
                 int aggr = -1;
@@ -2786,7 +2844,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
 
                 // vsi ke port (l2 binding vsi)
-                if (Request("display vsi services all", out lines)) return;
+                if (Request("display vsi services all", out lines, probe)) return probe;
 
                 //GigabitEthernet7/0/3.2999           "ZZZ ZZZ"                       up
                 //GigabitEthernet7/0/10.20            OAMN-MSAN-PWT02
@@ -2820,7 +2878,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
 
                 // qos
-                if (Request("display cur int | in interface |qos-profile |user-queue |vlan-type\\ dot1q", out lines)) return;
+                if (Request("display cur int | in interface |qos-profile |user-queue |vlan-type\\ dot1q", out lines, probe)) return probe;
 
                 string currentInterface = null;
                 string currentParent = null;
@@ -3101,6 +3159,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                         // query lawan
                                         li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
                                         result = Query("select PI_ID, PI_DOT1Q, PI_TO_MI from PEInterface where PI_PI = {0}", li.TopologyPEInterfaceID);
+                                        if (!result.OK) return DatabaseFailure(probe);
                                         foreach (Row row in result)
                                         {
                                             if (!row["PI_DOT1Q"].IsNull)
@@ -3118,6 +3177,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                         // query lawan
                                         li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
                                         result = Query("select MI_ID, MI_DOT1Q, MI_TO_MI, MI_TO_PI from MEInterface where MI_MI = {0}", li.TopologyMEInterfaceID);
+                                        if (!result.OK) return DatabaseFailure(probe);
                                         foreach (Row row in result)
                                         {
                                             if (!row["MI_DOT1Q"].IsNull)
@@ -3456,6 +3516,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                     // gak bener ini, update!
                                     remove.Add(pair2.Key);
                                     result = Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
+                                    if (!result.OK) return DatabaseFailure(probe);
                                     if (result.Count == 1)
                                     {
                                         string topologyAreaID = result[0]["NO_AR"].ToString();
@@ -3477,6 +3538,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                     // gak bener ini, update!
                                     remove.Add(pair2.Key);
                                     result = Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
+                                    if (!result.OK) return DatabaseFailure(probe);
                                     if (result.Count == 1)
                                     {
                                         string topologyAreaID = result[0]["NO_AR"].ToString();
@@ -3498,6 +3560,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             // add
                             string dacID = Database.ID();
                             result = Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
+                            if (!result.OK) return DatabaseFailure(probe);
                             if (result.Count == 1)
                             {
                                 string topologyAreaID = result[0]["NO_AR"].ToString();
@@ -3514,7 +3577,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     }
                 }
 
-                batch.Commit();
+                result = batch.Commit();
+                if (!result.OK) return DatabaseFailure(probe);
 
                 // modify virtualizations
                 // remove
@@ -3578,6 +3642,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.Interface, false);
 
             // UPDATE       
@@ -3633,6 +3698,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 batch.Execute(update);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.Interface, false);
 
             batch.Begin();
@@ -3660,6 +3726,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.NeighborInterface, false);
 
             // DELETE
@@ -3689,6 +3756,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.Interface, false);
 
             // remove dac
@@ -3700,7 +3768,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     NecrowVirtualization.DerivedAreaConnections.Remove(dacID);
                     batch.Execute("delete from DerivedAreaConnection where DAC_ID = {0}", dacID);
                 }
-                batch.Commit();
+                result = batch.Commit();
+                if (!result.OK) return DatabaseFailure(probe);
             }
 
             // redone vMEPhysicalInterfaces
@@ -3718,6 +3787,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 batch.Execute("delete from MEInterface where MI_ID = {0}", id);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.Interface, false);
 
             // RESERVES
@@ -3734,9 +3804,16 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             if (result.AffectedRows > 0) Event(result.AffectedRows + " reserved entr" + (result.AffectedRows > 1 ? "ies have " : "y has ") + " been found");
 
             #endregion
+
+            #endregion
+
+            #region MAC
+
+            Event("Checking Mac");
 
             #endregion
 
@@ -3756,13 +3833,15 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     circuitdelete.Add(id);
                 }
             }
-            batch.Commit();
+            result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             batch.Begin();
             foreach (string id in circuitdelete)
             {
                 batch.Execute("delete from MECircuit where MC_ID = {0}", id);
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.Circuit, false);
 
             // SDP DELETE
@@ -3776,6 +3855,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.SDP, false);
 
             // ALU CUSTOMER DELETE            
@@ -3792,6 +3872,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     }
                 }
                 result = batch.Commit();
+                if (!result.OK) return DatabaseFailure(probe);
                 Event(result, EventActions.Delete, EventElements.ALUCustomer, false);
             }
 
@@ -3807,9 +3888,12 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
             }
             result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.QOS, false);
 
-            #endregion         
+            #endregion
+
+            return probe;
         }
     }
 }

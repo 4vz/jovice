@@ -261,12 +261,11 @@ namespace Aphysoft.Share
             return sb.ToString();
         }
 
-        public void Execute()
+        public Result Execute()
         {
-            database.Execute(this);
+            return database.Execute(this);
         }
         
-
         #endregion
     }
 
@@ -411,7 +410,7 @@ namespace Aphysoft.Share
             set { queryAttempts = value; }
         }
 
-        private int timeout = 0;
+        private int timeout = 30;
 
         public int Timeout
         {
@@ -828,7 +827,7 @@ namespace Aphysoft.Share
             }
 
             SqlCommand command = new SqlCommand(sql, connection);
-            if (database.Timeout > 0)
+            if (database.Timeout > -1)
                 command.CommandTimeout = database.Timeout;
 
             return command;
@@ -849,6 +848,7 @@ namespace Aphysoft.Share
             using (SqlConnection connection = new SqlConnection(database.ConnectionString))
             {
                 SqlCommand command = Begin(sql, connection);
+
                 lock (commands)
                 {
                     commands.Add(command);
@@ -927,6 +927,7 @@ namespace Aphysoft.Share
             using (SqlConnection connection = new SqlConnection(database.ConnectionString))
             {
                 SqlCommand command = Begin(sql, connection);
+
                 lock (commands)
                 {
                     commands.Add(command);

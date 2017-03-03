@@ -3988,6 +3988,11 @@ Aging time : 300                LSP/MAC_Tunnel: 1/0
                                     current.Address = addressSplit[0].Substring(0, 2) + ":" + addressSplit[0].Substring(2, 2) + ":" +
                                         addressSplit[1].Substring(0, 2) + ":" + addressSplit[1].Substring(2, 2) + ":" +
                                         addressSplit[2].Substring(0, 2) + ":" + addressSplit[2].Substring(2, 2);
+
+                                    if (circuitdb.ContainsKey(token2))
+                                    {
+                                        current.CircuitID = circuitdb[token2]["MC_ID"].ToString();
+                                    }
                                 }
                                 else if (current != null)
                                 {
@@ -4003,7 +4008,7 @@ Aging time : 300                LSP/MAC_Tunnel: 1/0
                                                 if (interfacelive.ContainsKey(ifName))
                                                 {
                                                     current.InterfaceID = interfacelive[ifName].ID;
-                                                    current.CircuitID = interfacelive[ifName].CircuitID;
+                                                    //current.CircuitID = interfacelive[ifName].CircuitID;
                                                 }
                                             }
                                         }
@@ -4016,7 +4021,7 @@ Aging time : 300                LSP/MAC_Tunnel: 1/0
                                             if (peerlive.ContainsKey(peerKey))
                                             {
                                                 current.PeerID = peerlive[peerKey].ID;
-                                                current.CircuitID = peerlive[peerKey].CircuitID;
+                                                //current.CircuitID = peerlive[peerKey].CircuitID;
 
                                                 string key = current.Address + "_" + current.PeerID;
                                                 if (!maclive.ContainsKey(key)) maclive.Add(key, current);

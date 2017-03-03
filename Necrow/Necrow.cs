@@ -261,8 +261,7 @@ namespace Center
                 {
                     if (eventArgs.Exception == DatabaseException.Timeout)
                     {
-                        Event("Database query has timed out, retry in 10 seconds");
-                        Thread.Sleep(10000);
+                        Event("Database query has timed out, retrying");
                     }
                     else
                     {
@@ -270,6 +269,7 @@ namespace Center
                     }
                 };
                 j.QueryAttempts = 5;
+                j.Timeout = 300;
 
                 if (joviceDatabaseConnected)
                 {

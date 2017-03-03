@@ -3353,12 +3353,12 @@ Last input 00:00:00, output 00:00:00
                         u.RateOutput = li.RateOutput;
                         UpdateInfo(updateinfo, "rate-output", db["PI_Rate_Output"].ToInt(-1).NullableInfo(), li.RateOutput.NullableInfo());
                     }
-                    if (db["PI_LastDown"].ToNullabelDateTime() != li.LastDown)
+                    if (db["PI_LastDown"].ToNullableDateTime() != li.LastDown)
                     {
                         update = true;
                         u.UpdateLastDown = true;
                         u.LastDown = li.LastDown;
-                        UpdateInfo(updateinfo, "lastdown", db["PI_LastDown"].ToNullabelDateTime().ToString(), li.LastDown.ToString(), true);
+                        UpdateInfo(updateinfo, "lastdown", db["PI_LastDown"].ToNullableDateTime().ToString(), li.LastDown.ToString(), true);
                     }
                     if (db["PI_Summary_CIRConfigTotalInput"].ToInt(-1) != li.CirConfigTotalInput)
                     {

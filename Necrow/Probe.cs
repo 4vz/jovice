@@ -535,7 +535,7 @@ namespace Center
             ALUCustomer, QOS, SDP, Circuit, Interface, Peer, CircuitReference,
             VRFReference, VRF, VRFRouteTarget, InterfaceIP, Service, Customer, NodeReference, InterfaceReference,
             NodeAlias, NodeSummary, POPInterfaceReference, Routing, NeighborInterface,
-            PrefixList, PrefixEntry
+            PrefixList, PrefixEntry, MAC
         }
 
         #endregion
@@ -809,6 +809,7 @@ namespace Center
                         case EventElements.NeighborInterface: sb.Append("neighbor interface"); break;
                         case EventElements.PrefixList: sb.Append("prefix-list"); break;
                         case EventElements.PrefixEntry: sb.Append("prefix-list entry"); break;
+                        case EventElements.MAC: sb.Append("mac-address"); break;
                     }
                 }
                 else
@@ -837,6 +838,7 @@ namespace Center
                         case EventElements.NeighborInterface: sb.Append("neighbor interfaces"); break;
                         case EventElements.PrefixList: sb.Append("prefix-lists"); break;
                         case EventElements.PrefixEntry: sb.Append("prefix-list entries"); break;
+                        case EventElements.MAC: sb.Append("mac-addresses"); break;
                     }
                 }
                 if (row > 1) sb.Append(" have been ");
@@ -4662,6 +4664,31 @@ namespace Center
             }
 
             return null;
+        }
+
+        private string ConvertALUPort(string input)
+        {
+            // 1/2/3.CHANNEL:VLAN.SUBVLAN
+            // to
+            // Ex1/2/3:CHANNEL.VLAN.SUBVLAN
+            //
+            // 1/2/3.CHANNEL to 1/2/3:CHANNEL.DIRECT
+            //
+
+            string[] tokens = input.Split(new char[] { ':' });
+
+            string port;
+
+            string[] portTokens = tokens[0].Split(new char[] { '.' });
+            if (portTokens.Length == 1) port = portTokens[0].StartsWith("lag-") ? ("Ag" + portTokens[0].Substring(4)) : ("Ex" + portTokens[0]);
+            else port = (portTokens[0].StartsWith("lag-") ? ("Ag" + portTokens[0].Substring(4)) : ("Ex" + portTokens[0])) + ":" + portTokens[1];
+
+            string vlan;
+
+            if (tokens.Length > 1) vlan = tokens[1];
+            else vlan = "DIRECT";
+
+            return port + "." + vlan;
         }
     }
 

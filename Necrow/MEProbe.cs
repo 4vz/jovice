@@ -4024,13 +4024,13 @@ Aging time : 300                LSP/MAC_Tunnel: 1/0
                                                 //current.CircuitID = peerlive[peerKey].CircuitID;
 
                                                 string key = current.Address + "_" + current.PeerID;
-                                                if (!maclive.ContainsKey(key)) maclive.Add(key, current);
+                                                if (!maclive.ContainsKey(key) && current.CircuitID != null) maclive.Add(key, current);
                                             }
                                         }
                                         else if (current.InterfaceID != null)
                                         {
                                             string key = current.Address + "_" + current.InterfaceID;
-                                            if (!maclive.ContainsKey(key)) maclive.Add(key, current);
+                                            if (!maclive.ContainsKey(key) && current.CircuitID != null) maclive.Add(key, current);
                                         }
                                     }
                                     else if (token0 == "Aging time")

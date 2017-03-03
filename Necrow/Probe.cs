@@ -2538,7 +2538,8 @@ namespace Center
                         string[] ps = lineTrim.Split('.');
                         //00:26:20.139 WIB Sat May 7 2016
                         string[] pt = ps[1].Split(' ');
-                        if (DateTime.TryParseExact(string.Format("{0} {1} {2} {3}", ps[0], pt[3], pt[4], pt[5]), "HH:mm:ss MMM d yyyy", null, DateTimeStyles.None, out nodeTime)) { nodeTimeRetrieved = true; }
+                        string form = string.Format("{0} {1} {2} {3}", ps[0], pt[3], pt[4], pt[5]);
+                        if (DateTime.TryParseExact(form, "HH:mm:ss MMM d yyyy", null, DateTimeStyles.None, out nodeTime)) { nodeTimeRetrieved = true; }
                         break;
                     }
                 }
@@ -3071,11 +3072,13 @@ namespace Center
                         string lastline = null;
                         foreach (string line in lines)
                         {
-                            if (line.StartsWith("*")) lastline = line;
+                            if (line.IndexOf("*") > -1) lastline = line;
                         }
 
                         if (lastline != null)
                         {
+                            lastline = lastline.Substring(lastline.IndexOf("*"));
+
                             string[] lastlines = lastline.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
 
                             string datemonth = lastlines[0].TrimStart(new char[] { '*' }).ToUpper();

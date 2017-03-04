@@ -865,6 +865,7 @@ namespace Center
             if (!IsStarted)
             {
                 started = true;
+                Event("Probe.IsConnected?" + IsConnected);
                 Event("Connecting... (" + properties.SSHUser + "@" + properties.SSHServerAddress + " [" + properties.TacacUser + "])");
                 new Thread(new ThreadStart(delegate ()
                 {
@@ -919,25 +920,45 @@ namespace Center
         private void OnDisconnected(object sender)
         {
             outputIdentifier = null;
-            Event("Disconnected");
 
-            probing = false;
-
-            sshProbeStartTime = DateTime.MinValue;
-            started = false;
-
-            if (mainLoop != null)
+            Thread stop = new Thread(new ThreadStart(delegate ()
             {
-                mainLoop.Abort();
-                mainLoop = null;
-            }
+                do
+                {
+                    if (mainLoop != null)
+                    {
+                        if (!mainLoop.IsAlive)
+                        {
+                            mainLoop = null;
+                            break;
+                        }
+                    }
+                    else break;
+
+                    Thread.Sleep(100);
+                }
+                while (true);
+
+                probing = false;
+                started = false;
+                sshProbeStartTime = DateTime.MinValue;
+
+                Event("Disconnected");
+            }));
+
+            stop.Start();
+
             if (idleThread != null)
             {
+                Event("Destroying idle thread");
                 idleThread.Abort();
                 idleThread = null;
             }
-
-            started = false;
+            if (mainLoop != null)
+            {
+                Event("Destroying main thread");
+                mainLoop.Abort();
+            }
         }
         
         private void OnConnectionFailed(object sender, Exception exception)
@@ -1731,6 +1752,7 @@ namespace Center
                         {
                             if (probe != null)
                             {
+                                timeout = false;
                                 probe.FailureType = FailureTypes.Connection;
                             }
                         }
@@ -1772,13 +1794,21 @@ namespace Center
                 else requestLoop = false;
             }
 
-            if (!timeout) return false;
+            if (command == "display clock")
+            {
+                probe.FailureType = FailureTypes.Connection;
+                timeout = true;
+            }
+
+            if (!timeout)
+            {
+                probe.FailureType = FailureTypes.None;
+                return false;
+            }
             else
             {
-                if (probe != null)
-                {
+                if (probe != null && probe.FailureType == FailureTypes.None)
                     probe.FailureType = FailureTypes.Request;
-                }
                 return true;
             }
         }

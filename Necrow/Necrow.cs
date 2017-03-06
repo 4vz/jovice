@@ -31,6 +31,14 @@ namespace Center
             set { timeEnd = value; }
         }
 
+        private string probeCase;
+
+        public string Case
+        {
+            get { return probeCase; }
+            set { probeCase = value; }
+        }
+
         private string sshUser;
 
         public string SSHUser
@@ -126,7 +134,7 @@ namespace Center
 #else
         private static bool console = false;
 #endif
-        private static Queue<Tuple<int, string>> list = null;
+        private static Dictionary<string, Queue<Tuple<int, string>>> list = null;
 
         private static Queue<Tuple<string, ProbeRequestData>> prioritize = new Queue<Tuple<string, ProbeRequestData>>();
 
@@ -315,25 +323,37 @@ namespace Center
 
                     #region Probe initialization
 
+                    // PROBE LIST
+
                     Event("Loading probe list...");
 
-                    list = new Queue<Tuple<int, string>>();
+                    list = new Dictionary<string, Queue<Tuple<int, string>>>();
 
-                    foreach (Row xp in j.Query("select XP_ID, XP_NO from ProbeProgress order by XP_ID asc"))
+                    list.Add("MAIN", new Queue<Tuple<int, string>>());
+                    list.Add("M", new Queue<Tuple<int, string>>());
+
+                    foreach (Row xp in j.Query("select * from ProbeProgress order by XP_ID asc"))
                     {
-                        list.Enqueue(new Tuple<int, string>(xp["XP_ID"].ToInt(), xp["XP_NO"].ToString()));
+                        string c = xp["XP_Case"].ToString();
+                        if (c == null) c = "MAIN";
+                        if (list.ContainsKey(c)) list[c].Enqueue(new Tuple<int, string>(xp["XP_ID"].ToInt(), xp["XP_NO"].ToString()));
                     }
 
-                    if (list.Count == 0)
+                    foreach (KeyValuePair<string, Queue<Tuple<int, string>>> pair in list)
                     {
-                        CreateNodeQueue();
-                    }
-                    else
-                    {
-                        // set all starttime and status to null
-                        j.Execute("update ProbeProgress set XP_StartTime = NULL, XP_Status = NULL");
-                        Event("Using existing list, " + list.Count + " node" + (list.Count > 1 ? "s" : "") + " remaining");
-                    }
+                        if (pair.Value.Count == 0)
+                        {
+                            CreateNodeQueue(pair.Key);
+                        }
+                        else
+                        {
+                            Event("Case: " + pair.Key + " is using existing list, " + pair.Value.Count + " node" + (pair.Value.Count > 1 ? "s" : "") + " remaining");
+                        }
+                    }                    
+
+                    j.Execute("update ProbeProgress set XP_StartTime = NULL, XP_Status = NULL");
+
+                    // SUPPORTED VERSION
 
                     if (supportedVersions == null)
                     {
@@ -420,7 +440,7 @@ namespace Center
                             batch.Commit();
 
                             result = j.Query(@"
-select XA_ID, XA_TimeStart, XA_TimeEnd, XU_ServerUser, XU_ServerPassword, XU_TacacUser, XU_TacacPassword, XS_Address, XS_ConsolePrefixFormat
+select XA_ID, XA_TimeStart, XA_TimeEnd, XA_Case, XU_ServerUser, XU_ServerPassword, XU_TacacUser, XU_TacacPassword, XS_Address, XS_ConsolePrefixFormat
 from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID");
 
                             foreach (Row row in result)
@@ -439,11 +459,20 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
                                     prop.SSHTerminal = string.Format(row["XS_ConsolePrefixFormat"].ToString(), prop.SSHUser);
                                     prop.TimeStart = row["XA_TimeStart"].ToTimeSpan(TimeSpan.MinValue);
                                     prop.TimeEnd = row["XA_TimeEnd"].ToTimeSpan(TimeSpan.MaxValue);
+                                    string accessCase = row["XA_Case"].ToString();
+                                    prop.Case = accessCase == null ? "MAIN" : accessCase;
 
-                                    Thread.Sleep(100);
-                                    instances.Add(id, Probe.Create(prop, "PROBE" + id.Trim()));
+                                    if (prop.Case.InOf("MAIN", "M") > -1)
+                                    {
+                                        Thread.Sleep(100);
+                                        instances.Add(id, Probe.Create(prop, "PROBE" + id.Trim()));
 
-                                    Event("ADD PROBE" + id.Trim() + ": " + prop.SSHUser + "@" + prop.SSHServerAddress + " [" + prop.TacacUser + "] " + ((prop.TimeStart == TimeSpan.Zero || prop.TimeEnd == TimeSpan.Zero) ? "" : (prop.TimeStart + "-" + prop.TimeEnd)));
+                                        Event("ADD PROBE" + id.Trim() + ": " + prop.SSHUser + "@" + prop.SSHServerAddress + " [" + prop.TacacUser + "] " + ((prop.TimeStart == TimeSpan.Zero || prop.TimeEnd == TimeSpan.Zero) ? "" : (prop.TimeStart + "-" + prop.TimeEnd)));
+                                    }
+                                    else
+                                    {
+                                        Event("PROBE" + id.Trim() + " CASE INVALID");
+                                    }
                                 }
                                 else
                                 {
@@ -468,6 +497,16 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
                                         prop.TimeEnd = newend;
                                     }
                                     if (updatetime) updateinfo.Add("time changed to " + ((prop.TimeStart == TimeSpan.Zero || prop.TimeEnd == TimeSpan.Zero) ? "" : (prop.TimeStart + "-" + prop.TimeEnd)));
+
+                                    // change case
+                                    string newCase = row["XA_Case"].ToString();
+                                    newCase = newCase == null ? "MAIN" : newCase;
+
+                                    if (newCase != prop.Case)
+                                    {
+                                        updateinfo.Add("case " + prop.Case + " -> " + newCase);
+                                        prop.Case = newCase;
+                                    }
 
                                     // change tacac
                                     string newtacacuser = row["XU_TacacUser"].ToString();
@@ -613,83 +652,127 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
 
         }
 
-        private static void CreateNodeQueue()
+        private static void CreateNodeQueue(string queueCase)
         {
             lock (list)
             {
-                if (list.Count == 0)
+                if (list[queueCase].Count == 0)
                 {
-                    Event("Preparing node list...");
+                    List<string> newIDs = new List<string>();
+                    string dbCase = null;
 
-                    Result nres = j.Query(@"
+                    int excluded = 0;
+
+                    if (queueCase == "MAIN")
+                    {
+                        #region MAIN
+
+                        Event("Preparing list for main list...");
+
+                        Result nres = j.Query(@"
 select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_TimeStamp is null and NO_LastConfiguration is null                        
 ");
-                    Result mres = j.Query(@"
+                        Result mres = j.Query(@"
 select a.NO_ID, a.NO_Name, a.NO_Remark, a.NO_TimeStamp, CASE WHEN a.span < 0 then 0 else a.span end as span from (
 select NO_ID, NO_Name, NO_Remark, NO_LastConfiguration, NO_TimeStamp, DateDiff(hour, NO_LastConfiguration, NO_TimeStamp) as span 
 from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_TimeStamp is not null and NO_LastConfiguration is not null
 ) a
 order by span asc, a.NO_LastConfiguration asc
 ");
-                    Result sres = j.Query(@"
+                        Result sres = j.Query(@"
 select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_TimeStamp is not null and NO_LastConfiguration is null                        
 ");
 
-                    List<string> nids = new List<string>();
-
-                    int excluded = 0;
-
-                    foreach (Row row in nres) nids.Add(row["NO_ID"].ToString());
-                    foreach (Row row in mres)
-                    {
-                        string remark = row["NO_Remark"].ToString();
-                        if (remark != null)
+                        foreach (Row row in nres) newIDs.Add(row["NO_ID"].ToString());
+                        foreach (Row row in mres)
                         {
-                            DateTime timestamp = row["NO_TimeStamp"].ToDateTime();
-                            TimeSpan span = DateTime.Now - timestamp;
-
-                            if (
-                                (remark == "CONNECTFAIL" && span.TotalHours <= 3) ||
-                                (remark == "UNRESOLVED" && span.TotalDays <= 1)
-                            )
+                            string remark = row["NO_Remark"].ToString();
+                            if (remark != null)
                             {
-                                excluded++;
-                                Event("Excluded: " + row["NO_Name"].ToString() + " Remark: " + remark);
-                                continue;
+                                DateTime timestamp = row["NO_TimeStamp"].ToDateTime();
+                                TimeSpan span = DateTime.Now - timestamp;
+
+                                if (
+                                    (remark == "CONNECTFAIL" && span.TotalHours <= 3) ||
+                                    (remark == "UNRESOLVED" && span.TotalDays <= 1)
+                                )
+                                {
+                                    excluded++;
+                                    Event("Excluded: " + row["NO_Name"].ToString() + " Remark: " + remark);
+                                    continue;
+                                }
                             }
+
+                            newIDs.Add(row["NO_ID"].ToString());
+                        }
+                        foreach (Row row in sres) newIDs.Add(row["NO_ID"].ToString());
+
+                        #endregion
+                    }
+                    else if (queueCase == "M")
+                    {
+                        #region M
+
+                        Event("Preparing list for mac-address list...");
+
+                        Result sres = j.Query("select * from Node where NO_Active = 1 and NO_Type = 'M'");
+
+                        foreach (Row row in sres)
+                        {
+                            string remark = row["NO_Remark"].ToString();
+                            if (remark != null)
+                            {
+                                DateTime timestamp = row["NO_TimeStamp"].ToDateTime();
+                                TimeSpan span = DateTime.Now - timestamp;
+
+                                if (
+                                    (remark == "CONNECTFAIL" && span.TotalHours <= 3) ||
+                                    (remark == "UNRESOLVED" && span.TotalDays <= 1)
+                                )
+                                {
+                                    excluded++;
+                                    Event("Excluded: " + row["NO_Name"].ToString() + " Remark: " + remark);
+                                    continue;
+                                }
+                            }
+
+                            newIDs.Add(row["NO_ID"].ToString());
                         }
 
-                        nids.Add(row["NO_ID"].ToString());
+                        #endregion
+
+                        dbCase = "M";
                     }
-                    foreach (Row row in sres) nids.Add(row["NO_ID"].ToString());
-                    int total = nids.Count + excluded;
-                    Event("Total " + total + " nodes available, " + nids.Count + " nodes eligible, " + excluded + " excluded in this list");
+
+                    int total = newIDs.Count + excluded;
+                    Event("Total " + total + " nodes available, " + newIDs.Count + " nodes eligible, " + excluded + " excluded in this list");
 
                     // check incompleted probeprogress
-                    List<int> incid = new List<int>();
+                    List<int> idExists = new List<int>();
                     Result result = j.Query("select XP_ID from ProbeProgress");
-                    foreach (Row row in result) incid.Add(row["XP_ID"].ToInt());
+                    foreach (Row row in result) idExists.Add(row["XP_ID"].ToInt());
                     
                     Batch batch = j.Batch();
 
                     batch.Begin();
                     int id = 1;
-                    foreach (string nid in nids)
+                    foreach (string newID in newIDs)
                     {
                         Insert insert = j.Insert("ProbeProgress");
 
-                        while (incid.Contains(id)) id++; // if id contained in incompleted id, then increase
+                        while (idExists.Contains(id)) id++; // if id contained in incompleted id, then increase
 
                         insert.Value("XP_ID", id++);
-                        insert.Value("XP_NO", nid);
+                        insert.Value("XP_NO", newID);
+                        insert.Value("XP_Case", dbCase);
                         batch.Execute(insert);
                     }
                     result = batch.Commit();
                     if (result.Count > 0) Event("List created");
 
-                    foreach (Row xp in j.Query("select XP_ID, XP_NO from ProbeProgress order by XP_ID asc"))
+                    foreach (Row xp in j.Query("select XP_ID, XP_NO from ProbeProgress where XP_Case " + (dbCase == null ? "is" : "=") + " {0} order by XP_ID asc", dbCase))
                     {
-                        list.Enqueue(new Tuple<int, string>(xp["XP_ID"].ToInt(), xp["XP_NO"].ToString()));
+                        list[queueCase].Enqueue(new Tuple<int, string>(xp["XP_ID"].ToInt(), xp["XP_NO"].ToString()));
                     }
                 }
             }
@@ -814,23 +897,22 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
             }
         }
 
-        internal static Tuple<int, string> NextNode()
+        internal static Tuple<int, string> NextNode(string probeCase)
         {
             Tuple<int, string> noded = null;
 
-            lock (list)
+            lock (list[probeCase])
             {
-                if (list.Count == 0)
+                if (list[probeCase].Count == 0)
                 {
                     // here were do things every loop
                     DatabaseCheck();
 
                     // create new list
-                    CreateNodeQueue();
+                    CreateNodeQueue(probeCase);
                 }
 
-                noded = list.Dequeue();
-
+                noded = list[probeCase].Dequeue();
             }
 
             return noded;

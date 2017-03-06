@@ -43,6 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MEMacProcess.cs" />
     <Compile Include="MEProbe.cs" />
     <Compile Include="Necrow.cs" />
     <Compile Include="NecrowVirtualization.cs" />

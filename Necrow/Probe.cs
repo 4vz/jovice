@@ -865,7 +865,6 @@ namespace Center
             if (!IsStarted)
             {
                 started = true;
-                Event("Probe.IsConnected?" + IsConnected);
                 Event("Connecting... (" + properties.SSHUser + "@" + properties.SSHServerAddress + " [" + properties.TacacUser + "])");
                 new Thread(new ThreadStart(delegate ()
                 {
@@ -998,49 +997,55 @@ namespace Center
                 bool prioritizeProcess = false;
                 bool prioritizeAsk = false;
 
-                probeRequestData = null;                
+                probeRequestData = null;
 
-                Tuple<string, ProbeRequestData> prioritize = Necrow.NextPrioritize();
-                
-                if (prioritize != null)
+                Tuple<string, ProbeRequestData> prioritize = null;
+
+                if (properties.Case == "MAIN")
                 {
-                    string prioritizeNode = prioritize.Item1;
+                    prioritize = Necrow.NextPrioritize();
 
-                    if (prioritizeNode.EndsWith("*"))
+                    if (prioritize != null)
                     {
-                        prioritizeNode = prioritizeNode.TrimEnd(new char[] { '*' });
-                        prioritizeProcess = true;
-                    }
-                    else if (prioritizeNode.EndsWith("?"))
-                    {
-                        prioritizeNode = prioritizeNode.TrimEnd(new char[] { '?' });
-                        prioritizeAsk = true;
-                    }
+                        string prioritizeNode = prioritize.Item1;
 
-
-                    Event("Prioritizing Probe: " + prioritizeNode);
-                    Result rnode = Query("select * from Node where upper(NO_Name) = {0}", prioritizeNode);
-
-                    if (rnode.Count == 1)
-                    {
-                        node = rnode[0];
-
-                        if (prioritize.Item2 != null)
+                        if (prioritizeNode.EndsWith("*"))
                         {
-                            probeRequestData = prioritize.Item2;
-                            probeRequestData.Message.Data = new object[] { node["NO_Name"].ToString(), "STARTING" };
-                            probeRequestData.Connection.Reply(probeRequestData.Message);
+                            prioritizeNode = prioritizeNode.TrimEnd(new char[] { '*' });
+                            prioritizeProcess = true;
+                        }
+                        else if (prioritizeNode.EndsWith("?"))
+                        {
+                            prioritizeNode = prioritizeNode.TrimEnd(new char[] { '?' });
+                            prioritizeAsk = true;
+                        }
+
+
+                        Event("Prioritizing Probe: " + prioritizeNode);
+                        Result rnode = Query("select * from Node where upper(NO_Name) = {0}", prioritizeNode);
+
+                        if (rnode.Count == 1)
+                        {
+                            node = rnode[0];
+
+                            if (prioritize.Item2 != null)
+                            {
+                                probeRequestData = prioritize.Item2;
+                                probeRequestData.Message.Data = new object[] { node["NO_Name"].ToString(), "STARTING" };
+                                probeRequestData.Connection.Reply(probeRequestData.Message);
+                            }
+                        }
+                        else
+                        {
+                            Event("Failed, not exists in the database.");
+                            continue;
                         }
                     }
-                    else
-                    {
-                        Event("Failed, not exists in the database.");
-                        continue;
-                    }
                 }
-                else
+
+                if (prioritize == null)
                 {
-                    Tuple<int, string> noded = Necrow.NextNode();
+                    Tuple<int, string> noded = Necrow.NextNode(properties.Case);
 
                     xpID = noded.Item1;
                     Result rnode = Query("select * from Node where NO_ID = {0}", noded.Item2);
@@ -1119,64 +1124,73 @@ namespace Center
                             }
                         }));
                         idleThread.Start();
-
-                        Batch batch = Batch();
-                        Result result;
-
-                        batch.Begin();
-
-                        // RESERVES
-                        reserves = QueryDictionary("select * from Reserve where RE_NO = {0}", delegate(Row row)
+                                                
+                        if (properties.Case == "MAIN")
                         {
-                            return row["RE_By_Name"].ToString() + "-" + row["RE_By_SID"].ToString();
-                        }, delegate (Row row)
-                        {
+                            #region MAIN CASE preparations
+
+                            Batch batch = Batch();
+                            Result result;
+                            batch.Begin();
+                            // RESERVES
+                            reserves = QueryDictionary("select * from Reserve where RE_NO = {0}", delegate (Row row)
+                            {
+                                return row["RE_By_Name"].ToString() + "-" + row["RE_By_SID"].ToString();
+                            }, delegate (Row row)
+                            {
                             // delete duplicated
                             batch.Execute("delete from Reserve where RE_ID = {0}", row["RE_ID"].ToString());
-                        }, nodeID);
+                            }, nodeID);
 
-                        // POP
-                        if (nodeType == "P")
-                        {
-                            popInterfaces = new Dictionary<string, Row>();
-                            result = Query("select * from POP where UPPER(OO_NO_Name) = {0}", nodeName);
-                            foreach (Row row in result)
+                            // POP
+                            if (nodeType == "P")
                             {
-                                string storedID = row["OO_ID"].ToString();
-                                string interfaceName = row["OO_PI_Name"].ToString();
-                                string type = row["OO_Type"].ToString();
-
-                                string key = interfaceName + "_" + type;
-
-                                bool ooPINULL = row["OO_PI"].IsNull;
-
-                                if (!popInterfaces.ContainsKey(key))
+                                popInterfaces = new Dictionary<string, Row>();
+                                result = Query("select * from POP where UPPER(OO_NO_Name) = {0}", nodeName);
+                                foreach (Row row in result)
                                 {
-                                    popInterfaces.Add(key, row);
+                                    string storedID = row["OO_ID"].ToString();
+                                    string interfaceName = row["OO_PI_Name"].ToString();
+                                    string type = row["OO_Type"].ToString();
 
-                                    if (row["OO_NO_Name"].ToString() != nodeName)
+                                    string key = interfaceName + "_" + type;
+
+                                    bool ooPINULL = row["OO_PI"].IsNull;
+
+                                    if (!popInterfaces.ContainsKey(key))
                                     {
-                                        // fix incorrect name in POP
-                                        batch.Execute("update POP set OO_NO_Name = {0} where OO_ID = {1}", nodeName, storedID);
+                                        popInterfaces.Add(key, row);
+
+                                        if (row["OO_NO_Name"].ToString() != nodeName)
+                                        {
+                                            // fix incorrect name in POP
+                                            batch.Execute("update POP set OO_NO_Name = {0} where OO_ID = {1}", nodeName, storedID);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // delete duplicated OO_PI_Name per OO_NO_Name
+                                        batch.Execute("delete from POP where OO_ID = {0}", storedID);
                                     }
                                 }
-                                else
-                                {
-                                    // delete duplicated OO_PI_Name per OO_NO_Name
-                                    batch.Execute("delete from POP where OO_ID = {0}", storedID);
-                                }
                             }
-                        }
-                        else popInterfaces = null;
+                            else popInterfaces = null;
 
-                        batch.Commit();
+                            batch.Commit();
+
+                            #endregion
+                        }
 #if !DEBUG
                         try
                         {
 #endif
 
-                        if (nodeType == "P") probe = PEProcess();
-                        else if (nodeType == "M") probe = MEProcess();
+                        if (properties.Case == "MAIN")
+                        {
+                            if (nodeType == "P") probe = PEProcess();
+                            else if (nodeType == "M") probe = MEProcess();
+                        }
+                        else probe = MEMacProcess();
 
                         if (probe != null)
                         {
@@ -1221,7 +1235,7 @@ namespace Center
 
                     Update(UpdateTypes.Active, 1);
 
-                    if (probe.FailureType == FailureTypes.Connection)
+                    if (probe != null && probe.FailureType == FailureTypes.Connection)
                     {
                         Save();
 
@@ -1234,7 +1248,8 @@ namespace Center
                     }
                     else
                     {
-                        SaveExit();
+                        if (probing)
+                            SaveExit();
                     }
 
                     if (probeRequestData != null)
@@ -2833,7 +2848,7 @@ namespace Center
 
             if (nodeVersion == null)
             {
-                throw new Exception("Cant determined node version.");
+                throw new Exception("Cant determined node version");
             }
 
             Event("Version: " + nodeVersion + ((nodeSubVersion != null) ? ":" + nodeSubVersion : ""));
@@ -3574,30 +3589,37 @@ namespace Center
 
             #endregion
 
-            if (configurationHasChanged || nodeNVER < Necrow.Version)
+            if (properties.Case == "MAIN")
             {
-                continueProcess = true;
-                if (nodeNVER < Necrow.Version)
+                if (configurationHasChanged || nodeNVER < Necrow.Version)
                 {
-                    Event("Updated to newer Necrow version");
-                    Update(UpdateTypes.NecrowVersion, Necrow.Version);
+                    continueProcess = true;
+                    if (nodeNVER < Necrow.Version)
+                    {
+                        Event("Updated to newer Necrow version");
+                        Update(UpdateTypes.NecrowVersion, Necrow.Version);
+                    }
+                }
+                else if (prioritizeProcess)
+                {
+                    Event("Prioritized node, continuing process");
+                    continueProcess = true;
+                }
+                else if (prioritizeAsk)
+                {
+                    probeRequestData.Message.Data = new object[] { nodeName, "UPTODATE", lastConfLive };
+                    probeRequestData.Connection.Reply(probeRequestData.Message);
+
+                    SaveExit();
+                }
+                else
+                {
+                    SaveExit();
                 }
             }
-            else if (prioritizeProcess)
+            else if (properties.Case == "M")
             {
-                Event("Prioritized node, continuing process");
                 continueProcess = true;
-            }
-            else if (prioritizeAsk)
-            {
-                probeRequestData.Message.Data = new object[] { nodeName, "UPTODATE", lastConfLive };
-                probeRequestData.Connection.Reply(probeRequestData.Message);
-
-                SaveExit();
-            }
-            else
-            {
-                SaveExit();
             }
 
             return probe;

@@ -1915,14 +1915,27 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
             Event(result, EventActions.Update, EventElements.Peer, false);
 
             // DELETE
+            List<string> peerdelete = new List<string>();
+
             batch.Begin();
             foreach (KeyValuePair<string, Row> pair in peerdb)
             {
                 if (!peerlive.ContainsKey(pair.Key) || pair.Value["MP_MC"].ToString() != peerlive[pair.Key].CircuitID)
                 {
                     Event("Peer DELETE: " + pair.Key);
-                    batch.Execute("delete from MEPeer where MP_ID = {0}", pair.Value["MP_ID"].ToString());
+
+                    string mpID = pair.Value["MP_ID"].ToString();
+                    peerdelete.Add(mpID);
+                    batch.Execute("update MEMac set MA_MP = NULL where MA_MP = {0}", mpID);             
                 }
+            }
+            result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
+
+            batch.Begin();
+            foreach (string id in peerdelete)
+            {
+                batch.Execute("delete from MEPeer where MP_ID = {0}", id);
             }
             result = batch.Commit();
             if (!result.OK) return DatabaseFailure(probe);
@@ -3461,116 +3474,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             #endregion
 
             #region Execute
-
-            // AREA CONNECTIONS
-
-            lock (NecrowVirtualization.DACSync)
-            {
-                batch.Begin();
-
-                List<string> remove = new List<string>();
-                List<Tuple<string, Tuple<string, string, string, string>>> add = new List<Tuple<string, Tuple<string, string, string, string>>>();
-
-                foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
-                {
-                    MEInterfaceToDatabase li = pair.Value;
-
-                    if (((li.ParentID != null && li.Aggr != -1) || li.ParentID == null) && li.TopologyMEInterfaceID != null)
-                    {
-                        // fisik (biasa atau anak aggregator)
-                        string interfaceID = li.ID;
-                        bool existInVir = false;
-
-                        foreach (KeyValuePair<string, Tuple<string, string, string, string>> pair2 in NecrowVirtualization.DerivedAreaConnections)
-                        {
-                            Tuple<string, string, string, string> dacEntry = pair2.Value;
-
-                            if (dacEntry.Item3 == interfaceID)
-                            {
-                                existInVir = true;
-                                if (dacEntry.Item4 != li.TopologyMEInterfaceID)
-                                {
-                                    // gak bener ini, update!
-                                    remove.Add(pair2.Key);
-                                    result = Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
-                                    if (!result.OK) return DatabaseFailure(probe);
-                                    if (result.Count == 1)
-                                    {
-                                        string topologyAreaID = result[0]["NO_AR"].ToString();
-                                        add.Add(new Tuple<string, Tuple<string, string, string, string>>(pair2.Key, new Tuple<string, string, string, string>(nodeAreaID, topologyAreaID, interfaceID, li.TopologyMEInterfaceID)));
-                                        Update update = Update("DerivedAreaConnection");
-                                        update.Where("DAC_ID", pair2.Key);
-                                        update.Set("DAC_AR_2", topologyAreaID);
-                                        update.Set("DAC_MI_2", li.TopologyMEInterfaceID);
-                                        batch.Execute(update);
-                                    }
-                                }
-                                break;
-                            }
-                            else if (dacEntry.Item4 == interfaceID)
-                            {
-                                existInVir = true;
-                                if (dacEntry.Item3 != li.TopologyMEInterfaceID)
-                                {
-                                    // gak bener ini, update!
-                                    remove.Add(pair2.Key);
-                                    result = Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
-                                    if (!result.OK) return DatabaseFailure(probe);
-                                    if (result.Count == 1)
-                                    {
-                                        string topologyAreaID = result[0]["NO_AR"].ToString();
-                                        add.Add(new Tuple<string, Tuple<string, string, string, string>>(pair2.Key, new Tuple<string, string, string, string>(topologyAreaID, nodeAreaID, li.TopologyMEInterfaceID, interfaceID)));
-                                        Update update = Update("DerivedAreaConnection");
-                                        update.Where("DAC_ID", pair2.Key);
-                                        update.Set("DAC_AR_1", topologyAreaID);
-                                        update.Set("DAC_MI_1", li.TopologyMEInterfaceID);
-                                        batch.Execute(update);
-                                    }
-                                }
-                                break;
-                            }
-                        }
-
-                        // gak eksis
-                        if (!existInVir)
-                        {
-                            // add
-                            string dacID = Database.ID();
-                            result = Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
-                            if (!result.OK) return DatabaseFailure(probe);
-                            if (result.Count == 1)
-                            {
-                                string topologyAreaID = result[0]["NO_AR"].ToString();
-                                add.Add(new Tuple<string, Tuple<string, string, string, string>>(dacID, new Tuple<string, string, string, string>(nodeAreaID, topologyAreaID, interfaceID, li.TopologyMEInterfaceID)));
-                                Insert insert = Insert("DerivedAreaConnection");
-                                insert.Value("DAC_ID", dacID);
-                                insert.Value("DAC_AR_1", nodeAreaID);
-                                insert.Value("DAC_AR_2", topologyAreaID);
-                                insert.Value("DAC_MI_1", interfaceID);
-                                insert.Value("DAC_MI_2", li.TopologyMEInterfaceID);
-                                batch.Execute(insert);
-                            }
-                        }
-                    }
-                }
-
-                result = batch.Commit();
-                if (!result.OK) return DatabaseFailure(probe);
-
-                // modify virtualizations
-                // remove
-                foreach (string dacID in remove)
-                {
-                    NecrowVirtualization.DerivedAreaConnections.Remove(dacID);
-                }
-
-                // add
-                foreach (Tuple<string, Tuple<string, string, string, string>> entry in add)
-                {
-                    NecrowVirtualization.DerivedAreaConnections.Add(entry.Item1, entry.Item2);
-                }
-            }
-
+            
             // SERVICE REFERENCE
             ServiceDiscovery(interfaceServiceReference);
 
@@ -3719,6 +3623,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     batch.Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI = {0}", id);
                     batch.Execute("update MEInterface set MI_TO_MI = NULL where MI_TO_MI = {0}", id);
                     batch.Execute("update MEInterface set MI_MI = NULL where MI_MI = {0}", id);
+                    batch.Execute("update MEMac set MA_MI = NULL where MI_MI = {0}", id);
                     interfacedelete.Add(id);
 
                     // remove dac from virtualization
@@ -3736,9 +3641,114 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.Interface, false);
 
-            // remove dac
+            // AREA CONNECTIONS
             lock (NecrowVirtualization.DACSync)
             {
+                batch.Begin();
+
+                List<string> remove = new List<string>();
+                List<Tuple<string, Tuple<string, string, string, string>>> add = new List<Tuple<string, Tuple<string, string, string, string>>>();
+
+                foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
+                {
+                    MEInterfaceToDatabase li = pair.Value;
+
+                    if (((li.ParentID != null && li.Aggr != -1) || li.ParentID == null) && li.TopologyMEInterfaceID != null)
+                    {
+                        // fisik (biasa atau anak aggregator)
+                        string interfaceID = li.ID;
+                        bool existInVir = false;
+
+                        foreach (KeyValuePair<string, Tuple<string, string, string, string>> pair2 in NecrowVirtualization.DerivedAreaConnections)
+                        {
+                            Tuple<string, string, string, string> dacEntry = pair2.Value;
+
+                            if (dacEntry.Item3 == interfaceID)
+                            {
+                                existInVir = true;
+                                if (dacEntry.Item4 != li.TopologyMEInterfaceID)
+                                {
+                                    // gak bener ini, update!
+                                    remove.Add(pair2.Key);
+                                    result = Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
+                                    if (!result.OK) return DatabaseFailure(probe);
+                                    if (result.Count == 1)
+                                    {
+                                        string topologyAreaID = result[0]["NO_AR"].ToString();
+                                        add.Add(new Tuple<string, Tuple<string, string, string, string>>(pair2.Key, new Tuple<string, string, string, string>(nodeAreaID, topologyAreaID, interfaceID, li.TopologyMEInterfaceID)));
+                                        Update update = Update("DerivedAreaConnection");
+                                        update.Where("DAC_ID", pair2.Key);
+                                        update.Set("DAC_AR_2", topologyAreaID);
+                                        update.Set("DAC_MI_2", li.TopologyMEInterfaceID);
+                                        batch.Execute(update);
+                                    }
+                                }
+                                break;
+                            }
+                            else if (dacEntry.Item4 == interfaceID)
+                            {
+                                existInVir = true;
+                                if (dacEntry.Item3 != li.TopologyMEInterfaceID)
+                                {
+                                    // gak bener ini, update!
+                                    remove.Add(pair2.Key);
+                                    result = Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
+                                    if (!result.OK) return DatabaseFailure(probe);
+                                    if (result.Count == 1)
+                                    {
+                                        string topologyAreaID = result[0]["NO_AR"].ToString();
+                                        add.Add(new Tuple<string, Tuple<string, string, string, string>>(pair2.Key, new Tuple<string, string, string, string>(topologyAreaID, nodeAreaID, li.TopologyMEInterfaceID, interfaceID)));
+                                        Update update = Update("DerivedAreaConnection");
+                                        update.Where("DAC_ID", pair2.Key);
+                                        update.Set("DAC_AR_1", topologyAreaID);
+                                        update.Set("DAC_MI_1", li.TopologyMEInterfaceID);
+                                        batch.Execute(update);
+                                    }
+                                }
+                                break;
+                            }
+                        }
+
+                        // gak eksis
+                        if (!existInVir)
+                        {
+                            // add
+                            string dacID = Database.ID();
+                            result = Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
+                            if (!result.OK) return DatabaseFailure(probe);
+                            if (result.Count == 1)
+                            {
+                                string topologyAreaID = result[0]["NO_AR"].ToString();
+                                add.Add(new Tuple<string, Tuple<string, string, string, string>>(dacID, new Tuple<string, string, string, string>(nodeAreaID, topologyAreaID, interfaceID, li.TopologyMEInterfaceID)));
+                                Insert insert = Insert("DerivedAreaConnection");
+                                insert.Value("DAC_ID", dacID);
+                                insert.Value("DAC_AR_1", nodeAreaID);
+                                insert.Value("DAC_AR_2", topologyAreaID);
+                                insert.Value("DAC_MI_1", interfaceID);
+                                insert.Value("DAC_MI_2", li.TopologyMEInterfaceID);
+                                batch.Execute(insert);
+                            }
+                        }
+                    }
+                }
+
+                result = batch.Commit();
+                if (!result.OK) return DatabaseFailure(probe);
+
+                // modify virtualizations
+                // remove
+                foreach (string dacID in remove)
+                {
+                    NecrowVirtualization.DerivedAreaConnections.Remove(dacID);
+                }
+
+                // add
+                foreach (Tuple<string, Tuple<string, string, string, string>> entry in add)
+                {
+                    NecrowVirtualization.DerivedAreaConnections.Add(entry.Item1, entry.Item2);
+                }
+
+                // remove dac
                 batch.Begin();
                 foreach (string dacID in dacRemove)
                 {
@@ -3801,6 +3811,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     string id = pair.Value["MC_ID"].ToString();
                     batch.Execute("update MEInterface set MI_MC = NULL where MI_MC = {0}", id);
                     batch.Execute("update MEPeer set MP_TO_MC = NULL where MP_TO_MC = {0}", id);
+                    batch.Execute("delete from MEMac where MA_MC = {0}", id);
                     circuitdelete.Add(id);
                 }
             }

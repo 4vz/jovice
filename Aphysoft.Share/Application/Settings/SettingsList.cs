@@ -86,6 +86,13 @@ namespace Aphysoft.Share
             get { return useDomain; }
         }
 
+        private static bool sslAvailable = false;
+
+        public static bool SSLAvailable
+        {
+            get { return sslAvailable; }
+        }
+
         private static string baseDomain = "dummy.com";
 
         public static string BaseDomain
@@ -125,11 +132,25 @@ namespace Aphysoft.Share
             get { return streamBaseSubDomain; }
         }
 
+        private static int streamBasePort = 0;
+
+        public static int StreamBasePort
+        {
+            get { return streamBasePort; }
+        }
+
         private static string[] streamSubDomains = new string[] { "c-1", "c-2", "c-3" };
 
         public static string[] StreamSubDomains
         {
             get { return streamSubDomains; }
+        }
+
+        private static int[] streamSubPorts = null;
+
+        public static int[] StreamSubPorts
+        {
+            get { return streamSubPorts; }
         }
 
         #endregion
@@ -284,6 +305,13 @@ namespace Aphysoft.Share
             get { return raphael; }
         }
 
+        private static bool fabric = true;
+
+        public static bool Fabric
+        {
+            get { return fabric; }
+        }
+
         #endregion
 
         #region Identity
@@ -333,6 +361,7 @@ namespace Aphysoft.Share
 
             // Domain
             ReadBoolean("UseDomain", ref useDomain);
+            ReadBoolean("SSLAvailable", ref sslAvailable);
 
             // Live
             ReadBoolean("EnableLive", ref enableLive);
@@ -346,7 +375,13 @@ namespace Aphysoft.Share
 
                 ReadString("StreamDomain", ref streamDomain);
                 ReadString("StreamBaseSubDomain", ref streamBaseSubDomain);
+                ReadInteger("StreamBasePort", ref streamBasePort);
                 ReadArrayString("StreamSubDomains", ref streamSubDomains);
+                if (!ReadArrayInteger("StreamSubPorts", ref streamSubPorts))
+                {
+                    streamSubPorts = new int[streamSubDomains.Length];
+                    for (int i = 0; i < streamSubDomains.Length; i++) streamSubPorts[i] = 0;
+                }
             }
 
             // Domain
@@ -387,6 +422,7 @@ namespace Aphysoft.Share
             // Library
             ReadBoolean("THREE", ref three);
             ReadBoolean("Raphael", ref raphael);
+            ReadBoolean("Fabric", ref fabric);
         }
 
         #endregion

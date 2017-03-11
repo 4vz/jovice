@@ -19,12 +19,10 @@ namespace Center
                 if (center == null)
                 {
 #if DEBUG
-                    string database = "localhost\\SQLEXPRESS";
+                    center = new Database(Aphysoft.Protected.Project.Database("CENTER_DEBUG"), DatabaseType.SqlServer);
 #else
-                    string database = "localhost";
+                    center = new Database(Aphysoft.Protected.Project.Database("CENTER_RELEASE"), DatabaseType.SqlServer);
 #endif
-                    string connectionString = string.Format("Data Source={0};Initial Catalog=center;User ID=telkom.center;Password=t3lk0mdotc3nt3r;async=true", database);
-                    center = new Database(connectionString, DatabaseType.SqlServer);
                 }
                 return center;
             }

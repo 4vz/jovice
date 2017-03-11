@@ -30,12 +30,10 @@ namespace Aphysoft.Share
                 if (share == null)
                 {
 #if DEBUG
-                    string database = "localhost\\SQLEXPRESS";
+                    share = new Database(Aphysoft.Protected.Project.Database("SHARE_DEBUG"), DatabaseType.SqlServer);
 #else
-                    string database = "localhost";
-#endif
-                    string connectionString = string.Format("Data Source={0};Initial Catalog=share;User ID=telkom.center;Password=t3lk0mdotc3nt3r;async=true", database);
-                    share = new Database(connectionString, DatabaseType.SqlServer);
+                    share = new Database(Aphysoft.Protected.Project.Database("SHARE_RELEASE"), DatabaseType.SqlServer);
+#endif                    
                 }
 
                 return share;
@@ -176,6 +174,13 @@ namespace Aphysoft.Share
             if (appExecutionPath.StartsWith("~/" + Settings.ResourceProviderPath)) context.Items["provider"] = ExecutionTypes.Resources;
             else if (appExecutionPath.StartsWith("~/" + Settings.ServiceProviderPath)) context.Items["provider"] = ExecutionTypes.Services;
             else if (appExecutionPath.ToLower() == "~/favicon.ico") context.Items["provider"] = ExecutionTypes.Favicon;
+            else if (!request.IsSecureConnection && Settings.SSLAvailable)
+            {
+                // ssl is available, and the connection is not secure
+                // redirect to secure channel
+                response.Redirect("https://" + Settings.PageDomain + request.RawUrl);
+                response.End();
+            }
             else
             {
                 context.Items["provider"] = ExecutionTypes.Default;
@@ -183,7 +188,7 @@ namespace Aphysoft.Share
                 string host = request.Headers["Host"];
                 string cExUrl = request.CurrentExecutionFilePath.ToLower();
 
-                // if hostname differ, then redirect to hsotname
+                // if hostname differ, then redirect to hostname
                 if (Settings.UseDomain && host != Settings.PageDomain)
                 {
                     response.Redirect("http://" + Settings.PageDomain + request.RawUrl);
@@ -569,7 +574,7 @@ namespace Aphysoft.Share
 
                 if (Settings.EnableLive)
                 {
-                    data.System("streamDomain", client.StreamSubDomain + "." + Settings.StreamDomain);
+                    data.System("streamDomain", client.StreamSubDomain + "." + Settings.StreamDomain + client.StreamPort);
                     data.System("streamPath", Resource.GetPath("xhr_stream"));
                 }
             }

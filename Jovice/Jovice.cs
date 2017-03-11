@@ -22,12 +22,10 @@ namespace Center
                 if (jovice == null)
                 {
 #if DEBUG
-                    string database = "localhost\\SQLEXPRESS";
+                    jovice = new Database(Aphysoft.Protected.Project.Database("JOVICE_DEBUG"), DatabaseType.SqlServer);
 #else
-                    string database = "localhost";
+                    jovice = new Database(Aphysoft.Protected.Project.Database("JVOICE_RELEASE"), DatabaseType.SqlServer);
 #endif
-                    string connectionString = string.Format("Data Source={0};Initial Catalog=jovice;User ID=telkom.center;Password=t3lk0mdotc3nt3r;async=true", database);
-                    jovice = new Database(connectionString, DatabaseType.SqlServer);
                 }
                 return jovice;
             }

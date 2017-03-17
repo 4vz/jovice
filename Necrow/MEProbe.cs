@@ -2229,12 +2229,11 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 -------------------------------------------------------------------------------
 01234567890123456789012345678901234567890123456789
             1         2         3         4
-1(e)             up              up    AKSES_PE-D2-CKA-TRANSIT/ae1_TO_ME-A-JKT-
-                                        CKA/lag-1_No1_3xGi (Downlink)
-        3/1/4     up    active    up    AKSES_PE TO_PE Transit
-        3/1/10    up    active    up    AKSES_TO_PE2-D2-CKA-VPN
-        3/1/14    up    active    up    AKSES_TO_PE-D2-CKA-VPN_Gi0/0/0/2
-        3/1/15    up    active    up    AKSES_TO_PE-D2-CKA-TRANSIT LAG-1 port
+16(e)            up              up    AKSES_to_RAN-PAG-TLT.1_5x1G
+       9/1/10    up    active    up    AKSES_BACKHAUL_RAN-TSEL_ME-D2-KB#9/1/
+       3/1/10    up    active    up    AKSES_TO_PE2-D2-CKA-VPN
+       3/1/14    up    active    up    AKSES_TO_PE-D2-CKA-VPN_Gi0/0/0/2
+       3/1/15    up    active    up    AKSES_TO_PE-D2-CKA-TRANSIT LAG-1 port
                                         ge-5/0/1
 
 2(e)             up              up    TRUNK_to me2-d2-cka (80G)
@@ -2249,7 +2248,11 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         {
                             if (char.IsDigit(line[0]))
                             {
-                                if (description != null && current != null) current.Description = description.ToString();
+                                if (line.StartsWith("16"))
+                                    Event("Debuging");
+
+                                if (description != null && current != null)
+                                    current.Description = description.ToString();
                                 description = null;
                                 current = null;
 
@@ -2286,7 +2289,14 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             }
                             else if (description != null && line.Length >= 40)
                             {
-                                if (line.Substring(0, 39).Trim() == "") description.Append(line.Substring(39));
+                                if (line.Substring(0, 39).Trim() == "")
+                                    description.Append(line.Substring(39));
+                                else if (current != null)
+                                {
+                                    current.Description = description.ToString();
+                                    description = null;
+                                    current = null;
+                                }
                             }
                         }
                     }
@@ -3623,7 +3633,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     batch.Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI = {0}", id);
                     batch.Execute("update MEInterface set MI_TO_MI = NULL where MI_TO_MI = {0}", id);
                     batch.Execute("update MEInterface set MI_MI = NULL where MI_MI = {0}", id);
-                    batch.Execute("update MEMac set MA_MI = NULL where MI_MI = {0}", id);
+                    batch.Execute("update MEMac set MA_MI = NULL where MA_MI = {0}", id);
                     interfacedelete.Add(id);
 
                     // remove dac from virtualization

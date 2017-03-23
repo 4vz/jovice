@@ -24,10 +24,28 @@ namespace Center
 #if DEBUG
                     jovice = new Database(Aphysoft.Protected.Project.Database("JOVICE_DEBUG"), DatabaseType.SqlServer);
 #else
-                    jovice = new Database(Aphysoft.Protected.Project.Database("JVOICE_RELEASE"), DatabaseType.SqlServer);
+                    jovice = new Database(Aphysoft.Protected.Project.Database("JOVICE_RELEASE"), DatabaseType.SqlServer);
 #endif
                 }
                 return jovice;
+            }
+        }
+
+        private static Database center = null;
+
+        public static Database Center
+        {
+            get
+            {
+                if (center == null)
+                {
+#if DEBUG
+                    center = new Database(Aphysoft.Protected.Project.Database("CENTER_DEBUG"), DatabaseType.SqlServer);
+#else
+                    center = new Database(Aphysoft.Protected.Project.Database("CENTER_RELEASE"), DatabaseType.SqlServer);
+#endif
+                }
+                return center;
             }
         }
 

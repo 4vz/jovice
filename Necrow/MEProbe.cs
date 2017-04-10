@@ -2248,9 +2248,6 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         {
                             if (char.IsDigit(line[0]))
                             {
-                                if (line.StartsWith("16"))
-                                    Event("Debuging");
-
                                 if (description != null && current != null)
                                     current.Description = description.ToString();
                                 description = null;

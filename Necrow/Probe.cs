@@ -560,6 +560,7 @@ namespace Center
         private DateTime lastProbeEndTime = DateTime.MinValue;
 
         private string nodeID;
+        private List<string> nodeRules;
         private string nodeName;
         private string nodeManufacture;
         private string nodeModel;
@@ -596,8 +597,6 @@ namespace Center
         {
             get { return lastProbeEndTime; }
         }
-
-        private bool noMore = false;
 
         private readonly string alu = "ALCATEL-LUCENT";
         private readonly string hwe = "HUAWEI";
@@ -1071,7 +1070,7 @@ namespace Center
                         {
                             string errorMessage = null;
                             if (probe.FailureType == FailureTypes.Connection) errorMessage = "Connection error";
-                            else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error";
+                            else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error: " + Necrow.JoviceLastException.Message.Trim(new char[] { '\r', '\n', ' ' }) + ", SQL: " + Necrow.JoviceLastException.Sql;
                             else if (probe.FailureType == FailureTypes.Request) errorMessage = "Request error";
 #if !DEBUG
                             throw new Exception(errorMessage);
@@ -1198,7 +1197,7 @@ namespace Center
                             {
                                 string errorMessage = null;
                                 if (probe.FailureType == FailureTypes.Connection) errorMessage = "Connection error";
-                                else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error";
+                                else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error: " + Necrow.JoviceLastException.Message.Trim(new char[] { '\r', '\n', ' ' }) + ", SQL: " + Necrow.JoviceLastException.Sql;
                                 else if (probe.FailureType == FailureTypes.Request) errorMessage = "Request error";
 #if !DEBUG
                                 throw new Exception(errorMessage);
@@ -1309,7 +1308,7 @@ namespace Center
         {
             if (IsConnected)
             {
-                Thread.Sleep(250);
+                Thread.Sleep(50);
                 bool res = Write(line);
                 if (res == false) ConnectionFailure();
             }
@@ -1664,12 +1663,12 @@ namespace Center
 
                 Stopwatch stopwatch = new Stopwatch();
                 StringBuilder lineBuilder = new StringBuilder();
-                StringBuilder lastOutputSB = new StringBuilder();
-                List<string> listlines = new List<string>();
+                List<string> listLines = new List<string>();
 
                 stopwatch.Start();
 
                 int wait = 0;
+                int skip = 0;
                 bool ending = false;
 
                 while (true)
@@ -1682,15 +1681,39 @@ namespace Center
                         {
                             wait = 0;
                             string output = outputs.Dequeue();
-                            lastOutputSB.Append(output);
 
                             for (int i = 0; i < output.Length; i++)
                             {
                                 byte b = (byte)output[i];
-                                if (b == 10)
-                                {
-                                    string line = lineBuilder.ToString();
 
+                                if (skip > 0) skip--;
+                                else if (b >= 32) lineBuilder.Append((char)b);
+
+                                string line = lineBuilder.ToString();
+                                bool pressingMore = false;
+
+                                if (line.EndsWith(nodeTerminal))
+                                {
+                                    ending = true;
+                                    break;
+                                }
+                                else if (nodeManufacture == hwe && line.EndsWith("---- More ----"))
+                                {
+                                    pressingMore = true;
+                                    lineBuilder.Clear();
+                                    SendSpace();
+                                    skip = 42;
+                                }
+                                else if (nodeManufacture == alu && line.EndsWith("Press any key to continue (Q to quit)"))
+                                {
+                                    pressingMore = true;
+                                    lineBuilder.Clear();
+                                    SendSpace();
+                                    skip = 40;
+                                }
+                                else if (b == 10)
+                                {
+                                    lineBuilder.Clear();
                                     if (nodeManufacture == hwe && nodeVersion == "5.160" && line.Length > 80)
                                     {
                                         int looptimes = (int)Math.Ceiling((float)line.Length / 80);
@@ -1700,52 +1723,28 @@ namespace Center
                                             int sisa = 80;
                                             if (loop == looptimes - 1) sisa = line.Length - (loop * 80);
                                             string curline = line.Substring(loop * 80, sisa);
-                                            listlines.Add(curline);
+                                            listLines.Add(curline);
                                         }
                                     }
                                     else
-                                        listlines.Add(line);
-
-                                    lineBuilder.Clear();
-                                }
-                                else if (b >= 32) lineBuilder.Append((char)b);
-                            }
-
-                            string losb = lastOutputSB.ToString();
-
-                            if (noMore == false)
-                            {
-                                if (nodeManufacture == alu)
-                                {
-                                    string aluMORE = "Press any key to continue (Q to quit)";
-                                    if (losb.Contains(aluMORE))
                                     {
-                                        List<string> newlines = new List<string>();
-
-                                        foreach (string line in listlines)
-                                        {
-                                            string newline;
-                                            if (line.IndexOf(aluMORE) > -1)
-                                                newline = line.Replace(aluMORE + "                                      ", "");
-                                            else newline = line;
-
-                                            newlines.Add(newline);
-                                        }
-
-                                        listlines = newlines;
-
-                                        SendSpace();
+                                        listLines.Add(line);
                                     }
                                 }
+                                
+                                if (pressingMore)
+                                {
+                                    //Event("<WAITING-2>" + listlines[listlines.Count - 1]);
+                                    //Event("<WAITING-1>" + line);
+                                    //Event("Sending space command for waiting message");
+                                }                      
                             }
-
-                            if (losb.TrimEnd().EndsWith(nodeTerminal.Trim()))
-                                ending = true;
                         }
                     }
                     else
                     {
-                        if (ending) break;
+                        if (ending)
+                            break;
 
                         wait++;
                         if (wait % 200 == 0 && wait < 1600)
@@ -1773,12 +1772,12 @@ namespace Center
                         }
                     }
                 }
-                if (lineBuilder.Length > 0) listlines.Add(lineBuilder.ToString().Trim());
+
                 stopwatch.Stop();
 
                 if (!timeout)
                 {
-                    lines = listlines.ToArray();
+                    lines = listLines.ToArray();
                     bool improperCommand = false;
                     if (lines.Length < 10)
                     {
@@ -1802,17 +1801,11 @@ namespace Center
                     else
                     {
                         Event("Request completed (" + lines.Length + " lines in " + string.Format("{0:0.###}", stopwatch.Elapsed.TotalSeconds) + "s)");
-                        lines = listlines.ToArray();
+                        lines = listLines.ToArray();
                         requestLoop = false;
                     }
                 }
                 else requestLoop = false;
-            }
-
-            if (command == "display clock")
-            {
-                probe.FailureType = FailureTypes.Connection;
-                timeout = true;
             }
 
             if (!timeout)
@@ -2202,6 +2195,12 @@ namespace Center
                 throw new Exception("Unsupported node manufacture");
             }
 
+            #region CHECK ACCESS RULE
+
+            nodeRules = QueryList("select * from NodeAccessRule where NAR_NO = {0}", "NAR_Rule", nodeID);
+
+            #endregion
+
             #region CHECK IP
 
             if (nodeIP != null) Event("Host IP: " + nodeIP);
@@ -2504,7 +2503,7 @@ namespace Center
                 lines = LastOutput.Split('\n');
                 string lastLine = lines[lines.Length - 1];
 
-                int titik2 = lastLine.LastIndexOf(':');
+                int titik2 = lastLine.LastIndexOf('*');
                 terminal = lastLine.Substring(titik2 + 1);
             }
             else if (nodeManufacture == hwe)
@@ -2532,6 +2531,8 @@ namespace Center
                 string[] linex = lastLine.Split(new char[] { '@' }, StringSplitOptions.RemoveEmptyEntries);
                 terminal = linex[1];
             }
+
+            terminal = terminal.Trim();
 
             Event("Terminal: " + terminal + "");
 
@@ -2655,22 +2656,24 @@ namespace Center
 
             Event("Setup terminal");
 
-            noMore = true; // by default, we can no more
+            bool setNoPagePartition = !nodeRules.Contains("ENABLEPAGEPARTITION");
+            if (!setNoPagePartition)
+                Event("No Page Partition disabled (by ENABLEPAGEPARTITION rule)");
 
             if (nodeManufacture == alu)
             {
                 if (Request("environment no saved-ind-prompt", out lines, probe)) return probe;
-                if (Request("environment no more", out lines, probe)) return probe;
-
-                string oline = string.Join(" ", lines);
-                if (oline.IndexOf("CLI Command not allowed for this user.") > -1)
-                    noMore = false;
-                else
-                    noMore = true;
+                if (setNoPagePartition)
+                {
+                    if (Request("environment no more", out lines, probe)) return probe;
+                }
             }
             else if (nodeManufacture == hwe)
             {
-                if (Request("screen-length 0 temporary", out lines, probe)) return probe;
+                if (setNoPagePartition)
+                {
+                    if (Request("screen-length 0 temporary", out lines, probe)) return probe;
+                }
             }
             else if (nodeManufacture == cso)
             {
@@ -2878,7 +2881,7 @@ namespace Center
                         //Time Last Modified     : 2
                         //Time Last Modified        : 2016/11/07 17:35:36
                         //01234567890123456789012345
-                        string datetime = line.Substring(25).Trim(new char[] { ' ', ':' });
+                        string datetime = line.Split(new char[] { ':' }, 2)[1].Trim();
                         if (datetime == "N/A")
                         {
                             lastConfLive = new DateTime(2000, 1, 1, 0, 0, 0);
@@ -2908,8 +2911,9 @@ namespace Center
                         {
                             lastModified = true;
                             //Time Last Saved        : 2015/01/13 01:13:56
+                            //Time Last Saved           : 2017/04/10 12:06:46
                             //01234567890123456789012345
-                            string datetime = line.Substring(25).Trim();
+                            string datetime = line.Split(new char[] { ':' }, 2)[1].Trim();
                             if (datetime == "N/A")
                             {
                                 lastConfLive = new DateTime(2000, 1, 1, 0, 0, 0);

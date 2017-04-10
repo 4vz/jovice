@@ -15,6 +15,14 @@ namespace Center
     {
         #region Fields
 
+        private string days;
+
+        public string Days
+        {
+            get { return days; }
+            set { days = value; }
+        }
+
         private TimeSpan timeStart;
 
         public TimeSpan TimeStart
@@ -148,6 +156,13 @@ namespace Center
 
         private static Timer helloTimer;
 
+        private static DatabaseExceptionEventArgs joviceLastException = null;
+
+        public static DatabaseExceptionEventArgs JoviceLastException
+        {
+            get { return joviceLastException; }
+        }
+
         #endregion
 
         #region Helpers
@@ -209,13 +224,25 @@ namespace Center
 
         public static bool InTime(ProbeProperties properties)
         {
+            string days = properties.Days;
             TimeSpan start = properties.TimeStart;
             TimeSpan end = properties.TimeEnd;
             TimeSpan time = DateTime.UtcNow.TimeOfDay;
+            DayOfWeek dow = DateTime.UtcNow.DayOfWeek;
 
-            return (start < end && start < time && time < end) ||
+            bool isTimeOK = (start < end && start < time && time < end) ||
                    (start > end && (time > start || time < end)) ||
                    (start == end);
+
+            bool isDayOK = dow == DayOfWeek.Monday? days.IndexOf('0') > -1 :
+                dow == DayOfWeek.Tuesday ? days.IndexOf('1') > -1 :
+                dow == DayOfWeek.Wednesday ? days.IndexOf('2') > -1 :
+                dow == DayOfWeek.Thursday ? days.IndexOf('3') > -1 :
+                dow == DayOfWeek.Friday ? days.IndexOf('4') > -1 :
+                dow == DayOfWeek.Saturday ? days.IndexOf('5') > -1 :
+                dow == DayOfWeek.Sunday ? days.IndexOf('6') > -1 : false;
+            
+            return isTimeOK && isDayOK;
         }
 
         public static void Start()
@@ -262,8 +289,7 @@ namespace Center
 
                 j.Exception += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
                 {
-                    Event("Database exception has been caught: " + eventArgs.Message.Trim(new char[] { '\r', '\n', ' ' }));
-                    //throw new Exception(eventArgs.Message.Trim(new char[] { '\r', '\n', ' ' }) + "\n" + eventArgs.Sql);
+                    joviceLastException = eventArgs;
                 };
                 j.Retry += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
                 {
@@ -440,7 +466,7 @@ namespace Center
                             batch.Commit();
 
                             result = j.Query(@"
-select XA_ID, XA_TimeStart, XA_TimeEnd, XA_Case, XU_ServerUser, XU_ServerPassword, XU_TacacUser, XU_TacacPassword, XS_Address, XS_ConsolePrefixFormat
+select XA_ID, XA_Days, XA_TimeStart, XA_TimeEnd, XA_Case, XU_ServerUser, XU_ServerPassword, XU_TacacUser, XU_TacacPassword, XS_Address, XS_ConsolePrefixFormat
 from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID");
 
                             foreach (Row row in result)
@@ -457,12 +483,13 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
                                     prop.TacacPassword = row["XU_TacacPassword"].ToString();
                                     prop.SSHServerAddress = row["XS_Address"].ToString();
                                     prop.SSHTerminal = string.Format(row["XS_ConsolePrefixFormat"].ToString(), prop.SSHUser);
+                                    prop.Days = row["XA_Days"].ToString("0123456");
                                     prop.TimeStart = row["XA_TimeStart"].ToTimeSpan(TimeSpan.MinValue);
                                     prop.TimeEnd = row["XA_TimeEnd"].ToTimeSpan(TimeSpan.MaxValue);
                                     string accessCase = row["XA_Case"].ToString();
                                     prop.Case = accessCase == null ? "MAIN" : accessCase;
 
-                                    if (prop.Case.InOf("MAIN", "M") > -1)
+                                    if (prop.Case.ArgumentIndexOf("MAIN", "M") > -1)
                                     {
                                         Thread.Sleep(100);
                                         instances.Add(id, Probe.Create(prop, "PROBE" + id.Trim()));
@@ -497,6 +524,17 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
                                         prop.TimeEnd = newend;
                                     }
                                     if (updatetime) updateinfo.Add("time changed to " + ((prop.TimeStart == TimeSpan.Zero || prop.TimeEnd == TimeSpan.Zero) ? "" : (prop.TimeStart + "-" + prop.TimeEnd)));
+
+                                    // change days
+                                    string newdays = row["XA_Days"].ToString("0123456");
+                                    bool updatedays = false;
+
+                                    if (newdays != prop.Days)
+                                    {
+                                        updatedays = true;
+                                        prop.Days = newdays;
+                                    }
+                                    if (updatedays) updateinfo.Add("days changed to " + prop.Days);
 
                                     // change case
                                     string newCase = row["XA_Case"].ToString();
@@ -808,14 +846,14 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 else if (type == "s") update.Set("NO_Type", "S");
                 else if (type == "h") update.Set("NO_Type", "H");
                 else if (type == "d") update.Set("NO_Type", "D");
-                else if (type.InOf(nodeTypes) == -1) update.Set("NO_Active", false);
+                else if (type.ArgumentIndexOf(nodeTypes) == -1) update.Set("NO_Active", false);
 
                 string man = row["NO_Manufacture"].ToString();
                 if (man == "alu" || man == "ALU") update.Set("NO_Manufacture", "ALCATEL-LUCENT");
                 else if (man == "hwe" || man == "HWE") update.Set("NO_Manufacture", "HUAWEI");
                 else if (man == "cso" || man == "CSO" || man == "csc" || man == "CSC") update.Set("NO_Manufacture", "CISCO");
                 else if (man == "jun" || man == "JUN") update.Set("NO_Manufacture", "JUNIPER");
-                else if (man.ToUpper().InOf(nodeManufactures) == -1) update.Set("NO_Active", false);
+                else if (man.ToUpper().ArgumentIndexOf(nodeManufactures) == -1) update.Set("NO_Active", false);
                 else if (man.ToUpper() != man) update.Set("NO_Manufacture", man.ToUpper());
 
                 if (!update.IsEmpty) batch.Execute(update);
@@ -1010,7 +1048,7 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
                 {
                     foreach (KeyValuePair<string, Probe> ins in instances)
                     {
-                        if (ins.Value.IsProbing)
+                        if (ins.Value.IsStarted && ins.Value.IsProbing)
                         {
                             objects.Add(new Tuple<string, string, string, DateTime, string>("A", ins.Key.Trim(), ins.Value.NodeName, ins.Value.NodeProbeStartTime, ins.Value.Properties.TacacUser));
                         }

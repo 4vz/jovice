@@ -99,11 +99,36 @@ namespace Center {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to (function () {
+        ///
+        ///    var mapArea;
+        ///    var gmaps, gmapsOverlay;
+        ///    var style = [
+        ///        { featureType: &quot;administrative&quot;, elementType: &quot;labels&quot;, stylers: [{ visibility: &quot;off&quot; }] },
+        ///        { featureType: &quot;landscape&quot;, elementType: &quot;labels&quot;, stylers: [{ visibility: &quot;off&quot; }] },
+        ///        { featureType: &quot;landscape&quot;, stylers: [{ saturation: -50 }] },
+        ///        { featureType: &quot;road.highway&quot;, elementType: &quot;geometry&quot;, stylers: [{ saturation: -100 }] },
+        ///        { featureType: &quot;road&quot;, elementType: &quot;labels.icon&quot;,  [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string jovice_network {
             get {
                 return ResourceManager.GetString("jovice_network", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 
+        ///(function () {
+        ///
+        ///    ui(&quot;search_jovice_interface&quot;, function (b, r, f, p, t) {
+        ///        debug(&quot;yess&quot;);
+        ///    });
+        ///
+        ///})();.
+        /// </summary>
+        internal static string jovice_search_interface {
+            get {
+                return ResourceManager.GetString("jovice_search_interface", resourceCulture);
             }
         }
         
@@ -123,12 +148,12 @@ namespace Center {
         ///    };
         ///
         ///    ui(&quot;search_jovice_service&quot;, function (b, r, f, p, t) {
-        ///
+        ///                
         ///        //--- match properties
+        ///        /*
         ///        f.setButton(function () {
         ///            p.transfer(&quot;/network/service/&quot; + serviceID, {
-        ///                transferData: {
-        ///                    s [rest of string was truncated]&quot;;.
+        ///                transferDa [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string jovice_search_service {
             get {
@@ -216,20 +241,22 @@ namespace Center {
         ///    ui(&quot;user_signin&quot;, {
         ///        init: function (p) {
         ///            page = center.init(p);
+        ///
+        ///            center.hideToolbar();
+        ///
+        ///            var boleft = ui.box(p)({
+        ///                width: &quot;50%&quot;,
+        ///                left: &quot;50%&quot;,
+        ///                height: &quot;100%&quot;,
+        ///                color: 91
+        ///            });
         ///            
-        ///            var b = ui.text(p)({ text: &quot;SIGN IN&quot;, position: [100, 100] });
+        ///            var b = ui.text(p)({ text: &quot;SIGN IN&quot;, font: [&quot;body&quot;, 25], color: 30, left: 100, top: 50 });
+        ///            
         ///
+        ///            //center.showSignIn();
         ///
-        ///            p.done();
-        ///        },
-        ///        start: function (p) {
-        ///            center.setSearchBoxValue(null);
-        ///            p.done();
-        ///        },
-        ///        resize: function (p) {
-        ///        }
-        ///    });
-        ///})();.
+        /// [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string user_signin {
             get {

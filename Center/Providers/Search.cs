@@ -14,27 +14,50 @@ namespace Center.Providers
         None, NotLike, Like, NotStartsWith, StartsWith, NotEndsWith, EndsWith, NotLarger, Larger, NotSmaller, Smaller, NotEqual, Equal
     }
 
+    public enum TokenTypes
+    {
+        Pre, Post
+    }
 
     public static class Search
     {
         private static List<SearchMatch> matches = null;
         private static Dictionary<string, List<string>> roots = null;
-        private static List<string> languages = null;
-        private static Dictionary<string, string> references = null;
+        private static Dictionary<string, List<string>> languages = null;
+        private static Dictionary<string, Dictionary<string, string>> references = null;
+        private static Dictionary<string, Dictionary<SearchLanguageCallback, string>> languageCallbacks = null;
         private static List<string> conjuctions = null;
 
-        public static void Language(string language, string reference)
+        public static void Language(string root, string language, string reference)
         {
-            if (!languages.Contains(language))
-                languages.Add(language);
-            if (!references.ContainsKey(language) ||
-                !references[language].Contains(reference))
-                references.Add(language, reference);
+            language = language.ToLower();
+            reference = reference.ToUpper();
+
+            if (!languages[root].Contains(language))
+                languages[root].Add(language);
+            if (!references[root].ContainsKey(language))
+                references[root].Add(language, reference);
+        }
+
+        public static void Language(string root, SearchLanguageCallback callback, string reference)
+        {
+            reference = reference.ToUpper();
+
+            if (!languageCallbacks[root].ContainsKey(callback))
+                languageCallbacks[root].Add(callback, reference);
         }
 
         public static void Root(string root, string phrase)
         {
-            if (!roots.ContainsKey(root)) roots.Add(root, new List<string>());
+            phrase = phrase.ToLower();
+
+            if (!roots.ContainsKey(root))
+            {
+                roots.Add(root, new List<string>());
+                languages.Add(root, new List<string>());
+                references.Add(root, new Dictionary<string, string>());
+                languageCallbacks.Add(root, new Dictionary<SearchLanguageCallback, string>());
+            }
             if (!roots[root].Contains(phrase)) roots[root].Add(phrase);
         }
 
@@ -52,24 +75,25 @@ namespace Center.Providers
             if (matches == null)
             {
                 matches = new List<SearchMatch>();
-                languages = new List<string>();
-                references = new Dictionary<string, string>();
+                languages = new Dictionary<string, List<string>>();
+                references = new Dictionary<string, Dictionary<string, string>>();
                 roots = new Dictionary<string, List<string>>();
+                languageCallbacks = new Dictionary<string, Dictionary<SearchLanguageCallback, string>>();
 
                 conjuctions = List.New(
                     "is", "are", "that", "thats", "that's", "which", "of", "have", "has", "had",
-                    "the", "to", "than", "then", "where", "with", "bound"
+                    "the", "to", "than", "then", "where", "with", "bound", "for"
                     );
                 
                 #region Matches
 
                 matches.Add(new ServiceSearchMatch());
+                matches.Add(new InterfaceSearchMatch());
                 matches.Add(new NodeSearchMatch());
-                //matches.Add(new InterfaceSearchMatch());
+                //
 
                 #endregion
 
-                List.Sort(languages, SortMethods.LengthDescending);
                 List.Sort(conjuctions, SortMethods.LengthDescending);      
             }
             #endregion
@@ -124,12 +148,12 @@ namespace Center.Providers
                 Result r;
 
                 Database jovice = Jovice.Database;
-                Database center = Center.Database;
+                Database center = Jovice.CenterDatabase;
 
                 if (root != null)
                 {
                     SearchMatch match = null;
-                    foreach (SearchMatch m in matches) { if (m.Name == root) match = m; }
+                    foreach (SearchMatch m in matches) { if (m.MatchRoot == root) match = m; }
 
                     #region Process
                     string sort = Params.GetValue("o"); // sort
@@ -151,7 +175,7 @@ namespace Center.Providers
                     if (pageLengthString == null || !int.TryParse(pageLengthString, out pageLength)) pageLength = 1;
 
                     SearchMatchResult matchResult = new SearchMatchResult();
-                    match.Process(matchResult, tokens, preTokens, postTokens, sort, sortMethod, page, pageSize, pageLength);
+                    match.Process(matchResult, new SearchMatchQuery(root, tokens, preTokens, postTokens, sort, sortMethod, page, pageSize, pageLength));
 
                     if (matchResult.ResultCount == -1) // we are using auto query
                     {
@@ -160,7 +184,14 @@ namespace Center.Providers
                         if (isMain)
                         {
                             r = jovice.Query("select count(*) from ( " + matchResult.QueryCount + " ) source");
-                            matchResult.ResultCount = r[0][0].ToInt();
+                            if (r.OK)
+                            {
+                                matchResult.ResultCount = r[0][0].ToInt();
+                            }
+                            else
+                            {
+                                matchResult.ResultCount = 0;
+                            }
                         }
 
                         string sortString = matchResult.RowID;
@@ -279,31 +310,60 @@ namespace Center.Providers
                     List<string> exQueries = new List<string>();
                     List<string> exExplainations = new List<string>();
 
-                    #region SID
-                    
-                    if (tokenList.Count > 0 && tokenList[0].Length > 3)
+                    string token1 = null, token2 = null;
+
+                    if (tokenList.Count > 0) token1 = tokenList[0];
+                    if (tokenList.Count > 1) token2 = tokenList[1];
+
+                    #region SERVICE
+
+                    if (token1 != null && token1.Length >= 3)
                     {
                         // 4700278-0006182119
-
-                        string ssid = tokenList[0];
-
                         Column c;
-                        c = jovice.Scalar("select count(*) from Service where SE_SID = {0}", ssid);
+                        c = jovice.Scalar("select count(*) from Service where SE_SID = {0}", token1);
 
                         if (c.ToInt() > 0)
                         {
-                            exQueries.Add("service with SID " + ssid);
+                            exQueries.Add("service with SID " + token1);
                             exExplainations.Add("Searches service with specified SID.");                           
                         }
-                        if (ssid.Length == 7 && (ssid.StartsWith("47") || ssid.StartsWith("37")))
+                        if (token1.Length == 7 && (token1.StartsWith("47") || token1.StartsWith("37")))
                         {
-                            exQueries.Add("service that SID starts with " + ssid);
+                            exQueries.Add("service that SID starts with " + token1);
                             exExplainations.Add("Searches service with specified SID.");
                         }
-                        if (ssid.Length >= 5 && ssid.Length <= 18 && StringHelper.IsAllIsIn(ssid, commonSIDCharacters))
+                        if (token1.Length >= 5 && token1.Length <= 18 && StringHelper.IsAllIsIn(token1, commonSIDCharacters))
                         {
-                            exQueries.Add("service that SID contain " + ssid);
+                            exQueries.Add("service that SID contain " + token1);
                             exExplainations.Add("Searches all services that the SID includes the specified text.");
+                        }
+                    }
+
+                    #endregion
+
+                    #region INTERFACE
+
+                    if (token1 != null)
+                    {
+                        Column c;
+                        c = jovice.Scalar("select count(*) from Node where NO_Name = {0} and NO_Active = 1", token1);
+
+                        if (c.ToInt() > 0)
+                        {
+                            exQueries.Add("interface in " + token1);
+                            exExplainations.Add("Displays all interfaces on specified node.");
+
+                            if (token2 != null)
+                            {
+                                exQueries.Add(token1 + " interfaces with description " + string.Join(" ", tokenList.ToArray(), 1, tokenList.Count - 1));
+                                exExplainations.Add("Searches all interfaces on specified node with specified description.");
+                            }
+                        }
+                        if (token1.Length >= 3)
+                        {
+                            exQueries.Add("interface with description contain " + string.Join(" ", tokenList.ToArray()));
+                            exExplainations.Add("Searches all interfaces that the description contains the specified text.");
                         }
                     }
 
@@ -327,7 +387,7 @@ namespace Center.Providers
                     r = center.ExecuteIdentity(@"
 insert into SearchResult(SR_Created, SR_Address, SR_Query, SR_Match, SR_Count)
 values(GETUTCDATE(), {0}, {1}, {2}, {3})
-", result.Context.Request.UserHostAddress, search, searchResult.Type, searchResult.ResultCount);
+", result.Context.Request.UserHostAddress, search, searchResult.Type.ToNull(""), searchResult.ResultCount);
                     searchResult.SearchID = r.Identity.ToString();
                 }
                 
@@ -340,8 +400,8 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
         }
 
         static readonly char[] commonSIDCharacters = { '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-' };
-
-        public static List<SearchDescriptor> ParsePostTokens(string[] postTokens)
+                
+        private static List<SearchDescriptor> ParseTokens(string root, string[] tokens, TokenTypes type)
         {
             List<SearchDescriptor> descriptors = new List<SearchDescriptor>();
 
@@ -357,7 +417,7 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
             int lastDescriptorIndex = -1;
             int referToDescriptor = -1;
 
-            foreach (string token in postTokens)
+            foreach (string token in tokens)
             {
                 string tokenForSearch = token.ToLower();
                 bool endOfPhrase = false;
@@ -385,7 +445,7 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
                     else
                     {
                         phrases.Append(token);
-                        if (tokenIndex == postTokens.Length - 1) endOfPhrase = true;
+                        if (tokenIndex == tokens.Length - 1) endOfPhrase = true;
                     }
                 }
 
@@ -404,7 +464,28 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
                         SearchConstraints constraint;
                         string value = null;
 
-                        foreach (string language in languages)
+
+                        List<string> currentLanguages = new List<string>(languages[root]);
+                        Dictionary<string, string> currentReferences = new Dictionary<string, string>(references[root]);
+                        List<string> descriptorCodeThatUsedCallbacks = new List<string>();
+
+                        foreach (KeyValuePair<SearchLanguageCallback, string> pair in languageCallbacks[root])
+                        {
+                            string[] callbackLanguages = pair.Key();
+                            string callbackReference = pair.Value;
+
+                            foreach (string callbackLanguage in callbackLanguages)
+                            {
+                                string lan = callbackLanguage.ToLower();
+                                currentLanguages.Add(lan);
+                                currentReferences.Add(lan, callbackReference);
+                                descriptorCodeThatUsedCallbacks.Add(callbackReference);
+                            }
+                        }
+
+                        List.Sort(currentLanguages, SortMethods.LengthDescending);
+
+                        foreach (string language in currentLanguages)
                         {
                             int languageIndex = -1;
                             int languageLength = 0;
@@ -548,8 +629,8 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
                         string descriptorCode = null;
                         string superDescriptorCode = null;
 
-                        if (descriptor != null) descriptorCode = references[descriptor];
-                        if (superDescriptor != null) superDescriptorCode = references[superDescriptor];
+                        if (descriptor != null) descriptorCode = currentReferences[descriptor];
+                        if (superDescriptor != null) superDescriptorCode = currentReferences[superDescriptor];
 
                         #region Constraints
                         string phraseExistingLower = phraseExisting.ToLower();
@@ -630,7 +711,16 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
                             }
                         }
 
-                        value = phraseExisting.Trim();
+                        if (descriptorCode != null)
+                        {
+                            if (descriptorCodeThatUsedCallbacks.Contains(descriptorCode))
+                            {
+                                value = descriptor;
+                            }
+                        }
+                        
+                        if (value == null)
+                            value = phraseExisting.Trim();
 
                         bool changed = false;
 
@@ -700,6 +790,17 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
 
             return descriptors;
         }        
+
+        public static SearchDescriptor[] ParseTokens(string root, string[] preTokens, string[] postTokens)
+        {
+            List<SearchDescriptor> postDescriptors = ParseTokens(root, postTokens, TokenTypes.Post);
+            List<SearchDescriptor> preDescriptors = ParseTokens(root, preTokens, TokenTypes.Pre);
+
+            List<SearchDescriptor> descriptors = new List<SearchDescriptor>(postDescriptors);
+            descriptors.AddRange(preDescriptors);
+
+            return descriptors.ToArray();
+        }
     }
 
     public class SearchDescriptor
@@ -782,7 +883,7 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
             return inner.Length > 0 ? "(" + inner.ToString() + ")" : null;
         }
 
-        public static Where Build(List<SearchDescriptor> descriptors, DescriptorCallback callback)
+        public static Where Build(SearchDescriptor[] descriptors, DescriptorCallback callback)
         {
             StringBuilder outer = new StringBuilder();
 
@@ -808,20 +909,22 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
 
         #endregion
     }
+    
+    public delegate string[] SearchLanguageCallback();
 
-    public class SearchMatch
+    public abstract class SearchMatch
     {
         #region Fields
 
-        private string name = null;
+        private string matchRoot = null;
 
-        public string Name
+        public string MatchRoot
         {
-            get { return name; }
+            get { return matchRoot; }
         }
 
         protected Database jovice = Jovice.Database;
-        protected Database center = Center.Database;
+        protected Database center = Jovice.CenterDatabase;
 
         #endregion
 
@@ -829,16 +932,23 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
 
         protected void Root(string phrase)
         {
-            if (name == null) name = Database.ID();
-            Search.Root(name, phrase);
+            if (matchRoot == null) matchRoot = Database.ID();
+            Search.Root(matchRoot, phrase);
         }
 
         protected void Language(string language, string reference)
         {
-            Search.Language(language, reference);
+            if (matchRoot == null) throw new Exception("Root is still not defined");
+            Search.Language(matchRoot, language, reference);
         }
 
-        public virtual void Process(SearchMatchResult matchResult, string[] tokens, string[] preTokens, string[] postTokens, string sort, string sortMethod, int page, int pageSize, int pageLength)
+        protected void Language(SearchLanguageCallback callback, string reference)
+        {
+            if (matchRoot == null) throw new Exception("Root is still not defined");
+            Search.Language(matchRoot, callback, reference);
+        }
+
+        public virtual void Process(SearchMatchResult matchResult, SearchMatchQuery matchQuery)
         {
         }
 
@@ -995,7 +1105,7 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
             sorts.Add(description + ":" + name + ":r");
         }
 
-        public void Column(string name)
+        public void AddColumn(string name)
         {
             if (extColumns == null) extColumns = new List<string>();
             extColumns.Add(name);
@@ -1019,6 +1129,93 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
         {
             if (hides == null) hides = new List<string>();
             hides.Add(name);
+        }
+
+        #endregion
+    }
+
+    public class SearchMatchQuery
+    {
+        #region Fields
+
+        private string[] tokens;
+
+        public string[] Tokens
+        {
+            get { return tokens; }
+        }
+
+        private string[] preTokens;
+
+        public string[] PreTokens
+        {
+            get { return preTokens; }
+        }
+
+        private string[] postTokens;
+
+        public string[] PostTokens
+        {
+            get { return postTokens; }
+        }
+
+        private string sort;
+
+        public string Sort
+        {
+            get { return sort; }
+        }
+
+        private string sortMethod;
+
+        public string SortMethod
+        {
+            get { return sortMethod; }
+        }
+
+        private int page;
+
+        public int Page
+        {
+            get { return page; }
+        }
+
+        private int pageSize;
+
+        public int PageSize
+        {
+            get { return pageSize; }
+        }
+
+        private int pageLength;
+
+        private int PageLength
+        {
+            get { return pageLength; }
+        }
+
+        private SearchDescriptor[] descriptors;
+
+        public SearchDescriptor[] Descriptors
+        {
+            get { return descriptors; }
+        }
+
+        #endregion
+
+        #region Constructors
+
+        public SearchMatchQuery(string root, string[] tokens, string[] preTokens, string[] postTokens, string sort, string sortMethod, int page, int pageSize, int pageLength)
+        {
+            this.tokens = tokens;
+            this.preTokens = preTokens;
+            this.postTokens = postTokens;
+            this.sort = sort;
+            this.sortMethod = sortMethod;
+            this.page = page;
+            this.pageSize = pageSize;
+            this.pageLength = pageLength;
+            this.descriptors = Search.ParseTokens(root, preTokens, postTokens);
         }
 
         #endregion

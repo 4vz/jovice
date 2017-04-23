@@ -8,28 +8,6 @@ namespace Center
 {
     public class Center : Share
     {
-        #region Database
-
-        private static Database center = null;
-
-        public static new Database Database
-        {
-            get
-            {
-                if (center == null)
-                {
-#if DEBUG
-                    center = new Database(Aphysoft.Protected.Project.Database("CENTER_DEBUG"), DatabaseType.SqlServer);
-#else
-                    center = new Database(Aphysoft.Protected.Project.Database("CENTER_RELEASE"), DatabaseType.SqlServer);
-#endif
-                }
-                return center;
-            }
-        }
-
-        #endregion
-
         protected override void OnInit()
         {
             Client.Init();
@@ -84,6 +62,9 @@ namespace Center
             #region Jovice
 
             Resource.Register("search_jovice_service", ResourceType.JavaScript, Resources.ResourceManager, "jovice_search_service", "~/View/Jovice/Search/service.js");
+            Resource.Register("search_jovice_interface", ResourceType.JavaScript, Resources.ResourceManager, "jovice_search_interface", "~/View/Jovice/Search/interface.js");
+
+
             Content.Register("jovice_service",
                 new ContentPage[] {
                     new ContentPage("/network/service", true)
@@ -104,6 +85,13 @@ namespace Center
 
             Provider.Register(15001, Providers.Network.ProviderRequest); // network map
             Provider.Register(101, Providers.Search.ProviderRequest); // Search
+
+            #region API
+
+            API.Register("tselsites", APIs.TselSites.APIRequest);
+            
+
+            #endregion
         }
 
         protected override void OnScriptDataBinding(HttpContext context, ScriptData data)

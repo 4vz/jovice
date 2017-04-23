@@ -7,63 +7,210 @@ using System.Threading;
 using System.Threading.Tasks;
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using UAParser;
+using Humanizer;
+using System.Diagnostics;
 
 namespace Center
 {
-    internal class TelegramUserIdentity
+    internal class Conversation
     {
         #region Fields
+
+        private static Dictionary<string, Conversation> conversations = new Dictionary<string, Conversation>();
+        
+        #endregion
+
+
+        #region Constructors
+
+        public Conversation()
+        {
+
+        }
+
+        #endregion
+
+        #region Methods
+
+        public static Conversation Get(string id)
+        {
+            if (conversations.ContainsKey(id)) return conversations[id];
+            return null;
+        }
+
+        public static void Create(string id)
+        {
+            if (!conversations.ContainsKey(id))
+                conversations.Add(id, new Conversation());
+        }
+
+        #endregion
+    }
+
+    internal class BotGroup
+    {
+        #region Fields
+
+        private string id;
+
+        public string ID
+        {
+            get { return id; }
+        }
+
+        private long telegramID;
+
+        public long TelegramID
+        {
+            get { return telegramID; }
+        }
 
         private string name;
 
         public string Name
         {
             get { return name; }
-            set { name = value; }
+            set
+            {
+                name = value;
+                Jovice.CenterDatabase.Execute("update BotGroup set BG_Name = {0} where BG_ID = {1}", name, id);
+            }
         }
 
-        private string nick;
+        private bool administrative;
 
-        public string Nick
+        public bool Administrative
         {
-            get { return nick; }
-            set { nick = value; }
+            get { return administrative; }
+            set
+            {
+                administrative = value;
+                Jovice.CenterDatabase.Execute("update BotGroup set BG_Administrative = {0} where BG_ID = {1}", administrative.ToInt(), id);
+            }
         }
 
         #endregion
 
-        public TelegramUserIdentity(string name)
+        #region Constructors
+
+        public BotGroup(string id, long telegramID, bool administrative)
         {
-            this.name = name;
+            this.id = id;
+            this.telegramID = telegramID;
+            this.administrative = administrative;
         }
+
+        #endregion
     }
 
-    internal static class TelegramBot
+    internal class BotUser
     {
         #region Fields
 
-        private static string userName = null;
+        private string id;
 
-        private static TelegramBotClient telegramBot = null;
-        private static DateTime startDate;
-        private static List<long> groups = new List<long>();
-        private static Dictionary<int, TelegramUserIdentity> identities = new Dictionary<int, TelegramUserIdentity>();
-        private static Dictionary<int, Tuple<string, object, int>> talks = new Dictionary<int, Tuple<string, object, int>>();
-        private static Dictionary<long, int> lastFromIDs = new Dictionary<long, int>();
+        public string ID
+        {
+            get { return id; }
+        }
 
-        private static List<long> noticeWhenNecrowIsBackUp = new List<long>();
+        private int telegramID;
 
-        private static List<long> noticeWhenCPUWarning = new List<long>();
-        private static DateTime noticeWhenCPUWarningLast = DateTime.MinValue;
-        private static int noticeWhenCPUWarningCount = 0;
+        public int TelegramID
+        {
+            get { return telegramID; }
+        }
 
+        private string name;
+
+        public string Name
+        {
+            get { return name; }
+            set
+            {
+                name = value;
+                Jovice.CenterDatabase.Execute("update BotUser set BU_Name = {0} where BU_ID = {1}", name, id);               
+            }
+        }
 
         #endregion
 
+        #region Constructors
+
+        public BotUser(string id, int telegramID, string name)
+        {
+            this.id = id;
+            this.telegramID = telegramID;
+            this.name = name;
+        }
+
+        #endregion
+
+    }
+    
+    internal static class TelegramBot
+    {
+        #region Fields
+        
+        private static TelegramBotClient telegramBot = null;
+        private static string userName = null;
+        private static DateTime startDate;
+
+        private static Dictionary<long, BotGroup> botGroups = new Dictionary<long, BotGroup>();
+        private static Dictionary<int, BotUser> botUsers = new Dictionary<int, BotUser>();
+        
+
+        #endregion
+        
+        private static List<string> WordCombination(string pattern)
+        {
+            List<string> list = new List<string>();
+            List<Tuple<char, int>> parts = new List<Tuple<char, int>>();
+
+            char lastChar = '-';
+            foreach (char c in pattern)
+            {
+                if (char.IsDigit(c))
+                {
+                    if (lastChar != '-')
+                    {
+                        parts.Add(new Tuple<char, int>(lastChar, int.Parse(c + "")));
+                        lastChar = '-';
+                    }
+                }
+                else if (lastChar != c)
+                {
+                    if (lastChar != '-')
+                        parts.Add(new Tuple<char, int>(lastChar, 1));
+                    lastChar = c;
+                }
+            }
+            if (lastChar != '-') parts.Add(new Tuple<char, int>(lastChar, 1));
+            WordCombinationCreate(list, new StringBuilder(), parts, 0);
+            return list;
+        }
+
+        private static void WordCombinationCreate(List<string> result, StringBuilder sb, List<Tuple<char, int>> parts, int index)
+        {
+            if (index < parts.Count)
+            {
+                Tuple<char, int> part = parts[index];
+                for (int i = 0; i < part.Item2; i++)
+                {
+                    StringBuilder sbc = new StringBuilder();
+                    for (int j = 0; j < (i + 1); j++) sbc.Append(part.Item1);
+                    StringBuilder sbClone = new StringBuilder(sb.ToString());
+                    WordCombinationCreate(result, sbClone.Append(sbc.ToString()), parts, index + 1);
+                }
+            }
+            else result.Add(sb.ToString());
+        }
+
+
+             
         internal static void Init()
         {
-            Database share = Share.Database;
-            Result result;
 #if DEBUG
             telegramBot = new TelegramBotClient("353770204:AAEs0Snc9Zc9crw-8_zQS8QGHyI0A4QBE6E");
             userName = "@TelkomCenterDevBot";
@@ -72,134 +219,46 @@ namespace Center
             userName = "@TelkomCenterBot";
 #endif
 
-            telegramBot.OnMessage += OnMessage;
+            Database center = Jovice.CenterDatabase;
+            Result result;
 
+            telegramBot.OnMessage += OnMessage;
             telegramBot.MessageOffset = -1; // get only last 1 message before this bot even start
             startDate = DateTime.UtcNow;
-
-            string groupsSetting = Settings.Get("TelegramBotCenterGroups");
-            if (groupsSetting != null)
-            {
-                string[] groupTokens = groupsSetting.Split(StringSplitTypes.Comma);
-                foreach (string groupToken in groupTokens)
-                {
-                    long group;
-                    if (long.TryParse(groupToken, out group)) groups.Add(group);
-                }
-            }
-
-            result = share.Query("select * from TelegramUser");
-
+            
+            result = center.Query("select * from BotGroup");
             foreach (Row row in result)
             {
-                int id = row["TU_ID"].ToInt();
-                string name = row["TU_Name"].ToString();
-                string nick = row["TU_Nick"].ToString();
+                long tid = row["BG_TelegramID"].ToLong();
+                string id = row["BG_ID"].ToString();
+                bool admin = row["BG_Administrative"].ToBool();
 
-                TelegramUserIdentity tui = new TelegramUserIdentity(name);
-                tui.Nick = nick == "" ? null : nick;
-                identities.Add(id, tui);
+                botGroups.Add(tid, new BotGroup(id, tid, admin));
             }
+
+            result = center.Query("select * from BotUser");
+            foreach (Row row in result)
+            {
+                int tid = row["BU_TelegramID"].ToInt();
+                string id = row["BU_ID"].ToString();
+                string name = row["BU_Name"].ToString();
+            }
+
+            Intent.Init();
 
             telegramBot.StartReceiving();
-
-            foreach (long group in groups)
-            {
-                SendMessage("telkom.center is now online, PM me " + userName + " if you want to let me know more about you", group);
-            }
-
-            foreach (KeyValuePair<int, TelegramUserIdentity> pair in identities)
-            {
-                if (pair.Value.Nick == null)
-                {
-                    SetTalk("chat>setnickname", null, 0, pair.Key);
-                }
-            }
         }
 
         public delegate void SendMessageCallBack(Message message);
 
         #region Events
 
-        internal static void CPUWarning()
-        {
-            if (DateTime.Now - noticeWhenCPUWarningLast > TimeSpan.FromSeconds(240))
-            {
-                noticeWhenCPUWarningCount++;
-                noticeWhenCPUWarningLast = DateTime.Now;
-
-                double cpuUsage = Server.CPUUsage;
-                foreach (long chatID in noticeWhenCPUWarning)
-                {
-                    if (noticeWhenCPUWarningCount == 1)
-                    {
-                        SendMessage(new string[] {
-                            "Warning, telkom.center's CPU is at " + cpuUsage + "%",
-                            "Warning, CPU's at " + cpuUsage + "%",
-                            "Be advised, my server's CPU is at " + cpuUsage + "%",
-                            "My server's CPU at " + cpuUsage + "%, please be advised",
-                            "telkom.center's CPU is at " + cpuUsage + "%, please be warned"
-                        }, chatID);
-                    }
-                    else if (noticeWhenCPUWarningCount == 2)
-                    {
-                        SendMessage(new string[] {
-                            "telkom.center's high CPU has already lasted 5 minutes, please be advised",
-                            "Please be advised, My server's CPU is at " + cpuUsage +"%, and this >90% has already lasted for 5 minutes",
-                            "Warning, CPU's at " + cpuUsage + "%, and already lasted for 5 minutes"
-                        }, chatID);
-                    }
-                    else if (noticeWhenCPUWarningCount > 2)
-                    {
-                        SendMessage(new string[] {
-                            "Be advised, telkom.center's high CPU has lasted for more than 9 minutes",
-                            "Warning CPU's high level already lasted for more than 9 minutes. Currently at " + cpuUsage + "%",
-                            "My server's CPU at " + cpuUsage + ", this high level has already lasted for more than 9 minutes",
-                        }, chatID);
-                    }
-                }
-            }
-        }
-
-        internal static void CPUOK()
-        {
-            if (noticeWhenCPUWarningCount > 0)
-            {
-                noticeWhenCPUWarningCount = 0;
-                noticeWhenCPUWarningLast = DateTime.MinValue;
-
-                foreach (long chatID in noticeWhenCPUWarning)
-                {
-                    SendMessage(new string[] {
-                    "telkom.center's CPU is at normal level now",
-                    "CPU's level is okay now",
-                    "Please be advised, my server's CPU is okay now",
-                    "My server's CPU is okay now",
-                    "Server's CPU is at normal level now",
-                    "telkom.center's CPU is okay now"
-                }, chatID);
-                }
-            }
-        }
-
         internal static void NecrowOnline()
         {
-            if (noticeWhenNecrowIsBackUp.Count > 0)
-            {
-                foreach (long chatID in noticeWhenNecrowIsBackUp)
-                {
-                    SendMessage("Necrow is now back up", chatID);
-                }
-                noticeWhenNecrowIsBackUp.Clear();
-            }
         }
 
         internal static void NecrowOffline()
         {
-            foreach (long chatID in groups)
-            {
-                SendMessage("I lost connection to Necrow", chatID);
-            }
         }
 
         internal static void NecrowProbeStatus(ServerNecrowServiceMessage m)
@@ -251,7 +310,7 @@ namespace Center
                     node + " is up to date. Continue the probe?",
                     node + " is up to date. You want to continue the probe?"
                 }, (long)m.IdentifierData1, (int)m.IdentifierData2, (int)m.IdentifierData3);
-                SetTalk("necrow>probe>continueprobe?", node, (int)m.IdentifierData2, (int)m.IdentifierData3);
+                //SetTalk("necrow>probe>continueprobe?", node, (int)m.IdentifierData2, (int)m.IdentifierData3);
             }
             else if (ev == "ERROR")
             {
@@ -275,7 +334,7 @@ namespace Center
                     "Retry?",
                     "You want to try it again?"
                 }, (long)m.IdentifierData1, (int)m.IdentifierData2, (int)m.IdentifierData3, 1500, null);
-                SetTalk("necrow>probe>retry?", node, (int)m.IdentifierData2, (int)m.IdentifierData3);
+                //SetTalk("necrow>probe>retry?", node, (int)m.IdentifierData2, (int)m.IdentifierData3);
             }
             else if (ev == "FINISH")
             {
@@ -286,7 +345,7 @@ namespace Center
                      node + " has successfully probed",
                      "I inform you that " + node + " is successfully probed"
                 }, (long)m.IdentifierData1, (int)m.IdentifierData2, (int)m.IdentifierData3, true);
-                SetTalk("smalltalk", null, 0, (int)m.IdentifierData3);
+                //SetTalk("smalltalk", null, 0, (int)m.IdentifierData3);
             }
         }
 
@@ -373,7 +432,7 @@ namespace Center
                     {
                         if (chatID != fromID)
                         {
-                            if (forceReply || LastFromID(chatID) != fromID) toReply = replyMessageID;
+                            //if (forceReply || LastFromID(chatID) != fromID) toReply = replyMessageID;
                         }
                     }
 
@@ -391,40 +450,6 @@ namespace Center
             {
                 //Service.Debug("Message not sent: " + message);
             }
-        }
-
-        #endregion
-
-        #region Conversation Handle
-
-        private static int LastFromID(long chatID)
-        {
-            int lastFromID = 0;
-            if (!lastFromIDs.ContainsKey(chatID))
-                lastFromIDs.Add(chatID, 0);
-            else lastFromID = lastFromIDs[chatID];
-            return lastFromID;
-        }
-
-        private static void SetTalk(string talk, object register, int replyRegister, int fromID)
-        {
-            if (talks.ContainsKey(fromID))
-                talks[fromID] = new Tuple<string, object, int>(talk, register, replyRegister);
-            else
-                talks.Add(fromID, new Tuple<string, object, int>(talk, register, replyRegister));
-        }
-
-        private static void ClearTalk(int fromID)
-        {
-            SetTalk(null, null, 0, fromID);
-        }
-
-        private static Tuple<string, object, int> GetTalk(int fromID)
-        {
-            if (talks.ContainsKey(fromID))
-                return talks[fromID];
-            else
-                return new Tuple<string, object, int>(null, null, 0);
         }
 
         #endregion
@@ -451,7 +476,7 @@ namespace Center
                         nodeName + " is inactive. Do you still want to probe this node?",
                         nodeName + " is not active. Do you still want to probe this node?"
                     }, chatID, messageID, fromID);
-                    SetTalk("necrow>probe>forceinactive?", nodeName, messageID, fromID);
+                    //SetTalk("necrow>probe>forceinactive?", nodeName, messageID, fromID);
                 }
                 else
                 {
@@ -476,7 +501,7 @@ namespace Center
                         "Right away sir, " + nodeName + " shall be done"
                     }, chatID, messageID, fromID, true);
 
-                    ClearTalk(fromID);
+                    //ClearTalk(fromID);
                 }
             }
             else
@@ -538,7 +563,7 @@ dbo.DoubleMetaPhone({0}) and LOWER(SUBSTRING(NO_Name, 0, CHARINDEX('-', NO_Name,
                                         "Probably what you want to probe are whether " + possibilities[0] + " or " + possibilities[1] + ", which one?",
                                     }, chatID, messageID, fromID, true);
 
-                                    SetTalk("necrow>probe>choice?", string.Join(",", possibilities.ToArray()), messageID, fromID);
+                                    //SetTalk("necrow>probe>choice?", string.Join(",", possibilities.ToArray()), messageID, fromID);
                                 }
                                 else if (possibilities.Count > 2 && possibilities.Count <= 4)
                                 {
@@ -552,7 +577,7 @@ dbo.DoubleMetaPhone({0}) and LOWER(SUBSTRING(NO_Name, 0, CHARINDEX('-', NO_Name,
                                         "Based on my database, I guess what you mean are whether " + which + ", which one?",
                                     }, chatID, messageID, fromID, true);
 
-                                    SetTalk("necrow>probe>choice?", string.Join(",", possibilities.ToArray()), messageID, fromID);
+                                    //SetTalk("necrow>probe>choice?", string.Join(",", possibilities.ToArray()), messageID, fromID);
                                 }
                                 else
                                 {
@@ -564,7 +589,7 @@ dbo.DoubleMetaPhone({0}) and LOWER(SUBSTRING(NO_Name, 0, CHARINDEX('-', NO_Name,
                                         "There is no probe called " + probe + " in my database"
                                     }, chatID, messageID, fromID, true);
 
-                                    SetTalk("smalltalk", null, 0, fromID);
+                                    //SetTalk("smalltalk", null, 0, fromID);
                                 }
                             }
                             else
@@ -576,7 +601,7 @@ dbo.DoubleMetaPhone({0}) and LOWER(SUBSTRING(NO_Name, 0, CHARINDEX('-', NO_Name,
                                     "Did you mean the name you want to probe is " + possibilities[0] + "?"
                                 }, chatID, messageID, fromID, true);
 
-                                SetTalk("necrow>probe>choice?", possibilities[0], messageID, fromID);
+                                //SetTalk("necrow>probe>choice?", possibilities[0], messageID, fromID);
                             }
                         }
                         else
@@ -586,7 +611,7 @@ dbo.DoubleMetaPhone({0}) and LOWER(SUBSTRING(NO_Name, 0, CHARINDEX('-', NO_Name,
                                 "I am sorry, I cannot find " + probe + " in my database"
                             }, chatID, messageID, fromID, true);
 
-                            SetTalk("smalltalk", null, 0, fromID);
+                            //SetTalk("smalltalk", null, 0, fromID);
                         }
                     }
                     else if (depan.StartsWith("me", "pe", "ces", "hrb") && !tengah.StartsWith("d"))
@@ -596,7 +621,7 @@ dbo.DoubleMetaPhone({0}) and LOWER(SUBSTRING(NO_Name, 0, CHARINDEX('-', NO_Name,
                             "The D-part of specified node is not correct"
                         }, chatID, messageID, fromID, true);
 
-                        SetTalk("smalltalk", null, 0, fromID);
+                        //SetTalk("smalltalk", null, 0, fromID);
                     }
                     else
                     {
@@ -608,7 +633,7 @@ dbo.DoubleMetaPhone({0}) and LOWER(SUBSTRING(NO_Name, 0, CHARINDEX('-', NO_Name,
                             "Please specify the correct node",
                         }, chatID, messageID, fromID, true);
 
-                        SetTalk("smalltalk", null, 0, fromID);
+                        //SetTalk("smalltalk", null, 0, fromID);
                     }
                 }
             }
@@ -617,6 +642,68 @@ dbo.DoubleMetaPhone({0}) and LOWER(SUBSTRING(NO_Name, 0, CHARINDEX('-', NO_Name,
         #endregion
 
         private static void OnMessage(object sender, Telegram.Bot.Args.MessageEventArgs e)
+        {
+            Stopwatch timeProcess = new Stopwatch();
+
+            timeProcess.Start();
+
+            #region Start
+
+            Database share = Share.Database;
+            if (e.Message.Date < startDate) return;
+            string message = e.Message.Text;
+            if (message == null) return;
+
+            bool isPrivateMessage = (e.Message.Chat.Id == e.Message.From.Id);
+
+            long chatID = e.Message.Chat.Id;
+            int fromID = e.Message.From.Id;
+
+            #endregion
+
+            Intent intent = Intent.Parse(message);
+
+            if (intent != null)
+            {
+                string conversationID = fromID + "_" + chatID;
+                Conversation conversation = Conversation.Get(conversationID);
+
+                if (conversation != null)
+                {
+
+                }
+                else
+                {
+                    //if (intent.MentionMe && intent.GroupIs("greet"))
+                    //{
+                    //    Conversation.Create(conversationID);
+                    //    OnMessage(sender, e);
+                    //    return;
+                    //}
+                    //else
+                    //{
+                        // no mention
+                    //}
+                }
+                timeProcess.Stop();
+
+                Service.Debug(message);
+                Service.Debug("elapsed: " + timeProcess.ElapsedMilliseconds + "ms");
+                foreach (IntentEntity ent in intent.Entities)
+                {
+                    Service.Debug("intent: " + ent.Intent + "; asking: " + ent.Asking);
+
+                }
+            }
+            else
+                Service.Debug("not parsed");
+        }
+
+        // obsoleted
+
+        #region
+            /*
+        private static void OnOldMessage(object sender, Telegram.Bot.Args.MessageEventArgs e)
         {
             Database share = Share.Database;
 
@@ -703,13 +790,165 @@ dbo.DoubleMetaPhone({0}) and LOWER(SUBSTRING(NO_Name, 0, CHARINDEX('-', NO_Name,
                     {
                         #region /client
 
-                        int sc = Provider.GetSessionCount();
-                        if (sc == 0)
+                        int sessionsCount = Provider.SessionInstances.Count;
+
+                        Result result = share.Query("select * from Session where SS_ClientsCount > 0 order by SS_ClientsCount desc");
+
+                        Parser parser = Parser.GetDefault();
+                        
+
+                        Dictionary<string, Tuple<string, string, DateTime, int>> sessions = new Dictionary<string, Tuple<string, string, DateTime, int>>();
+                        foreach (Row row in result)
                         {
-                            SendMessage("There are no active session currently on telkom.center", chatID, messageID, fromID);
+                            string sid = row["SS_SID"].ToString();
+                            string ip = row["SS_IPAddress"].ToString();
+                            string uas = row["SS_UserAgent"].ToString();
+                            DateTime created = row["SS_Created"].ToDateTime();
+                            int clients = row["SS_ClientsCount"].ToInt();
+
+                            sessions.Add(sid, new Tuple<string, string, DateTime, int>(ip, uas, created, clients));
                         }
-                        else SendMessage("There " + (sc == 1 ? "is" : "are") + " " + sc + " active session" + (sc > 1 ? "s" : "") +
-                            " on telkom.center at the moment", chatID, messageID, fromID);
+
+                        Dictionary<string, int> addressSessionCount = new Dictionary<string, int>();
+                        Dictionary<string, int> subnetCount = new Dictionary<string, int>();
+                        Dictionary<string, int> osCount = new Dictionary<string, int>();
+                        List<string> userAgentSession = new List<string>();
+                        Dictionary<string, int> userAgentCount = new Dictionary<string, int>();
+                        Dictionary<string, DateTime> ipSessionCreated = new Dictionary<string, DateTime>();
+
+                        string clientCountMostIP = null;
+                        int clientCountMost = 1;
+
+                        foreach (KeyValuePair<string, StreamSessionInstance> pair in Provider.SessionInstances)
+                        {
+                            string sid = pair.Key;
+                            if (sessions.ContainsKey(sid))
+                            {
+                                Tuple<string, string, DateTime, int> data = sessions[sid];
+                                string ip = data.Item1;
+                                string uas = data.Item2;
+                                DateTime created = data.Item3;
+                                int clientCount = data.Item4;
+
+                                if (clientCount > clientCountMost)
+                                {
+                                    clientCountMostIP = ip;
+                                    clientCountMost = clientCount;
+                                }                                
+
+                                ipSessionCreated.Add(ip + "_" + sid, created);
+
+                                if (addressSessionCount.ContainsKey(ip))
+                                    addressSessionCount[ip]++;
+                                else
+                                {
+                                    addressSessionCount.Add(ip, 1);
+
+                                    IPNetwork ipn = IPNetwork.Parse(ip + "/24");
+                                    string subnet = ipn.Network.ToString();
+
+                                    if (subnetCount.ContainsKey(subnet))
+                                        subnetCount[subnet]++;
+                                    else
+                                        subnetCount.Add(subnet, 1);
+
+                                    OS os = parser.ParseOS(uas);
+
+                                    string osKey = (os.Family + " " + os.Major).Trim();
+
+                                    if (osCount.ContainsKey(osKey)) osCount[osKey]++;
+                                    else osCount.Add(osKey, 1);
+                                }
+
+                                UserAgent ua = parser.ParseUserAgent(uas);
+                                string uaKey = ua.Family.Trim();
+
+                                string uaSKey = uaKey + "_" + ip;
+
+                                if (userAgentSession.Contains(uaSKey)) { }
+                                else
+                                {
+                                    userAgentSession.Add(uaSKey);
+
+                                    if (userAgentCount.ContainsKey(uaKey)) userAgentCount[uaKey]++;
+                                    else userAgentCount.Add(uaKey, 1);
+                                }
+                            }
+                        }
+
+                        List<KeyValuePair<string, int>> subnetCountList = subnetCount.ToList();
+                        subnetCountList.Sort((pair2, pair1) => pair1.Value.CompareTo(pair2.Value));
+
+                        string subnetInfo = "";
+
+                        if (subnetCountList.Count > 2)
+                            subnetInfo = "Out of " + subnetCountList.Count + " subnets, most of them coming from subnet " + subnetCountList[0].Key + " (" + subnetCountList[0].Value + ") and " + subnetCountList[1].Key + " (" + subnetCountList[1].Value + ").";
+                        else if (subnetCountList.Count == 2)
+                            subnetInfo = "All connections are from subnet " + subnetCountList[0].Key + " (" + subnetCountList[0].Value + ") and " + subnetCountList[1].Key + " (" + subnetCountList[1].Value + ").";
+                        else if (subnetCountList.Count == 1)
+                            subnetInfo = "All connections are from subnet " + subnetCountList[0].Key + ".";
+
+                        if (subnetInfo != "") subnetInfo += "\n";
+
+                        List<KeyValuePair<string, int>> osCountList = osCount.ToList();
+                        osCountList.Sort((pair2, pair1) => pair1.Value.CompareTo(pair2.Value));
+                        
+                        string osInfo = "";
+
+                        if (osCountList.Count >= 3)
+                            osInfo = "Top there OS used by clients are " + osCountList[0].Key + " (" + osCountList[0].Value + "), " + osCountList[1].Key + " (" + osCountList[1].Value + ") and " + osCountList[2].Key + " (" + osCountList[2].Value + ").";
+                        else if (osCountList.Count == 2)
+                            osInfo = "All clients are using either " + osCountList[0].Key + " (" + osCountList[0].Value + ") or " + osCountList[1].Key + " (" + osCountList[1].Value + ").";
+                        else if (osCountList.Count == 1)
+                            osInfo = "All clients are using " + osCountList[0].Key + ".";
+
+                        if (osInfo != "") osInfo += "\n";
+
+                        List<KeyValuePair<string, int>> userAgentCountList = userAgentCount.ToList();
+                        userAgentCountList.Sort((pair2, pair1) => pair1.Value.CompareTo(pair2.Value));
+
+                        string userAgentInfo = "";
+
+                        if (userAgentCountList.Count >= 3)
+                            userAgentInfo = "Top three browsers used by clients are " + userAgentCountList[0].Key + " (" + userAgentCountList[0].Value + "), " + userAgentCountList[1].Key + " (" + userAgentCountList[1].Value + ") and " + userAgentCountList[2].Key + " (" + userAgentCountList[2].Value + ").";
+                        else if (userAgentCountList.Count == 2)
+                            userAgentInfo = "All clients are using either " + userAgentCountList[0].Key + " (" + userAgentCountList[0].Value + ") or " + userAgentCountList[1].Key + " (" + userAgentCountList[1].Value + ").";
+                        else if (userAgentCountList.Count == 1)
+                            userAgentInfo = "All clients are using " + userAgentCountList[0].Key + ".";
+
+                        if (userAgentInfo != "") userAgentInfo += "\n";
+
+                        List<KeyValuePair<string, DateTime>> ipSessionCreatedList = ipSessionCreated.ToList();
+                        ipSessionCreatedList.Sort((pair2, pair1) => pair2.Value.CompareTo(pair1.Value));
+
+                        string theLongestInfo = "";
+
+                        if (ipSessionCreatedList.Count > 0)
+                            theLongestInfo = "The longest current connected client is IP " + ipSessionCreatedList[0].Key.Split('_')[0] + " for " + (DateTime.UtcNow - ipSessionCreatedList[0].Value).Humanize() + ".";
+
+                        if (theLongestInfo != "") theLongestInfo += "\n";
+
+                        string mostClients = "";
+
+                        if (clientCountMostIP != null)
+                            mostClients = "Client on IP " + clientCountMostIP + " has the most tab opened in his/her browser: " + clientCountMost + " tabs";
+
+                        if (mostClients != "") mostClients += "\n";
+
+
+                        if (sessionsCount > 0)
+                        {
+                            SendMessage(string.Format(@"
+There are currently {0} active connections to telkom.center.
+{1}{2}{3}{4}{5}
+                            ", addressSessionCount.Count, 
+                            subnetInfo, 
+                            osInfo, 
+                            userAgentInfo,
+                            theLongestInfo,
+                            mostClients).Trim(), chatID, messageID, fromID);
+                        }
+                        else SendMessage("There are no active session currently on telkom.center", chatID, messageID, fromID);
 
                         #endregion
                     }
@@ -1287,6 +1526,7 @@ dbo.DoubleMetaPhone({0}) and LOWER(SUBSTRING(NO_Name, 0, CHARINDEX('-', NO_Name,
                                 
                         identities[fromID].Name = name;
                     }
+
                     
                     if (messageTalk == "chat>setnickname")
                     {
@@ -1429,13 +1669,32 @@ dbo.DoubleMetaPhone({0}) and LOWER(SUBSTRING(NO_Name, 0, CHARINDEX('-', NO_Name,
                     }
                     else
                     {
+                        if (messageLower == "/start" || messageIntent == "called")
+                        {
+                            #region /start
+
+                            SendMessage(new string[] {
+                                "Hi " + nick + ", anything that I can help?",
+                                "Greetings " + nick + ", how can I help?",
+                                "What's up, " + nick + "?",
+                                "Greetings!"
+                            }, chatID, messageID, fromID);
+
+                            #endregion
+                        }
+                        else if (messageIntent == "called>salam")
+                        {
+                            SendMessage("Wassalamualaikum Warahmatullohi Wabarakatuh, " + nick, chatID, messageID, fromID);
+                        }
                     }
                 }
 
                 #endregion
+                
             }
-
-            
         }
+
+        */
+        #endregion
     }
 }

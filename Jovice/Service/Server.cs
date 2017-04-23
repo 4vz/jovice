@@ -92,7 +92,7 @@ namespace Center
                     else if (DateTime.Now - markCpuWarning > TimeSpan.FromSeconds(60))
                     {
                         // this already existed for mor than 60 seconds, give warning, continuesly
-                        TelegramBot.CPUWarning();
+                        //TelegramBot.CPUWarning();
                     }
                 }
                 else
@@ -106,7 +106,7 @@ namespace Center
                             // cpu is okay now
                             markCpuOkay = DateTime.MinValue;
                             markCpuWarning = DateTime.MinValue;
-                            TelegramBot.CPUOK();
+                            //TelegramBot.CPUOK();
                         }
                     }
                 }
@@ -153,8 +153,8 @@ namespace Center
 
             if (m.Type == NecrowServiceMessageType.Hello)
             {
-                NecrowSend(new ServerNecrowServiceMessage(NecrowServiceMessageType.HelloResponse));
                 necrowConnection = e.Connection;
+                NecrowSend(new ServerNecrowServiceMessage(NecrowServiceMessageType.HelloResponse));
                 TelegramBot.NecrowOnline();
 
                 //Provider.SetActionByRegisterMatch("service_[ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=]+", "yayaya");

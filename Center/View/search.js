@@ -252,6 +252,546 @@
         }, 100);
     };
 
+
+
+    // topology
+    function drawTopology(f, ref, topology, index, area) {
+        if (topology.length > 0) {
+            area.show();
+
+            if (ref.topologyCanvas == null) {
+                ref.topologyCanvas = ui.raphael(area)({ left: 0, top: 0, height: 28 });
+                ref.topologyContents = ui.box(area)({ left: 0, top: 0, height: 28 });
+            }
+
+            function setWidth(w) {
+                ref.topologyCanvas.width(w);
+                ref.topologyContents.width(w);
+            };
+            function getSection(key) {
+                var ar = null;
+                $.each(topology, function (ai, av) {
+                    if (av[0] == key) {
+                        ar = av;
+                        return false;
+                    }
+                });
+                return ar;
+            };
+            var g = ref.topologyCanvas.paper(); g.clear();
+            var c = ref.topologyContents; c.removeChildren();
+
+            ui.icon(c, center.icon("topology"))({ top: 7, left: 0, color: 45, size: [16, 16] });
+            
+            var clink = null;
+            var clinkstate = null;
+
+            var left = 22;
+            var rightLastMile = false;
+
+            // pi
+            var pi = getSection("PI");
+            if (pi != null) {
+                var piNO = ui.text(c)({
+                    text: pi[1], top: 3, font: 15, left: left, noBreak: true, clickToSelect: true, cursor: "copy"
+                });
+                left = piNO.leftWidth();
+                var piName = ui.text(c)({
+                    text: center.formatInterfaceName(pi[8], pi[2]), top: 5, font: 12, left: left + 10, color: pi[10] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                });
+                left = piName.leftWidth();
+
+                clink = g.rect(left + 10, 11, 15, 5).attr({ stroke: "none", fill: ui.color(pi[11] ? 35 : 75) });
+                left += 25;
+
+                clinkstate = pi[11];
+
+                setWidth(left);
+
+                ref.piid = pi[27];
+                ref.piname = pi[8];
+                ref.pistatus = pi[10];
+                ref.pino = pi[1];
+
+                if (pi[12] > 0) {
+                    var rt = pi[12] * 1024;
+                    var fb = center.formatBytes(rt, 10);
+                    var spt = fb[0] + "";
+                    var spr = spt.split('.')[0];
+                    ref.perateinput = spr + " " + fb[1] + "PS";
+                }
+                else {
+                    ref.perateinput = null;
+                }
+                if (pi[13] > 0) {
+                    var rt = pi[13] * 1024;
+                    var fb = center.formatBytes(rt, 10);
+                    var spt = fb[0] + "";
+                    var spr = spt.split('.')[0];
+                    ref.perateoutput = spr + " " + fb[1] + "PS";
+                }
+                else {
+                    ref.perateoutput = null;
+                }
+
+                if (pi[25] != null) {
+                    var pkg = pi[25];
+                    if (pkg == "6") ref.pepackage = "UNMANAGED";
+                    else if (pkg == "7") ref.pepackage = "CUSTOMIZED";
+                    else ref.pepackage = pkg;
+                }
+                else ref.pepackage = "UNMANAGED";
+
+                ref.piid = pi[27];
+
+                //if (topologyIndex == 0) piid = ref.piid;
+            }
+            else {
+                ref.piid = null;
+                ref.piname = null;
+                ref.pino = null;
+            }
+
+            // xpi
+            var xpi = getSection("XPI");
+            if (xpi != null) {
+                //1: no
+                //2: pi
+                var xpiNO = ui.text(c)({
+                    text: xpi[1], top: 3, left: left, font: 15, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
+                });
+                left = xpiNO.leftWidth();
+                var xpiName = ui.text(c)({
+                    text: xpi[2], top: 5, font: 12, left: left + 10, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
+                });
+                left = xpiName.leftWidth();
+
+                clink = g.rect(left + 10, 11, 15, 5).attr({ stroke: "none", fill: ui.color(75) });
+                left += 25;
+                clinkstate = true;
+
+                setWidth(left);
+
+                var nebox = ui.box(c)({
+                    color: 96, size: [69, 22], left: (left - 69) / 2, top: 2, cursor: "default", button: {
+                        normal: function () {
+                            nebox.animate({ opacity: 1 }, { duration: 50 });
+                        },
+                        over: function () {
+                            nebox.opacity(0);
+                        }
+                    }
+                });
+                var netxt = ui.text(nebox)({
+                    text: "MISSING", left: 5, top: 1, font: 15, noBreak: true
+                });
+            }
+
+            var mid = getSection("MID");
+            if (mid != null) {
+                var midNO = ui.text(c)({
+                    text: mid[1], left: left, top: 3, font: 15, color: 0, noBreak: true, clickToSelect: true, cursor: "copy"
+                });
+                left = midNO.leftWidth();
+
+                var midName = ui.text(c)({
+                    text: center.formatInterfaceName(mid[5], mid[2]), top: 5, font: 12, left: left + 10, color: mid[7] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                });
+                left = midName.leftWidth();
+
+                setWidth(left);
+            }
+
+            var lightningLeft = null;
+
+            // mil
+            var mil = getSection("MIL");
+            if (mil != null) {
+                var endlLocal = ui.text(c)({
+                    text: "LAST MILE", left: left, top: 5, font: 12, noBreak: true
+                });
+                left = endlLocal.leftWidth();
+
+                if (mil[1] != null) {
+                    g.rect(left + 10, 11, 5, 5).attr({ stroke: "none", fill: ui.color(35) });
+                    g.rect(left + 10 + 8, 11, 5, 5).attr({ stroke: "none", fill: ui.color(35) });
+                    g.rect(left + 10 + 16, 11, 5, 5).attr({ stroke: "none", fill: ui.color(35) });
+                    g.rect(left + 10 + 24, 11, 5, 5).attr({ stroke: "none", fill: ui.color(35) });
+
+                    left += 40;
+
+                    var end2NO = ui.text(c)({
+                        text: mil[1], top: 3, font: 15, left: left + 10, noBreak: true, clickToSelect: true, cursor: "copy"
+                    });
+                    left = end2NO.leftWidth();
+
+                    var end2NameVar = mil[2];
+                    if (end2NameVar != "UNSPECIFIED" && end2NameVar != null) {
+                        if (end2NameVar.startsWith("Ex")) end2NameVar = end2NameVar.substr(2);
+                        var end2Name = ui.text(c)({
+                            text: end2NameVar, top: 5, font: 12, left: left + 10, color: 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                        });
+                        left = end2Name.leftWidth();
+                    }
+
+                    lightningLeft = ui.icon(c, center.icon("lightning"))({
+                        size: [20, 20], left: left + 4, top: 5, color: 35,
+                        tooltipSpanColor: ["accent+50"]
+                    });
+                    left += 20;
+                }
+
+                clink = g.rect(left + 10, 11, 15, 5).attr({ stroke: "none", fill: ui.color(35) });
+                left += 25;
+                clinkstate = true;
+
+                setWidth(left);
+            }
+
+            // mi2
+            var mi2 = getSection("MI2");
+
+            if (mi2 != null) {
+
+                if (mi2[5] != null) {
+                    if (lightningLeft != null)
+                        lightningLeft.tooltip("{0|" + mil[1] + "} is based on interface description found on {0|" + mi2[1] + "} and may not same as actual device's name");
+
+                    if (clinkstate == mi2[8]) clink.attr({ width: 30 });
+                    else g.rect(left, 11, 15, 5).attr({ stroke: "none", fill: ui.color(mi2[8] ? 35 : 75) });
+                    left += 15;
+
+                    var mi2Name = ui.text(c)({
+                        text: center.formatInterfaceName(mi2[5], mi2[2]), top: 5, font: 12, left: left + 10, color: mi2[7] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                    });
+                    left = mi2Name.leftWidth();
+
+                    //24
+                    if (mi2[24] != null && mi2[24] > 1) {
+                        var multi = ui.icon(c, center.icon("split"))({
+                            size: [20, 20], left: left + 6, top: 3, color: 35, rotation: 90, flip: "V",
+                            tooltip: "{0|" + mi2[24] + "} INTERFACES",
+                            tooltipSpanColor: ["accent+50"]
+                        });
+                        left += 20;
+                    }
+                    left += 10;
+                }
+
+                var mi2NO = ui.text(c)({
+                    text: mi2[1], top: 3, font: 15, left: left, noBreak: true, clickToSelect: true, cursor: "copy"
+                });
+                left = mi2NO.leftWidth();
+
+                setWidth(left);
+            }
+            else if (pi != null) {
+
+                var pi2Link;
+
+                if (clinkstate == pi[11]) {
+                    clink.attr({ width: 30 });
+                    pi2Link = clink;
+                }
+                else
+                    pi2Link = g.rect(left, 11, 15, 5).attr({ stroke: "none", fill: ui.color(pi[11] ? 35 : 75) });
+                left += 15;
+
+                var pivar = pi[19];
+                if (pivar == "EX") {
+                    // 20 21 22
+                    var xmi2Name = ui.text(c)({
+                        text: center.formatInterfaceName(pi[20], pi[22]), top: 5, font: 12, left: left + 10, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
+                    });
+                    var xle = left;
+                    left = xmi2Name.leftWidth();
+                    var xmi2NO = ui.text(c)({
+                        text: pi[21], top: 3, font: 15, left: left + 10, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
+                    });
+                    pi2Link.attr({ fill: ui.color(75) });
+                    left = xmi2NO.leftWidth();
+
+                    var nebox = ui.box(c)({
+                        color: 96, size: [69, 22], left: (left - xle - 69) / 2 + xle, top: 2, cursor: "default", button: {
+                            normal: function () {
+                                nebox.animate({ opacity: 1 }, { duration: 50 });
+                            },
+                            over: function () {
+                                nebox.opacity(0);
+                            }
+                        }
+                    });
+                    var netxt = ui.text(nebox)({
+                        text: "MISSING", left: 5, top: 1, font: 15, noBreak: true
+                    });
+                }
+                else {
+
+                    if (pi[21] != null) {
+                        rightLastMile = true;
+
+                        if (pi[20] != "UNSPECIFIED") {
+                            var text = pi[20];
+                            if (text.startsWith("Ex")) text = text.substr(2);
+                            var piEndName = ui.text(c)({
+                                text: text, top: 5, font: 12, left: left + 10, color: pi[4] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                            });
+                            left = piEndName.leftWidth();
+                        }
+                        var piEndNO = ui.text(c)({
+                            text: pi[21], top: 3, font: 15, left: left + 10, noBreak: true, clickToSelect: true, cursor: "copy"
+                        });
+                        left = piEndNO.leftWidth();
+
+                    }
+                    else {
+                        var piEnd = ui.text(c)({
+                            text: "LAST MILE", top: 5, font: 12, left: left + 10, noBreak: true
+                        });
+                        left = piEnd.leftWidth();
+                    }
+                }
+
+                setWidth(left);
+            }
+            else {
+                // xmi2
+                var xmi2 = getSection("XMI2");
+                if (xmi2 != null) {
+                    var xpiName = ui.text(c)({
+                        text: "PE", top: 5, font: 12, left: left + 10, color: 75, noBreak: true
+                    });
+                    left = xpiName.leftWidth();
+
+                    var xpiLink = g.rect(left + 10, 11, 30, 5).attr({ stroke: "none", fill: ui.color(75) });
+                    left += 40;
+
+                    var xmi2Name = ui.text(c)({
+                        text: "METRO END 2", top: 5, font: 12, left: left + 10, color: 75, noBreak: true
+                    });
+                    left = xmi2Name.leftWidth();
+
+                    var nebox = ui.box(c)({
+                        color: 96, size: [69, 22], left: (left - 69) / 2 + 20, top: 2, cursor: "default", button: {
+                            normal: function () {
+                                nebox.animate({ opacity: 1 }, { duration: 50 });
+                            },
+                            over: function () {
+                                nebox.opacity(0);
+                            }
+                        }
+                    });
+                    var netxt = ui.text(nebox)({
+                        text: "MISSING", left: 5, top: 1, font: 15, noBreak: true
+                    });
+                    setWidth(left);
+                }
+            }
+
+            var mx = getSection("MX");
+            if (mx != null) {
+                var multi = ui.icon(c, center.icon("split"))({
+                    size: [20, 20], left: left + 4, top: 3, color: 35, rotation: 90,
+                    tooltip: "{0|" + mx[1] + "} REMOTE PEERS",
+                    tooltipSpanColor: ["accent+50"]
+                });
+                left += 20;
+
+                var vcid = f.column("VCID")[index];
+
+                var linkbox = ui.box(c)({
+                    left: left + 10, top: 2, height: 22, color: 50, cursor: "pointer", button: {
+                        normal: function () { linkbox.color(50); },
+                        click: function () { center.searchExecute("services that bound to VCID " + vcid); },
+                        over: function () { linkbox.color(60); }
+                    }
+                });
+
+                var cloudsid = ui.text(linkbox)({
+                    left: 10, top: 2, font: 12, text: "CLOUD METRO VCID " + vcid, color: 100, noBreak: true
+                });
+
+                linkbox.width(cloudsid.width() + 20);
+
+                left = linkbox.leftWidth();
+
+                setWidth(left);
+            }
+
+            // mc
+            var rightcloud = null;
+            var rightcloudsid = null;
+            var mc = getSection("MC");
+            if (mc != null) {
+
+                if (mc[17] != null) {
+                    rightcloud = g.rect(left + 25, 2, 0, 22).attr({ stroke: "none", fill: null });
+                    rightcloudsid = mc[17];
+                }
+
+
+                var mpLink1 = g.rect(left + 10, 11, 15, 5).attr({ stroke: "none", fill: ui.color(mc[6] ? 35 : 75) });
+                left += 25;
+
+                if (mc[9] == mc[6]) {
+                    mpLink1.attr({ width: 30 });
+                }
+                else g.rect(left, 11, 15, 5).attr({ stroke: "none", fill: ui.color(mc[9] ? 35 : 75) });
+                left += 15;
+
+                if (mc[18] != null && mc[18] > 1) {
+                    var multi = ui.icon(c, center.icon("split"))({
+                        size: [20, 20], left: left + 4, top: 3, color: 35, rotation: 90, flip: "V",
+                        tooltip: "{0|" + mc[18] + "} REMOTE PEERS",
+                        tooltipSpanColor: ["accent+50"]
+                    });
+                    left += 20;
+                }
+
+                var mi1NO = ui.text(c)({
+                    text: mc[1], top: 3, font: 15, left: left + 10, noBreak: true, clickToSelect: true, cursor: "copy"
+                });
+                left = mi1NO.leftWidth();
+
+                setWidth(left);
+            }
+
+            var xmc = getSection("XMC");
+            if (xmc != null) {
+                g.rect(left + 10, 11, 30, 5).attr({ stroke: "none", fill: ui.color(75) });
+                var xleft = left;
+                left += 40;
+
+                var xmi1NO = ui.text(c)({
+                    text: xmc[1], top: 3, font: 15, left: left + 10, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
+                });
+                left = xmi1NO.leftWidth();
+
+                g.rect(left + 10, 11, 30, 5).attr({ stroke: "none", fill: ui.color(75) });
+                left += 40;
+
+                var end1Local = ui.text(c)({
+                    text: "LAST MILE", top: 5, font: 12, left: left + 10, color: 75, noBreak: true
+                });
+
+                left = end1Local.leftWidth();
+
+                var nebox = ui.box(c)({
+                    color: 96, size: [69, 22], left: (left + xleft - 69) / 2, top: 2, cursor: "default", button: {
+                        normal: function () {
+                            nebox.animate({ opacity: 1 }, { duration: 50 });
+                        },
+                        over: function () {
+                            nebox.opacity(0);
+                        }
+                    }
+                });
+                var netxt = ui.text(nebox)({
+                    text: "MISSING", left: 5, top: 1, font: 15, noBreak: true
+                });
+
+                setWidth(left);
+            }
+
+            // mi1
+            var mi1 = getSection("MI1");
+
+            if (mi1 != null) {
+
+                if (mi1[16] != null) {
+                    rightcloud = g.rect(left + 5, 2, 0, 22).attr({ stroke: "none", fill: null });
+                    rightcloudsid = mi1[16];
+                }
+
+
+                var ntype;
+                if (mc != null) ntype = mc[2];
+                else ntype = mi2[2];
+
+                var mi1Name = ui.text(c)({
+                    text: center.formatInterfaceName(mi1[1], ntype), top: 5, font: 12, left: left + 10, color: mi1[3] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                });
+                left = mi1Name.leftWidth();
+
+                var mi1Link = g.rect(left + 10, 11, 30, 5).attr({ stroke: "none", fill: ui.color(mi1[4] ? 35 : 75) });
+                left += 40;
+
+                var end1var = mi1[13];
+                var end1NO;
+                if (end1var == null) end1NO = "LAST MILE";
+                else {
+                    end1NO = end1var;
+
+                    var end1var2 = mi1[17];
+                    if (end1var2 != "UNSPECIFIED" && end1var2 != null) {
+                        end1var2 = center.formatInterfaceName(end1var2, "NEIGHBOR");
+                        var end1Name = ui.text(c)({
+                            text: end1var2, top: 5, font: 12, left: left + 10, color: mi1[4] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                        });
+                        left = end1Name.leftWidth();
+                    }
+                }
+
+                var end1 = ui.text(c)({
+                    text: end1NO, top: end1var == null ? 5 : 3, font: end1var == null ? 12 : 15, left: left + 10, noBreak: true, clickToSelect: end1var == null ? false : true, cursor: end1var == null ? "" : "copy"
+                });
+                left = end1.leftWidth();
+                
+                if (end1var != null) {
+                    ui.icon(c, center.icon("lightning"))({
+                        size: [20, 20], left: left + 4, top: 5, color: 35,
+                        tooltip: "{0|" + end1NO + "} is based on interface description found on {0|" + mc[1] + "} and may not same as actual device's name",
+                        tooltipSpanColor: ["accent+50"]
+                    });
+                    left += 20;
+
+                    rightLastMile = true;
+                }
+
+                setWidth(left);
+            }
+
+            if (rightLastMile) {
+                g.rect(left + 10, 11, 5, 5).attr({ stroke: "none", fill: ui.color(35) });
+                g.rect(left + 10 + 8, 11, 5, 5).attr({ stroke: "none", fill: ui.color(35) });
+                g.rect(left + 10 + 16, 11, 5, 5).attr({ stroke: "none", fill: ui.color(35) });
+                g.rect(left + 10 + 24, 11, 5, 5).attr({ stroke: "none", fill: ui.color(35) });
+
+                left += 40;
+
+                var end1Local = ui.text(c)({
+                    text: "LAST MILE", top: 5, font: 12, left: left + 10, noBreak: true
+                });
+
+                left = end1Local.leftWidth();
+
+                if (rightcloud != null) {
+
+                    var linkbox = ui.box(c)({
+                        left: left + 10, top: 2, height: 22, color: 50, cursor: "pointer", button: {
+                            normal: function () { linkbox.color(50); },
+                            click: function (e) { center.searchExecute("service that sid is " + rightcloudsid); },
+                            over: function () { linkbox.color(60); }
+                        }
+                    });
+
+                    var cloudsid = ui.text(linkbox)({
+                        left: 10, top: 2, font: 12, text: "SID " + rightcloudsid, color: 100, noBreak: true
+                    });
+
+                    linkbox.width(cloudsid.width() + 20);
+
+                    rightcloud.attr({ width: left - rightcloud.attr("x") + 10, fill: ui.color(80), opacity: .5 });
+                    left = linkbox.leftWidth();
+                }
+            }
+            setWidth(left + 20);
+
+            area.scrollCalculate();
+        }
+        else area.hide();
+    };
+
     ui("search", {
         init: function (p) {
             uipage = center.init(p);
@@ -995,6 +1535,7 @@
                             t.animTransferedClick = animTransferedClick;
                             t.searchresult = searchresult;
                             t.filter = filter;
+                            t.drawTopology = drawTopology;
 
                             proc(b, r, f, uipage, t);
 

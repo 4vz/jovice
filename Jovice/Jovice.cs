@@ -31,21 +31,21 @@ namespace Center
             }
         }
 
-        private static Database center = null;
+        private static Database centerDatabase = null;
 
-        public static Database Center
+        public static Database CenterDatabase
         {
             get
             {
-                if (center == null)
+                if (centerDatabase == null)
                 {
 #if DEBUG
-                    center = new Database(Aphysoft.Protected.Project.Database("CENTER_DEBUG"), DatabaseType.SqlServer);
+                    centerDatabase = new Database(Aphysoft.Protected.Project.Database("CENTER_DEBUG"), DatabaseType.SqlServer);
 #else
-                    center = new Database(Aphysoft.Protected.Project.Database("CENTER_RELEASE"), DatabaseType.SqlServer);
+                    centerDatabase = new Database(Aphysoft.Protected.Project.Database("CENTER_RELEASE"), DatabaseType.SqlServer);
 #endif
                 }
-                return center;
+                return centerDatabase;
             }
         }
 

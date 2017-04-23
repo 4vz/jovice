@@ -23,10 +23,9 @@ namespace Center.Providers
 
         #region Methods
 
-        public override void Process(SearchMatchResult matchResult, string[] tokens, string[] preTokens, string[] postTokens, string sort, string sortMethod, int page, int pageSize, int pageLength)
+        public override void Process(SearchMatchResult matchResult, SearchMatchQuery matchQuery)
         {
             matchResult.Type = "node";
-            List<SearchDescriptor> descriptors = Search.ParsePostTokens(postTokens);
 
             matchResult.QueryCount = "select NO_ID from Node where NO_Active = 1 and NO_Type in ('M', 'P')";
             matchResult.Query = @"

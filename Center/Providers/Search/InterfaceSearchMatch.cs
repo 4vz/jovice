@@ -20,112 +20,84 @@ namespace Center.Providers
 
             Language("descriptions", "DESCRIPTION");
             Language("description", "DESCRIPTION");
-            Language("in", "LOCATION");
-            Language("on", "LOCATION");
-            Language("at", "LOCATION");
-            Language("located", "LOCATION");
-            Language("inside", "LOCATION");
-            Language("installed", "LOCATION");
+            Language("desc", "DESCRIPTION");
+            Language("des", "DESCRIPTION");
+
+            Language("pe", "PE");
+            Language("me", "ME");
+            Language("metro", "ME");
+
+            Language(delegate ()
+            {
+                return jovice.QueryList("select NO_Name from Node where NO_Active = 1", "NO_Name").ToArray();
+            }, "NODENAME");
         }
 
         #endregion
 
         #region Methods
 
-        public override void Process(SearchMatchResult matchResult, string[] tokens, string[] preTokens, string[] postTokens, string sort, string sortMethod, int page, int pageSize, int pageLength)
+        public override void Process(SearchMatchResult matchResult, SearchMatchQuery matchQuery)
         {
-            matchResult.Type = "interface";
+            matchResult.Type = "jovice_interface";
 
-            #region descriptors
-
-            List<SearchDescriptor> descriptors = Search.ParsePostTokens(postTokens);
-
-            Where piwhere = SearchDescriptor.Build(descriptors, delegate(SearchDescriptor descriptor)
+            Where whereInterface = SearchDescriptor.Build(matchQuery.Descriptors, delegate (SearchDescriptor descriptor)
             {
-                /*string c = descriptor.Constraint;
+                SearchConstraints c = descriptor.Constraint;
 
-                return descriptor.Build(delegate(int index, string value)
+                return descriptor.Build(delegate (int index, string value)
                 {
-                    if (descriptor.Descriptor == "DESCRIPTION")
+                    string v = jovice.Escape(value);
+
+                    if (descriptor.Descriptor == "NODENAME")
                     {
-                        if (c == "STARTSWITH") return "PI_Description like '" + jovice.Escape(value) + "%'";
-                        else if (c == "ENDSWITH") return "PI_Description like '%" + jovice.Escape(value) + "'";
-                        else if (c == "LIKE") return "PI_Description like '%" + jovice.Escape(value) + "%'";
-                        else if (c == "EQUAL") return "PI_Description like '" + jovice.Escape(value) + "'";
+                        if (c == SearchConstraints.StartsWith) return "NO_Name like '" + v + "%'";
+                        else if (c == SearchConstraints.EndsWith) return "NO_Name like '%" + v + "'";
+                        else if (c == SearchConstraints.Like) return "NO_Name like '%" + v + "%'";
+                        else if (c == SearchConstraints.Equal) return "NO_Name like '" + v + "'";
                     }
-                    else if (descriptor.Descriptor == "LOCATION")
+                    else if (descriptor.Descriptor == "PE") return "NO_Type = 'P'";
+                    else if (descriptor.Descriptor == "ME") return "NO_Type = 'M'";
+                    else if (descriptor.Descriptor == "DESCRIPTION")
                     {
-                        if (c == "EQUAL")
-                        {
-                            return "NO_Name = '" + jovice.Escape(value) + "'";
-                        }
+                        if (c == SearchConstraints.StartsWith) return "I_Desc like '" + v + "%'";
+                        else if (c == SearchConstraints.EndsWith) return "I_Desc like '%" + v + "'";
+                        else if (c == SearchConstraints.Like || c == SearchConstraints.Equal) return "I_Desc like '%" + v + "%'";
                     }
 
                     return null;
-                });*/
-                return null;
+                });
             });
-            Where miwhere = SearchDescriptor.Build(descriptors, delegate(SearchDescriptor descriptor)
-            {
-                /*string c = descriptor.Constraint;
-
-                return descriptor.Build(delegate(int index, string value)
-                {
-                    if (descriptor.Descriptor == "DESCRIPTION")
-                    {
-                        if (c == "STARTSWITH") return "MI_Description like '" + jovice.Escape(value) + "%'";
-                        else if (c == "ENDSWITH") return "MI_Description like '%" + jovice.Escape(value) + "'";
-                        else if (c == "LIKE") return "MI_Description like '%" + jovice.Escape(value) + "%'";
-                        else if (c == "EQUAL") return "MI_Description like '" + jovice.Escape(value) + "'";
-                    }
-                    else if (descriptor.Descriptor == "LOCATION")
-                    {
-                        if (c == "EQUAL")
-                        {
-                            return "NO_Name = '" + jovice.Escape(value) + "'";
-                        }
-                    }
-
-                    return null;
-                });*/
-                return null;
-            });
-
-            #endregion
 
             matchResult.QueryCount = @"
-select PI_ID from PEInterface 
-left join Node on PI_NO = NO_ID
-" + piwhere.Format(" where ") + @" 
-union all 
-select MI_ID 
-from MEInterface
-left join Node on MI_NO = NO_ID
-" + miwhere.Format(" where ");
+select * from (
+select PI_NO as I_Node, PI_Description as I_Desc from PEInterface
+union all
+select MI_NO as I_Node, MI_Description as I_Desc from MEInterface
+) a, Node
+where a.I_Node = NO_ID and NO_Active = 1" + whereInterface.Format(" and ");
 
             matchResult.Query = @"
-select 
-PI_ID as I_ID, PI_Name as I_Name, PI_Description as I_Description, PI_Status as I_Status, PI_Protocol as I_Protocol, NO_Name, NO_Manufacture, NO_Model, NO_Version,
-SE_SID
-from Node, PEInterface
-left join Service on PI_SE = SE_ID and PI_SE_Check = 1
-where " + piwhere.Format("", " and ") + @"PI_NO = NO_ID
+select I_ID, NO_Name, I_Name, I_Type, I_Desc, NO_Manufacture, NO_Type from (
+select PI_NO as I_Node, PI_ID as I_ID, PI_Description as I_Desc, PI_Name as I_Name, PI_Type as I_Type from PEInterface
 union all
-select 
-MI_ID as I_ID, MI_Name as I_Name, MI_Description as I_Description, MI_Status as I_Status, MI_Protocol as I_Protocol, NO_Name, NO_Manufacture, NO_Model, NO_Version,
-SE_SID
-from Node, MEInterface
-left join Service on MI_SE = SE_ID and MI_SE_Check = 1
-where " + miwhere.Format("", " and ") + @"MI_NO = NO_ID
-";
+select MI_NO as I_Node, MI_ID as I_ID, MI_Description as I_Desc, MI_Name as I_Name, MI_Type as I_Type from MEInterface
+) a, Node
+where a.I_Node = NO_ID and NO_Active = 1" + whereInterface.Format(" and ");
+
             matchResult.RowID = "I_ID";
 
             matchResult.Hide("I_ID");
 
-            matchResult.Sort("NO_Name", "Network Element");
+            matchResult.Sort("NO_Name", "Node");
             matchResult.Sort("I_Name", "Interface");
-            matchResult.Sort("I_Status", "Status");
-            matchResult.Sort("I_Protocol", "Protocol");
+            matchResult.Sort("I_Desc", "Description");
+        }
+
+        public override void RowProcess(SearchMatchResult matchResult, List<object> objects)
+        {
+            string noType = (string)objects[8];
+            string id = (string)objects[2];
         }
 
         #endregion

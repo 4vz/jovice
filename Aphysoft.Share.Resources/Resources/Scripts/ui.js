@@ -989,6 +989,9 @@
             ajaxify = share.system("ajaxify");
             contentProviderUrl = share.system("contentProviderUrl");
             urlPrefix = share.system("urlPrefix");
+
+            console.log("%cCreated with love,\nby " + "%cAfis Herman Reza Devara", "font-size:20px;color:#ff0000", "font-size:20px;color:#ffcc00");
+            console.log("%cNo, it's not created with a bootstrap, or whatever javascript framework thats' hot nowdays (angular, react, etc). This is created with my own front-end & back-end framework called " + "%cShare" + "%c that built alongside with this project, https://github.com/afisd/jovice. Sometimes in the future, I'd like to bring this as a standalone framework that can be used by any project. If you want to join me, contact me and I guess you probably know how to do so. Thanks.", "font-size:14px;color:#404040", "font-size:14px;color:#ff0000", "font-size:14px;color:#404040");
         });
 
     })(window, share, jQuery);

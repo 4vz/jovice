@@ -48,6 +48,12 @@ namespace Aphysoft.Share
                     Resource.Group(Resource.CommonResourceScript, "script_raphael", 5);
                 }
 
+                if (Settings.Fabric)
+                {
+                    Resource.Register("script_fabric", ResourceType.JavaScript, Resources.Resources.Scripts.ResourceManager, "fabric").NoMinify();
+                    Resource.Group(Resource.CommonResourceScript, "script_fabric", 6);
+                }
+
 #if !DEBUG
                 Resource.Register("script_share", ResourceType.JavaScript, Resources.Resources.Scripts.ResourceManager, "share");
                 Resource.Group(Resource.CommonResourceScript, "script_share", 10);

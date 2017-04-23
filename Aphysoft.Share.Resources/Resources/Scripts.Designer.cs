@@ -61,6 +61,15 @@ namespace Aphysoft.Share.Resources.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to var fabric=fabric||{version:&quot;1.7.6&quot;};&quot;undefined&quot;!=typeof exports&amp;&amp;(exports.fabric=fabric),&quot;undefined&quot;!=typeof document&amp;&amp;&quot;undefined&quot;!=typeof window?(fabric.document=document,fabric.window=window,window.fabric=fabric):(fabric.document=require(&quot;jsdom&quot;).jsdom(decodeURIComponent(&quot;%3C!DOCTYPE%20html%3E%3Chtml%3E%3Chead%3E%3C%2Fhead%3E%3Cbody%3E%3C%2Fbody%3E%3C%2Fhtml%3E&quot;)),fabric.window=fabric.document.createWindow?fabric.document.createWindow():fabric.document.parentWindow),fabric.isTouchSupported=&quot;ontouchstart&quot; [rest of string was truncated]&quot;;.
+        /// </summary>
+        internal static string fabric {
+            get {
+                return ResourceManager.GetString("fabric", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to /*! jQuery v3.1.1 | (c) jQuery Foundation | jquery.org/license */
         ///!function(a,b){&quot;use strict&quot;;&quot;object&quot;==typeof module&amp;&amp;&quot;object&quot;==typeof module.exports?module.exports=a.document?b(a,!0):function(a){if(!a.document)throw new Error(&quot;jQuery requires a window with a document&quot;);return b(a)}:b(a)}(&quot;undefined&quot;!=typeof window?window:this,function(a,b){&quot;use strict&quot;;var c=[],d=a.document,e=Object.getPrototypeOf,f=c.slice,g=c.concat,h=c.push,i=c.indexOf,j={},k=j.toString,l=j.hasOwnProperty,m=l.toString,n=m.call(Object) [rest of string was truncated]&quot;;.
         /// </summary>
@@ -186,28 +195,31 @@ namespace Aphysoft.Share.Resources.Resources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to (function () {
+        ///   Looks up a localized string similar to /*! On Screen Debug */
+        ///(function (ui) {
+        ///    &quot;use strict&quot;;
         ///
-        ///    // .development
-        ///    (function (ui) {
+        ///    var t = $(&quot;#top&quot;);
+        ///    var b = $(&quot;#bottom&quot;);
         ///
-        ///        var t = $(&quot;#top&quot;);
-        ///        var b = $(&quot;#bottom&quot;);
-        ///        // debug on screen
-        ///        (function () {
-        ///            var x = [];
-        ///            var maxLine = 15;
-        ///            var last = null;
-        ///            var lastCount = 1;
-        ///            var lastDate = null;
+        ///    var x = [];
+        ///    var maxLine = 15;
+        ///    var last = null;
+        ///    var lastCount = 1;
+        ///    var lastDate = null;
         ///
-        ///            var _debug = window.debug;
-        ///            var debug = function () {
-        ///                //return;
-        ///                var o = arguments;
-        ///                var s = null;
+        ///    var _debug = window.debug;
+        ///    var debug = function () {
+        ///        //return;
+        ///        var o = arguments;
+        ///        var s = null;
         ///
-        ///          [rest of string was truncated]&quot;;.
+        ///        var ss;
+        ///        if (o.length == 1)
+        ///            ss = JSON.stringify(o[0]);
+        ///        else {
+        ///            var sss = [];
+        ///            $.each( [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string ui_debug {
             get {

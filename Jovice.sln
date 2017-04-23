@@ -4,6 +4,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aphysoft.Share", "Aphysoft.Share\Aphysoft.Share.csproj", "{BE59C0C5-8B77-445F-88ED-D88A4EB7709E}"
+	ProjectSection(ProjectDependencies) = postProject
+		{DBEB5569-93E8-457A-84F1-535D5B128AF2} = {DBEB5569-93E8-457A-84F1-535D5B128AF2}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NecrowConsole", "NecrowConsole\NecrowConsole.csproj", "{A636433E-1578-4DB5-A008-C8DB671AEC13}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -23,11 +26,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Necrow", "Necrow\Necrow.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jovice", "Jovice\Jovice.csproj", "{123E8A09-3F7A-4A85-8E3A-DA92B55CE6CC}"
 	ProjectSection(ProjectDependencies) = postProject
+		{DBEB5569-93E8-457A-84F1-535D5B128AF2} = {DBEB5569-93E8-457A-84F1-535D5B128AF2}
 		{BE59C0C5-8B77-445F-88ED-D88A4EB7709E} = {BE59C0C5-8B77-445F-88ED-D88A4EB7709E}
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Center", "Center\Center.csproj", "{51238574-C331-431E-BBDD-20D1969D10FD}"
 	ProjectSection(ProjectDependencies) = postProject
+		{DBEB5569-93E8-457A-84F1-535D5B128AF2} = {DBEB5569-93E8-457A-84F1-535D5B128AF2}
 		{AEF02DD0-E683-47C1-BA25-FBAEFF863A17} = {AEF02DD0-E683-47C1-BA25-FBAEFF863A17}
 	EndProjectSection
 EndProject
@@ -41,6 +46,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JoviceSyncConsole", "Jovice
 		{123E8A09-3F7A-4A85-8E3A-DA92B55CE6CC} = {123E8A09-3F7A-4A85-8E3A-DA92B55CE6CC}
 		{BE59C0C5-8B77-445F-88ED-D88A4EB7709E} = {BE59C0C5-8B77-445F-88ED-D88A4EB7709E}
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aphysoft.Protected", "Aphysoft.Protected\Aphysoft.Protected.csproj", "{DBEB5569-93E8-457A-84F1-535D5B128AF2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -142,6 +149,18 @@ Global
 		{69DDE6B7-8004-4C03-87CD-1F4A4B64DF15}.Release|Mixed Platforms.Build.0 = Release|Any CPU
 		{69DDE6B7-8004-4C03-87CD-1F4A4B64DF15}.Release|x86.ActiveCfg = Release|Any CPU
 		{69DDE6B7-8004-4C03-87CD-1F4A4B64DF15}.Release|x86.Build.0 = Release|Any CPU
+		{DBEB5569-93E8-457A-84F1-535D5B128AF2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DBEB5569-93E8-457A-84F1-535D5B128AF2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DBEB5569-93E8-457A-84F1-535D5B128AF2}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{DBEB5569-93E8-457A-84F1-535D5B128AF2}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{DBEB5569-93E8-457A-84F1-535D5B128AF2}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{DBEB5569-93E8-457A-84F1-535D5B128AF2}.Debug|x86.Build.0 = Debug|Any CPU
+		{DBEB5569-93E8-457A-84F1-535D5B128AF2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DBEB5569-93E8-457A-84F1-535D5B128AF2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DBEB5569-93E8-457A-84F1-535D5B128AF2}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{DBEB5569-93E8-457A-84F1-535D5B128AF2}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{DBEB5569-93E8-457A-84F1-535D5B128AF2}.Release|x86.ActiveCfg = Release|Any CPU
+		{DBEB5569-93E8-457A-84F1-535D5B128AF2}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

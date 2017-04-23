@@ -105,11 +105,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Application\API\API.cs" />
     <Compile Include="Application\Page\DesignType.cs" />
     <Compile Include="Application\Helpers\WebUtilities.cs" />
     <Compile Include="Application\Page\BaseMaster.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="Application\Page\QueryString.cs" />
     <Compile Include="Application\Session.cs" />
     <Compile Include="Application\UI\Content.cs" />
     <Compile Include="Application\UI\Controls\GridView.cs" />
@@ -137,6 +139,7 @@
     <Compile Include="Core\BaseDisposable.cs" />
     <Compile Include="Core\BaseFinalizable.cs" />
     <Compile Include="Core\Culture.cs" />
+    <Compile Include="Core\DoubleMetaphone.cs" />
     <Compile Include="Core\Html\crc32.cs" />
     <Compile Include="Core\Html\EncodingFoundException.cs" />
     <Compile Include="Core\Html\HtmlAttribute.cs" />
@@ -172,6 +175,7 @@
     <Compile Include="Extensions\Enum.cs" />
     <Compile Include="Extensions\Int.cs" />
     <Compile Include="Extensions\IPAddress.cs" />
+    <Compile Include="Extensions\ListExtensions.cs" />
     <Compile Include="Extensions\String.cs" />
     <Compile Include="Helpers\Configuration.cs" />
     <Compile Include="Helpers\Cryptography\Ascii85.cs" />

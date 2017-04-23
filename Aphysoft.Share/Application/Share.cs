@@ -8,6 +8,7 @@ using System.Web.Hosting;
 
 using System.Diagnostics;
 using System.Threading;
+using System.Runtime.Serialization.Json;
 
 namespace Aphysoft.Share
 {
@@ -107,6 +108,8 @@ namespace Aphysoft.Share
 
                         Resource.Init();
 
+                        API.Init();
+
                         Provider.Init();
 
                         if (Settings.EnableUI)
@@ -161,41 +164,51 @@ namespace Aphysoft.Share
             HttpResponse response = context.Response;
 
             // design type here
-            context.Items["designtype"] = Aphysoft.Share.DesignType.Full;
+            context.Items["designtype"] = DesignType.Full;
 
             // When using UI, we're not using internal session state.
-            if (Settings.EnableUI)
-                HttpContext.Current.SetSessionStateBehavior(SessionStateBehavior.Disabled);
-            else
-                HttpContext.Current.SetSessionStateBehavior(SessionStateBehavior.Required);
+            if (Settings.EnableUI) HttpContext.Current.SetSessionStateBehavior(SessionStateBehavior.Disabled);
+            else HttpContext.Current.SetSessionStateBehavior(SessionStateBehavior.Required);            
 
+            string host = request.Headers["Host"];
+            string currentExecutionPathLower = request.CurrentExecutionFilePath.ToLower();
             string appExecutionPath = request.AppRelativeCurrentExecutionFilePath;
-
-            if (appExecutionPath.StartsWith("~/" + Settings.ResourceProviderPath)) context.Items["provider"] = ExecutionTypes.Resources;
-            else if (appExecutionPath.StartsWith("~/" + Settings.ServiceProviderPath)) context.Items["provider"] = ExecutionTypes.Services;
-            else if (appExecutionPath.ToLower() == "~/favicon.ico") context.Items["provider"] = ExecutionTypes.Favicon;
-            else if (!request.IsSecureConnection && Settings.SSLAvailable)
+            
+            if (host == Settings.APIDomain)
             {
-                // ssl is available, and the connection is not secure
-                // redirect to secure channel
-                response.Redirect("https://" + Settings.PageDomain + request.RawUrl);
-                response.End();
+                HttpContext.Current.SetSessionStateBehavior(SessionStateBehavior.Disabled);
+
+                if (!request.IsSecureConnection && Settings.SSLAvailable)
+                {
+                    response.Redirect("https://" + Settings.APIDomain + request.RawUrl);
+                    response.End();
+                }
+
+                if (appExecutionPath.ToLower() == "~/favicon.ico") context.Items["provider"] = ExecutionTypes.Favicon;
+                else
+                {
+                    context.Items["provider"] = ExecutionTypes.API;
+                }
             }
             else
             {
-                context.Items["provider"] = ExecutionTypes.Default;
-
-                string host = request.Headers["Host"];
-                string cExUrl = request.CurrentExecutionFilePath.ToLower();
-
-                // if hostname differ, then redirect to hostname
-                if (Settings.UseDomain && host != Settings.PageDomain)
+                if (appExecutionPath.StartsWith("~/" + Settings.ResourceProviderPath)) context.Items["provider"] = ExecutionTypes.Resources;
+                else if (appExecutionPath.ToLower() == "~/favicon.ico") context.Items["provider"] = ExecutionTypes.Favicon;
+                else if (host != Settings.PageDomain)
                 {
                     response.Redirect("http://" + Settings.PageDomain + request.RawUrl);
                     response.End();
                 }
                 else
                 {
+                    if (!request.IsSecureConnection && Settings.SSLAvailable)
+                    {
+                        response.Redirect("https://" + Settings.PageDomain + request.RawUrl);
+                        response.End();
+                    }
+
+                    context.Items["provider"] = ExecutionTypes.Default;
+
                     if (Settings.EnableUI)
                     {
                         // redirect to url prefix
@@ -203,9 +216,9 @@ namespace Aphysoft.Share
 
                         if (!string.IsNullOrEmpty(Settings.UrlPrefix))
                         {
-                            if (cExUrl == "/" || cExUrl == Settings.UrlPrefix)
+                            if (currentExecutionPathLower == "/" || currentExecutionPathLower == Settings.UrlPrefix)
                                 response.Redirect(string.Format("{0}/", Settings.UrlPrefix), true);
-                            else if (cExUrl.StartsWith(Settings.UrlPrefix))
+                            else if (currentExecutionPathLower.StartsWith(Settings.UrlPrefix))
                                 toUIPage = true;
                         }
                         else
@@ -225,7 +238,7 @@ namespace Aphysoft.Share
                             // to non ASP.NET page.
                             // eg. html, htm, etc
                             // HttpSessionState is NOT AVAILABLE
-                            if (cExUrl.EndsWith(".aspx")) // sorry, we had to disable asp.net pages
+                            if (currentExecutionPathLower.EndsWith(".aspx")) // sorry, we had to disable asp.net pages
                             {
                                 response.Headers.Add("Content-Type", "text/html; charset=utf-8");
                                 response.Write("UI is Enabled, we can't serve ASP.NET pages since HttpSessionState has been disabled.");
@@ -345,16 +358,18 @@ namespace Aphysoft.Share
         {
             HttpResponse response = context.Response;
             HttpRequest request = context.Request;
+            ExecutionTypes execution = (ExecutionTypes)context.Items["provider"];
 
             string currentExecutionPath = string.Format("~{0}", context.Request.RawUrl);
             string resourcesProviderExecutionPath = string.Format("~/{0}", Settings.ResourceProviderPath).ToLower();
-            string servicesProviderExecutionPath = string.Format("~/{0}", Settings.ServiceProviderPath).ToLower();
 
             AsyncResult result = null;
 
-            bool notFound = true;
-            
-            if (currentExecutionPath.StartsWith(resourcesProviderExecutionPath.ToLower()))
+            response.TrySkipIisCustomErrors = true;
+
+            int statusCode = 404;
+
+            if (execution == ExecutionTypes.Resources) //   currentExecutionPath.StartsWith(resourcesProviderExecutionPath.ToLower()))
             {
                 #region Resource
 
@@ -380,7 +395,7 @@ namespace Aphysoft.Share
 
                             if (resourceHash.EndsWith(ext))
                             {
-                                notFound = false;
+                                statusCode = -1;
                                 ResourceAsyncResult resourceResult = new ResourceAsyncResult(context, cb, extraData);
                                 result = resourceResult;
 
@@ -479,14 +494,139 @@ namespace Aphysoft.Share
 
                 #endregion
             }
+            else if (execution == ExecutionTypes.API)
+            {
+                #region API
+                                
+                string[] queryAreas = currentExecutionPath.Split(new char[] { '?' }, 2);
+                string[] paths = queryAreas[0].Split(StringSplitTypes.Slash);
+
+                if (paths.Length >= 2)
+                {
+                    string api = paths[1].ToLower();
+
+                    APIRegister apiRegister = API.Get(api);
+
+                    if (apiRegister != null)
+                    {
+                        if (paths.Length >= 3)
+                        {
+                            if (QueryString.IsExist())
+                            {
+                                if (QueryString.Exists("key"))
+                                {
+                                    if (QueryString.ValuesCount("key") > 1)
+                                    {
+                                        statusCode = -1;
+                                        result = new AsyncResult(context, cb, extraData);
+                                        response.Status = "400 Bad Request";
+                                        result.SetCompleted();
+                                    }
+                                    else
+                                    {
+                                        string apiKey = QueryString.GetValue("key");
+
+                                        List<string> pas = new List<string>();
+                                        int ipath = 0;
+                                        foreach (string path in paths)
+                                        {
+                                            if (ipath > 0) pas.Add(path);
+                                            ipath++;
+                                        }
+
+                                        Result r = Database.Query(@"
+select AA_ID from ApiSubscription, Api, ApiAccess where AS_AA = AA_ID and AS_AP = AP_ID and AA_Active = 1 and AP_Name = {0} and AA_Key = {1}", api, apiKey);
+
+                                        if (r.Count == 1)
+                                        {
+                                            string aaID = r[0]["AA_ID"].ToString();
+
+                                            statusCode = -1;
+                                            APIAsyncResult resourceResult = new APIAsyncResult(context, cb, extraData);
+                                            result = resourceResult;
+
+                                            APIPacket packet = apiRegister.APIRequest(resourceResult, pas.ToArray(), aaID);
+
+                                            if (packet != null)
+                                            {
+                                                if (packet is ErrorAPIPacket)
+                                                {
+                                                    response.StatusCode = ((ErrorAPIPacket)packet).HttpStatusCode;
+                                                }
+
+                                                if (QueryString.GetValue("nocompress") == "true") { }
+                                                else Compress(context);
+
+                                                response.AppendHeader("Cache-Control", "private, no-store, no-cache, must-revalidate, post-check=0, pre-check=0");
+                                                response.AppendHeader("Pragma", "no-cache");
+
+                                                DataContractJsonSerializer serializer = new DataContractJsonSerializer(packet.GetType());
+                                                serializer.WriteObject(response.OutputStream, packet);
+
+                                                response.ContentType = "application/json";
+
+                                                result.SetCompleted();
+                                            }
+                                            else
+                                            {
+                                                statusCode = -1;
+                                                result = new AsyncResult(context, cb, extraData);
+                                                response.Status = "500 Internal Server Error";
+                                                result.SetCompleted();
+                                            }
+                                        }
+                                        else
+                                        {
+                                            statusCode = -1;
+                                            result = new AsyncResult(context, cb, extraData);
+                                            response.Status = "403 Forbidden";
+                                            result.SetCompleted();
+                                        }
+
+                                    }
+                                }
+                                else
+                                {
+                                    statusCode = -1;
+                                    result = new AsyncResult(context, cb, extraData);
+                                    response.Status = "403 Forbidden";
+                                    result.SetCompleted();
+                                }
+                            }
+                            else
+                            {
+                                statusCode = -1;
+                                result = new AsyncResult(context, cb, extraData);
+                                response.Status = "403 Forbidden";
+                                result.SetCompleted();
+                            }
+                        }
+                        else
+                        {
+                            statusCode = -1;
+                            result = new AsyncResult(context, cb, extraData);
+                            response.Status = "400 Bad Request"; 
+                            result.SetCompleted();
+                        }
+                    }
+                    else
+                    {
+                        statusCode = -1;
+                        result = new AsyncResult(context, cb, extraData);
+                        response.Status = "501 Not Implemented";
+                        result.SetCompleted();
+                    }
+                }
+                
+                #endregion
+            }
             
-            if (notFound)
+            if (statusCode == 404)
             {
                 result = new AsyncResult(context, cb, extraData);
-                response.Status = "404 Not Found";
-                response.TrySkipIisCustomErrors = true;
+                response.Status = "404 Not Found";                
                 result.SetCompleted();
-            }            
+            }
 
             return result;
         }
@@ -502,11 +642,7 @@ namespace Aphysoft.Share
 
                 if (resource != null)
                 {
-                    if (resource.EndHandler != null)
-                    {
-                        ResourceEndProcessRequest proc = resource.EndHandler;
-                        if (proc != null) proc(resourceResult);
-                    }
+                    resource.EndHandler?.Invoke(resourceResult);
                     if (resource.BeginHandler != null)
                     {
                         ResourceOutput resourceOutput = resourceResult.ResourceOutput;
@@ -804,8 +940,8 @@ namespace Aphysoft.Share
     internal enum ExecutionTypes
     {
         Default,
+        API,
         Resources,
-        Services,
         Favicon
     }
 }

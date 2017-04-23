@@ -822,9 +822,15 @@ namespace Aphysoft.Share
                     Debug("Ok Got it, pulse the waiter");
                     lock (waitWaitSync)
                     {
-                        lock (responsesWaitSync)
+                        if (!responses.ContainsKey(messageReplyID))
                         {
-                            responses.Add(messageReplyID, rto.Message);
+                            lock (responsesWaitSync)
+                            {
+                                if (!responses.ContainsKey(messageReplyID))
+                                {
+                                    responses.Add(messageReplyID, rto.Message);
+                                }
+                            }
                         }
 
                         Debug("Pulsing: " + messageReplyID);
@@ -922,7 +928,14 @@ namespace Aphysoft.Share
         {
             Debug("Begin Receiving...");
 
-            socket.BeginReceive(buffer, 0, service.BufferSize, SocketFlags.None, new AsyncCallback(EndReceive), this);
+            try
+            {
+                socket.BeginReceive(buffer, 0, service.BufferSize, SocketFlags.None, new AsyncCallback(EndReceive), this);
+            }
+            catch (Exception ex)
+            {
+                Disconnect();
+            }
         }
 
         public static bool ByteArrayCompare(byte[] a, byte[] b)

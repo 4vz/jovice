@@ -109,6 +109,17 @@ namespace Aphysoft.Share
 
         #endregion
 
+        #region API
+
+        private static string apiDomain = "api.dummy.com";
+
+        public static string APIDomain
+        {
+            get { return apiDomain; }
+        }
+
+        #endregion
+
         #region Live
 
         private static bool enableLive = false;
@@ -117,6 +128,7 @@ namespace Aphysoft.Share
         {
             get { return enableLive; }
         }
+
 
         private static string streamDomain = "channel.dummy.com";
 
@@ -368,6 +380,9 @@ namespace Aphysoft.Share
 
             // Resolution Group
             ReadArrayInteger("ResolutionGroup", ref sizeGroups);
+
+            // API
+            ReadString("APIDomain", ref apiDomain);
 
             if (Settings.EnableLive)
             {

@@ -28,6 +28,14 @@ namespace Aphysoft.Share
             set { streamSubDomain = value; }
         }
 
+        private string streamPort = null;
+
+        public string StreamPort
+        {
+            get { return streamPort; }
+            set { streamPort = value; }
+        }
+
         #endregion
     }
 
@@ -114,6 +122,10 @@ values({0}, GETUTCDATE(), GETUTCDATE(), {1}, {2})
                     context.Items["sessionID"] = sessionID;
                     sessionStart = true;
                 }
+                else if (executionType == ExecutionTypes.API)
+                {
+
+                }
                 else
                 {
                     response.Status = "404 Not Found";
@@ -182,11 +194,17 @@ values({0}, GETUTCDATE(), GETUTCDATE(), {1}, {2})
                 {
                     SessionClientServiceMessage mr = Service.Wait(m);
                     c.StreamSubDomain = Settings.StreamSubDomains[mr.StreamSubDomainIndex];
+                    if (Settings.StreamSubPorts[mr.StreamSubDomainIndex] != 0)
+                        c.StreamPort = ":" + Settings.StreamSubPorts[mr.StreamSubDomainIndex];
                 }
             }
-            
+
             if (c.StreamSubDomain == null)
-                c.StreamSubDomain = Settings.StreamBaseSubDomain;           
+            {
+                c.StreamSubDomain = Settings.StreamBaseSubDomain;
+                if (Settings.StreamBasePort != 0)
+                    c.StreamPort = ":" + Settings.StreamBasePort;
+            }   
 
             return c;
         }

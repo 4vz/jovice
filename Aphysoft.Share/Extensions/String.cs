@@ -27,7 +27,7 @@ namespace Aphysoft.Share
             return rv;
         }
         
-        public static int InOf(this string value, params string[] values)
+        public static int ArgumentIndexOf(this string value, params string[] values)
         {
             int rv = -1;
             int ix = -1;
@@ -144,5 +144,14 @@ namespace Aphysoft.Share
             return listValues.ToArray();
         }
 
+        public static string[] Merge(this string[] values, params string[][] adds)
+        {
+            List<string> nvals = new List<string>(values);
+            foreach (string[] add in adds)
+            {
+                nvals.AddRange(add);
+            }
+            return nvals.ToArray();
+        }
     }
 }

@@ -62,7 +62,7 @@ namespace Aphysoft.Share
 
             // begin title
             response.Write("<!doctype html>");
-            response.Write("<!-- created with love, by Afis Herman Reza Devara -->");
+            response.Write("<!-- Created with love, by Afis Herman Reza Devara. Open the browser's developer console for more information about this. -->");
             response.Write("<html><head><title>");
             if (Title == null) response.Write(Settings.FullName);
             else
@@ -98,7 +98,7 @@ namespace Aphysoft.Share
             }
             
             Resource defaultShortcutIcon = Resource.Get(shortcutIconKey);
-            response.Write("<link rel=\"icon\" type=\"" + defaultShortcutIcon.MimeType + "\" href=\"" + Resource.GetPath(shortcutIconKey) + "\" />");
+            response.Write("<link rel=\"icon\" type=\"" + defaultShortcutIcon.MimeType + "\" href=\"" + Resource.GetPath(shortcutIconKey) + "?v=2\" />");
 
             #region Internal StyleSheet
 

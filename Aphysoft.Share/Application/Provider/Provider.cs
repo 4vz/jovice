@@ -22,7 +22,17 @@ namespace Aphysoft.Share
 
         internal static Dictionary<string, StreamClientInstance> clientInstances;
 
+        public static Dictionary<string, StreamClientInstance> ClientInstances
+        {
+            get { return clientInstances; }
+        }
+
         internal static Dictionary<string, StreamSessionInstance> sessionInstances;
+
+        public static Dictionary<string, StreamSessionInstance> SessionInstances
+        {
+            get { return sessionInstances; }
+        }
 
         internal static Dictionary<string, OnReceivedCallback> registerCallbacks;
 
@@ -41,12 +51,20 @@ namespace Aphysoft.Share
 
         private static void BaseStreamServiceMessageHandler(MessageEventArgs e)
         {
+            if (sessionInstances == null || clientInstances == null || registerCallbacks == null) return;
+
             BaseServiceMessage msg = e.Message;
             Connection connection = e.Connection;
             Type type = msg.GetType();
 
             BaseStreamServiceMessage streamMessage = (BaseStreamServiceMessage)msg;
             string sessionID = streamMessage.SessionID;
+
+            if (sessionID == null)
+            {
+                
+                connection.Reply(streamMessage);
+            }
 
             if (type == typeof(StreamServiceMessage))
             {
@@ -349,11 +367,6 @@ namespace Aphysoft.Share
             if (!registerCallbacks.ContainsKey(register))
                 registerCallbacks.Add(register, method);
         }
-        
-        public static int GetSessionCount()
-        {
-            return sessionInstances != null ? sessionInstances.Count : 0;
-        }
 
         #endregion
 
@@ -366,7 +379,7 @@ namespace Aphysoft.Share
         internal static void Init()
         {
             Resource.Register("xhr_stream", ResourceType.Text, Provider.StreamBeginProcessRequest, Provider.StreamEndProcessRequest)
-                .NoBufferOutput().AllowOrigin("http://" + Settings.PageDomain).AllowCredentials();
+                .NoBufferOutput().AllowOrigin("http" + (Settings.SSLAvailable ? "s" : "") + "://" + Settings.PageDomain).AllowCredentials();
             Resource.Register("xhr_provider", ResourceType.JSON, Provider.ProviderBeginProcessRequest, Provider.ProviderEndProcessRequest);
 
             if (Settings.EnableUI)
@@ -412,92 +425,171 @@ namespace Aphysoft.Share
             
             if (Service.IsConnected)
             {
-                httpResponse.Write("{\"t\":\"available\"}\n");
-
                 string clientID = Params.GetValue("c", result.Context);
                 string sessionID = Session.ID;
+                bool clientStillConnected = true;
 
-                StreamServiceMessage message = new StreamServiceMessage(sessionID);
-
-                message.ClientID = clientID;
-
-                string requestHost = httpRequest.Headers["Host"];
-
-                if (requestHost != null)
+                if (sessionID == null || clientID == null)
                 {
-                    if (requestHost == Settings.StreamBaseSubDomain + "." + Settings.StreamDomain)
-                        message.HostSessionIndex = -1;
-                    else
+                    try
                     {
-                        for (int ido = 0; ido < Settings.StreamSubDomains.Length; ido++)
-                        {
-                            if (requestHost == Settings.StreamSubDomains[ido] + "." + Settings.StreamDomain)
-                            {
-                                message.HostSessionIndex = ido;
-                                break;
-                            }
-                        }
+                        httpResponse.Write("{\"t\":\"unavailable\"}\n");
+                    }
+                    catch (HttpException hex)
+                    {
                     }
                 }
-
-                if (Service.Send(message))
+                else
                 {
-                    do
+
+                    try
                     {
-                        StreamServiceMessage response = Service.Wait(message);
-                        
-                        if (!response.IsAborted)
+                        httpResponse.Write("{\"t\":\"available\"}\n");
+                    }
+                    catch (HttpException hex)
+                    {
+                        clientStillConnected = false;
+                    }
+
+                    if (clientStillConnected)
+                    {
+                        StreamServiceMessage message = new StreamServiceMessage(sessionID);
+
+                        //message.httpRequest.UserHostAddress;
+                        message.ClientID = clientID;
+
+                        string requestHost = httpRequest.Headers["Host"];
+
+                        if (requestHost != null)
                         {
-                            if (response.MessageContinue)
-                            {
-                                httpResponse.Write("{\"t\":\"continue\"}\n");
-                                break;
-                            }
+                            string challengeRequestBaseHost = Settings.StreamBaseSubDomain + "." + Settings.StreamDomain;
+                            if (Settings.StreamBasePort != 0)
+                                challengeRequestBaseHost += ":" + Settings.StreamBasePort;
+
+                            if (requestHost == challengeRequestBaseHost)
+                                message.HostSessionIndex = -1;
                             else
                             {
-                                if (response.MessageType == "updatestreamdomain")
+                                for (int ido = 0; ido < Settings.StreamSubDomains.Length; ido++)
                                 {
-                                    int hostIndex = ((int)response.MessageData) % Settings.StreamSubDomains.Length;
-                                    string hostName;
+                                    string challengeRequestHost = Settings.StreamSubDomains[ido] + "." + Settings.StreamDomain;
+                                    if (Settings.StreamSubPorts[ido] != 0)
+                                        challengeRequestHost += ":" + Settings.StreamSubPorts[ido];
 
-                                    if (hostIndex < Settings.StreamSubDomains.Length) hostName = Settings.StreamSubDomains[hostIndex] + "." + Settings.StreamDomain;
-                                    else hostName = Settings.StreamBaseSubDomain + "." + Settings.StreamDomain;
-                                    httpResponse.Write(string.Format("{{\"t\":\"updatestreamdomain\",\"d\":\"{0}\"}}\n", hostName));
+                                    if (requestHost == challengeRequestHost)
+                                    {
+                                        message.HostSessionIndex = ido;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (Service.Send(message))
+                        {
+                            do
+                            {
+                                StreamServiceMessage response = Service.Wait(message);
+
+                                if (!response.IsAborted)
+                                {
+                                    if (response.MessageContinue)
+                                    {
+                                        try
+                                        {
+                                            httpResponse.Write("{\"t\":\"continue\"}\n");
+                                        }
+                                        catch (HttpException hex)
+                                        {
+                                            clientStillConnected = false;
+                                        }
+
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        if (response.MessageType == "updatestreamdomain")
+                                        {
+                                            int hostIndex = ((int)response.MessageData) % Settings.StreamSubDomains.Length;
+                                            string hostName;
+
+                                            if (hostIndex < Settings.StreamSubDomains.Length)
+                                            {
+                                                hostName = Settings.StreamSubDomains[hostIndex] + "." + Settings.StreamDomain;
+                                                if (Settings.StreamSubPorts[hostIndex] != 0)
+                                                    hostName += ":" + Settings.StreamSubPorts[hostIndex];
+                                            }
+                                            else
+                                            {
+                                                hostName = Settings.StreamBaseSubDomain + "." + Settings.StreamDomain;
+                                                if (Settings.StreamBasePort != 0)
+                                                    hostName += ":" + Settings.StreamBasePort;
+                                            }
+
+                                            try
+                                            {
+                                                httpResponse.Write(string.Format("{{\"t\":\"updatestreamdomain\",\"d\":\"{0}\"}}\n", hostName));
+                                            }
+                                            catch (HttpException hex)
+                                            {
+                                                clientStillConnected = false;
+                                                break;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            try
+                                            {
+                                                if (response.MessageData == null)
+                                                    httpResponse.Write(string.Format("{{\"t\":\"{0}\"}}\n", response.MessageType));
+                                                else
+                                                    httpResponse.Write("{\"t\":\"" + response.MessageType + "\",\"d\":" + WebUtilities.Serializer.Serialize(response.MessageData) + "}\n");
+                                            }
+                                            catch (HttpException hex)
+                                            {
+                                                clientStillConnected = false;
+                                                break;
+                                            }
+                                        }
+                                    }
                                 }
                                 else
                                 {
-                                    if (response.MessageData == null)
-                                        httpResponse.Write(string.Format("{{\"t\":\"{0}\"}}\n", response.MessageType));
-                                    else
-                                        httpResponse.Write("{\"t\":\"" + response.MessageType + "\",\"d\":" + WebUtilities.Serializer.Serialize(response.MessageData) + "}\n");
+                                    // two type                            
+                                    if (Service.IsConnected == false) // if server down
+                                    {
+                                        string hostName = Settings.StreamBaseSubDomain + "." + Settings.StreamDomain;
+
+                                        if (Settings.StreamBasePort != 0)
+                                            hostName += ":" + Settings.StreamBasePort;
+
+                                        httpResponse.Write(string.Format("{{\"t\":\"updatestreamdomain\",\"d\":\"{0}\"}}\n", hostName));
+                                        httpResponse.Write("{\"t\":\"disconnected\"}\n");
+                                    }
+                                    else // if page left
+                                    {
+                                        // tell server that page has been left
+                                        Service.Send(new ClientEndServiceMessage(clientID, sessionID));
+                                        httpResponse.Write("{\"t\":\"pageend\"}\n");
+                                    }
+
+                                    break;
                                 }
                             }
-                        }
-                        else
-                        {
-                            // two type                            
-                            if (Service.IsConnected == false) // if server down
-                            {
-                                string hostName = Settings.StreamBaseSubDomain + "." + Settings.StreamDomain;
-                                httpResponse.Write(string.Format("{{\"t\":\"updatestreamdomain\",\"d\":\"{0}\"}}\n", hostName));
-                                httpResponse.Write("{\"t\":\"disconnected\"}\n");
-                            }
-                            else // if page left
-                            {
-                                // tell server that page has been left
-                                Service.Send(new ClientEndServiceMessage(clientID, sessionID));
-                                httpResponse.Write("{\"t\":\"pageend\"}\n");
-                            }
-
-                            break;
+                            while (true);
                         }
                     }
-                    while (true);
                 }
             }
             else
             {
-                httpResponse.Write("{\"t\":\"unavailable\"}\n");
+                try
+                {
+                    httpResponse.Write("{\"t\":\"unavailable\"}\n");
+                }
+                catch (HttpException hex)
+                {
+                }
             }
 
             result.SetCompleted();
@@ -564,10 +656,10 @@ namespace Aphysoft.Share
                         ResourceRequest proc = register.ResourceHandler;
 
                         packet = proc(result, appid);
-                        
                     }
 
-                    if (packet == null) packet = new ProviderPacket();
+                    if (packet == null)
+                        packet = ProviderPacket.Null();
                     DataContractJsonSerializer serializer = new DataContractJsonSerializer(packet.GetType());
                     serializer.WriteObject(response.OutputStream, packet);
                 }
@@ -636,7 +728,7 @@ namespace Aphysoft.Share
 
     public delegate void ProviderClientDisconnectedEventHandler(ProviderClientDisconnectedEventArgs e);
 
-    internal class StreamInstanceData
+    public class StreamInstanceData
     {
         #region Fields
 
@@ -673,28 +765,38 @@ namespace Aphysoft.Share
         #endregion
     }
 
-    internal class StreamSessionInstance
+    public class StreamSessionInstance
     {
         #region Fields
 
         private string sessionID;
-
+        
+        public string SessionID
+        {
+            get { return sessionID; }
+        }
+        
         private Dictionary<string, StreamClientInstance> clientInstances;
 
-        #endregion
-
-        #region Properties
-        
         public Dictionary<string, StreamClientInstance> ClientInstances
         {
             get { return clientInstances; }
         }
 
+        private string ipAddress;
 
-        public string SessionID
+        public string IPAddress
         {
-            get { return sessionID; }
+            get { return ipAddress; }
+            set { ipAddress = value; }
         }
+
+        #endregion
+
+        #region Properties
+        
+
+
 
         #endregion
 
@@ -730,10 +832,9 @@ namespace Aphysoft.Share
         }   
 
         #endregion
-
     }
 
-    internal class StreamClientInstance
+    public class StreamClientInstance
     {
         #region Fields
 
@@ -898,10 +999,6 @@ namespace Aphysoft.Share
 
         private object messageData = null;
 
-        #endregion
-
-        #region Properties
-
         public int HostSessionIndex
         {
             get { return hostSessionIndex; }
@@ -925,7 +1022,7 @@ namespace Aphysoft.Share
             get { return messageData; }
             set { messageData = value; }
         }
-        
+
         #endregion
 
         #region Constructors
@@ -1002,32 +1099,20 @@ namespace Aphysoft.Share
             get { return resourceHandler; }
         }
 
-        private ServiceRequest serviceHandler;
-
-        public ServiceRequest ServiceHandler
-        {
-            get { return serviceHandler; }
-        }
-
         public ProviderRegister(ResourceRequest handler)
         {
             resourceHandler = handler;
         }
-        public ProviderRegister(ServiceRequest handler)
-        {
-            serviceHandler = handler;
-        }
     }
 
     public delegate ProviderPacket ResourceRequest(ResourceAsyncResult result, int id);
-    public delegate ProviderPacket ServiceRequest(ResourceAsyncResult result, string name);
 
-    [DataContractAttribute]
+    [DataContract]
     public class ProviderPacket
     {
         private string _data = null;
 
-        [DataMemberAttribute(Name = "data")]
+        [DataMember(Name = "data")]
         internal string _Data
         {
             get { return _data; }

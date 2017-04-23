@@ -210,7 +210,10 @@ namespace Aphysoft.Share
 
         protected void Object(string key, object value)
         {
-            objects.Add(key, value);
+            if (objects.ContainsKey(key))
+                objects[key] = value;
+            else
+                objects.Add(key, value);
         }
 
         #endregion
@@ -1419,6 +1422,11 @@ namespace Aphysoft.Share
             internal set { sql = value; }
         }
 
+        public static Result Null
+        {
+            get { return new Result(""); }
+        }
+
         #endregion
 
         #region Constructor
@@ -1835,7 +1843,7 @@ namespace Aphysoft.Share
             else return ToDateTime();
         }
 
-        public DateTime? ToNullabelDateTime()
+        public DateTime? ToNullableDateTime()
         {
             if (IsNull) return null;
             else return new DateTime?(ToDateTime());

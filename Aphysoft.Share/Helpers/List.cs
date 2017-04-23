@@ -13,8 +13,10 @@ namespace Aphysoft.Share
         Descending
     }
 
+
     public static class List
     {
+        
         public static int IndexOf(string[] list, string find)
         {
             
@@ -74,8 +76,7 @@ namespace Aphysoft.Share
             }
 
             return -1;
-        }
-        
+        }        
         
         public static List<T> New<T>(params T[] args)
         {

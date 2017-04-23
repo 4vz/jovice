@@ -1369,8 +1369,11 @@ namespace Center
             if (interfacedb == null) return DatabaseFailure(probe);
             Dictionary<string, List<string[]>> ipdb = new Dictionary<string, List<string[]>>();
 
-            result = Query("select PI_Name, PP_ID, CAST(PP_IPv6 as varchar) + '_' + CAST(PP_Order as varchar) + '_' + PP_IP as IPKEY from PEInterface, PEInterfaceIP where PP_PI = PI_ID and PI_NO = {0} order by PI_Name asc", nodeID);
+            result = Query(@"select PI_Name, PP_ID, CAST(PP_IPv6 as varchar) + '_' + CAST(PP_Order as varchar) + '_' + PP_IP as IPKEY 
+from PEInterface, PEInterfaceIP where PP_PI = PI_ID and PI_NO = {0} order by PI_Name asc", nodeID);
             if (!result.OK) return DatabaseFailure(probe);
+
+            batch.Begin();
             foreach (Row row in result)
             {
                 string name = row["PI_Name"].ToString();
@@ -1381,8 +1384,33 @@ namespace Center
                     ip = new List<string[]>();
                     ipdb.Add(name, ip);
                 }
-                ip.Add(new string[] { row["IPKEY"].ToString(), row["PP_ID"].ToString() });
+
+                string nipkey = row["IPKEY"].ToString();
+                string nppid = row["PP_ID"].ToString();
+
+                bool exist = false;
+
+                foreach (string[] oip in ip)
+                {
+                    string oipkey = oip[0];
+                    string oppid = oip[1];
+
+                    if (oipkey == nipkey)
+                    {
+                        // so remove this
+                        batch.Execute("delete from PEInterfaceIP where PP_ID = {0}", oppid);
+                        exist = true;
+                    }
+                }
+
+                if (exist == false)
+                    ip.Add(new string[] { row["IPKEY"].ToString(), row["PP_ID"].ToString() });
             }
+
+            result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
+            if (result.Count > 0) Event("Removing duplicated IP in previous database");
+            Event(result, EventActions.Delete, EventElements.InterfaceIP, false);
 
             SortedDictionary<string, PEInterfaceToDatabase> interfaceinsert = new SortedDictionary<string, PEInterfaceToDatabase>();
             List<PEInterfaceToDatabase> interfaceupdate = new List<PEInterfaceToDatabase>();
@@ -3272,10 +3300,14 @@ Last input 00:00:00, output 00:00:00
                         u.UpdateDescription = true;
                         u.Description = li.Description;
                         UpdateInfo(updateinfo, "description", db["PI_Description"].ToString(), li.Description, true);
-
-                        u.ServiceID = null;
-                        if (u.Description != null) interfaceServiceReference.Add(u, u.Description);
                     }
+                    if (updatingNecrow || u.UpdateDescription)
+                    {
+                        update = true;
+                        u.ServiceID = null;
+                        if (li.Description != null) interfaceServiceReference.Add(u, li.Description);
+                    }
+
                     if (db["PI_Status"].ToBool() != li.Status)
                     {
                         update = true;
@@ -3576,11 +3608,8 @@ Last input 00:00:00, output 00:00:00
                     interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
                 }
                 update.Set("PI_TO_NI", s.TopologyNeighborInterfaceID, s.UpdateTopologyNeighborInterfaceID);
-                if (s.UpdateDescription)
-                {
-                    update.Set("PI_Description", s.Description);
-                    update.Set("PI_SE", s.ServiceID);
-                }
+                update.Set("PI_Description", s.Description, s.UpdateDescription);
+                update.Set("PI_SE", s.ServiceID, updatingNecrow || s.UpdateDescription);
                 update.Set("PI_Status", s.Status, s.UpdateStatus);
                 update.Set("PI_Protocol", s.Protocol, s.UpdateProtocol);
                 update.Set("PI_Enable", s.Enable, s.UpdateEnable);

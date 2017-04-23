@@ -578,6 +578,8 @@ namespace Center
         private DateTime nodeProbeStartTime = DateTime.MinValue;
         private DateTime sshProbeStartTime = DateTime.MinValue;
 
+        private bool updatingNecrow = false;
+
         public string NodeName
         {
             get { return nodeName; }
@@ -3593,6 +3595,8 @@ namespace Center
 
             #endregion
 
+            updatingNecrow = false;
+
             if (properties.Case == "MAIN")
             {
                 if (configurationHasChanged || nodeNVER < Necrow.Version)
@@ -3600,6 +3604,7 @@ namespace Center
                     continueProcess = true;
                     if (nodeNVER < Necrow.Version)
                     {
+                        updatingNecrow = true;
                         Event("Updated to newer Necrow version");
                         Update(UpdateTypes.NecrowVersion, Necrow.Version);
                     }
@@ -3738,7 +3743,7 @@ namespace Center
                 string stype = tuple.Item2.ServiceType;
                 string ssubtype = tuple.Item2.ServiceSubType;
                 string cdesc = tuple.Item2.CleanDescription;
-
+                
                 string s_type = null, s_subtype = null;
                 if (stype == "VPNIP")
                 {
@@ -3748,6 +3753,7 @@ namespace Center
                 else if (stype == "ASTINET") s_type = "AS";
                 else if (stype == "ASTINETBB") s_type = "AB";
                 else if (stype == "VPNINSTAN") s_type = "VI";
+                else if (stype == "TELKOMSELSITES") { s_type = "TS"; s_subtype = "SI"; }
 
                 string c_id = null, c_name = null, s_id = null;
 
@@ -3837,7 +3843,7 @@ namespace Center
 
                 #region Name Processing
 
-                if (c_id != null)
+                if (c_id != null && c_name != "TELKOMSELSITES")
                 {
                     List<Row> rownems = servicebycustomerdb[c_id];
 
@@ -4789,8 +4795,9 @@ namespace Center
     {
         #region Constants
 
-        private static string[] monthsEnglish = new string[] { "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER" };
-        private static string[] monthsBahasa = new string[] { "JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER" };
+        private static readonly string[] monthsEnglish = new string[] { "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER" };
+        private static readonly string[] monthsBahasa = new string[] { "JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER" };
+        private static readonly Regex findSiteID = new Regex(@"([A-Z][A-Z][A-Z][0-9][0-9][0-9])");
 
         #endregion
 
@@ -4855,6 +4862,8 @@ namespace Center
 
             string[] s = desc.Split(new char[] { '_', ' ' }, StringSplitOptions.RemoveEmptyEntries);
             string d = string.Join(" ", s).ToUpper();
+
+            #region Find SID
 
             int rmv = -1;
             int rle = -1;
@@ -5099,7 +5108,6 @@ namespace Center
                     int weirdc = de.SID.IndexOfAny(new char[] { ' ' });
 
                     if (weirdc > -1) de.SID = null;
-
                 }
             }
 
@@ -5324,24 +5332,55 @@ namespace Center
                 }
             }
 
-            d = d.Trim();
+            #endregion
 
-            // if double, singlekan
-            if (d.Length >= 2 && d.Length % 2 == 0)
+            #region Find SITEID
+
+            if (de.SID == null)
             {
-                int halflen = d.Length / 2;
-                string leftside = d.Substring(0, halflen);
-                string rightside = d.Substring(halflen, halflen);
+                if (d.IndexOf("TELKOMSEL") > -1 || d.IndexOf("TSEL") > -1)
+                {
+                    Match m = findSiteID.Match(d);
 
-                if (leftside == rightside)
-                    d = leftside;
+                    if (m.Success)
+                    {
+                        string siteID = m.Groups[0].Value;
+
+                        de.SID = siteID;
+                        de.CID = "TELKOMSELSITES";
+                        de.ServiceType = "TELKOMSELSITES";
+                        de.ServiceSubType = "TELKOMSELSITES";
+                    }
+                }
             }
 
-            d = d.Replace("()", "");
-            d = d.Replace("[]", "");
-            d = string.Join(" ", d.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries));
+            #endregion
 
-            de.CleanDescription = d;
+            if (de.CID != "TELKOMSELSITES")
+            {
+                d = d.Trim();
+
+                // if double, singlekan
+                if (d.Length >= 2 && d.Length % 2 == 0)
+                {
+                    int halflen = d.Length / 2;
+                    string leftside = d.Substring(0, halflen);
+                    string rightside = d.Substring(halflen, halflen);
+
+                    if (leftside == rightside)
+                        d = leftside;
+                }
+
+                d = d.Replace("()", "");
+                d = d.Replace("[]", "");
+                d = string.Join(" ", d.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries));
+
+                de.CleanDescription = d;
+            }
+            else
+            {
+                de.CleanDescription = "TELKOMSELSITES";
+            }
 
             return de;
         }

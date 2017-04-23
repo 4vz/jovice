@@ -1550,11 +1550,14 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                         u.UpdateDescription = true;
                         u.Description = li.Description;
                         UpdateInfo(updateinfo, "description", db["MC_Description"].ToString(), li.Description, true);
-
-                        u.ServiceID = null;
-
-                        if (u.Description != null) circuitServiceReference.Add(u, u.Description);
                     }
+                    if (updatingNecrow || u.UpdateDescription)
+                    {
+                        update = true;
+                        u.ServiceID = null;
+                        if (li.Description != null) circuitServiceReference.Add(u, li.Description);
+                    }
+
                     if (db["MC_MTU"].ToIntShort(-1) != li.AdmMTU)
                     {
                         update = true;
@@ -1619,11 +1622,8 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 update.Set("MC_Status", s.Status, s.UpdateStatus);
                 update.Set("MC_Protocol", s.Protocol, s.UpdateProtocol);
                 update.Set("MC_Type", s.Type, s.UpdateType);
-                if (s.UpdateDescription)
-                {
-                    update.Set("MC_Description", s.Description);
-                    update.Set("MC_SE", s.ServiceID);
-                }
+                update.Set("MC_Description", s.Description, s.UpdateDescription);
+                update.Set("MC_SE", s.ServiceID, updatingNecrow || s.UpdateDescription);
                 update.Set("MC_MTU", s.AdmMTU.Nullable(0), s.UpdateAdmMTU);
                 update.Set("MC_MU", s.CustomerID, s.UpdateCustomer);
                 update.Where("MC_ID", s.ID);
@@ -3309,10 +3309,14 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.UpdateDescription = true;
                         u.Description = li.Description;
                         UpdateInfo(updateinfo, "description", db["MI_Description"].ToString(), li.Description, true);
-
-                        u.ServiceID = null;
-                        if (u.Description != null) interfaceServiceReference.Add(u, u.Description);
                     }
+                    if (updatingNecrow || u.UpdateDescription)
+                    {
+                        update = true;
+                        u.ServiceID = null;
+                        if (li.Description != null) interfaceServiceReference.Add(u, li.Description);
+                    }
+
                     if (db["MI_Status"].ToBool() != li.Status)
                     {
                         update = true;
@@ -3559,11 +3563,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
                 }
                 update.Set("MI_TO_NI", s.TopologyNeighborInterfaceID, s.UpdateTopologyNeighborInterfaceID);
-                if (s.UpdateDescription)
-                {
-                    update.Set("MI_Description", s.Description);
-                    update.Set("MI_SE", s.ServiceID);
-                }
+                update.Set("MI_Description", s.Description, s.UpdateDescription);
+                update.Set("MI_SE", s.ServiceID, s.UpdateDescription || updatingNecrow);
                 update.Set("MI_Status", s.Status, s.UpdateStatus);
                 update.Set("MI_Protocol", s.Protocol, s.UpdateProtocol);
                 update.Set("MI_Enable", s.Enable, s.UpdateEnable);

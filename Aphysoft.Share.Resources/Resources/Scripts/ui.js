@@ -985,7 +985,7 @@
 
         window.ui = ui;
 
-        $(function () {
+        $$(function () { 
             ajaxify = share.system("ajaxify");
             contentProviderUrl = share.system("contentProviderUrl");
             urlPrefix = share.system("urlPrefix");
@@ -1188,7 +1188,7 @@
         ui.measureText = measureText;
         ui.parseFontFamily = parseFontFamily;
 
-        $(function () {
+        $$(function () {
             headings = share.system("fontHeadings");
             body = share.system("fontBody");
         });
@@ -1289,7 +1289,7 @@
 
         ui.color = color;
 
-        $(function () {
+        $$(function () {
             colorAccent = share.system("colorAccent");
             colorMin = share.system("color0");
             colorMax = share.system("color100");

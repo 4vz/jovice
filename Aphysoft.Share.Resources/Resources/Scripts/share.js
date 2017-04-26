@@ -316,11 +316,11 @@
         window.share = share;
         window.$$ = share;
 
-        $(function () {
+        $.window.on("load", function () {
             state = 1;
         });
 
-        $.window.on("load", function () {
+        $(function () {
             state = 2;
             $.each(onloads, function (i, v) {
                 chainingFunctions(0, v);

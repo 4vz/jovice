@@ -302,9 +302,9 @@
                 page.event = function () {
                     var o = arguments;
 
-                    if ($.isArray(o[0])) {
+                    if (Array.isArray(o[0])) {
                         $.each(o[0], function (i, v) {
-                            if ($.isNumber(v) || $.isArray(v))
+                            if ($.isNumber(v) || Array.isArray(v))
                                 page.event(v);
                         });
                     }
@@ -325,7 +325,7 @@
                             eventHandlers.splice(ix, 1);
                         }
                     }
-                    else if ($.isArray(arg1)) {
+                    else if (Array.isArray(arg1)) {
                         $.each(arg1, function (i, v) {
                             page.removeEvent(v);
                         });
@@ -344,7 +344,7 @@
                             streamHandlers.splice(ix, 1);
                         }
                     }
-                    else if ($.isArray(d)) {
+                    else if (Array.isArray(d)) {
                         $.each(d, function (i, v) {
                             page.removeStream(v);
                         });
@@ -1313,9 +1313,9 @@
             function selfEvent() {
                 var o = arguments;
 
-                if ($.isArray(o[0])) {
+                if (Array.isArray(o[0])) {
                     $.each(o[0], function (i, v) {
-                        if ($.isNumber(v) || $.isArray(v))
+                        if ($.isNumber(v) || Array.isArray(v))
                             selfEvent(v);
                     });
                 }
@@ -1336,7 +1336,7 @@
                         selfEventHandlers.splice(ix, 1);
                     }
                 }
-                else if ($.isArray(arg1)) {
+                else if (Array.isArray(arg1)) {
                     $.each(arg1, function (i, v) {
                         selfRemoveEvent(v);
                     });
@@ -1374,7 +1374,7 @@
                 if ($.isPlainObject(a)) {
                     $.each(a, function (i, v) {
                         if ($.isFunction(box[i])) {
-                            if ($.isArray(v)) box[i].apply(box, v);
+                            if (Array.isArray(v)) box[i].apply(box, v);
                             else box[i](v);
                         }
                     });
@@ -1579,7 +1579,7 @@
             box.size = function () {
                 var o = arguments;
 
-                if ($.isArray(o[0])) {
+                if (Array.isArray(o[0])) {
                     this.width(o[0][0]);
                     this.height(o[0][1]);
                 }
@@ -1975,7 +1975,7 @@
                 }
             };
             box.event = function (e, c, d, f) {
-                if ($.isArray(e) || $.isNumber(e)) {
+                if (Array.isArray(e) || $.isNumber(e)) {
                     if (page != null)
                         page.event(e);
                     else
@@ -2017,7 +2017,7 @@
                     var ix = boxEvents.indexOf(e);
                     if (ix > -1) boxEvents.splice(ix, 1);
                 }
-                else if ($.isArray(e)) {
+                else if (Array.isArray(e)) {
                     $.each(e, function (i, v) {
                         box.removeEvent(v);
                     });
@@ -2677,7 +2677,7 @@
                                 var lic = ui.icon(scrollLeftButton, "arrow")({ size: [20, 20], color: 35, center: true, flip: "horizontal" });
                                 lic.$.css({ marginLeft: -3 });
 
-                                if (!$.isArray(scroll.horizontalStep) || scroll.horizontalStep.length == 0) scroll.horizontalStep = null;
+                                if (!Array.isArray(scroll.horizontalStep) || scroll.horizontalStep.length == 0) scroll.horizontalStep = null;
 
                                 if (scroll.horizontalStep != null) {
                                     scroll.horizontalStep.sort(function (a, b) { return a - b; });
@@ -3360,11 +3360,11 @@
                             var ca = null;
                             if ($.isNull(av)) ca = "";
                             else {
-                                if ($.isArray(av)) ca = share.color(av[0], av[1], av[2]);
+                                if (Array.isArray(av)) ca = share.color(av[0], av[1], av[2]);
                                 else ca = share.color(av);
 
                                 if (ca == null) {
-                                    if ($.isArray(av)) ca = ui.color(av[0], av[1]);
+                                    if (Array.isArray(av)) ca = ui.color(av[0], av[1]);
                                     else ca = ui.color(av);
 
                                 }

@@ -452,7 +452,7 @@
                     delete handlers[id];
                 }
             }
-            else if ($.isArray(o[0])) {
+            else if (Array.isArray(o[0])) {
                 $.each(o[0], function (i, v) {
                     removeUnload(v);
                 });
@@ -488,7 +488,7 @@
                     else return random(max, 0);
                 }
             }
-            else if ($.isArray(o[0])) {
+            else if (Array.isArray(o[0])) {
                 var a = o[0];
                 return a.length > 0 ? a[random(a.length)] : null;
             }
@@ -890,7 +890,7 @@
                     if (handlers.length == 0) clearTimeout(timeOutHandler);
                 }
             }
-            else if ($.isArray(o[0])) {
+            else if (Array.isArray(o[0])) {
                 $.each(o[0], function (i, v) {
                     removeTimer(v);
                 });
@@ -1256,7 +1256,7 @@
     (function (share) {
 
         var diff = function (array1, array2) {
-            if ($.isArray(array1) && $.isArray(array2)) {
+            if (Array.isArray(array1) && Array.isArray(array2)) {
                 return array1.filter(function (i) { return !(array2.indexOf(i) > -1); });
             }
         };
@@ -1344,7 +1344,7 @@
 
             var obj = {};
 
-            if ($.isArray(s)) {
+            if (Array.isArray(s)) {
 
                 var vo = null;
                 $.each(s, function (i, v) {
@@ -1592,7 +1592,7 @@
                     delete handlers[id];
                 }
             }
-            else if ($.isArray(o[0])) {
+            else if (Array.isArray(o[0])) {
                 $.each(o[0], function (i, v) {
                     removeResize(v);
                 });
@@ -1961,7 +1961,7 @@
                     var value = iv.substr(ivfe + 1);
 
                     if (c[key] != null) {
-                        if (!$.isArray(c[key])) c[key] = [c[key]];
+                        if (!Array.isArray(c[key])) c[key] = [c[key]];
                         c[key].push(value);
                     }
                     else c[key] = value;
@@ -2502,7 +2502,7 @@
                     delete handlers[id];
                 }
             }
-            else if ($.isArray(o[0])) {
+            else if (Array.isArray(o[0])) {
                 $.each(o[0], function (i, v) {
                     removeEvent(v);
                 });
@@ -2518,7 +2518,7 @@
                     deleteEvent(id);
                 }
             }
-            else if ($.isArray(o[0])) {
+            else if (Array.isArray(o[0])) {
                 $.each(o[0], function (i, v) {
                     disableEvent(v);
                 });
@@ -2537,7 +2537,7 @@
                     disabledHandlers.splice(did, 1);
                 }
             }
-            else if ($.isArray(o[0])) {
+            else if (Array.isArray(o[0])) {
                 $.each(o[0], function (i, v) {
                     enableEvent(v);
                 });
@@ -2557,7 +2557,7 @@
                     }
                 }
             }
-            else if ($.isArray(o[0])) {
+            else if (Array.isArray(o[0])) {
                 $.each(o[0], function (i, v) {
                     triggerEvent(v);
                 });
@@ -2924,7 +2924,7 @@
                     register(va);
                 });
             }
-            else if ($.isArray(s)) {
+            else if (Array.isArray(s)) {
                 $.each(s, function (is, vs) {
                     register(vs);
                 });
@@ -2943,7 +2943,7 @@
                     removeRegister(va);
                 });
             }
-            else if ($.isArray(s)) {
+            else if (Array.isArray(s)) {
                 $.each(s, function (is, vs) {
                     removeRegister(vs);
                 });
@@ -3176,7 +3176,7 @@
                     function buildParams(prefix, obj) {
                         var name;
 
-                        if ($.isArray(obj)) {
+                        if (Array.isArray(obj)) {
                             $.each(obj, function (i, v) {
                                 if (/\[\]$/.test(prefix)) {
                                     add(prefix, v);
@@ -3685,7 +3685,7 @@
                                 array = [{ type: "message", data: data }];
                             } else {
                                 array = opts.inbound.call(self, data);
-                                array = array == null ? [] : !$.isArray(array) ? [array] : array;
+                                array = array == null ? [] : !Array.isArray(array) ? [array] : array;
                             }
 
                             connection.lastEventIds = [];

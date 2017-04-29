@@ -3491,10 +3491,12 @@
                                     var range = document.body.createTextRange();
                                     range.moveToElementText(text.$.get(0));
                                     range.select();
-                                } else if (window.getSelection) {
+                                } else if (window.getSelection) {                                    
                                     var range = document.createRange();
                                     range.selectNode(text.$.get(0));
-                                    window.getSelection().addRange(range);
+                                    var selection = window.getSelection();
+                                    selection.removeAllRanges();
+                                    selection.addRange(range);
                                 }
                                 e.stopPropagation();
                             }), text.down(function (e) {

@@ -316,10 +316,6 @@
         window.share = share;
         window.$$ = share;
 
-        $.window.on("load", function () {
-            state = 1;
-        });
-
         $(function () {
             state = 2;
             $.each(onloads, function (i, v) {

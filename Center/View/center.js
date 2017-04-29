@@ -185,8 +185,7 @@
                 if (type == "online") {
                     if (firstTime) {
                         firstTime = false;
-
-                        $$(function () {}, 100, function () {                            
+                        $$(function () { }, 100, function () {
                             if (!frontLogoDone) return -1;
                             else close.fadeOut(100);
                         });
@@ -460,7 +459,6 @@
         window.onerror = function (e) {
 
         };
-        formatInterfaceName
         function prepareQuery(q) {
             q = q.replaceAll(' ', '+');
             q = escape(q);

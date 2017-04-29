@@ -738,9 +738,13 @@
                 left = end1.leftWidth();
                 
                 if (end1var != null) {
+                    var nused = null;
+                    if (mc != null) nused = mc[1];
+                    else if (mi2 != null) nused = mi2[1];
+
                     ui.icon(c, center.icon("lightning"))({
                         size: [20, 20], left: left + 4, top: 5, color: 35,
-                        tooltip: "{0|" + end1NO + "} is based on interface description found on {0|" + mc[1] + "} and may not same as actual device's name",
+                        tooltip: "{0|" + end1NO + "} is based on interface description found on {0|" + nused + "} and may not same as actual device's name",
                         tooltipSpanColor: ["accent+50"]
                     });
                     left += 20;

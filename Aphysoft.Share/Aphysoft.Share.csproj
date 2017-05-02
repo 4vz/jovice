@@ -32,7 +32,7 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
+    <DebugType>none</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\</OutputPath>
     <DefineConstants>
@@ -113,28 +113,22 @@
     </Compile>
     <Compile Include="Application\Page\QueryString.cs" />
     <Compile Include="Application\Session.cs" />
-    <Compile Include="Application\UI\Content.cs" />
-    <Compile Include="Application\UI\Controls\GridView.cs" />
-    <Compile Include="Application\UI\Controls\IUIControls.cs" />
-    <Compile Include="Application\UI\TouchUIPage.cs" />
-    <Compile Include="Application\UI\LiteUIPage.cs" />
-    <Compile Include="Application\UI\FullUIPage.cs" />
-    <Compile Include="Application\UI\UIPage.cs" />
+    <Compile Include="Application\Content.cs" />
     <Compile Include="Application\Service\Service.cs" />
     <Compile Include="Application\Service\SessionServiceMessage.cs" />
     <Compile Include="Application\Settings\SettingsList.cs" />
-    <Compile Include="Application\Resource\Resource.cs" />
+    <Compile Include="Application\Resource.cs" />
     <Compile Include="Application\Page\BasePage.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="Application\Settings\Settings.cs" />
     <Compile Include="Application\Settings\UserSettings.cs" />
     <Compile Include="Application\Share.cs" />
-    <Compile Include="Application\Provider\WebFont.cs" />
+    <Compile Include="Application\WebFont.cs" />
     <Compile Include="Application\Helpers\Path.cs" />
     <Compile Include="Application\Helpers\Params.cs" />
     <Compile Include="Application\Helpers\WebConfiguration.cs" />
-    <Compile Include="Application\Provider\Provider.cs" />
+    <Compile Include="Application\Provider.cs" />
     <Compile Include="Class\Color.cs" />
     <Compile Include="Core\BaseDisposable.cs" />
     <Compile Include="Core\BaseFinalizable.cs" />

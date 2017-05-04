@@ -162,8 +162,7 @@ namespace Aphysoft.Share
     {
         BadRequestFormat
     }
-
-
+    
     [DataContract]
     public abstract class ResultAPIPacket : APIPacket
     {
@@ -194,6 +193,23 @@ namespace Aphysoft.Share
         {
             get { return resultLimit; }
             set { resultLimit = value; }
+        }
+
+        #endregion
+    }
+
+    [DataContract]
+    public abstract class ResultItemAPIPacket
+    {
+        #region Fields
+
+        private long index = 0;
+
+        [DataMember(Name = "index")]
+        public long Index
+        {
+            get { return index; }
+            set { index = value; }
         }
 
         #endregion

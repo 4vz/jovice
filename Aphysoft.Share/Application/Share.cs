@@ -64,7 +64,6 @@ namespace Aphysoft.Share
 
         private readonly static object initSync = new object();
         private static bool inited = false;
-        private static bool onInitCompleted = false;
 
         private Request currentRequest = null;
 
@@ -97,8 +96,6 @@ namespace Aphysoft.Share
                         Share.current = this;
 
                         OnInit();
-
-                        onInitCompleted = true;
 
                         Settings.ClientInit();
 
@@ -227,11 +224,6 @@ namespace Aphysoft.Share
                         if (toUIPage)
                         {
                             HttpContext.Current.SetSessionStateBehavior(SessionStateBehavior.Disabled);
-                            UIPage page;
-                            if (Share.Current.Request.Design == Aphysoft.Share.DesignType.Full) page = new FullUIPage();
-                            else if (Share.Current.Request.Design == Aphysoft.Share.DesignType.Touch) page = new TouchUIPage();
-                            else page = new LiteUIPage();
-                            context.Items["uipage"] = page;
                         }
                         else
                         {
@@ -308,12 +300,13 @@ namespace Aphysoft.Share
             HttpRequest request = context.Request;
             HttpResponse response = context.Response;
 
-            if (Settings.EnableUI)
+            ExecutionTypes type = (ExecutionTypes)context.Items["provider"];
+
+            if (type == ExecutionTypes.Default)
             {
-                if (context.Items.Contains("uipage"))
+                if (Settings.EnableUI)
                 {
-                    UIPage page = (UIPage)context.Items["uipage"];
-                    page.Render(context);
+                    Content.Render(context);
                     Compress(context);
                     context.Response.End();
                 }
@@ -505,84 +498,94 @@ namespace Aphysoft.Share
                 {
                     string api = paths[1].ToLower();
 
-                    APIRegister apiRegister = API.Get(api);
-
-                    if (apiRegister != null)
+                    if (api.Length > 0)
                     {
-                        if (paths.Length >= 3)
+                        APIRegister apiRegister = API.Get(api);
+
+                        if (apiRegister != null)
                         {
-                            if (QueryString.IsExist())
+                            if (paths.Length >= 3)
                             {
-                                if (QueryString.Exists("key"))
+                                if (QueryString.IsExist())
                                 {
-                                    if (QueryString.ValuesCount("key") > 1)
+                                    if (QueryString.Exists("key"))
                                     {
-                                        statusCode = -1;
-                                        result = new AsyncResult(context, cb, extraData);
-                                        response.Status = "400 Bad Request";
-                                        result.SetCompleted();
-                                    }
-                                    else
-                                    {
-                                        string apiKey = QueryString.GetValue("key");
-
-                                        List<string> pas = new List<string>();
-                                        int ipath = 0;
-                                        foreach (string path in paths)
+                                        if (QueryString.ValuesCount("key") > 1)
                                         {
-                                            if (ipath > 0) pas.Add(path);
-                                            ipath++;
+                                            statusCode = -1;
+                                            result = new AsyncResult(context, cb, extraData);
+                                            response.Status = "400 Bad Request";
+                                            result.SetCompleted();
                                         }
+                                        else
+                                        {
+                                            string apiKey = QueryString.GetValue("key");
 
-                                        Result r = Database.Query(@"
+                                            List<string> pas = new List<string>();
+                                            int ipath = 0;
+                                            foreach (string path in paths)
+                                            {
+                                                if (ipath > 0) pas.Add(path);
+                                                ipath++;
+                                            }
+
+                                            Result r = Database.Query(@"
 select AA_ID from ApiSubscription, Api, ApiAccess where AS_AA = AA_ID and AS_AP = AP_ID and AA_Active = 1 and AP_Name = {0} and AA_Key = {1}", api, apiKey);
 
-                                        if (r.Count == 1)
-                                        {
-                                            string aaID = r[0]["AA_ID"].ToString();
-
-                                            statusCode = -1;
-                                            APIAsyncResult resourceResult = new APIAsyncResult(context, cb, extraData);
-                                            result = resourceResult;
-
-                                            APIPacket packet = apiRegister.APIRequest(resourceResult, pas.ToArray(), aaID);
-
-                                            if (packet != null)
+                                            if (r.Count == 1)
                                             {
-                                                if (packet is ErrorAPIPacket)
+                                                string aaID = r[0]["AA_ID"].ToString();
+
+                                                statusCode = -1;
+                                                APIAsyncResult resourceResult = new APIAsyncResult(context, cb, extraData);
+                                                result = resourceResult;
+
+                                                APIPacket packet = apiRegister.APIRequest(resourceResult, pas.ToArray(), aaID);
+
+                                                if (packet != null)
                                                 {
-                                                    response.StatusCode = ((ErrorAPIPacket)packet).HttpStatusCode;
+                                                    if (packet is ErrorAPIPacket)
+                                                    {
+                                                        response.StatusCode = ((ErrorAPIPacket)packet).HttpStatusCode;
+                                                    }
+
+                                                    if (QueryString.GetValue("nocompress") == "true") { }
+                                                    else Compress(context);
+
+                                                    response.AppendHeader("Cache-Control", "private, no-store, no-cache, must-revalidate, post-check=0, pre-check=0");
+                                                    response.AppendHeader("Pragma", "no-cache");
+
+                                                    DataContractJsonSerializer serializer = new DataContractJsonSerializer(packet.GetType());
+                                                    serializer.WriteObject(response.OutputStream, packet);
+
+                                                    response.ContentType = "application/json";
+
+                                                    result.SetCompleted();
                                                 }
-
-                                                if (QueryString.GetValue("nocompress") == "true") { }
-                                                else Compress(context);
-
-                                                response.AppendHeader("Cache-Control", "private, no-store, no-cache, must-revalidate, post-check=0, pre-check=0");
-                                                response.AppendHeader("Pragma", "no-cache");
-
-                                                DataContractJsonSerializer serializer = new DataContractJsonSerializer(packet.GetType());
-                                                serializer.WriteObject(response.OutputStream, packet);
-
-                                                response.ContentType = "application/json";
-
-                                                result.SetCompleted();
+                                                else
+                                                {
+                                                    statusCode = -1;
+                                                    result = new AsyncResult(context, cb, extraData);
+                                                    response.Status = "500 Internal Server Error";
+                                                    result.SetCompleted();
+                                                }
                                             }
                                             else
                                             {
                                                 statusCode = -1;
                                                 result = new AsyncResult(context, cb, extraData);
-                                                response.Status = "500 Internal Server Error";
+                                                response.Status = "403 Forbidden";
                                                 result.SetCompleted();
                                             }
-                                        }
-                                        else
-                                        {
-                                            statusCode = -1;
-                                            result = new AsyncResult(context, cb, extraData);
-                                            response.Status = "403 Forbidden";
-                                            result.SetCompleted();
-                                        }
 
+                                        }
+                                    }
+                                    else
+                                    {
+                                        statusCode = -1;
+                                        result = new AsyncResult(context, cb, extraData);
+                                        response.Status = "403 Forbidden";
+                                        result.SetCompleted();
                                     }
                                 }
                                 else
@@ -597,7 +600,7 @@ select AA_ID from ApiSubscription, Api, ApiAccess where AS_AA = AA_ID and AS_AP 
                             {
                                 statusCode = -1;
                                 result = new AsyncResult(context, cb, extraData);
-                                response.Status = "403 Forbidden";
+                                response.Status = "400 Bad Request";
                                 result.SetCompleted();
                             }
                         }
@@ -605,15 +608,15 @@ select AA_ID from ApiSubscription, Api, ApiAccess where AS_AA = AA_ID and AS_AP 
                         {
                             statusCode = -1;
                             result = new AsyncResult(context, cb, extraData);
-                            response.Status = "400 Bad Request"; 
+                            response.Status = "501 Not Implemented";
                             result.SetCompleted();
                         }
                     }
                     else
                     {
-                        statusCode = -1;
-                        result = new AsyncResult(context, cb, extraData);
-                        response.Status = "501 Not Implemented";
+                        if (Settings.SSLAvailable) response.Redirect("https://" + Settings.PageDomain);
+                        else response.Redirect("http://" + Settings.PageDomain);
+                        response.End();
                         result.SetCompleted();
                     }
                 }
@@ -670,7 +673,7 @@ select AA_ID from ApiSubscription, Api, ApiAccess where AS_AA = AA_ID and AS_AP 
 
         #region Application Handler
 
-        internal void ScriptDataBinding(HttpContext context, ScriptData data)
+        internal void ScriptDataBinding(HttpContext context, ScriptData scriptData)
         {
             SessionClient client = Session.Client(context);
 
@@ -678,49 +681,49 @@ select AA_ID from ApiSubscription, Api, ApiAccess where AS_AA = AA_ID and AS_AP 
 
             UserSettings us = new UserSettings();
 
-            data.System("serverTime", DateTime.UtcNow);
-            data.System("clientID", client.ClientID);
-            data.System("protocol", request.IsSecureConnection ? "https" : "http");
-            data.System("titleFormat", Settings.TitleFormat);
-            data.System("titleEmpty", Settings.TitleEmpty);
+            scriptData.System("serverTime", DateTime.UtcNow);
+            scriptData.System("clientID", client.ClientID);
+            scriptData.System("protocol", request.IsSecureConnection ? "https" : "http");
+            scriptData.System("titleFormat", Settings.TitleFormat);
+            scriptData.System("titleEmpty", Settings.TitleEmpty);
 
-            data.System("sizeGroups", Settings.SizeGroups);
+            scriptData.System("sizeGroups", Settings.SizeGroups);
 
             if (Settings.EnableUI)
             {
-                data.System("urlPrefix", Settings.UrlPrefix);
-                data.System("ajaxify", Settings.Ajaxify);
-                data.System("contentProviderUrl", Resource.GetPath("xhr_content_provider"));
+                scriptData.System("urlPrefix", Settings.UrlPrefix);
+                scriptData.System("ajaxify", Settings.Ajaxify);
+                scriptData.System("contentProviderUrl", Resource.GetPath("xhr_content_provider"));
 
                 Color c0 = new Color(us.Get("COLOR0"));
                 Color c100 = new Color(us.Get("COLOR100"));
 
-                data.System("colorAccent", string.Format("#{0}", us.Get("COLORACCENT")));
-                data.System("color0", string.Format("#{0}", us.Get("COLOR0")));
-                data.System("color100", string.Format("#{0}", us.Get("COLOR100")));
+                scriptData.System("colorAccent", string.Format("#{0}", us.Get("COLORACCENT")));
+                scriptData.System("color0", string.Format("#{0}", us.Get("COLOR0")));
+                scriptData.System("color100", string.Format("#{0}", us.Get("COLOR100")));
 
-                data.System("fontHeadings", Settings.FontHeadings);
-                data.System("fontBody", Settings.FontBody);
+                scriptData.System("fontHeadings", Settings.FontHeadings);
+                scriptData.System("fontBody", Settings.FontBody);
             }
 
             if (Settings.UseDomain)
             {
-                data.System("baseDomain", Settings.BaseDomain);
-                data.System("pageDomain", Settings.PageDomain);
+                scriptData.System("baseDomain", Settings.BaseDomain);
+                scriptData.System("pageDomain", Settings.PageDomain);
 
                 if (Settings.EnableLive)
                 {
-                    data.System("streamDomain", client.StreamSubDomain + "." + Settings.StreamDomain + client.StreamPort);
-                    data.System("streamPath", Resource.GetPath("xhr_stream"));
+                    scriptData.System("streamDomain", client.StreamSubDomain + "." + Settings.StreamDomain + client.StreamPort);
+                    scriptData.System("streamPath", Resource.GetPath("xhr_stream"));
                 }
             }
 
-            data.System("providerPath", Resource.GetPath("xhr_provider"));
+            scriptData.System("providerPath", Resource.GetPath("xhr_provider"));
 
-            OnScriptDataBinding(context, data);
+            OnScriptDataBinding(context, scriptData);
         }
 
-        internal void StyleSheetDataBinding(HttpContext context, StyleSheetData data)
+        internal void StyleSheetDataBinding(HttpContext context, StyleSheetData styleSheetData)
         {
             UserSettings us = new UserSettings(); // TODO: from identity
 
@@ -729,8 +732,8 @@ select AA_ID from ApiSubscription, Api, ApiAccess where AS_AA = AA_ID and AS_AP 
                 Color c0 = new Color(us.Get("COLOR0"));
                 Color c100 = new Color(us.Get("COLOR100"));
 
-                data.Add("._FH", "font-family: \"" + Settings.FontHeadings + "\"");
-                data.Add("._FB", "font-family: \"" + Settings.FontBody + "\"; color: #" + c0.Hex() + "");
+                styleSheetData.Add("._FH", "font-family: \"" + Settings.FontHeadings + "\"");
+                styleSheetData.Add("._FB", "font-family: \"" + Settings.FontBody + "\"; color: #" + c0.Hex() + "");
 
                 //int ro = 20;
                 //int roa = 100 / ro;
@@ -760,11 +763,11 @@ select AA_ID from ApiSubscription, Api, ApiAccess where AS_AA = AA_ID and AS_AP 
                 //data.Add("._CBA", "background-color: #" + cah);
 
                 //-webkit-text-stroke: 0.2px; -webkit-text-shadow: 0 0 1px rgba(51,51,51,0.2); 
-                data.Add("body", "background-color: #" + us.Get("COLORBACKGROUND"));
+                styleSheetData.Add("body", "background-color: #" + us.Get("COLORBACKGROUND"));
             }
 
 
-            OnStyleSheetDataBinding(context, data);
+            OnStyleSheetDataBinding(context, styleSheetData);
         }
 
         protected virtual void OnInit() { }

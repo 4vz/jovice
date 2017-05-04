@@ -41,12 +41,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aphysoft.Share.Resources", 
 		{BE59C0C5-8B77-445F-88ED-D88A4EB7709E} = {BE59C0C5-8B77-445F-88ED-D88A4EB7709E}
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JoviceSyncConsole", "JoviceSyncConsole\JoviceSyncConsole.csproj", "{69DDE6B7-8004-4C03-87CD-1F4A4B64DF15}"
-	ProjectSection(ProjectDependencies) = postProject
-		{123E8A09-3F7A-4A85-8E3A-DA92B55CE6CC} = {123E8A09-3F7A-4A85-8E3A-DA92B55CE6CC}
-		{BE59C0C5-8B77-445F-88ED-D88A4EB7709E} = {BE59C0C5-8B77-445F-88ED-D88A4EB7709E}
-	EndProjectSection
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aphysoft.Protected", "Aphysoft.Protected\Aphysoft.Protected.csproj", "{DBEB5569-93E8-457A-84F1-535D5B128AF2}"
 EndProject
 Global
@@ -137,18 +131,6 @@ Global
 		{AEF02DD0-E683-47C1-BA25-FBAEFF863A17}.Release|Mixed Platforms.Build.0 = Release|Any CPU
 		{AEF02DD0-E683-47C1-BA25-FBAEFF863A17}.Release|x86.ActiveCfg = Release|Any CPU
 		{AEF02DD0-E683-47C1-BA25-FBAEFF863A17}.Release|x86.Build.0 = Release|Any CPU
-		{69DDE6B7-8004-4C03-87CD-1F4A4B64DF15}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{69DDE6B7-8004-4C03-87CD-1F4A4B64DF15}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{69DDE6B7-8004-4C03-87CD-1F4A4B64DF15}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
-		{69DDE6B7-8004-4C03-87CD-1F4A4B64DF15}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
-		{69DDE6B7-8004-4C03-87CD-1F4A4B64DF15}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{69DDE6B7-8004-4C03-87CD-1F4A4B64DF15}.Debug|x86.Build.0 = Debug|Any CPU
-		{69DDE6B7-8004-4C03-87CD-1F4A4B64DF15}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{69DDE6B7-8004-4C03-87CD-1F4A4B64DF15}.Release|Any CPU.Build.0 = Release|Any CPU
-		{69DDE6B7-8004-4C03-87CD-1F4A4B64DF15}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
-		{69DDE6B7-8004-4C03-87CD-1F4A4B64DF15}.Release|Mixed Platforms.Build.0 = Release|Any CPU
-		{69DDE6B7-8004-4C03-87CD-1F4A4B64DF15}.Release|x86.ActiveCfg = Release|Any CPU
-		{69DDE6B7-8004-4C03-87CD-1F4A4B64DF15}.Release|x86.Build.0 = Release|Any CPU
 		{DBEB5569-93E8-457A-84F1-535D5B128AF2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{DBEB5569-93E8-457A-84F1-535D5B128AF2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DBEB5569-93E8-457A-84F1-535D5B128AF2}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU

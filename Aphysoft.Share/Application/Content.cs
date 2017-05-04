@@ -9,6 +9,7 @@ using System.Web;
 using System.Web.Script.Serialization;
 
 using Aphysoft.Share.Html;
+using System.Resources;
 
 namespace Aphysoft.Share
 {
@@ -193,9 +194,7 @@ namespace Aphysoft.Share
             ContentPackage package;
             DesignType design = Share.Current.Request.Design;
 
-            if (design == DesignType.Full) package = register.Full;
-            else if (design == DesignType.Touch) package = register.Touch;
-            else package = register.Lite;
+            package = register.Package;
 
             return package;
         }
@@ -278,7 +277,7 @@ namespace Aphysoft.Share
                                 try
                                 {
                                     targetPackage.PageInit(data);
-                                    data.Html = Content.HtmlProcess(data);
+                                    data.Html = HtmlProcess(data);
                                 }
                                 catch (Exception ex)
                                 {
@@ -321,53 +320,6 @@ namespace Aphysoft.Share
             return data;
         }
 
-        internal static TileData GetTileData(string family, TileParams param)
-        {
-            TileData data = new TileData();
-
-            ContentRegister contentRegister = GetRegister(family);
-
-            if (contentRegister != null)
-            {
-                ContentPackage targetPackage = GetContentPackage(contentRegister);
-
-                if (targetPackage != null)
-                {
-                    List<string> urls = new List<string>();
-
-                    if (contentRegister.Pages != null)
-                    {
-                        foreach (ContentPage contentPage in contentRegister.Pages)
-                        {
-                            urls.Add(contentPage.Url + (contentPage.VariablePath ? "?" : ""));
-                        }
-                    }
-
-                    if (targetPackage.TileHtml != null)
-                        data.Html = targetPackage.TileHtml.GetString();
-                    if (targetPackage.TileScript != null)
-                        data.ScriptUrl = Resource.GetPath(targetPackage.TileScript.Key);
-                    if (targetPackage.TileCss != null)
-                        data.CssUrl = Resource.GetPath(targetPackage.TileCss.Key);
-
-                    data.Url = "";
-                    data.Urls = urls.ToArray();
-                    data.TileLoad = targetPackage.TileInit;
-
-                    data.Height = param.Height;
-                    data.Width = param.Width;
-                    data.Height = param.Height;
-
-                    if (data.TileLoad != null)
-                        data.TileLoad(data);
-
-                    data.Html = Content.HtmlProcess(data);
-                }
-            }
-
-            return data;
-        }
-
         private static void ScriptDataBinding(BindingParameters param, ScriptData script)
         {
             string contentPath, queryString, queryStringPath;
@@ -383,14 +335,34 @@ namespace Aphysoft.Share
                     package.ScriptDataBinding(param, script);
             }
         }
+                
+        public static void Register(string key, ResourceManager resourceManager, string objectName, string resourcePath, params string[] pages)
+        {
+            List<ContentPage> lpages = new List<ContentPage>();
 
-        public static void Register(string family, ContentPage[] pages, ContentPackage full, ContentPackage touch, ContentPackage lite)
+            foreach (string page in pages)
+            {
+                string[] tokens = page.Split(new char[] { ':' });
+                string url = tokens[0];
+                bool var = false;
+                string title = null;
+
+                if (tokens.Length >= 2) var = tokens[1] == "true";
+                if (tokens.Length >= 3) title = tokens[2];
+
+                lpages.Add(new ContentPage(url, var, title));
+            }
+
+            Register(key, lpages.ToArray(), new ContentPackage(Resource.Register(key, ResourceTypes.JavaScript, resourceManager, objectName, resourcePath)));
+        }
+
+        public static void Register(string family, ContentPage[] pages, ContentPackage contentPackage)
         {
             //if (!Share.Current.EnableUI) throw new Exception("EnableUI Required");
 
             if (!contentRegisters.ContainsKey(family))
             {
-                ContentRegister register = new ContentRegister(family, pages, full, touch, lite);
+                ContentRegister register = new ContentRegister(family, pages, contentPackage);
                 contentRegisters.Add(family, register);
                 if (pages != null)
                 {
@@ -409,29 +381,13 @@ namespace Aphysoft.Share
             }
 
         }
-
-        public static void Register(string family, ContentPage[] pages, ContentPackage contentPackage)
-        {
-            Register(family, pages, contentPackage, null, null);
-        }
-
-
+        
         private static string HtmlProcess(PageData page)
         {
             HtmlDocument document = page.Document;
             HtmlNode node = document.DocumentNode;
 
             Transverse(page, node);
-
-            return node.OuterHtml;
-        }
-
-        private static string HtmlProcess(TileData tile)
-        {
-            HtmlDocument document = tile.HtmlDocument;
-            HtmlNode node = document.DocumentNode;
-
-            Transverse(tile, node);
 
             return node.OuterHtml;
         }
@@ -451,32 +407,8 @@ namespace Aphysoft.Share
                 {
                     if (node.Name.StartsWith("share:") && node.Attributes.Contains("id"))
                     {
-                        bool parsed = false;
-
                         string id = node.Attributes["id"].Value;
                         string tagname = node.Name.Substring(6);
-
-                        ///if (tagname == "
-                        
-
-                        int controlIndex = 0;
-                        foreach (IUIControls control in page.Controls)
-                        {
-                            if (control.ID == id && tagname.ToLower() == control.GetType().Name.ToLower())
-                            {
-                                // create new id
-                                string newID = id + "_" + control.GetType().Name + "" + controlIndex;
-
-                                control.Process(node, newID);
-
-                                node.Remove();
-
-                                parsed = true;
-
-                                break;
-                            }
-                            controlIndex++;
-                        }
                     }
                     else
                     {
@@ -487,44 +419,210 @@ namespace Aphysoft.Share
             }
         }
 
-        private static void Transverse(TileData tile, HtmlNode parent)
+        public static void Render(HttpContext context)
         {
-            List<HtmlNode> tobeRemoved = new List<HtmlNode>();
+            JavaScriptSerializer js = new JavaScriptSerializer();
 
-            foreach (HtmlNode node in parent.ChildNodes)
+            PageData cd = Content.GetPageData(HttpContext.Current.Request.RawUrl, false);
+
+            if (cd.Family == "system_status_404")
             {
-                bool beenRemoved = false;
+                context.Response.StatusCode = 404;
+                context.Response.TrySkipIisCustomErrors = true;
+            }
 
-                bool thisNodetobeRemoved = false;
-                if (node.Attributes.Contains("visible"))
+            string title = cd.Title;
+
+            string html;
+            string initHtml;
+
+            if (!Settings.Ajaxify)
+            {
+                html = cd.Html;
+                initHtml = "null";
+            }
+            else
+            {
+                html = "";
+                initHtml = js.Serialize(cd.Html);
+            }
+
+            HttpResponse response = context.Response;
+            HttpRequest request = context.Request;
+
+            // begin title
+            response.Write("<!doctype html>");
+            response.Write("<!-- By Afis Herman Reza Devara. Open the browser's developer console for more information about this. -->");
+            response.Write("<html><head><title>");
+            if (title == null) response.Write(Settings.FullName);
+            else
+            {
+                string fti = Settings.TitleFormat;
+                fti = fti.Replace("{TITLE}", title);
+                response.Write(fti);
+            }
+            // end title
+            response.Write("</title>");
+            // meta
+            response.Write("<meta charset=\"utf-8\" />");
+            // make this to some mechanism to add meta from descendant page
+            // only touch page use this.
+            response.Write("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=0, maximum-scale=1.0\" />");
+            response.Write("<meta name=\"apple-mobile-web-app-capable\" content=\"yes\" />");
+            response.Write("<meta name=\"apple-mobile-web-app-status-bar-style\" content=\"black-translucent\" />");
+            // shortcut icon
+            string shortcutIconKey;
+            if (Settings.ShortcutIcon == null)
+                shortcutIconKey = "image_shortcuticon";
+            else
+            {
+                Resource rs = Resource.Get(Settings.ShortcutIcon);
+                if (rs != null)
                 {
-                    string visible = node.Attributes["visible"].Value;
-                    thisNodetobeRemoved = true;
+                    if (rs.ResourceType == ResourceTypes.JPEG || rs.ResourceType == ResourceTypes.PNG)
+                        shortcutIconKey = Settings.ShortcutIcon;
+                    else
+                        shortcutIconKey = "image_shortcuticon";
                 }
+                else shortcutIconKey = "image_shortcuticon";
+            }
+
+            Resource defaultShortcutIcon = Resource.Get(shortcutIconKey);
+            response.Write("<link rel=\"icon\" type=\"" + defaultShortcutIcon.MimeType + "\" href=\"" + Resource.GetPath(shortcutIconKey) + "?v=2\" />");
+
+            #region Internal StyleSheet
+
+            response.Write("<style>");
+
+            StringBuilder sbstyle = new StringBuilder();
+
+            #region Webfont
+            foreach (KeyValuePair<string, WebFontType> font in WebFont.webFonts)
+            {
+                WebFontType w = font.Value;
+
+                string weightClause;
+
+                if (w.FontWeight == WebFontWeight.Bold)
+                    weightClause = "font-weight: bold; ";
+                else if (w.FontWeight == WebFontWeight.Weight100)
+                    weightClause = "font-weight: 100; ";
+                else if (w.FontWeight == WebFontWeight.Weight200)
+                    weightClause = "font-weight: 200; ";
+                else if (w.FontWeight == WebFontWeight.Weight300)
+                    weightClause = "font-weight: 300; ";
+                else if (w.FontWeight == WebFontWeight.Weight500)
+                    weightClause = "font-weight: 500; ";
+                else if (w.FontWeight == WebFontWeight.Weight600)
+                    weightClause = "font-weight: 600; ";
+                else if (w.FontWeight == WebFontWeight.Weight800)
+                    weightClause = "font-weight: 800; ";
+                else if (w.FontWeight == WebFontWeight.Weight900)
+                    weightClause = "font-weight: 900; ";
                 else
-                    thisNodetobeRemoved = false;
+                    weightClause = string.Empty;
 
-                if (node.VisibleSet == true)
-                    thisNodetobeRemoved = !node.Visible;
-
-                if (thisNodetobeRemoved)
-                    tobeRemoved.Add(node);
-
-                if (beenRemoved == false)
-                {
-                    Transverse(tile, node);
-                }
+                sbstyle.Append(string.Format("@font-face {{ font-family: '{0}'; {2}src: url({1}) format('truetype'), url({3}) format('woff'); }}\r\n",
+                        w.FontFamily,
+                        Resource.GetPath(w.TtfKey),
+                        weightClause,
+                        Resource.GetPath(w.WoffKey)
+                    ));
+                if (!string.IsNullOrEmpty(w.AltFontFamily))
+                    sbstyle.Append(string.Format("@font-face {{ font-family: '{0}'; src: url({1}) format('truetype'), url({3}) format('woff'); }}\r\n",
+                        w.AltFontFamily,
+                        Resource.GetPath(w.TtfKey),
+                        weightClause,
+                        Resource.GetPath(w.WoffKey)
+                    ));
             }
+            #endregion
 
-            foreach (HtmlNode node in tobeRemoved)
+            #region Core
+
+            sbstyle.Append("html { height: 100%; } body { height: 100%; overflow: hidden; } body, input { font-size: 15px } * { margin: 0; padding: 0; } a:link, a:hover, a:visited, a:active { text-decoration: none; }");
+
+            #endregion
+
+            #region CSS Bridge
+
+            StyleSheetData css = new StyleSheetData();
+            Share.Current.StyleSheetDataBinding(context, css);
+
+            foreach (KeyValuePair<string, StyleSheetDataClass> pair in css.Css)
             {
-                parent.ChildNodes.Remove(node);
-            }
-        }
+                sbstyle.Append(string.Format("{0} {{ ", pair.Key));
 
-        // TODO
-        private static void RenderTile(HtmlNode node, string family, TileParams param)
-        {
+                foreach (string line in pair.Value.Lines)
+                    sbstyle.Append(string.Format("{0}; ", line));
+
+                sbstyle.Append("} ");
+            }
+
+            #endregion
+
+            //response.Write(Web.Minifier.MinifyStyleSheet(sbstyle.ToString()));
+            response.Write(sbstyle.ToString());
+            response.Write("</style>");
+
+            #endregion
+
+            // include css resource
+            response.Write("<link type=\"text/css\" rel=\"stylesheet\" href=\"" + Resource.GetPath(Resource.CommonResourceCSS) + "\" />");
+
+            // end head, begin body
+            response.Write("</head><body>");
+            response.Write("<div id=\"main\" class=\"_MA\" style=\"display:none\">"); // start main
+            response.Write("<div id=\"top\" class=\"_TO\"></div>");
+            response.Write("<div id=\"bottom\" class=\"_BM\"></div>");
+            response.Write("<div id=\"pages\" class=\"_PS\">");
+            if (!Settings.Ajaxify)
+            {
+                response.Write("<div id=\"page\" class=\"_PG\">");
+                response.Write(html); // TODO
+                response.Write("</div>");
+            }
+            response.Write("</div>");
+            response.Write("</div>"); // end main
+            response.Write("<div id=\"nojs\" class=\"_NJ\"></div>");
+            // end body
+            // include script resource
+            response.Write("<script type=\"text/javascript\" language=\"javascript\" src=\"" + Resource.GetPath(Resource.CommonResourceScript) + "\"></script>");
+
+            // onload script
+            response.Write("<script type=\"text/javascript\">/*<![CDATA[*/");
+
+            StringBuilder sb = new StringBuilder();
+
+            ScriptData scriptData = new ScriptData();
+            Share.Current.ScriptDataBinding(context, scriptData);
+            sb.Append("share.data({ " + string.Join(", ", scriptData.GetArrayString()) + " });");
+
+            sb.Append("$(function() {");
+            sb.Append(string.Format("ui(\"{0}\", \"{1}\", \"{2}\", \"{3}\", {4}, \"{5}\", {6}, {7}, {8}, {9});",
+            /*0*/cd.Family,
+            /*1*/HttpContext.Current.Request.RawUrl.Substring(Settings.UrlPrefix.Length),
+            /*2*/cd.ScriptUrl,
+            /*3*/cd.CssUrl,
+            /*4*/initHtml,
+            /*5*/cd.Title,
+            /*6*/js.Serialize(cd.Titles),
+            /*7*/js.Serialize(cd.Urls),
+            /*8*/js.Serialize(cd.ScriptData),
+            /*9*/js.Serialize(cd.GetData())
+            ));
+            sb.Append("});");
+
+            response.Write(WebUtilities.Minifier.MinifyJavaScript(sb.ToString()));
+
+            response.Write("/*]]>*/</script>");
+            response.Write("</body>");
+            response.Write("</html>");
+
+            response.AppendHeader("Cache-Control", "private, no-cache, no-store, must-revalidate");
+            response.AppendHeader("Pragma", "no-cache");
+            response.AppendHeader("Expires", "Sat, 01 Jan 2000 00:00:00 GMT");
+            response.Headers["Content-Type"] = "text/html; charset=utf-8";
         }
 
         #endregion
@@ -568,8 +666,6 @@ namespace Aphysoft.Share
 
     public delegate void ScriptDataBinding(BindingParameters param, ScriptData script);
     public delegate void PageInit(PageData page);
-    public delegate void TileInit(TileData tile);
-
 
     [DataContractAttribute]
     class ContentHeaderPacket
@@ -785,13 +881,6 @@ namespace Aphysoft.Share
 
         #endregion
 
-        private List<IUIControls> controls = new List<IUIControls>();
-
-        public List<IUIControls> Controls
-        {
-            get { return controls; }
-        }
-
         private HtmlDocument document;
 
         /// <summary>
@@ -901,216 +990,6 @@ namespace Aphysoft.Share
         #endregion
     }
 
-    public class TileData
-    {
-        private string html;
-
-        public string Html
-        {
-            get { return html; }
-            set
-            {
-                if (value != html)
-                    htmlChanged = true;
-
-                html = value;
-            }
-        }
-
-        private bool htmlChanged = true;
-
-        private HtmlDocument htmlDocument;
-
-        public HtmlDocument HtmlDocument
-        {
-            get
-            {
-                if (htmlDocument == null || htmlChanged == true)
-                {
-                    htmlDocument = new HtmlDocument();
-                    htmlDocument.LoadHtml(html);
-
-                    htmlChanged = false;
-                }
-
-                return htmlDocument;
-            }
-        }
-
-        private string scriptUrl;
-
-        public string ScriptUrl
-        {
-            get { return scriptUrl; }
-            set { scriptUrl = value; }
-        }
-
-        private string cssUrl;
-
-        public string CssUrl
-        {
-            get { return cssUrl; }
-            set { cssUrl = value; }
-        }
-
-        private TileInit tileLoad;
-
-        public TileInit TileLoad
-        {
-            get { return tileLoad; }
-            set { tileLoad = value; }
-        }
-
-        private string[] urls;
-
-        public string[] Urls
-        {
-            get { return urls; }
-            set { urls = value; }
-        }
-
-        private string url = null;
-
-        public string Url
-        {
-            get { return url; }
-            set { url = value; }
-        }
-
-        private string tag;
-
-        public string Tag
-        {
-            get { return tag; }
-            set { tag = value; }
-        }
-
-        private bool isRemoved = false;
-
-        public bool IsRemoved
-        {
-            get { return isRemoved; }
-            set { isRemoved = value; }
-        }
-
-        private string data = null;
-
-        public string Data
-        {
-            get { return data; }
-            set { data = value; }
-        }
-
-        private int heightIndex = 1;
-
-        public int HeightIndex
-        {
-            get { return heightIndex; }
-            set
-            {
-                int ih = value;
-
-                if (ih <= 0 && ih > 3)
-                    ih = 1;
-
-                heightIndex = ih;
-            }
-        }
-
-        private bool usingAccentBackground = false;
-
-        public bool UsingAccentBackground
-        {
-            get { return usingAccentBackground; }
-            set { usingAccentBackground = value; }
-        }
-
-        private string title;
-
-        public string Title
-        {
-            get { return title; }
-            set { title = value; }
-        }
-
-        private int height;
-
-        public int Height
-        {
-            get { return height; }
-            set { height = value; }
-        }
-
-        private int width;
-
-        public int Width
-        {
-            get { return width; }
-            set { width = value; }
-        }
-
-        private int maxWidth;
-
-        public int MaxWidth
-        {
-            get { return maxWidth; }
-            set { maxWidth = value; }
-        }
-
-        private int minWidth;
-
-        public int MinWidth
-        {
-            get { return minWidth; }
-            set { minWidth = value; }
-        }
-
-        public TileData()
-        {
-
-        }
-    }
-
-    public class TileParams
-    {
-        #region Fields
-
-        private int height;
-
-        public int Height
-        {
-            get { return height; }
-            set { height = value; }
-        }
-
-        private int width;
-
-        public int Width
-        {
-            get { return width; }
-            set { width = value; }
-        }
-
-        private string data;
-
-        public string Data
-        {
-            get { return data; }
-            set { data = value; }
-        }
-
-        #endregion
-
-        #region Constructor
-
-        public TileParams()
-        {
-
-        }
-
-        #endregion
-    }
-
     public class ContentPackage
     { 
         #region Fields
@@ -1147,38 +1026,6 @@ namespace Aphysoft.Share
             set { pageCss = value; }
         }
 
-        private TileInit tileInit;
-
-        public TileInit TileInit
-        {
-            get { return tileInit; }
-            set { tileInit = value; }
-        }
-
-        private Resource tileHtml;
-
-        public Resource TileHtml
-        {
-            get { return tileHtml; }
-            set { tileHtml = value; }
-        }
-
-        private Resource tileScript;
-
-        public Resource TileScript
-        {
-            get { return tileScript; }
-            set { tileScript = value; }
-        }
-
-        private Resource tileCss;
-
-        public Resource TileCss
-        {
-            get { return tileCss; }
-            set { tileCss = value; }
-        }
-
         private ScriptDataBinding scriptDataBinding;
 
         public ScriptDataBinding ScriptDataBinding
@@ -1193,7 +1040,6 @@ namespace Aphysoft.Share
 
         public ContentPackage(
             PageInit pageInit, Resource pageHtml, Resource pageScript, Resource pageCss,
-            TileInit tileInit, Resource tileHtml, Resource tileScript, Resource tileCss,
             ScriptDataBinding scriptDataBinding
             ) 
         {
@@ -1201,22 +1047,6 @@ namespace Aphysoft.Share
             this.pageHtml = pageHtml;
             this.pageScript = pageScript;
             this.pageCss = pageCss;
-            this.tileInit = tileInit;
-            this.tileHtml = tileHtml;
-            this.tileScript = tileScript;
-            this.tileCss = tileCss;
-            this.scriptDataBinding = scriptDataBinding;
-        }
-
-        public ContentPackage(
-            PageInit init, Resource html, Resource script, Resource css,
-            ScriptDataBinding scriptDataBinding
-            )
-        {
-            this.pageInit = init;
-            this.pageHtml = html;
-            this.pageScript = script;
-            this.pageCss = css;
             this.scriptDataBinding = scriptDataBinding;
         }
 
@@ -1283,37 +1113,19 @@ namespace Aphysoft.Share
             set { pages = value; }
         }
 
-        private ContentPackage full;
+        private ContentPackage package;
 
-        public ContentPackage Full
+        public ContentPackage Package
         {
-            get { return full; }
-            set { full = value; }
-        }
-        
-        private ContentPackage touch;
-
-        public ContentPackage Touch
-        {
-            get { return touch; }
-            set { touch = value; }
-        }
-        
-        private ContentPackage lite;
-
-        public ContentPackage Lite
-        {
-            get { return lite; }
-            set { lite = value; }
+            get { return package; }
+            set { package = value; }
         }
 
-        public ContentRegister(string family, ContentPage[] pages, ContentPackage full, ContentPackage touch, ContentPackage lite)
+        public ContentRegister(string family, ContentPage[] pages, ContentPackage package)
         {
             this.family = family;
             this.pages = pages;
-            this.full = full;
-            this.touch = touch;
-            this.lite = lite;
+            this.package = package;
         }
     }
 

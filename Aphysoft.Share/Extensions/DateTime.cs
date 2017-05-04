@@ -13,8 +13,7 @@ namespace Aphysoft.Share
         public static DateTime ConvertOffset(this DateTime value, TimeSpan offset)
         {
             if (value == DateTime.MinValue) return DateTime.MinValue;
-            DateTimeOffset d = new DateTimeOffset(value, offset);
-            return d.UtcDateTime;
+            return value + offset;
         }
 
         public static DateTime ConvertOffset(this DateTime value, int hourOffset)

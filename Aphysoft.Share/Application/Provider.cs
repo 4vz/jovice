@@ -378,13 +378,13 @@ namespace Aphysoft.Share
 
         internal static void Init()
         {
-            Resource.Register("xhr_stream", ResourceType.Text, Provider.StreamBeginProcessRequest, Provider.StreamEndProcessRequest)
+            Resource.Register("xhr_stream", ResourceTypes.Text, Provider.StreamBeginProcessRequest, Provider.StreamEndProcessRequest)
                 .NoBufferOutput().AllowOrigin("http" + (Settings.SSLAvailable ? "s" : "") + "://" + Settings.PageDomain).AllowCredentials();
-            Resource.Register("xhr_provider", ResourceType.JSON, Provider.ProviderBeginProcessRequest, Provider.ProviderEndProcessRequest);
+            Resource.Register("xhr_provider", ResourceTypes.JSON, Provider.ProviderBeginProcessRequest, Provider.ProviderEndProcessRequest);
 
             if (Settings.EnableUI)
             {
-                Resource.Register("xhr_content_provider", ResourceType.JSON, Content.Begin, Content.End);
+                Resource.Register("xhr_content_provider", ResourceTypes.JSON, Content.Begin, Content.End);
             }
         }
 
@@ -610,9 +610,14 @@ namespace Aphysoft.Share
             result.Tag = 0;
 
             // get requested provider id
-            string appids = Params.GetValue("i");
+            string appids = QueryString.GetValue("i");
+            string cid = QueryString.GetValue("c");
 
-            if (appids != null)
+            if (cid == null) // or cid not registered
+            {
+                response.Status = "403 Forbidden";
+            }
+            else if (appids != null)
             {
                 // parse to int
                 int appid;

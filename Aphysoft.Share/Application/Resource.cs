@@ -138,9 +138,9 @@ namespace Aphysoft.Share
         {
             if (resource != null && resource.BeginHandler == null)
             {
-                if (resource.ResourceType == ResourceType.JavaScript)
+                if (resource.ResourceType == ResourceTypes.JavaScript)
                     Resource.Group(CommonResourceScript, resource.Key, commonResourceScriptIndex++);
-                else if (resource.ResourceType == ResourceType.CSS)
+                else if (resource.ResourceType == ResourceTypes.CSS)
                     Resource.Group(CommonResourceCSS, resource.Key, commonResourceCSSIndex++);
             }
         }
@@ -175,7 +175,7 @@ namespace Aphysoft.Share
                 return null;
         }
 
-        private static Resource Register(string key, string keyHash, ResourceType resourceType)
+        private static Resource Register(string key, string keyHash, ResourceTypes resourceType)
         {
             Resource resource;
 
@@ -200,12 +200,12 @@ namespace Aphysoft.Share
             return resource;
         }
 
-        private static Resource Register(string key, ResourceType resourceType)
+        private static Resource Register(string key, ResourceTypes resourceType)
         {
             return Resource.Register(key, null, resourceType);
         }
 
-        public static Resource Register(string key, string keyHash, ResourceType resourceType, ResourceBeginProcessRequest beginHandler, ResourceEndProcessRequest endHandler)
+        public static Resource Register(string key, string keyHash, ResourceTypes resourceType, ResourceBeginProcessRequest beginHandler, ResourceEndProcessRequest endHandler)
         {
             Resource resource = Resource.Register(key, keyHash, resourceType);
 
@@ -214,12 +214,12 @@ namespace Aphysoft.Share
             return resource;
         }
 
-        internal static Resource Register(string key, ResourceType resourceType, ResourceBeginProcessRequest beginHandler, ResourceEndProcessRequest endHandler)
+        internal static Resource Register(string key, ResourceTypes resourceType, ResourceBeginProcessRequest beginHandler, ResourceEndProcessRequest endHandler)
         {
             return Register(key, null, resourceType, beginHandler, endHandler);
         }
 
-        public static Resource Register(string key, string keyHash, ResourceType resourceType, string rootRelativePath)
+        public static Resource Register(string key, string keyHash, ResourceTypes resourceType, string rootRelativePath)
         {
             if (rootRelativePath == null) return null;
             string physicalPath = Path.PhysicalPath(rootRelativePath);
@@ -237,12 +237,12 @@ namespace Aphysoft.Share
             return resource;
         }
 
-        public static Resource Register(string key, ResourceType resourceType, string rootRelativePath)
+        public static Resource Register(string key, ResourceTypes resourceType, string rootRelativePath)
         {
             return Resource.Register(key, null, resourceType, rootRelativePath);
         }
 
-        public static Resource Register(string key, string keyHash, ResourceType resourceType, ResourceManager resourceManager, string objectName)
+        public static Resource Register(string key, string keyHash, ResourceTypes resourceType, ResourceManager resourceManager, string objectName)
         {
             Resource resource = Resource.Register(key, keyHash, resourceType);
 
@@ -254,9 +254,9 @@ namespace Aphysoft.Share
 
                 using (MemoryStream ms = new MemoryStream())
                 {
-                    if (resourceType == ResourceType.PNG)
+                    if (resourceType == ResourceTypes.PNG)
                         b.Save(ms, ImageFormat.Png);
-                    else if (resourceType == ResourceType.JPEG)
+                    else if (resourceType == ResourceTypes.JPEG)
                         b.Save(ms, ImageFormat.Jpeg);
                     resource.SetData(ms.ToArray());
                 }
@@ -267,17 +267,17 @@ namespace Aphysoft.Share
             return resource;
         }
 
-        public static Resource Register(string key, ResourceType resourceType, ResourceManager resourceManager, string objectName)
+        public static Resource Register(string key, ResourceTypes resourceType, ResourceManager resourceManager, string objectName)
         {
             return Resource.Register(key, null, resourceType, resourceManager, objectName);
         }
 
-        public static Resource Register(string key, ResourceType resourceType, ResourceManager resourceManager, string objectName, string rootRelativePath)
+        public static Resource Register(string key, ResourceTypes resourceType, ResourceManager resourceManager, string objectName, string rootRelativePath)
         {
             return Register(key, null, resourceType, resourceManager, objectName, rootRelativePath);
         }
 
-        public static Resource Register(string key, string keyHash, ResourceType resourceType, ResourceManager resourceManager, string objectName, string rootRelativePath)
+        public static Resource Register(string key, string keyHash, ResourceTypes resourceType, ResourceManager resourceManager, string objectName, string rootRelativePath)
         {
             Resource resource;
 #if DEBUG
@@ -320,9 +320,9 @@ namespace Aphysoft.Share
             get { return keyHash; }
         }
 
-        private ResourceType resourceType;
+        private ResourceTypes resourceType;
 
-        public ResourceType ResourceType
+        public ResourceTypes ResourceType
         {
             get { return resourceType; }
             set { resourceType = value; }
@@ -338,15 +338,15 @@ namespace Aphysoft.Share
                 {
                     switch (resourceType)
                     {
-                        case ResourceType.CSS: fileExtension = ".css"; break;
-                        case ResourceType.HTML: fileExtension = ".html"; break;
-                        case ResourceType.JavaScript: fileExtension = ".js"; break;
-                        case ResourceType.JPEG: fileExtension = ".jpg"; break;
-                        case ResourceType.JSON: fileExtension = ".json"; break;
-                        case ResourceType.Text: fileExtension = ""; break;
-                        case ResourceType.PNG: fileExtension = ".png"; break;
-                        case ResourceType.TTF: fileExtension = ".ttf"; break;
-                        case ResourceType.WOFF: fileExtension = ".woff"; break;
+                        case ResourceTypes.CSS: fileExtension = ".css"; break;
+                        case ResourceTypes.HTML: fileExtension = ".html"; break;
+                        case ResourceTypes.JavaScript: fileExtension = ".js"; break;
+                        case ResourceTypes.JPEG: fileExtension = ".jpg"; break;
+                        case ResourceTypes.JSON: fileExtension = ".json"; break;
+                        case ResourceTypes.Text: fileExtension = ""; break;
+                        case ResourceTypes.PNG: fileExtension = ".png"; break;
+                        case ResourceTypes.TTF: fileExtension = ".ttf"; break;
+                        case ResourceTypes.WOFF: fileExtension = ".woff"; break;
                         default: fileExtension = ".bin"; break;
                     }
                 }
@@ -373,15 +373,15 @@ namespace Aphysoft.Share
 
                 switch (resourceType)
                 {
-                    case ResourceType.CSS: mimeType = "text/css"; break;
-                    case ResourceType.HTML: mimeType = "text/html"; break;
-                    case ResourceType.JavaScript: mimeType = "application/javascript"; break;
-                    case ResourceType.JPEG: mimeType = "image/jpeg"; break;
-                    case ResourceType.JSON: mimeType = "application/json"; break;
-                    case ResourceType.Text: mimeType = "text/plain"; break;
-                    case ResourceType.PNG: mimeType = "image/png"; break;
-                    case ResourceType.TTF: mimeType = "application/x-font-ttf"; break;
-                    case ResourceType.WOFF: mimeType = "application/x-font-woff"; break;
+                    case ResourceTypes.CSS: mimeType = "text/css"; break;
+                    case ResourceTypes.HTML: mimeType = "text/html"; break;
+                    case ResourceTypes.JavaScript: mimeType = "application/javascript"; break;
+                    case ResourceTypes.JPEG: mimeType = "image/jpeg"; break;
+                    case ResourceTypes.JSON: mimeType = "application/json"; break;
+                    case ResourceTypes.Text: mimeType = "text/plain"; break;
+                    case ResourceTypes.PNG: mimeType = "image/png"; break;
+                    case ResourceTypes.TTF: mimeType = "application/x-font-ttf"; break;
+                    case ResourceTypes.WOFF: mimeType = "application/x-font-woff"; break;
                     default: mimeType = "application/octet-stream"; break;
                 }
 
@@ -420,7 +420,7 @@ namespace Aphysoft.Share
                             sdatas.Add(sdata);
 
                             // Resource type = javascript fix
-                            if (ResourceType == ResourceType.JavaScript)
+                            if (ResourceType == ResourceTypes.JavaScript)
                             {
                                 // Prevent "(intermediate value)() is not function"
                                 if (sdatacl > 0)
@@ -470,12 +470,12 @@ namespace Aphysoft.Share
                     {
                         if (Minify)
                         {
-                            if (resourceType == ResourceType.JavaScript)
+                            if (resourceType == ResourceTypes.JavaScript)
                             {
                                 var minifier = new Microsoft.Ajax.Utilities.Minifier();
                                 data = Encoding.UTF8.GetBytes(minifier.MinifyJavaScript(Encoding.UTF8.GetString(originalData)));
                             }
-                            else if (resourceType == ResourceType.CSS)
+                            else if (resourceType == ResourceTypes.CSS)
                             {
                                 var minifier = new Microsoft.Ajax.Utilities.Minifier();
                                 data = Encoding.UTF8.GetBytes(minifier.MinifyStyleSheet(Encoding.UTF8.GetString(originalData)));
@@ -639,7 +639,7 @@ namespace Aphysoft.Share
 
         #region Constructors
 
-        public Resource(string key, string keyHash, ResourceType resourceType)
+        public Resource(string key, string keyHash, ResourceTypes resourceType)
         {
             this.key = key;
             this.resourceType = resourceType;
@@ -845,12 +845,12 @@ namespace Aphysoft.Share
 
             if (resource.Minify)
             {
-                if (resource.ResourceType == ResourceType.JavaScript)
+                if (resource.ResourceType == ResourceTypes.JavaScript)
                 {
                     var minifier = new Microsoft.Ajax.Utilities.Minifier();
                     outputData = Encoding.UTF8.GetBytes(minifier.MinifyJavaScript(Encoding.UTF8.GetString(data)));
                 }
-                else if (resource.ResourceType == ResourceType.CSS)
+                else if (resource.ResourceType == ResourceTypes.CSS)
                 {
                     var minifier = new Microsoft.Ajax.Utilities.Minifier();
                     outputData = Encoding.UTF8.GetBytes(minifier.MinifyStyleSheet(Encoding.UTF8.GetString(data)));
@@ -902,7 +902,7 @@ namespace Aphysoft.Share
 
     public delegate void ResourceEndProcessRequest(ResourceAsyncResult result);
 
-    public enum ResourceType
+    public enum ResourceTypes
     {
         JavaScript,
         JSON,

@@ -2584,6 +2584,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                             mid.Description = description.Length > 0 ? description.ToString() : null;
                                             mid.Status = (status == "up" || status == "up(s)");
                                             mid.Protocol = (status == "up" || status == "up(s)");
+                                            mid.Enable = (status != "*down");
                                             interfacelive.Add(port, mid);
                                         }
 
@@ -2624,6 +2625,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             mid.Description = description.Length > 0 ? description.ToString() : null;
                             mid.Status = (status == "up" || status == "up(s)");
                             mid.Protocol = (status == "up" || status == "up(s)");
+                            mid.Enable = (status != "*down");
                             interfacelive.Add(port, mid);
                         }
                     }
@@ -2698,14 +2700,12 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         if (currentInterfaceToDatabase.Protocol == false)
                         {
                             string dtim = line.Substring(26, 19);
-                            int year, month, day;
-                            int hour, min, sec;
-                            if (int.TryParse(dtim.Substring(0, 4), out year) &&
-                                int.TryParse(dtim.Substring(5, 2), out month) &&
-                                int.TryParse(dtim.Substring(8, 2), out day) &&
-                                int.TryParse(dtim.Substring(11, 2), out hour) &&
-                                int.TryParse(dtim.Substring(14, 2), out min) &&
-                                int.TryParse(dtim.Substring(17, 2), out sec))
+                            if (int.TryParse(dtim.Substring(0, 4), out int year) &&
+                                int.TryParse(dtim.Substring(5, 2), out int month) &&
+                                int.TryParse(dtim.Substring(8, 2), out int day) &&
+                                int.TryParse(dtim.Substring(11, 2), out int hour) &&
+                                int.TryParse(dtim.Substring(14, 2), out int min) &&
+                                int.TryParse(dtim.Substring(17, 2), out int sec))
                             {
                                 currentInterfaceToDatabase.LastDown = (new DateTime(year, month, day, hour, min, sec)) - nodeTimeOffset;
                             }
@@ -2875,11 +2875,12 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
 
                 // qos
-                if (Request("display cur int | in interface |qos-profile |user-queue |vlan-type\\ dot1q", out lines, probe)) return probe;
+                if (Request("display cur int | in interface |qos-profile |qos\\ car\\ cir|user-queue |vlan-type\\ dot1q", out lines, probe)) return probe;
 
                 string currentInterface = null;
                 string currentParent = null;
                 int typerate = -1;
+                int currentKBPS = -1;
 
                 foreach (string line in lines)
                 {
@@ -2890,6 +2891,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         currentInterface = null;
                         currentParent = null;
                         typerate = -1;
+                        currentKBPS = -1;
 
                         string nifc = lineTrim.Substring(10);
                         NetworkInterface nif = NetworkInterface.Parse(nifc);
@@ -2999,6 +3001,128 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             //012345678901234567890123456789
                             int dot1q;
                             if (int.TryParse(lineTrim.Substring(16), out dot1q)) interfacelive[currentInterface].Dot1Q = dot1q;
+                        }
+                        else if (currentKBPS != -1 && (lineTrim.EndsWith("inbound") || lineTrim.EndsWith("outbound")))
+                        {
+                            bool inbound = false;
+                            if (lineTrim.EndsWith("inbound")) inbound = true;
+
+                            int kbps = currentKBPS;
+
+                            if (inbound) interfacelive[currentInterface].RateInput = kbps;
+                            else interfacelive[currentInterface].RateOutput = kbps;
+
+                            if (currentParent != null)
+                            {
+                                if (kbps > 0)
+                                {
+                                    if (inbound)
+                                    {
+                                        int cur = interfacelive[currentParent].CirConfigTotalInput;
+                                        if (cur == -1) cur = 0;
+                                        interfacelive[currentParent].CirConfigTotalInput = cur + kbps;
+
+                                        long curR = interfacelive[currentParent].CirTotalInput;
+                                        if (curR == -1) curR = 0;
+                                        interfacelive[currentParent].CirTotalInput = curR + kbps;
+                                    }
+                                    else
+                                    {
+                                        int cur = interfacelive[currentParent].CirConfigTotalOutput;
+                                        if (cur == -1) cur = 0;
+                                        interfacelive[currentParent].CirConfigTotalOutput = cur + kbps;
+
+                                        long curR = interfacelive[currentParent].CirTotalOutput;
+                                        if (curR == -1) curR = 0;
+                                        interfacelive[currentParent].CirTotalOutput = curR + kbps;
+                                    }
+                                }
+                                else if (typerate > -1)
+                                {
+                                    if (inbound)
+                                    {
+                                        long curR = interfacelive[currentParent].CirTotalInput;
+                                        if (curR == -1) curR = 0;
+                                        interfacelive[currentParent].CirTotalInput = curR + typerate;
+                                    }
+                                    else
+                                    {
+                                        long curR = interfacelive[currentParent].CirTotalOutput;
+                                        if (curR == -1) curR = 0;
+                                        interfacelive[currentParent].CirTotalOutput = curR + typerate;
+                                    }
+                                }
+                            }
+                        }
+                        else if (lineTrim.StartsWith("qos car cir"))
+                        {
+                            currentKBPS = -1;
+
+                            string[] splits = lineTrim.Split(StringSplitTypes.Space);
+                            if (splits.Length > 3)
+                            {
+                                int kbps;
+                                if (int.TryParse(splits[3], out kbps))
+                                {
+                                    int direction = 0;
+                                    if (lineTrim.EndsWith("inbound")) direction = -1;
+                                    else if (lineTrim.EndsWith("outbound")) direction = 1;
+
+                                    if (direction != 0)
+                                    {
+                                        bool inbound = direction == -1;
+
+                                        if (inbound) interfacelive[currentInterface].RateInput = kbps;
+                                        else interfacelive[currentInterface].RateOutput = kbps;
+
+                                        if (currentParent != null)
+                                        {
+                                            if (kbps > 0)
+                                            {
+                                                if (inbound)
+                                                {
+                                                    int cur = interfacelive[currentParent].CirConfigTotalInput;
+                                                    if (cur == -1) cur = 0;
+                                                    interfacelive[currentParent].CirConfigTotalInput = cur + kbps;
+
+                                                    long curR = interfacelive[currentParent].CirTotalInput;
+                                                    if (curR == -1) curR = 0;
+                                                    interfacelive[currentParent].CirTotalInput = curR + kbps;
+                                                }
+                                                else
+                                                {
+                                                    int cur = interfacelive[currentParent].CirConfigTotalOutput;
+                                                    if (cur == -1) cur = 0;
+                                                    interfacelive[currentParent].CirConfigTotalOutput = cur + kbps;
+
+                                                    long curR = interfacelive[currentParent].CirTotalOutput;
+                                                    if (curR == -1) curR = 0;
+                                                    interfacelive[currentParent].CirTotalOutput = curR + kbps;
+                                                }
+                                            }
+                                            else if (typerate > -1)
+                                            {
+                                                if (inbound)
+                                                {
+                                                    long curR = interfacelive[currentParent].CirTotalInput;
+                                                    if (curR == -1) curR = 0;
+                                                    interfacelive[currentParent].CirTotalInput = curR + typerate;
+                                                }
+                                                else
+                                                {
+                                                    long curR = interfacelive[currentParent].CirTotalOutput;
+                                                    if (curR == -1) curR = 0;
+                                                    interfacelive[currentParent].CirTotalOutput = curR + typerate;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        currentKBPS = kbps;
+                                    }
+                                }
+                            }
                         }
                     }
                 }

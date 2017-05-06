@@ -2783,14 +2783,12 @@ Last input 00:00:00, output 00:00:00
                         if (currentInterfaceToDatabase.Protocol == false)
                         {
                             string dtim = line.Substring(26, 19);
-                            int year, month, day;
-                            int hour, min, sec;
-                            if (int.TryParse(dtim.Substring(0, 4), out year) &&
-                                int.TryParse(dtim.Substring(5, 2), out month) &&
-                                int.TryParse(dtim.Substring(8, 2), out day) &&
-                                int.TryParse(dtim.Substring(11, 2), out hour) &&
-                                int.TryParse(dtim.Substring(14, 2), out min) &&
-                                int.TryParse(dtim.Substring(17, 2), out sec))
+                            if (int.TryParse(dtim.Substring(0, 4), out int year) &&
+                                int.TryParse(dtim.Substring(5, 2), out int month) &&
+                                int.TryParse(dtim.Substring(8, 2), out int day) &&
+                                int.TryParse(dtim.Substring(11, 2), out int hour) &&
+                                int.TryParse(dtim.Substring(14, 2), out int min) &&
+                                int.TryParse(dtim.Substring(17, 2), out int sec))
                             {
                                 currentInterfaceToDatabase.LastDown = (new DateTime(year, month, day, hour, min, sec)) - nodeTimeOffset;
                             }

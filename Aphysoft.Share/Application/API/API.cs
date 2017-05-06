@@ -152,6 +152,10 @@ namespace Aphysoft.Share
                     this.error = "Bad Request Format";
                     this.httpStatusCode = 400;
                     break;
+                case APIErrors.NotFound:
+                    this.error = "Resource Not Found";
+                    httpStatusCode = 404;
+                    break;
             }
         }
 
@@ -160,6 +164,7 @@ namespace Aphysoft.Share
 
     public enum APIErrors
     {
+        NotFound,
         BadRequestFormat
     }
     

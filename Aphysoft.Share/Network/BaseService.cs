@@ -9,17 +9,11 @@ using System.Threading;
 
 namespace Aphysoft.Share
 {
-    public enum ServiceOutputTypes : int
+    public enum ServiceTraceLevels : int
     {
         Debug = 0,
         Default = 1,
         None = int.MaxValue
-    }
-
-    public enum ServiceRoles
-    {
-        Client, 
-        Server
     }
 
     public abstract class BaseService
@@ -33,8 +27,6 @@ namespace Aphysoft.Share
         #endregion
 
         #region Fields
-
-        private int outputLevel = Int16.MaxValue;
 
         private ManualResetEvent allDone = new ManualResetEvent(false);
 
@@ -149,8 +141,10 @@ namespace Aphysoft.Share
             {
                 if (IsClient)
                 {
-                    if (clientSocket == null) return false;
-                    else return clientSocket.Connected;
+                    if (clientSocket == null)
+                        return false;
+                    else
+                        return clientSocket.Connected;
                 }
                 else return false;
             }
@@ -167,32 +161,61 @@ namespace Aphysoft.Share
 
         #endregion
 
-        #region Overrides
+        #region Events
 
-        public virtual void OnConnected(ConnectionEventArgs e) { }
-        public virtual void OnReceived(MessageEventArgs e) { }
-        public virtual void OnDisconnected(ConnectionEventArgs e) { }
-        public virtual void OnOutput(string output) { }
+        public event ConnectedEventHandler Connected;
+
+        public event DisconnectedEventHandler Disconnected;
+
+        public event ReceivedEventHandler Received;
+
+        public event TracedEventHandler Traced;
+
+        internal void OnConnected(ConnectionEventArgs e)
+        {
+            Connected?.Invoke(e.Connection);
+        }
+
+        internal void OnDisconnected(ConnectionEventArgs e)
+        {
+            Disconnected?.Invoke(e.Connection);
+        }
+
+        internal void OnReceived(MessageEventArgs e)
+        {
+            Received?.Invoke(e);
+        }
+
+        internal void OnTraced(string debug)
+        {
+            Traced?.Invoke(debug);
+        }
 
         #endregion
 
-        #region Methods
-        
-        public void OutputType(ServiceOutputTypes type)
-        {
-            outputLevel = (int)type;
-        }
+        #region Debuging
 
-        internal void Output(ServiceOutputTypes type, string output)
+        private int traceLevel = Int16.MaxValue;
+
+        internal void Trace(ServiceTraceLevels type, string output)
         {
-            if ((int)type >= outputLevel)
-                OnOutput(output);
+            if ((int)type >= traceLevel)
+                OnTraced(output);
         }
 
         internal void Debug(string output)
         {
-            Output(ServiceOutputTypes.Debug, output);
+            Trace(ServiceTraceLevels.Debug, output);
         }
+
+        public void SetTraceType(ServiceTraceLevels type)
+        {
+            traceLevel = (int)type;
+        }
+
+        #endregion
+
+        #region Methods
 
         /// <summary>
         /// Set current instance as server instance.
@@ -506,7 +529,7 @@ namespace Aphysoft.Share
                     string eventTimeStamp = string.Format("{0,2}:{1,2}:{2,2}:{3,3}", timeStamp.Hour, timeStamp.Minute, timeStamp.Second, timeStamp.Millisecond);
                     string connectionInfo = string.Format("{0, 5}", connection.ConnectionID);
 
-                    Output(ServiceOutputTypes.Default, "EVENT [" + eventTimeStamp + "] [" + connectionInfo + "] " + eventServiceMessage.Message);
+                    Trace(ServiceTraceLevels.Default, "EVENT [" + eventTimeStamp + "] [" + connectionInfo + "] " + eventServiceMessage.Message);
                 }
                 else
                 {
@@ -760,9 +783,9 @@ namespace Aphysoft.Share
         }
 
         /// <summary>
-        /// Client: Output message to connected server OnOutput.
+        /// Client: Output message to connected server OnTraced
         /// </summary>
-        public void EventMessage(string message)
+        public void Trace(string message)
         {
             if (IsClient)
             {
@@ -771,7 +794,7 @@ namespace Aphysoft.Share
             }
             else if (IsServer)
             {
-                Output(ServiceOutputTypes.Default, message);
+                Trace(ServiceTraceLevels.Default, message);
             }
         }
 
@@ -849,6 +872,18 @@ namespace Aphysoft.Share
         #endregion
     }
 
+    public delegate void ConnectedEventHandler(Connection connection);
+
+    public delegate void DisconnectedEventHandler(Connection connection);
+
+    public delegate void ReceivedEventHandler(MessageEventArgs e);
+
+    public delegate void OnReceivedCallback(MessageEventArgs e);
+
+    public delegate bool MessageWaitCallback(object o);
+
+    public delegate void TracedEventHandler(string debug);
+
     public sealed class Connection
     {
         #region Fields
@@ -914,9 +949,9 @@ namespace Aphysoft.Share
             Receive();
         }
 
-        private void Output(ServiceOutputTypes outputType, string output)
+        private void Output(ServiceTraceLevels outputType, string output)
         {
-            service.Output(outputType, output);
+            service.Trace(outputType, output);
         }
 
         private void Debug(string output)
@@ -1218,9 +1253,7 @@ namespace Aphysoft.Share
         #endregion
     }
     
-    public delegate void OnReceivedCallback(MessageEventArgs e);
 
-    public delegate bool MessageWaitCallback(object o);
 
     internal class ReceivedThreadObject
     {

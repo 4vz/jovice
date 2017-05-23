@@ -1953,6 +1953,8 @@ namespace Center
             string user = properties.TacacUser;
             string pass = properties.TacacPassword;
 
+            // ssh-keygen -R <node>
+
             Event("Connecting with SSH... (" + user + "@" + host + ")");
             SendLine("ssh -o StrictHostKeyChecking=no " + user + "@" + host);
 
@@ -1960,17 +1962,36 @@ namespace Center
             {
                 #region hwe
 
-                expect = MCEExpect("assword:", "Connection refused");
-                if (expect == 0)
+                bool looppass = false;
+                do
                 {
-                    Event("Authenticating: Password");
-                    SendLine(pass);
+                    expect = MCEExpect("assword:", "Connection refused");
+                    if (expect == 0)
+                    {
+                        Event("Authenticating: Password");
+                        SendLine(pass);
 
-                    expect = MCEExpect(">", "assword:");
-                    if (expect == 0) connectSuccess = true;
-                    else SendControlC();
+                        expect = MCEExpect(">", "assword:");
+                        if (expect == 0) connectSuccess = true;
+                        else SendControlC();
+                    }
+                    else
+                    {
+                        SendControlC();
+                        if (expect == -1)
+                        {
+                            if (looppass == false)
+                            {
+                                looppass = true;
+                                Event("Trying to regenerate new ssh key...");
+                                SendLine("ssh-keygen -R " + host);
+                                Thread.Sleep(500);
+                                SendLine("ssh -o StrictHostKeyChecking=no " + user + "@" + host);
+                            }
+                        }
+                    }
                 }
-                else SendControlC();
+                while (looppass);
 
                 #endregion
             }

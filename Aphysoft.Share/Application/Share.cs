@@ -784,7 +784,7 @@ select AA_ID from ApiSubscription, Api, ApiAccess where AS_AA = AA_ID and AS_AP 
 
         #region Methods
 
-        internal static string Version()
+        public static string Version()
         {
             return System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.Build.ToString() + "." + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.Revision;
         }

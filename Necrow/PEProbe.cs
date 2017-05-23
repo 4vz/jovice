@@ -2672,6 +2672,7 @@ Last input 00:00:00, output 00:00:00
                                         pid.Description = description.Length > 0 ? description.ToString() : null;
                                         pid.Status = (status == "up" || status == "up(s)");
                                         pid.Protocol = (status == "up" || status == "up(s)");
+                                        pid.Enable = (status != "*down");
                                         interfacelive.Add(port, pid);
                                     }
 
@@ -2752,6 +2753,7 @@ Last input 00:00:00, output 00:00:00
                         int indx;
                         if (line.IndexOf("BW: 1000M") > -1 || line.IndexOf("Port BW: 1G") > -1) itype = "Gi";
                         else if (line.IndexOf("Port BW: 10G") > -1) itype = "Te";
+                        else if (line.IndexOf("Port BW: 100G") > -1) itype = "Hu";
                         else if ((indx = line.IndexOf("max BW: ")) > -1)
                         {
                             string lineTrim = line.Trim();
@@ -3029,6 +3031,12 @@ Last input 00:00:00, output 00:00:00
                         //0123456789012345678901234567
                         string inf = line.Substring(15).TrimEnd(',', ' ');
                         if (inf.StartsWith("Eth-Trunk")) inf = "Ag" + inf.Substring(9);
+                        else
+                        {
+                            NetworkInterface nif = NetworkInterface.Parse(inf);
+                            if (nif != null) inf = nif.Name;
+                        }
+
                         if (routenamedb.ContainsKey(cvrf) && interfacelive.ContainsKey(inf))
                             interfacelive[inf].RouteID = routenamedb[cvrf]["PN_ID"].ToString();
                     }
@@ -3794,6 +3802,7 @@ Last input 00:00:00, output 00:00:00
                 {
                     keysb.Append(row["PU_Network"].ToString());
                     keysb.Append("_");
+                    // TODO CHECK THIS SHIT
                     keysb.Append(row["PU_Neighbor"].ToString(""));
                     keysb.Append("_");
                     string pi = row["PU_PI"].ToString();

@@ -3802,7 +3802,6 @@ Last input 00:00:00, output 00:00:00
                 {
                     keysb.Append(row["PU_Network"].ToString());
                     keysb.Append("_");
-                    // TODO CHECK THIS SHIT
                     keysb.Append(row["PU_Neighbor"].ToString(""));
                     keysb.Append("_");
                     string pi = row["PU_PI"].ToString();

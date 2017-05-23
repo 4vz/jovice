@@ -17,7 +17,7 @@ namespace NecrowConsole
 #if DEBUG
             if (Necrow.Debug())
             {
-                Necrow.Test("PE-D6-ULN-INET");
+                Necrow.Test("PE3-D7-PTR-TRANSIT");
 #endif
                 Necrow.Start();
 #if DEBUG

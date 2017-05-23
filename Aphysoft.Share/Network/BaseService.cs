@@ -23,6 +23,7 @@ namespace Aphysoft.Share
         internal static readonly int HeaderSize = 16;
         internal static readonly byte[] HelloPacket = new byte[16] { (byte)'H', (byte)'L', (byte)'L', (byte)'O', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         internal static readonly byte[] MessageHeadPacket = new byte[4] { (byte)'M', (byte)'E', (byte)'S', (byte)'G' };
+        internal static readonly byte[] FileHeadPacket = new byte[4] { (byte)'F', (byte)'I', (byte)'L', (byte)'E' };
         
         #endregion
 
@@ -46,7 +47,7 @@ namespace Aphysoft.Share
 
         private int reconnectDelay = 5000;
 
-        private int bufferSize = 256;
+        private int bufferSize = 8192;
 
         private bool isClient = false;
 
@@ -173,12 +174,20 @@ namespace Aphysoft.Share
 
         internal void OnConnected(ConnectionEventArgs e)
         {
-            Connected?.Invoke(e.Connection);
+            Thread thread = new Thread(new ThreadStart(delegate ()
+            {
+                Connected?.Invoke(e.Connection);
+            }));
+            thread.Start();
         }
 
         internal void OnDisconnected(ConnectionEventArgs e)
         {
-            Disconnected?.Invoke(e.Connection);
+            Thread thread = new Thread(new ThreadStart(delegate ()
+            {
+                Disconnected?.Invoke(e.Connection);
+            }));
+            thread.Start();
         }
 
         internal void OnReceived(MessageEventArgs e)
@@ -590,36 +599,30 @@ namespace Aphysoft.Share
             }
             else if (IsClient)
             {
-                if (false)
-                {
-                }
-                else
-                {
-                    OnReceivedCallback callback = null;
+                OnReceivedCallback callback = null;
 
-                    foreach (KeyValuePair<Type, OnReceivedCallback> pair in onReceivedCallbacks)
+                foreach (KeyValuePair<Type, OnReceivedCallback> pair in onReceivedCallbacks)
+                {
+                    Type ptype = pair.Key;
+                    OnReceivedCallback pcallback = pair.Value;
+
+                    if (type == ptype || type.IsSubclassOf(ptype))
                     {
-                        Type ptype = pair.Key;
-                        OnReceivedCallback pcallback = pair.Value;
-
-                        if (type == ptype || type.IsSubclassOf(ptype))
-                        {
-                            callback = pcallback;
-                            break; 
-                        }
+                        callback = pcallback;
+                        break;
                     }
+                }
 
-                    Thread thread = new Thread(new ParameterizedThreadStart(OnReceivedThread));
-                    ReceivedThreadObject rto = new ReceivedThreadObject(connection, callback, messageID, messageReplyID, message);
+                Thread thread = new Thread(new ParameterizedThreadStart(OnReceivedThread));
+                ReceivedThreadObject rto = new ReceivedThreadObject(connection, callback, messageID, messageReplyID, message);
 
-                    lock (receivingThreadsWaitSync)
+                lock (receivingThreadsWaitSync)
+                {
+                    Debug("Add receiving thread " + messageID);
+                    if (!receivingThreads.ContainsKey(messageID))
                     {
-                        Debug("Add receiving thread " + messageID);
-                        if (!receivingThreads.ContainsKey(messageID))
-                        {
-                            receivingThreads.Add(messageID, thread);
-                            thread.Start(rto);
-                        }
+                        receivingThreads.Add(messageID, thread);
+                        thread.Start(rto);
                     }
                 }
             }
@@ -718,6 +721,71 @@ namespace Aphysoft.Share
                 throw new Exception("cannot wait for a reply of unsend message");
         }
 
+        private Dictionary<int, StartFileReceiveEventHandler> fileReceiveHandlers = new Dictionary<int, StartFileReceiveEventHandler>();
+        private Dictionary<int, FileStream> fileReceiveStreams = new Dictionary<int, FileStream>();
+
+        public void FileReceive(int[] files, StartFileReceiveEventHandler handler)
+        {
+            lock (fileReceiveHandlers)
+            {
+                foreach (int fileID in files)
+                {
+                    if (!fileReceiveHandlers.ContainsKey(fileID))
+                    {
+                        fileReceiveHandlers.Add(fileID, handler);
+                    }
+                }
+            }
+
+            do
+            {
+                bool stillExists = false;
+
+                foreach (int fileID in files)
+                {
+                    if (fileReceiveHandlers.ContainsKey(fileID))
+                    {
+                        stillExists = true;
+                        break;
+                    }
+                }
+
+                if (stillExists == false)
+                    break;
+                else
+                    Thread.Sleep(1000);
+            }
+            while (true);
+        }
+
+        internal FileStream ConnectionFileReceive(int fileID)
+        {
+            if (fileReceiveHandlers.ContainsKey(fileID))
+            {
+                FileStream stream;
+                if (fileReceiveStreams.ContainsKey(fileID))
+                    stream = fileReceiveStreams[fileID];
+                else
+                {
+                    stream = fileReceiveHandlers[fileID](fileID);
+                    fileReceiveStreams.Add(fileID, stream);
+                }
+
+                return stream;
+            }
+            else
+                return null;
+        }
+
+        internal void ConnectionFileReceiveEnd(int fileID)
+        {
+            lock (fileReceiveHandlers)
+            {
+                if (fileReceiveHandlers.ContainsKey(fileID))
+                    fileReceiveHandlers.Remove(fileID);
+            }
+        }
+
         private void RemoveAbortedResponseCallback(object obj)
         {
             int removeThisID = (int)obj;
@@ -808,6 +876,8 @@ namespace Aphysoft.Share
                 if (!onReceivedCallbacks.ContainsKey(messageType))
                 {                    
                     onReceivedCallbacks.Add(messageType, receivedCallback);
+
+                    
                 }
             }
         }
@@ -872,6 +942,8 @@ namespace Aphysoft.Share
         #endregion
     }
 
+    public delegate FileStream StartFileReceiveEventHandler(int fileID);
+
     public delegate void ConnectedEventHandler(Connection connection);
 
     public delegate void DisconnectedEventHandler(Connection connection);
@@ -895,12 +967,18 @@ namespace Aphysoft.Share
         private byte[] buffer = null;
         private byte[] header = null;
         private byte[] message = null;
+        private string dataType = null;
 
         private int headerSeek = 0;        
+        
         private int messageID = -1;
         private int messageReplyID = -1;
         private int messageLength = 0;
         private int messageSeek = 0;
+
+        private int fileID = -1;
+        private long fileLength = 0;
+        private long fileSeek = 0;
 
         internal bool verified = false;
 
@@ -973,6 +1051,8 @@ namespace Aphysoft.Share
             }
         }
 
+        ///private void 
+
         public static bool ByteArrayCompare(byte[] a, byte[] b)
         {
             if (a.Length != b.Length) return false;
@@ -1018,7 +1098,6 @@ namespace Aphysoft.Share
                 bytesRead = -1;
             }
 
-
             if (error == SocketError.Success && bytesRead > 0)
             {
                 Debug("Incoming " + bytesRead + " bytes");
@@ -1034,9 +1113,10 @@ namespace Aphysoft.Share
 
                 do
                 {
+                    Debug("waiting..." + bufferBytesLeft);
                     if (bufferBytesLeft > 0)
                     {
-                        if (headerSeek < BaseService.HeaderSize)  // waiting for header
+                        if (headerSeek < BaseService.HeaderSize) 
                         {
                             Debug("Colleting header bytes");
 
@@ -1048,15 +1128,18 @@ namespace Aphysoft.Share
                             bufferBytesLeft -= headerCopyCount;
                             bufferSeek += headerCopyCount;
 
-                            if (headerSeek == BaseService.HeaderSize) // start checking header
+                            if (headerSeek == BaseService.HeaderSize)
                             {
+                                Debug("All header retrieved, checking header");
+
                                 // parse header
                                 byte[] headerHead = new byte[4];
                                 Buffer.BlockCopy(header, 0, headerHead, 0, 4);
 
                                 if (ByteArrayCompare(headerHead, BaseService.MessageHeadPacket))
                                 {
-                                    // go on
+                                    dataType = "MESG";
+
                                     messageLength = BitConverter.ToInt32(header, 4);
                                     messageID = BitConverter.ToInt32(header, 8);
                                     messageReplyID = BitConverter.ToInt32(header, 12);
@@ -1070,13 +1153,26 @@ namespace Aphysoft.Share
                                     messageSeek = 0;
                                     message = new byte[messageLength];
                                 }
+                                else if (ByteArrayCompare(headerHead, BaseService.FileHeadPacket))
+                                {
+                                    dataType = "FILE";
+
+                                    fileID = BitConverter.ToInt32(header, 4);
+                                    fileLength = BitConverter.ToInt32(header, 8);
+
+                                    Debug("FILE");
+                                    Debug("File ID: " + fileID);
+                                    Debug("File Length: " + fileLength);
+
+                                    fileSeek = 0;
+                                }
                                 else if (service.IsServer)
                                 {
                                     if (verified == false && ByteArrayCompare(header, BaseService.HelloPacket))
                                     {
                                         verified = true;
                                         Debug("Client verified");
-                                        Send(BaseService.HelloPacket); // Reply to client
+                                        Send(BaseService.HelloPacket); // Reply to client                                        
                                         service.OnConnected(new ConnectionEventArgs(this));
                                     }
 
@@ -1087,7 +1183,7 @@ namespace Aphysoft.Share
                                     if (verified == false && ByteArrayCompare(header, BaseService.HelloPacket))
                                     {
                                         verified = true;
-                                        Debug("Server verified");
+                                        Debug("Server verified");                                        
                                         service.OnConnected(new ConnectionEventArgs(this));
                                     }
 
@@ -1105,25 +1201,51 @@ namespace Aphysoft.Share
                             continue;
                         }
 
-                        if (headerSeek == BaseService.HeaderSize) // waiting for message
+                        if (headerSeek == BaseService.HeaderSize)
                         {
                             Debug("Colleting message bytes");
 
-                            int messageCopyCount = (messageLength - messageSeek) < bufferBytesLeft ? (messageLength - messageSeek) : bufferBytesLeft;
-
-                            Buffer.BlockCopy(buffer, bufferSeek, message, messageSeek, messageCopyCount);
-
-                            messageSeek += messageCopyCount;
-                            bufferBytesLeft -= messageCopyCount;
-                            bufferSeek += messageCopyCount;
-
-                            if (messageSeek == messageLength)
+                            if (dataType == "MESG")
                             {
-                                Debug("Message finished");
+                                int copyFromBufferCount = (messageLength - messageSeek) < bufferBytesLeft ? (messageLength - messageSeek) : bufferBytesLeft;
 
-                                service.ConnectionMessageReceived(this, messageID, messageReplyID, BaseServiceMessage.Deserialize(message));
-                                
-                                headerSeek = 0;
+                                Buffer.BlockCopy(buffer, bufferSeek, message, messageSeek, copyFromBufferCount);
+
+                                messageSeek += copyFromBufferCount;
+                                bufferBytesLeft -= copyFromBufferCount;
+                                bufferSeek += copyFromBufferCount;
+
+                                if (messageSeek == messageLength)
+                                {
+                                    Debug("MESG finished");
+                                    service.ConnectionMessageReceived(this, messageID, messageReplyID, BaseServiceMessage.Deserialize(message));
+                                    headerSeek = 0;
+                                }
+                            }
+                            else if (dataType == "FILE")
+                            {
+                                FileStream stream = service.ConnectionFileReceive(fileID);
+
+                                if (stream != null)
+                                {
+                                    int copyFromBufferCount = (fileLength - fileSeek) < bufferBytesLeft ? (int)(fileLength - fileSeek) : bufferBytesLeft;
+
+                                    stream.Write(buffer, bufferSeek, copyFromBufferCount);
+
+                                    fileSeek += copyFromBufferCount;
+                                    bufferBytesLeft -= copyFromBufferCount;
+                                    bufferSeek += copyFromBufferCount;
+
+                                    if (fileLength == fileSeek)
+                                    {
+                                        stream.Flush();
+                                        stream.Close();
+
+                                        Debug("FILE finished");
+                                        service.ConnectionFileReceiveEnd(fileID);
+                                        headerSeek = 0;
+                                    }
+                                }
                             }
                         }
                     }
@@ -1164,7 +1286,7 @@ namespace Aphysoft.Share
                 Disconnect();
             }
         }
-
+        
         private void EndSend(IAsyncResult ar)
         {
             SocketError error;
@@ -1210,6 +1332,34 @@ namespace Aphysoft.Share
             socket.Close();            
         }
 
+        public void FileSend(FileStream input, int fileID)
+        {
+            Debug("Sending file, fileID = " + fileID);
+
+            try
+            {
+                NetworkStream ns = new NetworkStream(socket);
+
+                byte[] buffer = new byte[16]; // header, message
+
+                Buffer.BlockCopy(BaseService.FileHeadPacket, 0, buffer, 0, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes(fileID), 0, buffer, 4, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes(input.Length), 0, buffer, 8, 8);
+
+                ns.Write(buffer, 0, 16);
+
+                input.CopyTo(ns);
+                
+
+                ns.Close();
+                
+            }
+            catch (Exception ex)
+            {
+                Disconnect();
+            }
+        }
+
         public void Send(BaseServiceMessage message)
         {
             Send(message, -1);
@@ -1253,8 +1403,6 @@ namespace Aphysoft.Share
         #endregion
     }
     
-
-
     internal class ReceivedThreadObject
     {
         #region Fields

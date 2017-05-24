@@ -19,77 +19,47 @@ namespace Center
 
             #region Development
 #if DEBUG
-            Resource.Common(Resource.Register("script_share", ResourceType.JavaScript, "../Aphysoft.Share.Resources/Resources/Scripts/share.js").NoMinify().NoCache());
-            Resource.Common(Resource.Register("script_ui", ResourceType.JavaScript, "../Aphysoft.Share.Resources/Resources/Scripts/ui.js").NoMinify().NoCache());
+            Resource.Common(Resource.Register("css_ui", ResourceTypes.CSS, "../Aphysoft.Share.Resources/Resources/Css/ui.css"));
+            Resource.Common(Resource.Register("script_share", ResourceTypes.JavaScript, "../Aphysoft.Share.Resources/Resources/Scripts/share.js").NoMinify().NoCache());
+            Resource.Common(Resource.Register("script_ui", ResourceTypes.JavaScript, "../Aphysoft.Share.Resources/Resources/Scripts/ui.js").NoMinify().NoCache());
+
+            BaseResources.Debug();
 #endif
             #endregion
 
-            BaseResources.InitDebug();
-
             #region Center
 
-            Resource.Common(Resource.Register("center", ResourceType.JavaScript, Resources.ResourceManager, "center", "~/View/center.js"));
+            Resource.Common(Resource.Register("center", ResourceTypes.JavaScript, Resources.ResourceManager, "center", "~/View/center.js"));
 
-            Content.Register("main",
-                new ContentPage[] {
-                    new ContentPage("/")
-                },
-                new ContentPackage(
-                    Resource.Register("main", ResourceType.JavaScript, Resources.ResourceManager, "main", "~/View/main.js"),
-                    null));
-
-            Content.Register("search",
-                new ContentPage[] {
-                    new ContentPage("/search", true)
-                },
-                new ContentPackage(
-                    Resource.Register("search", ResourceType.JavaScript, Resources.ResourceManager, "search", "~/View/search.js"),
-                    null));
+            Content.Register("main", Resources.ResourceManager, "main", "~/View/main.js", "/");
+            Content.Register("search", Resources.ResourceManager, "search", "~/View/search.js", "/search:true");
 
             #endregion
 
             #region User
 
-            Content.Register("user_signin",
-                new ContentPage[] {
-                    new ContentPage("/signin")
-                },
-                new ContentPackage(
-                    Resource.Register("user_signin", ResourceType.JavaScript, Resources.ResourceManager, "user_signin", "~/View/User/signin.js"),
-                    null));
             #endregion
 
             #region Jovice
 
-            Resource.Register("search_jovice_service", ResourceType.JavaScript, Resources.ResourceManager, "jovice_search_service", "~/View/Jovice/Search/service.js");
-            Resource.Register("search_jovice_interface", ResourceType.JavaScript, Resources.ResourceManager, "jovice_search_interface", "~/View/Jovice/Search/interface.js");
+            Resource.Register("search_jovice_service", ResourceTypes.JavaScript, Resources.ResourceManager, "jovice_search_service", "~/View/Jovice/Search/service.js");
+            Resource.Register("search_jovice_interface", ResourceTypes.JavaScript, Resources.ResourceManager, "jovice_search_interface", "~/View/Jovice/Search/interface.js");
 
-
-            Content.Register("jovice_service",
-                new ContentPage[] {
-                    new ContentPage("/network/service", true)
-                },
-                new ContentPackage(
-                    Resource.Register("jovice_service", ResourceType.JavaScript, Resources.ResourceManager, "jovice_service", "~/View/Jovice/service.js"),
-                    null));
-
-            Content.Register("jovice_network",
-                new ContentPage[] {
-                    new ContentPage("/network", true)
-                },
-                new ContentPackage(
-                    Resource.Register("jovice_network", ResourceType.JavaScript, Resources.ResourceManager, "jovice_network", "~/View/Jovice/network.js"),
-                    null));
+            Content.Register("jovice_service", Resources.ResourceManager, "jovice_service", "~/View/Jovice/service.js", "/network/service:true");
+            Content.Register("jovice_network", Resources.ResourceManager, "jovice_network", "~/View/Jovice/network.js", "/network:true");
 
             #endregion
+
+            #region Search
 
             Provider.Register(15001, Providers.Network.ProviderRequest); // network map
             Provider.Register(101, Providers.Search.ProviderRequest); // Search
 
-            #region API
+            #endregion
 
-            API.Register("tselsites", APIs.TselSites.APIRequest);
-            
+            #region Developers
+
+            Content.Register("developers", DevelopersResources.ResourceManager, "developers", "~/View/Developers/developers.js", "/developers::Center Developers");
 
             #endregion
         }

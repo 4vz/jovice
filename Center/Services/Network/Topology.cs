@@ -92,6 +92,8 @@ order by n.NO_Active desc, a.PI_Status desc, a.PI_Protocol desc");
 
                 if (r.Count == 0)
                 {
+                    if (serviceType == "AB") serviceType = "AS";
+
                     if (miMatch != null)
                     {
                         r = jovice.Query(@"
@@ -127,7 +129,7 @@ order by d.NO_Active desc, XPI_Name desc, c.MI_Status desc, c.MI_Protocol desc
                     }
 
                     if (r.Count == 0)
-                    {
+                    {       
                         if (mcMatch != null)
                         {
                             r = jovice.Query(@"
@@ -164,6 +166,18 @@ order by d.NO_Active desc, XPI_Name desc, cmc.MC_Status desc, cmc.MC_Protocol de
 
                     }
 
+                }
+                else if (r.Count == 1)
+                {
+                    if (serviceType == "AB")
+                    {
+                        serviceType = "AS";
+
+                        Update update = jovice.Update("Service");
+                        update.Set("SE_Type", "AS");
+                        update.Where("SE_ID", id);
+                        update.Execute();
+                    }
                 }
 
                 int piIndex = 0;
@@ -1648,7 +1662,7 @@ where AR_ID = {0}
         }
 
         private static DateTime? ProcessDateTime(DateTime fromdb)
-        {
+        {            
             if (fromdb > DateTime.MinValue)
             {
                 return fromdb.ConvertOffset(7);

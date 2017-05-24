@@ -121,10 +121,16 @@ namespace Center {
         ///(function () {
         ///
         ///    ui(&quot;search_jovice_interface&quot;, function (b, r, f, p, t) {
-        ///        debug(&quot;yess&quot;);
-        ///    });
+        ///        f.setSize(100);
         ///
-        ///})();.
+        ///        //--- entry values
+        ///        var interfaceName = f.column(&quot;I_Name&quot;);
+        ///        var nodeName = f.column(&quot;NO_Name&quot;);
+        ///        var interfaceType = f.column(&quot;I_Type&quot;);
+        ///        var interfaceDesc = f.column(&quot;I_Desc&quot;);
+        ///        
+        ///        if (f.create) {
+        ///            r.nodeName = ui.text(b)({ font: [&quot;body&quot;, 15], color: 25, weight: &quot;600&quot;, top: 13, left: 20, noBreak: true, clickToSelect: true, cursor: &quot; [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string jovice_search_interface {
             get {
@@ -136,16 +142,7 @@ namespace Center {
         ///   Looks up a localized string similar to 
         ///(function () {
         ///
-        ///    function getSection(ars, key) {
-        ///        var ar = null;
-        ///        $.each(ars, function (ai, av) {
-        ///            if (av[0] == key) {
-        ///                ar = av;
-        ///                return false;
-        ///            }
-        ///        });
-        ///        return ar;
-        ///    };
+        ///
         ///
         ///    ui(&quot;search_jovice_service&quot;, function (b, r, f, p, t) {
         ///                
@@ -153,7 +150,13 @@ namespace Center {
         ///        /*
         ///        f.setButton(function () {
         ///            p.transfer(&quot;/network/service/&quot; + serviceID, {
-        ///                transferDa [rest of string was truncated]&quot;;.
+        ///                transferData: {
+        ///                    serviceID: r.serviceID.text(),
+        ///                    customerName: r.customerName.text(),
+        ///                    serviceType: r.serviceType.text(),
+        ///                    entries: t.entries
+        ///                },
+        ///              [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string jovice_search_service {
             get {

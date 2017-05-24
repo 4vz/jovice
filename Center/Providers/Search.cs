@@ -102,6 +102,8 @@ namespace Center.Providers
             {
                 #region Search
 
+                Service.Debug("I search");
+
                 string search = Params.GetValue("s").Trim(); // search query
                 string main = Params.GetValue("m");
                 string sid = Params.GetValue("sid"); // previous search id;
@@ -156,22 +158,22 @@ namespace Center.Providers
                     foreach (SearchMatch m in matches) { if (m.MatchRoot == root) match = m; }
 
                     #region Process
-                    string sort = Params.GetValue("o"); // sort
+                    string sort = QueryString.GetValue("o"); // sort
                     if (sort == "") sort = null;
 
-                    string sortMethod = Params.GetValue("ot"); // sort method                
+                    string sortMethod = QueryString.GetValue("ot"); // sort method                
                     if (sortMethod != "asc" && sortMethod != "desc") sortMethod = null;
 
                     int page;
-                    string pageString = Params.GetValue("p"); // page
+                    string pageString = QueryString.GetValue("p"); // page
                     if (pageString == null || !int.TryParse(pageString, out page)) page = 0;
 
                     int pageSize;
-                    string pageSizeString = Params.GetValue("n"); // n page;
+                    string pageSizeString = QueryString.GetValue("n"); // n page;
                     if (pageSizeString == null || !int.TryParse(pageSizeString, out pageSize)) pageSize = 20;
 
                     int pageLength;
-                    string pageLengthString = Params.GetValue("u"); // page length;
+                    string pageLengthString = QueryString.GetValue("u"); // page length;
                     if (pageLengthString == null || !int.TryParse(pageLengthString, out pageLength)) pageLength = 1;
 
                     SearchMatchResult matchResult = new SearchMatchResult();

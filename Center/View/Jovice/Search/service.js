@@ -121,6 +121,9 @@
                 else if (sesubtype == "IP") setypetext = "Metro Ethernet Point-To-Point (Intercity)";
                 else setypetext = "Metro Ethernet";
             }
+            else if (setype == "TS") {
+                if (sesubtype == "SI") setypetext = "Telkomsel Site";
+            }
             r.serviceType.text(setypetext);
         }
         else r.serviceType.text("");
@@ -280,6 +283,7 @@
             $.each(nodeinfo, function (nodeinfoindex, nodeinfovalue) {
                 var tim = nodeinfovalue[1];
                 if (tim != null) {
+                    //debug(tim);
                     istim = true;
                     var lac = $$.date(nodeinfovalue[1]).getTime();
                     if (lac > olac) olac = lac;

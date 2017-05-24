@@ -114,7 +114,7 @@
             var aseasearch = ui.textinput(asea)({ font: 14, leftRight: [40, 10], top: 0, height: 40, design: false, opacity: 0 });
             var aseaglass = ui.icon(asea, center.icon("glass"))({ size: [32, 32], color: 75, position: [4, 4] });
             var aseaclear = ui.icon(asea, center.icon("arrow"))({ size: [23, 23], color: 75, position: [8, 10], hide: true });
-            var aseastart = ui.text(asea)({ noSelect: true, text: "Search anything here", font: ["body", 14], color: 65, position: [40, 11] });
+            var aseastart = ui.text(asea)({ noSelect: true, text: "Explore Center", font: ["body", 14], color: 65, position: [40, 11] });
             
             asea.enter(function (e) {
                 aseaentered = true;
@@ -182,7 +182,7 @@
             var firstTime = true;
 
             $$.stream(function (type, data) {
-                if (type == "online") {
+                if (type == "online" || type == "streamrecovered") {
                     if (firstTime) {
                         firstTime = false;
                         $$(function () { }, 100, function () {
@@ -192,7 +192,7 @@
                     }
                     else close.fadeOut(100);
                 }
-                else if (type == "offline") {
+                else if (type == "offline" || type == "streamerror") {
                     if (firstTime) {
                         $.each(frontLogoElements, function (eli, el) {
                             el.animate({ transform: "s0.5,0.5,100,20", "stroke-width": 1, stroke: ui.color(35) }, 500, "easeInOut");

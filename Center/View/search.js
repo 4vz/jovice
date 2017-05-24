@@ -748,9 +748,9 @@
                         tooltipSpanColor: ["accent+50"]
                     });
                     left += 20;
-
                     rightLastMile = true;
-                }
+                    
+                } 
 
                 setWidth(left);
             }
@@ -769,26 +769,28 @@
 
                 left = end1Local.leftWidth();
 
-                if (rightcloud != null) {
-
-                    var linkbox = ui.box(c)({
-                        left: left + 10, top: 2, height: 22, color: 50, cursor: "pointer", button: {
-                            normal: function () { linkbox.color(50); },
-                            click: function (e) { center.searchExecute("service that sid is " + rightcloudsid); },
-                            over: function () { linkbox.color(60); }
-                        }
-                    });
-
-                    var cloudsid = ui.text(linkbox)({
-                        left: 10, top: 2, font: 12, text: "SID " + rightcloudsid, color: 100, noBreak: true
-                    });
-
-                    linkbox.width(cloudsid.width() + 20);
-
-                    rightcloud.attr({ width: left - rightcloud.attr("x") + 10, fill: ui.color(80), opacity: .5 });
-                    left = linkbox.leftWidth();
-                }
             }
+
+            if (rightcloud != null) {
+
+                var linkbox = ui.box(c)({
+                    left: left + 10, top: 2, height: 22, color: 50, cursor: "pointer", button: {
+                        normal: function () { linkbox.color(50); },
+                        click: function (e) { center.searchExecute("service that sid is " + rightcloudsid); },
+                        over: function () { linkbox.color(60); }
+                    }
+                });
+
+                var cloudsid = ui.text(linkbox)({
+                    left: 10, top: 2, font: 12, text: "SID " + rightcloudsid, color: 100, noBreak: true
+                });
+
+                linkbox.width(cloudsid.width() + 20);
+
+                rightcloud.attr({ width: left - rightcloud.attr("x") + 10, fill: ui.color(80), opacity: .5 });
+                left = linkbox.leftWidth();
+            }
+
             setWidth(left + 20);
 
             area.scrollCalculate();

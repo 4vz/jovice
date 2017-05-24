@@ -20,8 +20,7 @@ namespace Center
         private static Dictionary<string, Conversation> conversations = new Dictionary<string, Conversation>();
         
         #endregion
-
-
+        
         #region Constructors
 
         public Conversation()
@@ -207,8 +206,6 @@ namespace Center
             else result.Add(sb.ToString());
         }
 
-
-             
         internal static void Init()
         {
 #if DEBUG
@@ -225,7 +222,7 @@ namespace Center
             telegramBot.OnMessage += OnMessage;
             telegramBot.MessageOffset = -1; // get only last 1 message before this bot even start
             startDate = DateTime.UtcNow;
-            
+
             result = center.Query("select * from BotGroup");
             foreach (Row row in result)
             {
@@ -687,7 +684,6 @@ dbo.DoubleMetaPhone({0}) and LOWER(SUBSTRING(NO_Name, 0, CHARINDEX('-', NO_Name,
                 }
                 timeProcess.Stop();
 
-                Service.Debug(message);
                 Service.Debug("elapsed: " + timeProcess.ElapsedMilliseconds + "ms");
                 foreach (IntentEntity ent in intent.Entities)
                 {

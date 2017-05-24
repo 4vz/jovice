@@ -996,20 +996,6 @@
 
     })(window, share, jQuery);
 
-    // .css
-    (function (ui) {
-        // internal css rule
-        // _Fx = FONT
-        // _Cx = COLOR
-        //
-        // _FB = FONTBODY
-        // _FH = FONTHEADINGS
-        //
-        // _CBy = COLOR BACKGROUND
-        // _Cy = COLOR FONT
-        //   y = 0 ... 100
-    })(ui);
-
     // .font .calculateFont .measureText
     (function (ui) {
 
@@ -4730,6 +4716,48 @@
         };
 
         ui.performance = performance_;
+
+    })(ui);
+
+    // .doc
+    (function (ui) {
+
+        var doc = function (p, props) {
+            var data = p.data("doc");
+            if (data == null) {
+                data = {};
+                p.data("doc", data);
+
+                data.props = props;
+
+                var article = ui.box(p)({ width: "100%", height: "100%", scroll: { horizontal: false } });
+                var title = ui.text(article)({ text: props.title, top: 30, leftRight: [30, 30], weight: "300", font: 30, color: 40 });
+
+                var body = ui.box(article)({ attach: [title, "bottom", 0, 0], position: "relative", leftRight: [30, 30], class: "_DOC +_FB" });
+                var body$ = body.$;
+
+                data.content = function (ar) {
+
+                    $.each(ar, function (ci, cv) {
+
+                        if ($.isString(cv)) {
+                           
+                            body$.append($("<p>").html(cv));
+                        }
+
+                    });
+
+                };
+
+
+
+
+                return data;
+            }
+            else return data;
+        };
+
+        ui.doc = doc;
 
     })(ui);
 

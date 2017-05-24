@@ -22,3 +22,5 @@ input._IT         { border: 0px; background: none; margin: -5px; padding: 5px; w
 div._IC           { position: absolute; overflow: hidden; width: 100%; }
 input::-ms-clear  { display: none; }
 
+div._DOC p        { margin: 16px 0; }
+

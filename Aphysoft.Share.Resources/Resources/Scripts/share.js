@@ -2898,6 +2898,8 @@
         var timeToUpdate = 200;
         var timeOutID;
 
+        var streamError = false;
+
         var stream = function (callback) {
             if ($.isFunction(callback)) {
                 guid = share.lookup(guid, handlers);
@@ -2985,8 +2987,7 @@
                 credentials: true,
                 transports: ["streamxhr"],
                 urlBuilder: function () {
-                    var urlHead = share.protocol() + "://" + streamDomain;
-                    return urlHead + streamPath + "?c=" + share.client() + "&_=" + share.date().getTime();
+                    return share.protocol() + "://" + streamDomain + streamPath + "?c=" + share.client() + "&_=" + share.date().getTime();
                 },
                 sharing: false,
                 streamParser: function (chunk) {
@@ -3012,6 +3013,14 @@
                         var obj = data.d;
 
                         if (type == "heartbeat") {
+                            if (streamError) {
+                                streamError = false;
+                                if (version != ver) {
+                                    $.each(handlers, function (i, v) {
+                                        v("streamrecovered");
+                                    });
+                                }
+                            }
                             var ver = data.v;
                             if (version == null) version = ver;
                             else {
@@ -3079,6 +3088,14 @@
                     }
                 },
                 outbound: function (event) {
+                },
+                onerror: function (err) {                    
+                    if (streamError == false) {
+                        streamError = true;
+                        $.each(handlers, function (i, v) {
+                            if ($.isFunction(v)) v("streamerror");
+                        });
+                    }
                 }
             });
         };
@@ -4177,6 +4194,12 @@
                                     }
 
                                     socket.fire("close", xhr.status === 200 ? "done" : "error");
+                                }
+                            };
+
+                            xhr.onerror = function (err) {
+                                if (options.onerror != null) {
+                                    options.onerror(err);
                                 }
                             };
 

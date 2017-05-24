@@ -118,7 +118,7 @@ namespace Aphysoft.Share
         }
 
 #if DEBUG
-        public static void InitDebug()
+        public static void Debug()
         {
             Resource.Common(Resource.Register("script_ui_debug", ResourceTypes.JavaScript, Resources.Resources.Scripts.ResourceManager, "ui_debug"));
         }

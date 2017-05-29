@@ -45,7 +45,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin\</OutputPath>
+    <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>
     </DefineConstants>
     <ErrorReport>prompt</ErrorReport>
@@ -122,7 +122,7 @@
     <None Include="View\Jovice\service.js" />
     <None Include="View\User\signin.js" />
     <None Include="View\Jovice\network.js" />
-    <Content Include="View\Developers\developers.js" />
+    <None Include="View\Developers\developers.js" />
     <Content Include="Web.config">
       <SubType>Designer</SubType>
     </Content>

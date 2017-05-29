@@ -2601,7 +2601,7 @@ namespace Center
 
                 foreach (string line in lines)
                 {
-                    string lineTrim = line.Trim(new char[] { '*', ' ' });
+                    string lineTrim = line.Trim(new char[] { '*', ' ', '.' });
                     if (lineTrim.Length > 0 && char.IsDigit(lineTrim[0]))
                     {
                         string[] ps = lineTrim.Split('.');

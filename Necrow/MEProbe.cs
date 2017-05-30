@@ -2510,7 +2510,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                         {
                                             MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                             mid.Name = port;
-                                            mid.Description = description.Length > 0 ? description.ToString() : null;
+                                            mid.Description = description.Length > 0 ? FixDescription(description.ToString()) : null;
                                             interfacelive.Add(port, mid);
                                         }
 
@@ -2549,7 +2549,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         {
                             MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                             mid.Name = port;
-                            mid.Description = description.Length > 0 ? description.ToString() : null;
+                            mid.Description = description.Length > 0 ? FixDescription(description.ToString()) : null;
                             interfacelive.Add(port, mid);
                         }
                     }

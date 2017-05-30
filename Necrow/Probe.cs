@@ -1965,9 +1965,10 @@ namespace Center
                 bool looppass = false;
                 do
                 {
-                    expect = MCEExpect("assword:", "Connection refused");
+                    expect = MCEExpect("assword:", "Connection refused", "bad string length");
                     if (expect == 0)
                     {
+                        looppass = false;
                         Event("Authenticating: Password");
                         SendLine(pass);
 
@@ -1978,15 +1979,25 @@ namespace Center
                     else
                     {
                         SendControlC();
-                        if (expect == -1)
+                        if (expect != 1)
                         {
                             if (looppass == false)
                             {
                                 looppass = true;
                                 Event("Trying to regenerate new ssh key...");
                                 SendLine("ssh-keygen -R " + host);
+
+                                expect = MCEExpect("Not replacing existing known_hosts");
+                                if (expect == 0)
+                                {
+                                    // fail to ssh-keygen, just remove the known_hosts
+                                    Event("Removing known_hosts file because an error...");
+                                    SendLine("rm ~/.ssh/known_hosts");
+                                }
+                                
                                 Thread.Sleep(500);
                                 SendLine("ssh -o StrictHostKeyChecking=no " + user + "@" + host);
+
                             }
                         }
                     }

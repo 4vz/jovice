@@ -2581,7 +2581,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                         {
                                             MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                             mid.Name = port;
-                                            mid.Description = description.Length > 0 ? description.ToString() : null;
+                                            mid.Description = description.Length > 0 ? FixDescription(description.ToString()) : null;
                                             mid.Status = (status == "up" || status == "up(s)");
                                             mid.Protocol = (status == "up" || status == "up(s)");
                                             mid.Enable = (status != "*down");
@@ -2611,7 +2611,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                         description.Append(descarea);
                                     }
                                 }
-                                else if (port != null) description.Append(line.TrimStart());
+                                else if (port != null)
+                                    description.Append(line.TrimStart());
                             }
                             else if (line.StartsWith("Interface")) begin = true;
                         }
@@ -2622,7 +2623,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         {
                             MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                             mid.Name = port;
-                            mid.Description = description.Length > 0 ? description.ToString() : null;
+                            mid.Description = description.Length > 0 ? FixDescription(description.ToString()) : null;
                             mid.Status = (status == "up" || status == "up(s)");
                             mid.Protocol = (status == "up" || status == "up(s)");
                             mid.Enable = (status != "*down");

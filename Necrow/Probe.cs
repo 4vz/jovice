@@ -4776,6 +4776,21 @@ namespace Center
 
             return port + "." + vlan;
         }
+
+        private string FixDescription(string input)
+        {
+            if (input == null) return null;
+
+            string[] tokens = input.Split(new string[] { "        " }, StringSplitOptions.RemoveEmptyEntries);
+
+            StringBuilder sb = new StringBuilder();
+            foreach (string token in tokens)
+            {
+                sb.Append(token.TrimStart());
+            }
+
+            return sb.ToString();
+        }
     }
 
     internal class ServiceReference

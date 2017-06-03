@@ -253,7 +253,7 @@ namespace Center
                 Result result;
 
                 Culture.Default();
-                Event("Necrow Starting...");
+                Event("Necrow is Starting...");
 
                 Service.Client();
                 Service.Connected += delegate (Connection connection)
@@ -741,9 +741,16 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                                 }
                             }
 
-                            newIDs.Add(row["NO_ID"].ToString());
+                            string add = row["NO_ID"].ToString();
+                            if (!newIDs.Contains(add))
+                                newIDs.Add(add);
                         }
-                        foreach (Row row in sres) newIDs.Add(row["NO_ID"].ToString());
+                        foreach (Row row in sres)
+                        {
+                            string add = row["NO_ID"].ToString();
+                            if (!newIDs.Contains(add))
+                                newIDs.Add(add);
+                        }
 
                         #endregion
                     }
@@ -774,7 +781,9 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                                 }
                             }
 
-                            newIDs.Add(row["NO_ID"].ToString());
+                            string add = row["NO_ID"].ToString();
+                            if (!newIDs.Contains(add))
+                                newIDs.Add(add);
                         }
 
                         #endregion

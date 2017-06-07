@@ -146,7 +146,7 @@ namespace Center
 
                 if (Type == "Hu") typerate = 104857600;
                 else if (Type == "Te") typerate = 10485760;
-                else if (Type == "Ge") typerate = 1048576;
+                else if (Type == "Gi") typerate = 1048576;
                 else if (Type == "Fa") typerate = 102400;
                 else if (Type == "Et") typerate = 10240;
 

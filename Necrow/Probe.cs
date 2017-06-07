@@ -395,6 +395,26 @@ namespace Center
         }
 
         #endregion
+
+        #region Percentage
+
+        private float trafficInput = -1;
+
+        public float TrafficInput { get => trafficInput; set => trafficInput = value; }
+
+        private bool updateTrafficInput = false;
+
+        public bool UpdateTrafficInput { get => updateTrafficInput; set => updateTrafficInput = value; }
+
+        private float trafficOutput = -1;
+
+        public float TrafficOutput { get => trafficOutput; set => trafficOutput = value; }
+
+        private bool updateTrafficOutput = false;
+
+        public bool UpdateTrafficOutput { get => updateTrafficOutput; set => updateTrafficOutput = value; }
+
+        #endregion
     }
 
     internal class CustomerToDatabase : ToDatabase
@@ -553,6 +573,8 @@ namespace Center
         private Dictionary<string, string> summaries;
         private string defaultOutputIdentifier = null;
         private string outputIdentifier = null;
+
+        private string lastSendLine = null;
 
         private Database j;
 
@@ -1296,7 +1318,8 @@ namespace Center
         {
             if (IsConnected)
             {
-                Thread.Sleep(250);
+                lastSendLine = command;
+                Thread.Sleep(100);
                 bool res = WriteLine(command);
                 if (res == false)
                 {
@@ -1447,10 +1470,12 @@ namespace Center
             if (timeout == true) return null;
             else return lines;
         }
-
-        private int MCEExpect(params string[] args)
+        
+        private MCEExpectResult MCEExpect(params string[] args)
         {
-            if (args.Length == 0) return -1;
+            string expectOutput = null;
+
+            if (args.Length == 0) return new MCEExpectResult(-1, null);
 
             int wait = 0;
             int expectReturn = -1;
@@ -1477,6 +1502,8 @@ namespace Center
 
                             string lastOutput = lastOutputSB.ToString();
 
+                            expectOutput = lastOutput;
+
                             bool found = false;
                             for (int i = 0; i < args.Length; i++)
                             {
@@ -1496,12 +1523,12 @@ namespace Center
                 {
                     Thread.Sleep(50);
                     wait += 1;
-                    if (wait == 400) break;
+                    if (wait == 400)
+                        break;
                 }
-
             }
 
-            return expectReturn;
+            return new MCEExpectResult(expectReturn, expectOutput);
         }
 
         private string MCECheckNodeIP(string hostname)
@@ -1825,7 +1852,6 @@ namespace Center
 
         private bool ConnectByTelnet(string host, string manufacture)
         {
-            int expect = -1;
             bool connectSuccess = false;
 
             string user = properties.TacacUser;
@@ -1837,20 +1863,20 @@ namespace Center
             if (manufacture == alu)
             {
                 #region alu
-                expect = MCEExpect("ogin:");
-                if (expect == 0)
+                MCEExpectResult expect = MCEExpect("ogin:");
+                if (expect.Index == 0)
                 {
                     Event("Authenticating: User");
                     SendLine(user);
 
                     expect = MCEExpect("assword:");
-                    if (expect == 0)
+                    if (expect.Index == 0)
                     {
                         Event("Authenticating: Password");
                         SendLine(pass);
 
                         expect = MCEExpect("#", "ogin:", "closed by foreign");
-                        if (expect == 0) connectSuccess = true;
+                        if (expect.Index == 0) connectSuccess = true;
                         else SendControlZ();
                     }
                     else
@@ -1869,20 +1895,20 @@ namespace Center
             else if (manufacture == hwe)
             {
                 #region hwe
-                expect = MCEExpect("sername:", "closed by foreign");
-                if (expect == 0)
+                MCEExpectResult expect = MCEExpect("sername:", "closed by foreign");
+                if (expect.Index == 0)
                 {
                     Event("Authenticating: User");
                     SendLine(user);
 
                     expect = MCEExpect("assword:");
-                    if (expect == 0)
+                    if (expect.Index == 0)
                     {
                         Event("Authenticating: Password");
                         SendLine(pass);
 
                         expect = MCEExpect(">", "sername:", "Tacacs server reject");
-                        if (expect == 0) connectSuccess = true;
+                        if (expect.Index == 0) connectSuccess = true;
                         else
                         {
                             SendControlRightBracket();
@@ -1906,20 +1932,20 @@ namespace Center
             else if (manufacture == cso)
             {
                 #region cso
-                expect = MCEExpect("sername:");
-                if (expect == 0)
+                MCEExpectResult expect = MCEExpect("sername:");
+                if (expect.Index == 0)
                 {
                     Event("Authenticating: User");
                     SendLine(user);
 
                     expect = MCEExpect("assword:");
-                    if (expect == 0)
+                    if (expect.Index == 0)
                     {
                         Event("Authenticating: Password");
                         SendLine(pass);
 
                         expect = MCEExpect("#", "sername:", "closed by foreign", "cation failed");
-                        if (expect == 0) connectSuccess = true;
+                        if (expect.Index == 0) connectSuccess = true;
                         else
                         {
                             SendControlRightBracket();
@@ -1947,7 +1973,6 @@ namespace Center
 
         private bool ConnectBySSH(string host, string manufacture)
         {
-            int expect = -1;
             bool connectSuccess = false;
 
             string user = properties.TacacUser;
@@ -1965,40 +1990,53 @@ namespace Center
                 bool looppass = false;
                 do
                 {
-                    expect = MCEExpect("assword:", "Connection refused", "bad string length");
-                    if (expect == 0)
+                    looppass = false;
+
+                    MCEExpectResult expect = MCEExpect("assword:", "Connection refused");
+                    if (expect.Index == 0)
                     {
-                        looppass = false;
                         Event("Authenticating: Password");
                         SendLine(pass);
 
                         expect = MCEExpect(">", "assword:");
-                        if (expect == 0) connectSuccess = true;
+                        if (expect.Index == 0) connectSuccess = true;
                         else SendControlC();
                     }
                     else
                     {
                         SendControlC();
-                        if (expect != 1)
+
+                        if (expect.Index == -1)
                         {
-                            if (looppass == false)
+                            int llength = expect.Output.Length - lastSendLine.Length;
+                            
+                            if (llength == 2)
                             {
+                                // connect fail for some reason
+                            }
+                            else
+                            {
+                                // the other error probaby ssh key expired or failing
                                 looppass = true;
                                 Event("Trying to regenerate new ssh key...");
                                 SendLine("ssh-keygen -R " + host);
-
+                                                                
                                 expect = MCEExpect("Not replacing existing known_hosts");
-                                if (expect == 0)
+                                if (expect.Index == 0)
                                 {
                                     // fail to ssh-keygen, just remove the known_hosts
                                     Event("Removing known_hosts file because an error...");
                                     SendLine("rm ~/.ssh/known_hosts");
                                 }
-                                
+
                                 Thread.Sleep(500);
                                 SendLine("ssh -o StrictHostKeyChecking=no " + user + "@" + host);
-
                             }
+                        }
+                        else if (expect.Index == 0)
+                        {
+                            // connection refuse
+
                         }
                     }
                 }
@@ -2010,14 +2048,14 @@ namespace Center
             {
                 #region cso
 
-                expect = MCEExpect("assword:", "Connection refused");
-                if (expect == 0)
+                MCEExpectResult expect = MCEExpect("assword:", "Connection refused");
+                if (expect.Index == 0)
                 {
                     Event("Authenticating: Password");
                     SendLine(pass);
 
                     expect = MCEExpect("#", "assword:");
-                    if (expect == 0) connectSuccess = true;
+                    if (expect.Index == 0) connectSuccess = true;
                     else SendControlC();
                 }
                 else SendControlC();
@@ -2028,14 +2066,14 @@ namespace Center
             {
                 #region jun
 
-                expect = MCEExpect("assword:");
-                if (expect == 0)
+                MCEExpectResult expect = MCEExpect("assword:");
+                if (expect.Index == 0)
                 {
                     Event("Authenticating: Password");
                     SendLine(pass);
 
                     expect = MCEExpect(">", "assword:");
-                    if (expect == 0) connectSuccess = true;
+                    if (expect.Index == 0) connectSuccess = true;
                     else SendControlC();
                 }
                 else SendControlC();
@@ -5433,5 +5471,28 @@ namespace Center
         }
 
         #endregion
+    }
+
+    internal class MCEExpectResult
+    {
+        private int index;
+
+        public int Index
+        {
+            get { return index; }
+        }
+
+        private string output;
+
+        public string Output
+        {
+            get { return output; }
+        }
+
+        public MCEExpectResult(int index, string output)
+        {
+            this.index = index;
+            this.output = output;
+        }
     }
 }

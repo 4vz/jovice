@@ -169,6 +169,7 @@
     <Compile Include="Extensions\Boolean.cs" />
     <Compile Include="Extensions\DateTime.cs" />
     <Compile Include="Extensions\Enum.cs" />
+    <Compile Include="Extensions\Float.cs" />
     <Compile Include="Extensions\Int.cs" />
     <Compile Include="Extensions\IPAddress.cs" />
     <Compile Include="Extensions\ListExtensions.cs" />

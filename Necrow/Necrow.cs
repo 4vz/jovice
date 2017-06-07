@@ -269,6 +269,8 @@ namespace Center
 
                 Event("Checking Jovice Database connection... ");
 
+
+
                 bool joviceDatabaseConnected = false;
                 j = Jovice.Database;
 
@@ -309,13 +311,13 @@ namespace Center
                 {
                     batch = j.Batch();
 
-                    #region Graph
+#region Graph
 
                     //JoviceGraph.Update();
 
-                    #endregion
+#endregion
 
-                    #region Database Check
+#region Database Check
 
                     Event("Checking database...");
 
@@ -323,9 +325,9 @@ namespace Center
 
                     Event("Database checks completed");
 
-                    #endregion
+#endregion
 
-                    #region Virtualizations
+#region Virtualizations
 
                     Event("Starting database virtualizations...");
 
@@ -333,9 +335,9 @@ namespace Center
 
                     Event("Database virtualizations completed");
 
-                    #endregion
+#endregion
                     
-                    #region Etc
+#region Etc
 
                     interfaceTestPrefixes = new Dictionary<string, string[]>();
                     interfaceTestPrefixes.Add("Hu", new string[] { "H", "HU", "GI", "GE" });
@@ -345,9 +347,9 @@ namespace Center
                     interfaceTestPrefixes.Add("Et", new string[] { "E", "ET", "ETH" });
                     interfaceTestPrefixes.Add("Ag", new string[] { "LAG", "ETH-TRUNK", "BE" });
 
-                    #endregion
+#endregion
 
-                    #region Probe initialization
+#region Probe initialization
 
                     // PROBE LIST
 
@@ -393,11 +395,11 @@ namespace Center
                         }
                     }
 
-                    #endregion
+#endregion
 
-                    #region Database Keepers
+#region Database Keepers
 
-                    #region Node Keeper
+#region Node Keeper
 
                     result = j.Query("select * from Node");
                     keeperNode = new Dictionary<string, Dictionary<string, object>>();
@@ -413,9 +415,9 @@ namespace Center
                         values.Add("NO_IP", row["NO_IP"].ToString());
                     }
 
-                    #endregion
+#endregion
 
-                    #endregion
+#endregion
 
                     instances = new Dictionary<string, Probe>();
 
@@ -423,7 +425,7 @@ namespace Center
 
                     while (mainLoop)
                     {
-                        #region Check Regularly
+#region Check Regularly
                         if (loops % 10 == 0)
                         {
                             result = j.Query("select * from Node");
@@ -624,7 +626,7 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
                             foreach (string key in remove)
                                 instances.Remove(key);
                         }
-                        #endregion
+#endregion
 
                         /* 
                          * STARTED = probe is started
@@ -703,7 +705,7 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
 
                     if (queueCase == "MAIN")
                     {
-                        #region MAIN
+#region MAIN
 
                         Event("Preparing list for main list...");
 
@@ -752,11 +754,11 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                                 newIDs.Add(add);
                         }
 
-                        #endregion
+#endregion
                     }
                     else if (queueCase == "M")
                     {
-                        #region M
+#region M
 
                         Event("Preparing list for mac-address list...");
 
@@ -786,7 +788,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                                 newIDs.Add(add);
                         }
 
-                        #endregion
+#endregion
 
                         dbCase = "M";
                     }
@@ -831,7 +833,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             Result result;
             Batch batch = jovice.Batch();
 
-            #region Upper case node name
+#region Upper case node name
 
             result = jovice.Query("select * from Node");
 
@@ -876,11 +878,11 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 Event("Affected " + result.AffectedRows + " rows");
             }
 
-            #endregion
+#endregion
             
             bool neighborAffected = false;
 
-            #region Neighbor already exists in node
+#region Neighbor already exists in node
 
             result = jovice.Query("select NO_ID, NN_ID from Node left join NodeNeighbor on NN_Name = NO_Name where NN_ID is not null and NO_Type in ('M', 'P') and NO_Active = 1");
 
@@ -903,9 +905,9 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 neighborAffected = true;
             }
 
-            #endregion
+#endregion
 
-            #region Removing unused interfaces on Node Neighbors
+#region Removing unused interfaces on Node Neighbors
 
             result = jovice.Query(@"
 select NI_ID from NeighborInterface 
@@ -932,7 +934,7 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
                 neighborAffected = true;
             }
 
-            #endregion
+#endregion
 
             if (NecrowVirtualization.IsReady && neighborAffected)
             {
@@ -1080,6 +1082,6 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
             }
         }
 
-        #endregion
+#endregion
     }
 }

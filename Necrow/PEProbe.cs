@@ -1448,9 +1448,10 @@ Last input 00:00:00, output 00:00:00
                     #region xr
 
                     // interface
-                    if (Request("show interface | in \"line protocol|Description|802.1Q|Last input\"", out lines, probe)) return probe;
+                    if (Request("show interface | in \"line protocol|Description|802.1Q|Last input|input rate|output rate\"", out lines, probe)) return probe;
                     
                     PEInterfaceToDatabase current = null;
+                    NetworkInterface currentNif = null;
                     StringBuilder descriptionBuffer = null;
 
                     foreach (string line in lines)
@@ -1474,6 +1475,7 @@ Last input 00:00:00, output 00:00:00
                                     {
                                         current = new PEInterfaceToDatabase();
                                         current.Name = inf.Name;
+                                        currentNif = inf;
 
                                         if (!inf.IsSubInterface) current.InterfaceType = inf.Type;
 
@@ -1487,7 +1489,11 @@ Last input 00:00:00, output 00:00:00
 
                                         interfacelive.Add(current.Name, current);
                                     }
-                                    else current = null;
+                                    else
+                                    {
+                                        current = null;
+                                        currentNif = null;
+                                    }
                                 }
                             }
                             else if (current != null)
@@ -1515,6 +1521,37 @@ Last input 00:00:00, output 00:00:00
                                         //  Last input 3y0w,
                                         //  01234567890123456
                                         current.LastDown = ParseLastInput(linets.Substring(11, linets.IndexOf(", ") - 11).Trim());
+                                    }
+                                }
+                                else if (linets.IndexOf("/sec, ") > -1)
+                                {
+                                    if (currentNif.IsSubInterface == false)
+                                    {
+                                        string[] tokens = linets.Split(new string[] { "/sec, " }, StringSplitOptions.RemoveEmptyEntries);
+
+                                        tokens = tokens[0].Split(new string[] { "input rate", "output rate" }, StringSplitOptions.RemoveEmptyEntries);
+
+                                        if (tokens.Length == 2)
+                                        {
+                                            string timescale = tokens[0].Trim();
+                                            string sbits = tokens[1].Trim().Split(' ')[0];
+
+                                            bool isinput = linets.IndexOf("input rate") > -1;
+
+                                            if (long.TryParse(sbits, out long bps))
+                                            {
+                                                int scalesec;
+                                                if (timescale == "5 minute") scalesec = 300;
+                                                else scalesec = 30;
+
+                                                double kbps = Math.Round((double)bps / 1024);
+
+                                                float percentage = (float)Math.Round(kbps / (double)currentNif.TypeRate * 100, 2);
+
+                                                if (isinput) current.TrafficInput = percentage;
+                                                else current.TrafficOutput = percentage;
+                                            }
+                                        }
                                     }
                                 }
                                 else if (descriptionBuffer != null) descriptionBuffer.Append(line);
@@ -1628,7 +1665,7 @@ Last input 00:00:00, output 00:00:00
                                     string type = networkInterface.Type;
                                     int typerate = -1;
                                     if (type == "Te") typerate = 10485760;
-                                    else if (type == "Ge") typerate = 1048576;
+                                    else if (type == "Gi") typerate = 1048576;
                                     else if (type == "Fa") typerate = 102400;
                                     else if (type == "Et") typerate = 10240;
 
@@ -1784,9 +1821,10 @@ Last input 00:00:00, output 00:00:00
                     #region ios
                     
                     // interface
-                    if (Request("show interface | in line protocol|Description|802.1Q|Last input", out lines, probe)) return probe;
+                    if (Request("show interface | in line protocol|Description|802.1Q|Last input|input rate|output rate", out lines, probe)) return probe;
                     
                     PEInterfaceToDatabase current = null;
+                    NetworkInterface currentNif = null;
                     StringBuilder descriptionBuffer = null;
 
                     foreach (string line in lines)
@@ -1798,6 +1836,7 @@ Last input 00:00:00, output 00:00:00
                             {
                                 string name = firstLineTokens[0].Trim();
                                 NetworkInterface inf = NetworkInterface.Parse(name);
+                                
                                 if (inf != null)
                                 {
                                     string mid = firstLineTokens[1].Trim();
@@ -1810,6 +1849,7 @@ Last input 00:00:00, output 00:00:00
                                     {
                                         current = new PEInterfaceToDatabase();
                                         current.Name = inf.Name;
+                                        currentNif = inf;
 
                                         if (!inf.IsSubInterface) current.InterfaceType = inf.Type;
 
@@ -1823,7 +1863,11 @@ Last input 00:00:00, output 00:00:00
 
                                         interfacelive.Add(current.Name, current);
                                     }
-                                    else current = null;
+                                    else
+                                    {
+                                        current = null;
+                                        currentNif = null;
+                                    }
                                 }
                             }
                             else if (current != null)
@@ -1847,6 +1891,37 @@ Last input 00:00:00, output 00:00:00
                                         //  Last input 3y0w,
                                         //  01234567890123456
                                         current.LastDown = ParseLastInput(linets.Substring(11, linets.IndexOf(", ") - 11).Trim());
+                                    }
+                                }
+                                else if (linets.IndexOf("/sec, ") > -1)
+                                {
+                                    if (currentNif.IsSubInterface == false)
+                                    {
+                                        string[] tokens = linets.Split(new string[] { "/sec, " }, StringSplitOptions.RemoveEmptyEntries);
+
+                                        tokens = tokens[0].Split(new string[] { "input rate", "output rate" }, StringSplitOptions.RemoveEmptyEntries);
+
+                                        if (tokens.Length == 2)
+                                        {
+                                            string timescale = tokens[0].Trim();
+                                            string sbits = tokens[1].Trim().Split(' ')[0];
+
+                                            bool isinput = linets.IndexOf("input rate") > -1;
+
+                                            if (long.TryParse(sbits, out long bps))
+                                            {
+                                                int scalesec;
+                                                if (timescale == "5 minute") scalesec = 300;
+                                                else scalesec = 30;
+
+                                                double kbps = Math.Round((double)bps / 1024);
+
+                                                float percentage = (float)Math.Round(kbps / (double)currentNif.TypeRate * 100, 2);
+
+                                                if (isinput) current.TrafficInput = percentage;
+                                                else current.TrafficOutput = percentage;
+                                            }
+                                        }
                                     }
                                 }
                                 else if (descriptionBuffer != null) descriptionBuffer.Append(line);
@@ -2723,12 +2798,13 @@ Last input 00:00:00, output 00:00:00
                 }
 
                 //main interface
-                if (Request("display interface main | in current state|down time|BW", out lines, probe)) return probe;
+                if (Request("display interface main | in current state|down time|BW|utility rate", out lines, probe)) return probe;
 
                 PEInterfaceToDatabase currentInterfaceToDatabase = null;
 
                 foreach (string line in lines)
                 {
+                    string lineTrim = line.Trim();
                     if (line.IndexOf("current state") > -1 && !line.StartsWith("Line protocol"))
                     {
                         currentInterfaceToDatabase = null;
@@ -2756,7 +2832,6 @@ Last input 00:00:00, output 00:00:00
                         else if (line.IndexOf("Port BW: 100G") > -1) itype = "Hu";
                         else if ((indx = line.IndexOf("max BW: ")) > -1)
                         {
-                            string lineTrim = line.Trim();
                             string range = lineTrim.Substring(indx + 8, lineTrim.IndexOf(',', indx) - (indx + 8));
                             if (range.IndexOf("~") > -1)
                             {
@@ -2797,6 +2872,32 @@ Last input 00:00:00, output 00:00:00
                         }
                         else
                             currentInterfaceToDatabase.LastDown = null;
+                    }
+                    else if (currentInterfaceToDatabase != null && currentInterfaceToDatabase.InterfaceType != null && lineTrim.StartsWith("Last 300 seconds input"))
+                    {
+                        string[] tokens = lineTrim.Split(new char[] { ':' });
+                        if (tokens.Length == 2)
+                        {
+                            string per = tokens[1].Trim();
+                            if (per.EndsWith("%"))
+                            {
+                                string pertrim = per.TrimEnd('%');
+                                if (float.TryParse(pertrim, out float pertrimf)) currentInterfaceToDatabase.TrafficInput = pertrimf;
+                            }
+                        }
+                    }
+                    else if (currentInterfaceToDatabase != null && currentInterfaceToDatabase.InterfaceType != null && lineTrim.StartsWith("Last 300 seconds output"))
+                    {
+                        string[] tokens = lineTrim.Split(new char[] { ':' });
+                        if (tokens.Length == 2)
+                        {
+                            string per = tokens[1].Trim();
+                            if (per.EndsWith("%"))
+                            {
+                                string pertrim = per.TrimEnd('%');
+                                if (float.TryParse(pertrim, out float pertrimf)) currentInterfaceToDatabase.TrafficOutput = pertrimf;
+                            }
+                        }
 
                         currentInterfaceToDatabase = null;
                     }
@@ -3398,6 +3499,20 @@ Last input 00:00:00, output 00:00:00
                         u.LastDown = li.LastDown;
                         UpdateInfo(updateinfo, "lastdown", db["PI_LastDown"].ToNullableDateTime().ToString(), li.LastDown.ToString(), true);
                     }
+                    if (db["PI_Percentage_TrafficInput"].ToFloat(-1) != li.TrafficInput)
+                    {
+                        update = true;
+                        u.UpdateTrafficInput = true;
+                        u.TrafficInput = li.TrafficInput;
+                        UpdateInfo(updateinfo, "traffic-input", db["PI_Percentage_TrafficInput"].ToFloat(-1).NullableInfo(), li.TrafficInput.NullableInfo(), true);
+                    }
+                    if (db["PI_Percentage_TrafficOutput"].ToFloat(-1) != li.TrafficOutput)
+                    {
+                        update = true;
+                        u.UpdateTrafficOutput = true;
+                        u.TrafficOutput = li.TrafficOutput;
+                        UpdateInfo(updateinfo, "traffic-output", db["PI_Percentage_TrafficOutput"].ToFloat(-1).NullableInfo(), li.TrafficOutput.NullableInfo(), true);
+                    }
                     if (db["PI_Summary_CIRConfigTotalInput"].ToInt(-1) != li.CirConfigTotalInput)
                     {
                         update = true;
@@ -3584,6 +3699,8 @@ Last input 00:00:00, output 00:00:00
                 insert.Value("PI_TO_MI", s.TopologyMEInterfaceID);
                 insert.Value("PI_TO_NI", s.TopologyNeighborInterfaceID);
                 insert.Value("PI_LastDown", s.LastDown);
+                insert.Value("PI_Percentage_TrafficInput", s.TrafficInput.Nullable(-1));
+                insert.Value("PI_Percentage_TrafficOutput", s.TrafficInput.Nullable(-1));
                 insert.Value("PI_Summary_CIRConfigTotalInput", s.CirConfigTotalInput.Nullable(-1));
                 insert.Value("PI_Summary_CIRConfigTotalOutput", s.CirConfigTotalOutput.Nullable(-1));
                 insert.Value("PI_Summary_CIRTotalInput", s.CirTotalInput.Nullable(-1));
@@ -3628,6 +3745,8 @@ Last input 00:00:00, output 00:00:00
                 update.Set("PI_Rate_Input", s.RateInput.Nullable(-1), s.UpdateRateInput);
                 update.Set("PI_Rate_Output", s.RateOutput.Nullable(-1), s.UpdateRateOutput);
                 update.Set("PI_LastDown", s.LastDown, s.UpdateLastDown);
+                update.Set("PI_Percentage_TrafficInput", s.TrafficInput, s.UpdateTrafficInput);
+                update.Set("PI_Percentage_TrafficOutput", s.TrafficOutput, s.UpdateTrafficOutput);
                 update.Set("PI_Summary_CIRConfigTotalInput", s.CirConfigTotalInput.Nullable(-1), s.UpdateCirConfigTotalInput);
                 update.Set("PI_Summary_CIRConfigTotalOutput", s.CirConfigTotalOutput.Nullable(-1), s.UpdateCirConfigTotalOutput);
                 update.Set("PI_Summary_CIRTotalInput", s.CirTotalInput.Nullable(-1), s.UpdateCirTotalInput);

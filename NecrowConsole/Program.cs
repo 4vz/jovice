@@ -15,9 +15,10 @@ namespace NecrowConsole
             Console.WriteLine("NecrowConsole");
 
 #if DEBUG
+            Console.WriteLine("DEBUG MODE");
             if (Necrow.Debug())
             {
-                Necrow.Test("PE3-D7-PTR-TRANSIT");
+                Necrow.Test("ME3-D2-SLP");
 #endif
                 Necrow.Start();
 #if DEBUG

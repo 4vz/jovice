@@ -2060,29 +2060,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                     if (il3 == "Link") il3 = "Up";
 
                                     interfacelive[portex].Protocol = il3 == "Up";
-
-                                    if (interfacelive[portex].Status == false)
-                                    {
-                                        string[] portlines;
-                                        if (Request("show port " + portdet + " | match \"Last State Change\"", out portlines, probe)) return probe;
-
-                                        foreach (string portline in portlines)
-                                        {
-                                            string portlinetrim = portline.Trim();
-                                            //Last State Change  : 09/27/2016 02:59:23        Hold time down   : 0 seconds
-                                            //01234567890123456789012345678901234567890123456789
-                                            //                     
-                                            if (portlinetrim.StartsWith("Last State Change") && portlinetrim.Length >= 40)
-                                            {
-                                                string dtim = portlinetrim.Substring(21, 19);
-                                                DateTime lstch;
-                                                if (!DateTime.TryParse(dtim, out lstch)) lstch = DateTime.MinValue;
-                                                if (lstch > DateTime.MinValue) interfacelive[portex].LastDown = lstch - nodeTimeOffset;
-                                            }
-                                        }
-                                    }
-                                    else interfacelive[portex].LastDown = null;
-
+                                             
                                     if (linex.Length >= 7)
                                     {
                                         string agr = linex[6].Trim();
@@ -2131,6 +2109,109 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
                                                 if (endinfo.Length > 0)
                                                     interfacelive[portex].Info = endinfo;
+                                            }
+                                        }
+                                    }
+
+                                    if (interfacelive[portex].Status == false)
+                                    {
+                                        string[] portlines;
+                                        if (Request("show port " + portdet + " | match \"Last State Change\"", out portlines, probe)) return probe;
+
+                                        foreach (string portline in portlines)
+                                        {
+                                            string portlinetrim = portline.Trim();
+                                            //Last State Change  : 09/27/2016 02:59:23        Hold time down   : 0 seconds
+                                            //01234567890123456789012345678901234567890123456789
+                                            //                     
+                                            if (portlinetrim.StartsWith("Last State Change") && portlinetrim.Length >= 40)
+                                            {
+                                                string dtim = portlinetrim.Substring(21, 19);
+                                                DateTime lstch;
+                                                if (!DateTime.TryParse(dtim, out lstch)) lstch = DateTime.MinValue;
+                                                if (lstch > DateTime.MinValue) interfacelive[portex].LastDown = lstch - nodeTimeOffset;
+                                            }
+                                        }
+
+                                        interfacelive[portex].TrafficInput = 0;
+                                        interfacelive[portex].TrafficOutput = 0;
+                                    }
+                                    else
+                                    {
+                                        interfacelive[portex].LastDown = null;
+
+                                        if (interfacelive[portex].InterfaceType != null)
+                                        {
+                                            int typerate = -1;
+
+                                            if (interfacelive[portex].InterfaceType == "Hu") typerate = 104857600;
+                                            else if (interfacelive[portex].InterfaceType == "Te") typerate = 10485760;
+                                            else if (interfacelive[portex].InterfaceType == "Gi") typerate = 1048576;
+                                            else if (interfacelive[portex].InterfaceType == "Fa") typerate = 102400;
+                                            else if (interfacelive[portex].InterfaceType == "Et") typerate = 10240;
+
+                                            if (typerate > -1)
+                                            {
+                                                long inputBefore = -1, outputBefore = -1, inputAfter = -1, outputAfter = -1;
+
+                                                DateTime t1 = DateTime.Now;
+                                                if (Request("show port " + portdet + " | match \"Octets\"", out string[] portlines1, probe)) return probe;
+
+                                                Thread.Sleep(1000);
+                                                
+                                                DateTime t2 = DateTime.Now;
+                                                if (Request("show port " + portdet + " | match \"Octets\"", out string[] portlines2, probe)) return probe;
+
+
+                                                foreach (string portline in portlines1)
+                                                {
+                                                    string t = portline.Trim();
+                                                    if (t.StartsWith("Octets"))
+                                                    {
+                                                        string[] tokens = t.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                                                        if (tokens.Length == 3)
+                                                        {
+                                                            string sin = tokens[1];
+                                                            string sout = tokens[2];
+
+                                                            if (!long.TryParse(sin, out inputBefore)) inputBefore = -1;
+                                                            if (!long.TryParse(sout, out outputBefore)) outputBefore = -1;
+                                                        }
+                                                    }
+                                                }
+                                                foreach (string portline in portlines2)
+                                                {
+                                                    string t = portline.Trim();
+                                                    if (t.StartsWith("Octets"))
+                                                    {
+                                                        string[] tokens = t.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                                                        if (tokens.Length == 3)
+                                                        {
+                                                            string sin = tokens[1];
+                                                            string sout = tokens[2];
+
+                                                            if (!long.TryParse(sin, out inputAfter)) inputAfter = -1;
+                                                            if (!long.TryParse(sout, out outputAfter)) outputAfter = -1;
+                                                        }
+                                                    }
+                                                }
+
+                                                TimeSpan span = t2 - t1;
+
+                                                if (inputBefore > -1 && inputAfter > -1)
+                                                {
+                                                    long delta = inputAfter - inputBefore;
+                                                    double bps = ((double)delta / span.TotalSeconds);
+                                                    double kbps = Math.Round(bps / 1024);
+                                                    interfacelive[portex].TrafficInput = (float)Math.Round(kbps / (double)typerate * 100, 2);
+                                                }
+                                                if (outputBefore > -1 && outputAfter > -1)
+                                                {
+                                                    long delta = outputAfter - outputBefore;
+                                                    double bps = ((double)delta / span.TotalSeconds);
+                                                    double kbps = Math.Round(bps / 1024);
+                                                    interfacelive[portex].TrafficOutput = (float)Math.Round(kbps / (double)typerate * 100, 2);
+                                                }
                                             }
                                         }
                                     }
@@ -2508,9 +2589,11 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                     {
                                         if (!interfacelive.ContainsKey(port))
                                         {
-                                            MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
-                                            mid.Name = port;
-                                            mid.Description = description.Length > 0 ? FixDescription(description.ToString()) : null;
+                                            MEInterfaceToDatabase mid = new MEInterfaceToDatabase()
+                                            {
+                                                Name = port,
+                                                Description = description.Length > 0 ? FixDescription(description.ToString()) : null
+                                            };
                                             interfacelive.Add(port, mid);
                                         }
 
@@ -2635,17 +2718,18 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 //main interface
                 if (nodeVersion == "5.90" || nodeVersion == "5.70")
                 {
-                    if (Request("display interface | in current state|down time|BW", out lines, probe)) return probe;
+                    if (Request("display interface | in current state|down time|BW|bandwidth utilization", out lines, probe)) return probe;
                 }
                 else
                 {
-                    if (Request("display interface main | in current state|down time|BW", out lines, probe)) return probe;
+                    if (Request("display interface main | in current state|down time|BW|bandwidth utilization", out lines, probe)) return probe;
                 }
 
                 MEInterfaceToDatabase currentInterfaceToDatabase = null;
 
                 foreach (string line in lines)
                 {
+                    string lineTrim = line.Trim();
                     if (line.IndexOf("current state") > -1 && !line.StartsWith("Line protocol"))
                     {
                         currentInterfaceToDatabase = null;
@@ -2672,7 +2756,6 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         else if (line.IndexOf("Port BW: 10G") > -1) itype = "Te";
                         else if ((indx = line.IndexOf("max BW: ")) > -1)
                         {
-                            string lineTrim = line.Trim();
                             string range = lineTrim.Substring(indx + 8, lineTrim.IndexOf(',', indx) - (indx + 8));
                             if (range.IndexOf("~") > -1)
                             {
@@ -2713,6 +2796,33 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         }
                         else
                             currentInterfaceToDatabase.LastDown = null;
+
+                    }
+                    else if (currentInterfaceToDatabase != null && currentInterfaceToDatabase.InterfaceType != null && lineTrim.StartsWith("Input bandwidth utilization"))
+                    {
+                        string[] tokens = lineTrim.Split(new char[] { ':' });
+                        if (tokens.Length == 2)
+                        {
+                            string per = tokens[1].Trim();
+                            if (per.EndsWith("%"))
+                            {
+                                string pertrim = per.TrimEnd('%');
+                                if (float.TryParse(pertrim, out float pertrimf)) currentInterfaceToDatabase.TrafficInput = pertrimf;
+                            }
+                        }
+                    }
+                    else if (currentInterfaceToDatabase != null && currentInterfaceToDatabase.InterfaceType != null && lineTrim.StartsWith("Output bandwidth utilization"))
+                    {
+                        string[] tokens = lineTrim.Split(new char[] { ':' });
+                        if (tokens.Length == 2)
+                        {
+                            string per = tokens[1].Trim();
+                            if (per.EndsWith("%"))
+                            {
+                                string pertrim = per.TrimEnd('%');
+                                if (float.TryParse(pertrim, out float pertrimf)) currentInterfaceToDatabase.TrafficOutput = pertrimf;
+                            }
+                        }
 
                         currentInterfaceToDatabase = null;
                     }
@@ -3533,6 +3643,20 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.LastDown = li.LastDown;
                         UpdateInfo(updateinfo, "lastdown", db["MI_LastDown"].ToNullableDateTime().ToString(), li.LastDown.ToString(), true);
                     }
+                    if (db["MI_Percentage_TrafficInput"].ToFloat(-1) != li.TrafficInput)
+                    {
+                        update = true;
+                        u.UpdateTrafficInput = true;
+                        u.TrafficInput = li.TrafficInput;
+                        UpdateInfo(updateinfo, "traffic-input", db["MI_Percentage_TrafficInput"].ToFloat(-1).NullableInfo(), li.TrafficInput.NullableInfo(), true);
+                    }
+                    if (db["MI_Percentage_TrafficOutput"].ToFloat(-1) != li.TrafficOutput)
+                    {
+                        update = true;
+                        u.UpdateTrafficOutput = true;
+                        u.TrafficOutput = li.TrafficOutput;
+                        UpdateInfo(updateinfo, "traffic-output", db["MI_Percentage_TrafficOutput"].ToFloat(-1).NullableInfo(), li.TrafficOutput.NullableInfo(), true);
+                    }
                     if (db["MI_Summary_CIRConfigTotalInput"].ToInt(-1) != li.CirConfigTotalInput)
                     {
                         update = true;
@@ -3648,6 +3772,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 insert.Value("MI_TO_MI", s.TopologyMEInterfaceID);
                 insert.Value("MI_TO_NI", s.TopologyNeighborInterfaceID);
                 insert.Value("MI_LastDown", s.LastDown);
+                insert.Value("MI_Percentage_TrafficInput", s.TrafficInput.Nullable(-1));
+                insert.Value("MI_Percentage_TrafficOutput", s.TrafficInput.Nullable(-1));
                 insert.Value("MI_Summary_CIRConfigTotalInput", s.CirConfigTotalInput.Nullable(-1));
                 insert.Value("MI_Summary_CIRConfigTotalOutput", s.CirConfigTotalOutput.Nullable(-1));
                 insert.Value("MI_Summary_CIRTotalInput", s.CirTotalInput.Nullable(-1));
@@ -3703,6 +3829,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 update.Set("MI_Rate_Output", s.RateOutput.Nullable(-1), s.UpdateRateOutput);
                 update.Set("MI_Info", s.Info, s.UpdateInfo);
                 update.Set("MI_LastDown", s.LastDown, s.UpdateLastDown);
+                update.Set("MI_Percentage_TrafficInput", s.TrafficInput, s.UpdateTrafficInput);
+                update.Set("MI_Percentage_TrafficOutput", s.TrafficOutput, s.UpdateTrafficOutput);
                 update.Set("MI_Summary_CIRConfigTotalInput", s.CirConfigTotalInput.Nullable(-1), s.UpdateCirConfigTotalInput);
                 update.Set("MI_Summary_CIRConfigTotalOutput", s.CirConfigTotalOutput.Nullable(-1), s.UpdateCirConfigTotalOutput);
                 update.Set("MI_Summary_CIRTotalInput", s.CirTotalInput.Nullable(-1), s.UpdateCirTotalInput);

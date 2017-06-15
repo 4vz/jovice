@@ -1546,7 +1546,17 @@ Last input 00:00:00, output 00:00:00
 
                                                 double kbps = Math.Round((double)bps / 1024);
 
-                                                float percentage = (float)Math.Round(kbps / (double)currentNif.TypeRate * 100, 2);
+                                                float percentage = -1;
+                                                int typeRate = -1;
+
+                                                if (currentNif.TypeRate == -1)
+                                                {
+                                                    if (currentNif.Type == "Se") typeRate = 2048;
+                                                }
+                                                else typeRate = currentNif.TypeRate;
+
+                                                if (typeRate != -1)
+                                                    percentage = (float)Math.Round(kbps / (double)typeRate * 100, 2);
 
                                                 if (isinput) current.TrafficInput = percentage;
                                                 else current.TrafficOutput = percentage;
@@ -1916,16 +1926,17 @@ Last input 00:00:00, output 00:00:00
 
                                                 double kbps = Math.Round((double)bps / 1024);
 
-                                                float percentage = 0;
+                                                float percentage = -1;
+                                                int typeRate = -1;
 
-                                                if (currentNif.Type != "Ag")
+                                                if (currentNif.TypeRate == -1)
                                                 {
-                                                    percentage = (float)Math.Round(kbps / (double)currentNif.TypeRate * 100, 2);
+                                                    if (currentNif.Type == "Se") typeRate = 2048;
                                                 }
-                                                else
-                                                {
-                                                    percentage = -1;
-                                                }
+                                                else typeRate = currentNif.TypeRate;
+
+                                                if (typeRate != -1)
+                                                    percentage = (float)Math.Round(kbps / (double)typeRate * 100, 2);
 
                                                 if (isinput) current.TrafficInput = percentage;
                                                 else current.TrafficOutput = percentage;

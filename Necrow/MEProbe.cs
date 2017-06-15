@@ -3829,8 +3829,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 update.Set("MI_Rate_Output", s.RateOutput.Nullable(-1), s.UpdateRateOutput);
                 update.Set("MI_Info", s.Info, s.UpdateInfo);
                 update.Set("MI_LastDown", s.LastDown, s.UpdateLastDown);
-                update.Set("MI_Percentage_TrafficInput", s.TrafficInput, s.UpdateTrafficInput);
-                update.Set("MI_Percentage_TrafficOutput", s.TrafficOutput, s.UpdateTrafficOutput);
+                update.Set("MI_Percentage_TrafficInput", s.TrafficInput.Nullable(-1), s.UpdateTrafficInput);
+                update.Set("MI_Percentage_TrafficOutput", s.TrafficOutput.Nullable(-1), s.UpdateTrafficOutput);
                 update.Set("MI_Summary_CIRConfigTotalInput", s.CirConfigTotalInput.Nullable(-1), s.UpdateCirConfigTotalInput);
                 update.Set("MI_Summary_CIRConfigTotalOutput", s.CirConfigTotalOutput.Nullable(-1), s.UpdateCirConfigTotalOutput);
                 update.Set("MI_Summary_CIRTotalInput", s.CirTotalInput.Nullable(-1), s.UpdateCirTotalInput);

@@ -1916,7 +1916,16 @@ Last input 00:00:00, output 00:00:00
 
                                                 double kbps = Math.Round((double)bps / 1024);
 
-                                                float percentage = (float)Math.Round(kbps / (double)currentNif.TypeRate * 100, 2);
+                                                float percentage = 0;
+
+                                                if (currentNif.Type != "Ag")
+                                                {
+                                                    percentage = (float)Math.Round(kbps / (double)currentNif.TypeRate * 100, 2);
+                                                }
+                                                else
+                                                {
+                                                    percentage = -1;
+                                                }
 
                                                 if (isinput) current.TrafficInput = percentage;
                                                 else current.TrafficOutput = percentage;
@@ -3745,8 +3754,8 @@ Last input 00:00:00, output 00:00:00
                 update.Set("PI_Rate_Input", s.RateInput.Nullable(-1), s.UpdateRateInput);
                 update.Set("PI_Rate_Output", s.RateOutput.Nullable(-1), s.UpdateRateOutput);
                 update.Set("PI_LastDown", s.LastDown, s.UpdateLastDown);
-                update.Set("PI_Percentage_TrafficInput", s.TrafficInput, s.UpdateTrafficInput);
-                update.Set("PI_Percentage_TrafficOutput", s.TrafficOutput, s.UpdateTrafficOutput);
+                update.Set("PI_Percentage_TrafficInput", s.TrafficInput.Nullable(-1), s.UpdateTrafficInput);
+                update.Set("PI_Percentage_TrafficOutput", s.TrafficOutput.Nullable(-1), s.UpdateTrafficOutput);
                 update.Set("PI_Summary_CIRConfigTotalInput", s.CirConfigTotalInput.Nullable(-1), s.UpdateCirConfigTotalInput);
                 update.Set("PI_Summary_CIRConfigTotalOutput", s.CirConfigTotalOutput.Nullable(-1), s.UpdateCirConfigTotalOutput);
                 update.Set("PI_Summary_CIRTotalInput", s.CirTotalInput.Nullable(-1), s.UpdateCirTotalInput);

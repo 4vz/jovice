@@ -265,42 +265,42 @@ namespace Center
                         bool interfaceIdentified = true;
                         if (interfaceType == "g" || interfaceType == "gi" || interfaceType == "gigabitethernet" || interfaceType == "ge")
                         {
-                            ci.type = "GigabitEthernet";
+                            ci.fullType = "GigabitEthernet";
                             ci.type = "Gi";
                         }
                         else if (interfaceType == "f" || interfaceType == "fa" || interfaceType == "fastethernet" || interfaceType == "fe")
                         {
-                            ci.type = "FastEthernet";
+                            ci.fullType = "FastEthernet";
                             ci.type = "Fa";
                         }
                         else if (interfaceType == "e" || interfaceType == "et" || interfaceType == "ethernet")
                         {
-                            ci.type = "Ethernet";
+                            ci.fullType = "Ethernet";
                             ci.type = "Et";
                         }
                         else if (interfaceType == "s" || interfaceType == "se" || interfaceType == "serial")
                         {
-                            ci.type = "Serial";
+                            ci.fullType = "Serial";
                             ci.type = "Se";
                         }
                         else if (interfaceType == "t" || interfaceType == "te" || interfaceType == "tengige" || interfaceType == "xe")
                         {
-                            ci.type = "TenGigE";
+                            ci.fullType = "TenGigE";
                             ci.type = "Te";
                         }
                         else if (interfaceType == "h" || interfaceType == "hu" || interfaceType == "hundredgige")
                         {
-                            ci.type = "HundredGigE";
+                            ci.fullType = "HundredGigE";
                             ci.type = "Hu";
                         }
                         else if (interfaceType == "ag" || interfaceType == "ethtrunk" || interfaceType == "ae" || interfaceType == "po" || interfaceType == "portchannel")
                         {
-                            ci.type = "AggregatedInterface";
+                            ci.fullType = "AggregatedInterface";
                             ci.type = "Ag";
                         }
                         else if (interfaceType == "ex")
                         {
-                            ci.type = "UnspecifiedInterface";
+                            ci.fullType = "UnspecifiedInterface";
                             ci.type = "Ex";
                         }
                         else interfaceIdentified = false;

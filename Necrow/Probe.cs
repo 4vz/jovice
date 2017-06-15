@@ -636,6 +636,8 @@ namespace Center
 
         private ProbeRequestData probeRequestData = null;
 
+        private bool usingBash = false;
+
 
         private bool started = false;
 
@@ -932,6 +934,8 @@ namespace Center
                 mainLoop.Abort();
                 mainLoop = null;
             }
+
+            usingBash = false;
 
             sshProbeStartTime = DateTime.UtcNow;
 
@@ -1394,6 +1398,13 @@ namespace Center
                 // print message where we are waiting (or why)
                 Event(waitMessage + "... (" + loop + ")");
 
+                if (loop == 1)
+                {
+                    Event("Using bash session...");
+                    usingBash = true;
+                    SendLine("bash");
+                }
+
                 //Event("Last Reading Output: ");
                 //int lp = LastOutput.Length - 200;
                 //if (lp < 0) lp = 0;
@@ -1658,6 +1669,7 @@ namespace Center
             Thread.Sleep(200);
             SendLine("");
             Thread.Sleep(200);
+
             if (manufacture == alu) SendLine("logout");
             else if (manufacture == hwe) SendLine("quit");
             else if (manufacture == cso) SendLine("exit");

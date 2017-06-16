@@ -57,7 +57,7 @@ namespace Aphysoft.Share
 
             List<string> argslist = new List<string>(args);
 
-            List.Sort(argslist, SortMethods.LengthDescending);
+            ListHelper.Sort(argslist, SortMethods.LengthDescending);
 
             foreach (string arg in argslist)
             {

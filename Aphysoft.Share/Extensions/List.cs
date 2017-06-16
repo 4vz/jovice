@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Aphysoft.Share
 {
-    public static class ListExtensions
+    public static class List
     {
         public static bool Exists<T>(this List<T> list, T value)
         {
@@ -74,9 +75,68 @@ namespace Aphysoft.Share
             else if (index1 > index2) return 1;
             else return 0;
         }
+
+        public static ListGroup<T> Group<T>(this List<T> list, int length)
+        {
+            return new ListGroup<T>(list, length);
+        }
     }
 
-    public static class ListStringExtensions
+    public class ListGroup<T> : IEnumerable<List<T>>
+    {
+        private List<T> list;
+        private int lengthEachEnumeration;
+
+        public ListGroup(List<T> list, int lengthEachEnumeration)
+        {
+            this.list = list;
+            this.lengthEachEnumeration = lengthEachEnumeration;
+        }
+
+        public IEnumerator GetEnumerator()
+        {
+            int position = 0;
+            int length = list.Count;
+
+            while (position < length)
+            {
+                int take = length - position;
+                if (take > lengthEachEnumeration) take = lengthEachEnumeration;
+
+                List<T> current = new List<T>();
+                for (int i = 0; i < take; i++)
+                {
+                    current.Add(list[position + i]);
+                }
+                position += take;
+
+                yield return current;
+            }
+        }
+
+        IEnumerator<List<T>> IEnumerable<List<T>>.GetEnumerator()
+        {
+            int position = 0;
+            int length = list.Count;
+
+            while (position < length)
+            {
+                int take = length - position;
+                if (take > lengthEachEnumeration) take = lengthEachEnumeration;
+
+                List<T> current = new List<T>();
+                for (int i = 0; i < take; i++)
+                {
+                    current.Add(list[position + i]);
+                }
+                position += take;
+
+                yield return current;
+            }
+        }
+    }
+
+    public static class ListString
     {
         public static bool StartsWith(this List<string> list, string value)
         {

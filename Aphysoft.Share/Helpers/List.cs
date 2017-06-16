@@ -14,7 +14,7 @@ namespace Aphysoft.Share
     }
 
 
-    public static class List
+    public static class ListHelper
     {
         
         public static int IndexOf(string[] list, string find)
@@ -87,7 +87,7 @@ namespace Aphysoft.Share
 
         public static List<string> New(params string[] args)
         {
-            return List.New<string>(args);
+            return ListHelper.New<string>(args);
         }
 
         public static List<T> Add<T>(List<T> list, params T[] args)

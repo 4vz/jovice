@@ -2037,6 +2037,8 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
                 if (Request("show port", out lines, probe)) return probe;
 
+                List<Tuple<MEInterfaceToDatabase, string, int>> monitorPort = new List<Tuple<MEInterfaceToDatabase, string, int>>();
+
                 foreach (string line in lines)
                 {
                     if (line.Length > 0)
@@ -2152,67 +2154,72 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
                                             if (typerate > -1)
                                             {
-                                                long inputBefore = -1, outputBefore = -1, inputAfter = -1, outputAfter = -1;
-
-                                                DateTime t1 = DateTime.Now;
-                                                if (Request("show port " + portdet + " | match \"Octets\"", out string[] portlines1, probe)) return probe;
-
-                                                Thread.Sleep(1000);
-                                                
-                                                DateTime t2 = DateTime.Now;
-                                                if (Request("show port " + portdet + " | match \"Octets\"", out string[] portlines2, probe)) return probe;
+                                                monitorPort.Add(new Tuple<MEInterfaceToDatabase, string, int>(interfacelive[portex], portdet, typerate));
+                                            }
 
 
-                                                foreach (string portline in portlines1)
+                                            /*
+                                            long inputBefore = -1, outputBefore = -1, inputAfter = -1, outputAfter = -1;
+
+
+                                            if (Request("show port " + portdet + " | match \"Octets\"", out string[] portlines1, probe)) return probe;
+                                            DateTime t1 = DateTime.Now;
+
+                                            Thread.Sleep(1000);                                                
+
+                                            if (Request("show port " + portdet + " | match \"Octets\"", out string[] portlines2, probe)) return probe;
+                                            DateTime t2 = DateTime.Now;
+
+                                            foreach (string portline in portlines1)
+                                            {
+                                                string t = portline.Trim();
+                                                if (t.StartsWith("Octets"))
                                                 {
-                                                    string t = portline.Trim();
-                                                    if (t.StartsWith("Octets"))
+                                                    string[] tokens = t.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                                                    if (tokens.Length == 3)
                                                     {
-                                                        string[] tokens = t.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-                                                        if (tokens.Length == 3)
-                                                        {
-                                                            string sin = tokens[1];
-                                                            string sout = tokens[2];
+                                                        string sin = tokens[1];
+                                                        string sout = tokens[2];
 
-                                                            if (!long.TryParse(sin, out inputBefore)) inputBefore = -1;
-                                                            if (!long.TryParse(sout, out outputBefore)) outputBefore = -1;
-                                                        }
+                                                        if (!long.TryParse(sin, out inputBefore)) inputBefore = -1;
+                                                        if (!long.TryParse(sout, out outputBefore)) outputBefore = -1;
                                                     }
-                                                }
-                                                foreach (string portline in portlines2)
-                                                {
-                                                    string t = portline.Trim();
-                                                    if (t.StartsWith("Octets"))
-                                                    {
-                                                        string[] tokens = t.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-                                                        if (tokens.Length == 3)
-                                                        {
-                                                            string sin = tokens[1];
-                                                            string sout = tokens[2];
-
-                                                            if (!long.TryParse(sin, out inputAfter)) inputAfter = -1;
-                                                            if (!long.TryParse(sout, out outputAfter)) outputAfter = -1;
-                                                        }
-                                                    }
-                                                }
-
-                                                TimeSpan span = t2 - t1;
-
-                                                if (inputBefore > -1 && inputAfter > -1)
-                                                {
-                                                    long delta = inputAfter - inputBefore;
-                                                    double bps = ((double)delta / span.TotalSeconds);
-                                                    double kbps = Math.Round(bps / 1024);
-                                                    interfacelive[portex].TrafficInput = (float)Math.Round(kbps / (double)typerate * 100, 2);
-                                                }
-                                                if (outputBefore > -1 && outputAfter > -1)
-                                                {
-                                                    long delta = outputAfter - outputBefore;
-                                                    double bps = ((double)delta / span.TotalSeconds);
-                                                    double kbps = Math.Round(bps / 1024);
-                                                    interfacelive[portex].TrafficOutput = (float)Math.Round(kbps / (double)typerate * 100, 2);
                                                 }
                                             }
+                                            foreach (string portline in portlines2)
+                                            {
+                                                string t = portline.Trim();
+                                                if (t.StartsWith("Octets"))
+                                                {
+                                                    string[] tokens = t.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                                                    if (tokens.Length == 3)
+                                                    {
+                                                        string sin = tokens[1];
+                                                        string sout = tokens[2];
+
+                                                        if (!long.TryParse(sin, out inputAfter)) inputAfter = -1;
+                                                        if (!long.TryParse(sout, out outputAfter)) outputAfter = -1;
+                                                    }
+                                                }
+                                            }
+
+                                            TimeSpan span = t2 - t1;
+
+                                            if (inputBefore > -1 && inputAfter > -1)
+                                            {
+                                                long delta = inputAfter - inputBefore;
+                                                double bps = ((double)delta / span.TotalSeconds);
+                                                double kbps = Math.Round(bps / 1024);
+                                                interfacelive[portex].TrafficInput = (float)Math.Round(kbps / (double)typerate * 100, 2);
+                                            }
+                                            if (outputBefore > -1 && outputAfter > -1)
+                                            {
+                                                long delta = outputAfter - outputBefore;
+                                                double bps = ((double)delta / span.TotalSeconds);
+                                                double kbps = Math.Round(bps / 1024);
+                                                interfacelive[portex].TrafficOutput = (float)Math.Round(kbps / (double)typerate * 100, 2);
+                                            }*/
+
                                         }
                                     }
                                 }
@@ -2220,6 +2227,70 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                         }
                     }
                 }
+
+                // monitor port
+
+                foreach (List<Tuple<MEInterfaceToDatabase, string, int>> group in monitorPort.Group(5))
+                {
+                    List<string> portJoinedList = new List<string>();
+                    Dictionary<string, Tuple<MEInterfaceToDatabase, string, int>> dict = new Dictionary<string, Tuple<MEInterfaceToDatabase, string, int>>();
+                    foreach (Tuple<MEInterfaceToDatabase, string, int> item in group)
+                    {
+                        portJoinedList.Add(item.Item2);
+                        dict.Add(item.Item2, item);
+                    }
+                    string portJoinedString = string.Join(" ", portJoinedList.ToArray());
+
+                    if (Request("monitor port " + portJoinedString + " interval 3 repeat 1", out string[] monitorPortLines, probe)) return probe;
+
+                    bool begin = false;
+                    MEInterfaceToDatabase currentIf = null;
+                    int currentTypeRate = -1;
+                    foreach (string line in monitorPortLines)
+                    {
+                        if (line.IndexOf("(Mode: Delta)") > -1) begin = true;
+                        else if (begin)
+                        {
+                            string lineTrim = line.Trim();
+                            if (lineTrim.StartsWith("Port "))
+                            {
+                                string refdet = lineTrim.Substring(5);
+                                currentIf = dict[refdet].Item1;
+                                currentTypeRate = dict[refdet].Item3;
+                            }
+                            else if (lineTrim.StartsWith("Octets ") && currentIf != null)
+                            {
+                                string[] tokens = lineTrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                                if (tokens.Length == 3)
+                                {
+                                    string sin = tokens[1];
+                                    string sout = tokens[2];
+
+                                    if (!long.TryParse(sin, out long inputRate)) inputRate = -1;
+                                    if (!long.TryParse(sout, out long outputRate)) outputRate = -1;
+
+                                    if (inputRate > -1)
+                                    {
+                                        double kbps = Math.Round((double)inputRate / 1024 / 3);
+                                        currentIf.TrafficInput = (float)Math.Round(kbps / (double)currentTypeRate * 100, 2);
+
+                                        if (outputRate == -1) currentIf.TrafficOutput = 0;
+                                    }
+                                    if (outputRate > -1)
+                                    {
+                                        double kbps = Math.Round((double)outputRate / 1024 / 3);
+                                        currentIf.TrafficOutput = (float)Math.Round(kbps / (double)currentTypeRate * 100, 2);
+
+                                        if (inputRate == -1) currentIf.TrafficInput = 0;
+                                    }
+                                }
+                                currentIf = null;
+                            }
+                        }
+                    }
+                }
+
+
 
                 if (nodeVersion.StartsWith("TiMOS-B")) // sementara TiMOS-B ga bisa dapet deskripsi
                 {

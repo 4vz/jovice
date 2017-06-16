@@ -269,8 +269,6 @@ namespace Center
 
                 Event("Checking Jovice Database connection... ");
 
-
-
                 bool joviceDatabaseConnected = false;
                 j = Jovice.Database;
 

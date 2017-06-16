@@ -80,7 +80,7 @@ namespace Center.Providers
                 roots = new Dictionary<string, List<string>>();
                 languageCallbacks = new Dictionary<string, Dictionary<SearchLanguageCallback, string>>();
 
-                conjuctions = List.New(
+                conjuctions = ListHelper.New(
                     "is", "are", "that", "thats", "that's", "which", "of", "have", "has", "had",
                     "the", "to", "than", "then", "where", "with", "bound", "for"
                     );
@@ -94,7 +94,7 @@ namespace Center.Providers
 
                 #endregion
 
-                List.Sort(conjuctions, SortMethods.LengthDescending);      
+                ListHelper.Sort(conjuctions, SortMethods.LengthDescending);      
             }
             #endregion
             
@@ -111,7 +111,7 @@ namespace Center.Providers
                 bool isMain = false;
                 if (main == "1") isMain = true;
 
-                List<string> tokenList = List.Tokenize(search);
+                List<string> tokenList = ListHelper.Tokenize(search);
 
                 #region Determine root
 
@@ -132,8 +132,8 @@ namespace Center.Providers
                         if (root != null)
                         {
                             tokens = tokenList.ToArray();
-                            preTokens = List.Copy(tokenList, 0, tokenIndex).ToArray();
-                            postTokens = List.Copy(tokenList, tokenIndex + 1, tokenList.Count - (tokenIndex + 1)).ToArray();
+                            preTokens = ListHelper.Copy(tokenList, 0, tokenIndex).ToArray();
+                            postTokens = ListHelper.Copy(tokenList, tokenIndex + 1, tokenList.Count - (tokenIndex + 1)).ToArray();
                             break;
                         }
                     }
@@ -485,7 +485,7 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
                             }
                         }
 
-                        List.Sort(currentLanguages, SortMethods.LengthDescending);
+                        ListHelper.Sort(currentLanguages, SortMethods.LengthDescending);
 
                         foreach (string language in currentLanguages)
                         {

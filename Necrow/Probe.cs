@@ -1323,7 +1323,7 @@ namespace Center
             if (IsConnected)
             {
                 lastSendLine = command;
-                Thread.Sleep(100);
+                Thread.Sleep(200);
                 bool res = WriteLine(command);
                 if (res == false)
                 {
@@ -4262,7 +4262,7 @@ namespace Center
             }
             else testInterfaces.Add(port);
 
-            testInterfaces = List.Sort(testInterfaces, SortMethods.LengthDescending);
+            testInterfaces = ListHelper.Sort(testInterfaces, SortMethods.LengthDescending);
 
             return testInterfaces.ToArray();
         }
@@ -5282,8 +5282,8 @@ namespace Center
                                     if (isDate && !char.IsDigit(first[0]))
                                     {
                                         if (first.Length >= 3 && (
-                                            List.StartsWith(monthsEnglish, first) > -1 ||
-                                            List.StartsWith(monthsBahasa, first) > -1
+                                            ListHelper.StartsWith(monthsEnglish, first) > -1 ||
+                                            ListHelper.StartsWith(monthsBahasa, first) > -1
                                             ))
                                         { }
                                         else isDate = false;
@@ -5297,8 +5297,8 @@ namespace Center
                                     if (isDate && !char.IsDigit(second[0]))
                                     {
                                         if (second.Length >= 3 && (
-                                            List.StartsWith(monthsEnglish, second) > -1 ||
-                                            List.StartsWith(monthsBahasa, second) > -1
+                                            ListHelper.StartsWith(monthsEnglish, second) > -1 ||
+                                            ListHelper.StartsWith(monthsBahasa, second) > -1
                                             ))
                                         { }
                                         else isDate = false;
@@ -5334,8 +5334,8 @@ namespace Center
 
                                         string t = fsi.Substring(0, tlen);
 
-                                        if (List.StartsWith(monthsEnglish, t) > -1 ||
-                                            List.StartsWith(monthsBahasa, t) > -1)
+                                        if (ListHelper.StartsWith(monthsEnglish, t) > -1 ||
+                                            ListHelper.StartsWith(monthsBahasa, t) > -1)
                                         { }
                                         else isDate = false;
 

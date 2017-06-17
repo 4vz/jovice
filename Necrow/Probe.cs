@@ -2397,9 +2397,10 @@ namespace Center
                         }
                         else
                         {
-                            Event("Node " + nodeName + " has new name " + hostName + ". " + hostName + " is already exists. TODO: resolve the conflicts");
+                            Event("Node " + nodeName + " has new name " + hostName + ". " + hostName + " is already exists.");
                             Event("Mark this node as inactive");
 
+                            Update(UpdateTypes.Remark, "NAMECONFLICTED");
                             Update(UpdateTypes.Active, 0);
 
                             Save();
@@ -2427,7 +2428,9 @@ namespace Center
                 }
                 else if (nodeIP != resolvedIP)
                 {
-                    Event("Host IP has changed to: " + resolvedIP + ", this node is now marked as inactive");
+                    Event("Host IP has changed to: " + resolvedIP);
+                    Event("Mark this node as inactive");
+
                     Update(UpdateTypes.Remark, "IPHASCHANGED");
                     Update(UpdateTypes.Active, 0);
 
@@ -2775,11 +2778,12 @@ namespace Center
             bool checkVersion = false;
 
             if (nodeVersion == null) checkVersion = true;
+            else if (nodeModel == null) checkVersion = true;
             else
             {
                 DateTime versionTime = row["NO_VersionTime"].ToDateTime();
                 TimeSpan span = utcTime - versionTime;
-                if (span.TotalDays >= 7) checkVersion = true;
+                if (span.TotalDays >= 3) checkVersion = true;
             }
 
             if (checkVersion)
@@ -2805,6 +2809,24 @@ namespace Center
                             break;
                         }
                     }
+
+                    if (Request("show chassis | match \"  Type\"", out lines, probe)) return probe;
+                    
+                    foreach (string line in lines)
+                    {
+                        string lineTrim = line.Trim();
+
+                        if (lineTrim.StartsWith("Type"))
+                        {
+                            string[] tokens = lineTrim.Split(new char[] { ':' });
+                            if (tokens.Length == 2)
+                            {
+                                model = tokens[1].Trim();
+                                break;
+                            }
+                        }
+                    }
+
                     #endregion
                 }
                 else if (nodeManufacture == hwe)
@@ -2827,6 +2849,18 @@ namespace Center
                     //    NodeRead(out timeout);
                     //    if (timeout) { NodeStop(); return true; }
                     //}
+
+                    if (Request("display device", out lines, probe)) return probe;
+
+                    foreach (string line in lines)
+                    {
+                        string lineTrim = line.Trim();
+
+                        if (lineTrim.IndexOf("s Device") > -1)
+                        {
+                            model = lineTrim.Split(new char[] { '\'' })[0];
+                        }
+                    }
 
                     #endregion
                 }
@@ -2896,7 +2930,7 @@ namespace Center
                 else if (nodeManufacture == jun)
                 {
                     #region jun
-                    if (Request("show version | match \"JUNOS Base OS boot\"", out lines, probe)) return probe;
+                    if (Request("show version | match \"JUNOS Base OS boot|Model\"", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -2904,18 +2938,32 @@ namespace Center
                         {
                             string[] linex = line.Split(new char[] { '[', ']' }, StringSplitOptions.RemoveEmptyEntries);
                             if (linex.Length >= 2) version = linex[1];
-                            break;
+                        }
+                        else if (line.StartsWith("Model: "))
+                        {
+                            model = line.Substring(7).Trim();
                         }
                     }
 
                     #endregion
                 }
 
-                if (model != nodeModel)
+                if (nodeModel == null && model != null)
                 {
                     nodeModel = model;
                     Update(UpdateTypes.Model, model);
                     Event("Model discovered: " + model);
+                }
+                else if (nodeModel != null && model != nodeModel)
+                {
+                    Event("Node model has changed to: " + model);
+                    Event("Mark this node as inactive");
+
+                    Update(UpdateTypes.Remark, "MODELCHANGED");
+                    Update(UpdateTypes.Active, 0);
+
+                    Save();
+                    return probe;
                 }
                 if (version != nodeVersion)
                 {

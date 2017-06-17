@@ -2038,8 +2038,8 @@ namespace Center
                             Event("Trying to regenerate new ssh key...");
                             SendLine("ssh-keygen -R " + host);
 
-                            expect = MCEExpect("Not replacing existing known_hosts");
-                            if (expect.Index == 0)
+                            expect = MCEExpect("Not replacing existing known_hosts", "Host key verification failed", "Permission denied (publickey");
+                            if (expect.Index >= 0)
                             {
                                 // fail to ssh-keygen, just remove the known_hosts
                                 Event("Removing known_hosts file because an error...");

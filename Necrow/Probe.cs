@@ -1995,70 +1995,10 @@ namespace Center
             Event("Connecting with SSH... (" + user + "@" + host + ")");
             SendLine("ssh -o StrictHostKeyChecking=no " + user + "@" + host);
 
-            if (manufacture == hwe)
+            bool looppass = false;
+            do
             {
-                #region hwe
-
-                bool looppass = false;
-                do
-                {
-                    looppass = false;
-
-                    MCEExpectResult expect = MCEExpect("assword:", "Connection refused");
-                    if (expect.Index == 0)
-                    {
-                        Event("Authenticating: Password");
-                        SendLine(pass);
-
-                        expect = MCEExpect(">", "assword:");
-                        if (expect.Index == 0) connectSuccess = true;
-                        else SendControlC();
-                    }
-                    else
-                    {
-                        SendControlC();
-
-                        if (expect.Index == -1)
-                        {
-                            int llength = expect.Output.Length - lastSendLine.Length;
-                            
-                            if (llength == 2)
-                            {
-                                // connect fail for some reason
-                            }
-                            else
-                            {
-                                // the other error probaby ssh key expired or failing
-                                looppass = true;
-                                Event("Trying to regenerate new ssh key...");
-                                SendLine("ssh-keygen -R " + host);
-                                                                
-                                expect = MCEExpect("Not replacing existing known_hosts");
-                                if (expect.Index == 0)
-                                {
-                                    // fail to ssh-keygen, just remove the known_hosts
-                                    Event("Removing known_hosts file because an error...");
-                                    SendLine("rm ~/.ssh/known_hosts");
-                                }
-
-                                Thread.Sleep(500);
-                                SendLine("ssh -o StrictHostKeyChecking=no " + user + "@" + host);
-                            }
-                        }
-                        else if (expect.Index == 0)
-                        {
-                            // connection refuse
-
-                        }
-                    }
-                }
-                while (looppass);
-
-                #endregion
-            }
-            else if (manufacture == cso)
-            {
-                #region cso
+                looppass = false;
 
                 MCEExpectResult expect = MCEExpect("assword:", "Connection refused");
                 if (expect.Index == 0)
@@ -2066,31 +2006,67 @@ namespace Center
                     Event("Authenticating: Password");
                     SendLine(pass);
 
-                    expect = MCEExpect("#", "assword:");
-                    if (expect.Index == 0) connectSuccess = true;
-                    else SendControlC();
+                    if (manufacture == hwe || manufacture == jun)
+                    {
+                        expect = MCEExpect(">", "assword:");
+                        if (expect.Index == 0) connectSuccess = true;
+                        else SendControlC();
+                    }
+                    else if (manufacture == cso)
+                    {
+                        expect = MCEExpect("#", "assword:");
+                        if (expect.Index == 0) connectSuccess = true;
+                        else SendControlC();
+                    }
                 }
-                else SendControlC();
+                else
+                {
+                    SendControlC();
 
-                #endregion
+                    if (expect.Index == -1)
+                    {
+                        int llength = expect.Output.Length - lastSendLine.Length;
+
+                        if (llength == 2)
+                        {
+                            // connect fail for some reason
+                        }
+                        else
+                        {
+                            // the other error probaby ssh key expired or failing
+                            looppass = true;
+                            Event("Trying to regenerate new ssh key...");
+                            SendLine("ssh-keygen -R " + host);
+
+                            expect = MCEExpect("Not replacing existing known_hosts");
+                            if (expect.Index == 0)
+                            {
+                                // fail to ssh-keygen, just remove the known_hosts
+                                Event("Removing known_hosts file because an error...");
+                                SendLine("rm ~/.ssh/known_hosts");
+                            }
+
+                            Thread.Sleep(500);
+                            SendLine("ssh -o StrictHostKeyChecking=no " + user + "@" + host);
+                        }
+                    }
+                    else if (expect.Index == 0)
+                    {
+                        // connection refuse
+
+                    }
+                }
+            }
+            while (looppass);
+
+            if (manufacture == hwe)
+            {
+            }
+            else if (manufacture == cso)
+            {
             }
             else if (manufacture == jun)
             {
-                #region jun
-
-                MCEExpectResult expect = MCEExpect("assword:");
-                if (expect.Index == 0)
-                {
-                    Event("Authenticating: Password");
-                    SendLine(pass);
-
-                    expect = MCEExpect(">", "assword:");
-                    if (expect.Index == 0) connectSuccess = true;
-                    else SendControlC();
-                }
-                else SendControlC();
-
-                #endregion
             }
             else SendControlC();
 

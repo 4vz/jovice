@@ -24,7 +24,7 @@ namespace Aphysoft.Share
             get { return sql; }
             set { sql = value; }
         }
-        
+
         private string message;
 
         public string Message
@@ -247,7 +247,7 @@ namespace Aphysoft.Share
             int counter = 0;
             foreach (KeyValuePair<string, object> pair in objects)
             {
-                sb.Append(pair.Key);                
+                sb.Append(pair.Key);
                 if (counter < objects.Count - 1) sb.Append(", ");
                 counter++;
             }
@@ -268,7 +268,7 @@ namespace Aphysoft.Share
         {
             return database.Execute(this);
         }
-        
+
         #endregion
     }
 
@@ -355,7 +355,7 @@ namespace Aphysoft.Share
         {
             this.value = value;
         }
-        
+
         #endregion
 
         #region Methods
@@ -402,6 +402,12 @@ namespace Aphysoft.Share
             get { return connectionString; }
         }
 
+        private string tablePrefix = null;
+
+        public string TablePrefix { get => tablePrefix; }
+
+        private string[] databaseTables = new string[] { };
+
         private int queryAttempts = 1;
 
         /// <summary>
@@ -420,7 +426,7 @@ namespace Aphysoft.Share
             get { return timeout; }
             set { timeout = value; }
         }
-       
+
         #endregion
 
         #region Events
@@ -433,22 +439,49 @@ namespace Aphysoft.Share
 
         #region Constructor
 
-        public Database(string connectionString, DatabaseType type)
+        public Database(string connectionString, DatabaseType databaseType, string tablePrefix)
         {
             this.connectionString = connectionString;
-            this.databaseType = type;
+            this.databaseType = databaseType;
+            this.tablePrefix = tablePrefix;
 
-            if (databaseType == DatabaseType.SqlServer)
+            if (this.databaseType == DatabaseType.SqlServer)
                 connection = new SqlServerDatabaseConnection(this);
-            else if (databaseType == DatabaseType.Oracle)
+            else if (this.databaseType == DatabaseType.Oracle)
                 connection = new OracleDatabaseConnection(this);
             else
                 connection = new MySqlDatabaseConnection(this);
         }
 
+        public Database(string connectionString, DatabaseType databaseType) : this(connectionString, databaseType, null)
+        {
+        }
+
         #endregion
 
         #region Methods
+
+        internal void UpdateDatabaseTables(string[] tables)
+        {
+            if (tablePrefix == null)
+            {
+                databaseTables = tables;
+            }
+            else
+            {
+                List<string> tl = new List<string>();
+
+                foreach (string table in tables)
+                {
+                    if (table.StartsWith(tablePrefix))
+                    {
+                        tl.Add(table.Substring(tablePrefix.Length));
+                    }
+                }
+
+                databaseTables = tl.ToArray();
+            }
+        }
 
         internal void OnException(Exception e, string sql)
         {
@@ -487,7 +520,7 @@ namespace Aphysoft.Share
         public Batch Batch()
         {
             return new Batch(this);
-        }        
+        }
 
         public Insert Insert(string table)
         {
@@ -532,7 +565,19 @@ namespace Aphysoft.Share
         public string Format(string sql, params object[] args)
         {
             if (sql == null) return null;
-            if (args == null) return string.Format(sql, "NULL");
+
+
+            string fsql = sql;
+
+            if (tablePrefix != null)
+            {
+                foreach (string dt in databaseTables)
+                {
+                    fsql = fsql.Replace("[" + dt + "]", tablePrefix + dt);
+                }
+            }
+
+            if (args == null) return string.Format(fsql, "NULL");
             else if (args.Length > 0)
             {
                 List<string> nargs = new List<string>();
@@ -548,7 +593,7 @@ namespace Aphysoft.Share
                     else if (a is List<string> || a is string[])
                     {
                         StringBuilder sb = new StringBuilder();
-                        
+
                         string[] ls;
                         if (a is string[]) ls = (string[])a;
                         else ls = ((List<string>)a).ToArray();
@@ -575,13 +620,13 @@ namespace Aphysoft.Share
                         atrs = sb.ToString();
                     }
                     else atrs = "'" + Escape(a.ToString()) + "'";
-                    
+
                     nargs.Add(atrs);
                 }
 
-                return string.Format(sql, nargs.ToArray());
+                return string.Format(fsql, nargs.ToArray());
             }
-            else return sql;
+            else return fsql;
 
         }
 
@@ -595,7 +640,7 @@ namespace Aphysoft.Share
         {
             return QueryDictionary(sql, key, delegate (Row row) { }, args);
         }
-        
+
         public Dictionary<string, Row> QueryDictionary(string sql, string key, QueryDictionaryDuplicateCallback duplicate, params object[] args)
         {
             Result result = Query(sql, args);
@@ -726,7 +771,7 @@ namespace Aphysoft.Share
         LoginFailed,
         Timeout
     }
-    
+
     internal abstract class DatabaseConnection
     {
         #region Fields
@@ -744,7 +789,7 @@ namespace Aphysoft.Share
         public DatabaseConnection(Database database)
         {
             this.database = database;
-            
+
             stopwatch = new Stopwatch();
         }
 
@@ -785,6 +830,16 @@ namespace Aphysoft.Share
 
         public SqlServerDatabaseConnection(Database database) : base(database)
         {
+            Result r = Query("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.tables WHERE TABLE_TYPE = 'BASE TABLE'");
+
+            List<string> tables = new List<string>();
+
+            foreach (Row row in r)
+            {
+                tables.Add(row["TABLE_NAME"].ToString());
+            }
+
+            database.UpdateDatabaseTables(tables.ToArray());
         }
 
         #endregion

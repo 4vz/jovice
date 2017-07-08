@@ -9,6 +9,7 @@ using System.Web.Hosting;
 using System.Diagnostics;
 using System.Threading;
 using System.Runtime.Serialization.Json;
+using System.Configuration;
 
 namespace Aphysoft.Share
 {
@@ -30,11 +31,29 @@ namespace Aphysoft.Share
             {
                 if (share == null)
                 {
+                    string overrideCS = ConfigurationManager.AppSettings["SHARE"];
+
+                    if (overrideCS != null)
+                    {
+                        string overrideCSTablePrefix = ConfigurationManager.AppSettings["SHARE_PREFIX"];
+
+                        if (overrideCSTablePrefix != null)
+                        {
+                            share = new Database(overrideCS, DatabaseType.SqlServer, overrideCSTablePrefix);
+                        }
+                        else
+                        {
+                            share = new Database(overrideCS, DatabaseType.SqlServer);
+                        }
+                    }
+                    else
+                    {
 #if DEBUG
-                    share = new Database(Aphysoft.Protected.Project.Database("SHARE_DEBUG"), DatabaseType.SqlServer);
+                        share = new Database(Aphysoft.Protected.Project.Database("SHARE_DEBUG"), DatabaseType.SqlServer);
 #else
-                    share = new Database(Aphysoft.Protected.Project.Database("SHARE_RELEASE"), DatabaseType.SqlServer);
-#endif                    
+                        share = new Database(Aphysoft.Protected.Project.Database("SHARE_RELEASE"), DatabaseType.SqlServer);
+#endif
+                    }
                 }
 
                 return share;
@@ -85,52 +104,20 @@ namespace Aphysoft.Share
 
         public void Init(HttpApplication application)
         {
-            if (!inited)
-            {
-                lock (initSync)
-                {
-                    if (!inited)
-                    {
-                        inited = true;
+            current = this;
 
-                        Share.current = this;
-
-                        OnInit();
-
-                        Settings.ClientInit();
-
-                        Service.Client();
-
-                        UserSettings.Init();
-
-                        Resource.Init();
-
-                        API.Init();
-
-                        Provider.Init();
-
-                        if (Settings.EnableUI)
-                        {
-                            Content.Init();
-                        }
-
-                        OnResourceLoad();
-                    }
-                }
-            }
-
-            application.Error += application_Error;
-            application.BeginRequest += application_BeginRequest;
-            application.AuthenticateRequest += application_AuthenticateRequest;
-            application.PostAuthenticateRequest += application_PostAuthenticateRequest;
-            application.AuthorizeRequest += application_AuthorizeRequest;
-            application.PostAuthorizeRequest += application_PostAuthorizeRequest;
-            application.AcquireRequestState += application_AcquireRequestState;
-            application.PostAcquireRequestState += application_PostAcquireRequestState;
-            application.PreRequestHandlerExecute += application_PreRequestHandlerExecute;
-            application.EndRequest += application_EndRequest;
-            application.PreSendRequestHeaders += application_PreSendRequestHeaders;
-            application.PreSendRequestContent += application_PreSendRequestContent;
+            application.Error += Application_Error;
+            application.BeginRequest += Application_BeginRequest;
+            application.AuthenticateRequest += Application_AuthenticateRequest;
+            application.PostAuthenticateRequest += Application_PostAuthenticateRequest;
+            application.AuthorizeRequest += Application_AuthorizeRequest;
+            application.PostAuthorizeRequest += Application_PostAuthorizeRequest;
+            application.AcquireRequestState += Application_AcquireRequestState;
+            application.PostAcquireRequestState += Application_PostAcquireRequestState;
+            application.PreRequestHandlerExecute += Application_PreRequestHandlerExecute;
+            application.EndRequest += Application_EndRequest;
+            application.PreSendRequestHeaders += Application_PreSendRequestHeaders;
+            application.PreSendRequestContent += Application_PreSendRequestContent;
         }
 
         public void Dispose()
@@ -145,129 +132,193 @@ namespace Aphysoft.Share
 
         #region Events
 
-        private void application_Error(object sender, EventArgs e)
-        {
-            HttpApplication application = (HttpApplication)sender;
-            HttpContext context = HttpContext.Current;
-
-            Service.Debug("error: " + context.Error.Message + ", stack trace: " + context.Error.StackTrace);
-        }
-
-        private void application_BeginRequest(object sender, EventArgs e)
+        private void Application_Error(object sender, EventArgs e)
         {
             HttpApplication application = (HttpApplication)sender;
             HttpContext context = HttpContext.Current;
             HttpRequest request = context.Request;
             HttpResponse response = context.Response;
 
-            // design type here
-            context.Items["designtype"] = DesignType.Full;
+            Service.Debug("error: " + context.Error.Message + ", stack trace: " + context.Error.StackTrace);
+        }
 
-            // When using UI, we're not using internal session state.
-            if (Settings.EnableUI) HttpContext.Current.SetSessionStateBehavior(SessionStateBehavior.Disabled);
-            else HttpContext.Current.SetSessionStateBehavior(SessionStateBehavior.Required);            
+        private void Application_BeginRequest(object sender, EventArgs e)
+        {
+            Database db = Database;
 
-            string host = request.Headers["Host"];
-            string currentExecutionPathLower = request.CurrentExecutionFilePath.ToLower();
-            string appExecutionPath = request.AppRelativeCurrentExecutionFilePath;
-            
-            if (host == Settings.APIDomain)
+            #region Instance Initialization
+
+            if (!inited)
             {
-                HttpContext.Current.SetSessionStateBehavior(SessionStateBehavior.Disabled);
-
-                if (!request.IsSecureConnection && Settings.SSLAvailable)
+                lock (initSync)
                 {
-                    response.Redirect("https://" + Settings.APIDomain + request.RawUrl);
-                    response.End();
-                }
+                    if (!inited)
+                    {
+                        // test database
+                        if (db.Test())
+                        {
+                            inited = true;
+                            
+                            Settings.ClientInit();
 
-                if (appExecutionPath.ToLower() == "~/favicon.ico") context.Items["provider"] = ExecutionTypes.Favicon;
-                else
-                {
-                    context.Items["provider"] = ExecutionTypes.API;
+                            OnInit();
+
+                            Service.Client();
+
+                            UserSettings.Init();
+
+                            Resource.Init();
+
+                            if (Settings.EnableAPI)
+                            {
+                                API.Init();
+                            }
+
+                            Provider.Init();
+
+                            if (Settings.EnableUI)
+                            {
+                                Content.Init();
+                            }
+
+                            OnResourceLoad();
+
+                            Service.Debug(Settings.Name + " instance inited successfully");
+                        }
+                    }
                 }
             }
-            else
+
+            #endregion
+
+            HttpApplication application = (HttpApplication)sender;
+            HttpContext context = HttpContext.Current;
+            HttpRequest request = context.Request;
+            HttpResponse response = context.Response;
+
+            response.TrySkipIisCustomErrors = true;
+
+            if (inited)
             {
-                if (appExecutionPath.StartsWith("~/" + Settings.ResourceProviderPath)) context.Items["provider"] = ExecutionTypes.Resources;
-                else if (appExecutionPath.ToLower() == "~/favicon.ico") context.Items["provider"] = ExecutionTypes.Favicon;
-                else if (host != Settings.PageDomain)
+                if (db.Test())
                 {
-                    response.Redirect("http://" + Settings.PageDomain + request.RawUrl);
-                    response.End();
-                }
-                else
-                {
-                    if (!request.IsSecureConnection && Settings.SSLAvailable)
+                    // design type here
+                    context.Items["designtype"] = DesignType.Full;
+
+                    // When using UI, we're not using internal session state.
+                    if (Settings.EnableUI) HttpContext.Current.SetSessionStateBehavior(SessionStateBehavior.Disabled);
+                    else HttpContext.Current.SetSessionStateBehavior(SessionStateBehavior.Required);
+
+                    string host = request.Headers["Host"];
+                    string currentExecutionPathLower = request.CurrentExecutionFilePath.ToLower();
+                    string appExecutionPath = request.AppRelativeCurrentExecutionFilePath;
+
+                    if (host == Settings.APIDomain)
                     {
-                        response.Redirect("https://" + Settings.PageDomain + request.RawUrl);
-                        response.End();
-                    }
+                        HttpContext.Current.SetSessionStateBehavior(SessionStateBehavior.Disabled);
 
-                    context.Items["provider"] = ExecutionTypes.Default;
-
-                    if (Settings.EnableUI)
-                    {
-                        // redirect to url prefix
-                        bool toUIPage = false;
-
-                        if (!string.IsNullOrEmpty(Settings.UrlPrefix))
+                        if (!request.IsSecureConnection && Settings.SSLAvailable)
                         {
-                            if (currentExecutionPathLower == "/" || currentExecutionPathLower == Settings.UrlPrefix)
-                                response.Redirect(string.Format("{0}/", Settings.UrlPrefix), true);
-                            else if (currentExecutionPathLower.StartsWith(Settings.UrlPrefix))
-                                toUIPage = true;
+                            response.Redirect("https://" + Settings.APIDomain + request.RawUrl);
+                            response.End();
                         }
-                        else
-                            toUIPage = true;
 
-                        if (toUIPage)
-                        {
-                            HttpContext.Current.SetSessionStateBehavior(SessionStateBehavior.Disabled);
-                        }
+                        if (appExecutionPath.ToLower() == "~/favicon.ico") context.Items["provider"] = ExecutionTypes.Favicon;
                         else
                         {
-                            // to non ASP.NET page.
-                            // eg. html, htm, etc
-                            // HttpSessionState is NOT AVAILABLE
-                            if (currentExecutionPathLower.EndsWith(".aspx")) // sorry, we had to disable asp.net pages
-                            {
-                                response.Headers.Add("Content-Type", "text/html; charset=utf-8");
-                                response.Write("UI is Enabled, we can't serve ASP.NET pages since HttpSessionState has been disabled.");
-                                response.End();
-                            }
+                            context.Items["provider"] = ExecutionTypes.API;
                         }
                     }
                     else
                     {
-                        // to ASP.NET page
-                        // HttpSessionState is AVAILABLE
-                        OnUrlRewrite();
+                        if (appExecutionPath.StartsWith("~/" + Settings.ResourceProviderPath)) context.Items["provider"] = ExecutionTypes.Resources;
+                        else if (appExecutionPath.ToLower() == "~/favicon.ico") context.Items["provider"] = ExecutionTypes.Favicon;
+                        else if (host != Settings.PageDomain)
+                        {
+                            response.Redirect("http://" + Settings.PageDomain + request.RawUrl);
+                            response.End();
+                        }
+                        else
+                        {
+                            if (!request.IsSecureConnection && Settings.SSLAvailable)
+                            {
+                                response.Redirect("https://" + Settings.PageDomain + request.RawUrl);
+                                response.End();
+                            }
+
+                            context.Items["provider"] = ExecutionTypes.Default;
+
+                            if (Settings.EnableUI)
+                            {
+                                // redirect to url prefix
+                                bool toUIPage = false;
+
+                                if (!string.IsNullOrEmpty(Settings.UrlPrefix))
+                                {
+                                    if (currentExecutionPathLower == "/" || currentExecutionPathLower == Settings.UrlPrefix)
+                                        response.Redirect(string.Format("{0}/", Settings.UrlPrefix), true);
+                                    else if (currentExecutionPathLower.StartsWith(Settings.UrlPrefix))
+                                        toUIPage = true;
+                                }
+                                else
+                                    toUIPage = true;
+
+                                if (toUIPage)
+                                {
+                                    HttpContext.Current.SetSessionStateBehavior(SessionStateBehavior.Disabled);
+                                }
+                                else
+                                {
+                                    // to non ASP.NET page.
+                                    // eg. html, htm, etc
+                                    // HttpSessionState is NOT AVAILABLE
+                                    if (currentExecutionPathLower.EndsWith(".aspx")) // sorry, we had to disable asp.net pages
+                                    {
+                                        response.Headers.Add("Content-Type", "text/html; charset=utf-8");
+                                        response.Write("UI is Enabled, we can't serve ASP.NET pages since HttpSessionState has been disabled.");
+                                        response.End();
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                // to ASP.NET page
+                                // HttpSessionState is AVAILABLE
+                                OnUrlRewrite();
+                            }
+                        }
                     }
                 }
+                else
+                {
+                    response.Status = "503 Service Unavailable";
+                    response.End();
+                }
+            }
+            else
+            {
+                response.Status = "503 Service Unavailable";
+                response.End();
             }
         }
 
-        private void application_AuthenticateRequest(object sender, EventArgs e)
+        private void Application_AuthenticateRequest(object sender, EventArgs e)
         {
         }
 
-        private void application_PostAuthenticateRequest(object sender, EventArgs e)
+        private void Application_PostAuthenticateRequest(object sender, EventArgs e)
         {
         }
 
-        private void application_AuthorizeRequest(object sender, EventArgs e)
+        private void Application_AuthorizeRequest(object sender, EventArgs e)
         {
-            HttpApplication application = (HttpApplication)sender;
-            HttpContext context = HttpContext.Current;
         }
 
-        private void application_PostAuthorizeRequest(object sender, EventArgs e)
+        private void Application_PostAuthorizeRequest(object sender, EventArgs e)
         {
-            HttpContext context = HttpContext.Current;
         }
 
-        private void application_AcquireRequestState(object sender, EventArgs e)
+        private void Application_AcquireRequestState(object sender, EventArgs e)
         {
             HttpContext context = HttpContext.Current;
             HttpRequest request = context.Request;
@@ -290,11 +341,11 @@ namespace Aphysoft.Share
             }
         }
 
-        private void application_PostAcquireRequestState(object sender, EventArgs e)
+        private void Application_PostAcquireRequestState(object sender, EventArgs e)
         {
         }
 
-        private void application_PreRequestHandlerExecute(object sender, EventArgs e)
+        private void Application_PreRequestHandlerExecute(object sender, EventArgs e)
         {
             HttpContext context = HttpContext.Current;
             HttpRequest request = context.Request;
@@ -308,16 +359,16 @@ namespace Aphysoft.Share
                 {
                     Content.Render(context);
                     Compress(context);
-                    context.Response.End();
+                    response.End();
                 }
             }
         }
 
-        private void application_EndRequest(object sender, EventArgs e)
+        private void Application_EndRequest(object sender, EventArgs e)
         {
         }
 
-        private void application_PreSendRequestHeaders(object sender, EventArgs e)
+        private void Application_PreSendRequestHeaders(object sender, EventArgs e)
         {
             HttpContext context = HttpContext.Current;
             HttpResponse response = context.Response;
@@ -335,7 +386,7 @@ namespace Aphysoft.Share
             //    ));
         }
 
-        private void application_PreSendRequestContent(object sender, EventArgs e)
+        private void Application_PreSendRequestContent(object sender, EventArgs e)
         {
         }
 
@@ -357,8 +408,6 @@ namespace Aphysoft.Share
             string resourcesProviderExecutionPath = string.Format("~/{0}", Settings.ResourceProviderPath).ToLower();
 
             AsyncResult result = null;
-
-            response.TrySkipIisCustomErrors = true;
 
             int statusCode = 404;
 
@@ -530,7 +579,7 @@ namespace Aphysoft.Share
                                             }
 
                                             Result r = Database.Query(@"
-select AA_ID from ApiSubscription, Api, ApiAccess where AS_AA = AA_ID and AS_AP = AP_ID and AA_Active = 1 and AP_Name = {0} and AA_Key = {1}", api, apiKey);
+select AA_ID from [ApiSubscription], [Api], [ApiAccess] where AS_AA = AA_ID and AS_AP = AP_ID and AA_Active = 1 and AP_Name = {0} and AA_Key = {1}", api, apiKey);
 
                                             if (r.Count == 1)
                                             {

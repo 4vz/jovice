@@ -44,7 +44,7 @@ namespace Aphysoft.Share
             sessionInstances = new Dictionary<string, StreamSessionInstance>();
             registerCallbacks = new Dictionary<string, OnReceivedCallback>();
 
-            Share.Database.Execute("update session set SS_ClientsCount = 0 where SS_ClientsCount > 0");
+            Share.Database.Execute("update [Session] set SS_ClientsCount = 0 where SS_ClientsCount > 0");
 
             Service.Register(typeof(BaseStreamServiceMessage), BaseStreamServiceMessageHandler);
         }
@@ -112,7 +112,7 @@ namespace Aphysoft.Share
                         clientInstance.SessionInstance = sessionInstance;
                         sessionInstance.ClientInstances.Add(clientID, clientInstance);
 
-                        Share.Database.Execute("update session set SS_ClientsCount = {0} where SS_SID = {1}", sessionInstance.ClientInstances.Count, sessionID);
+                        Share.Database.Execute("update [Session] set SS_ClientsCount = {0} where SS_SID = {1}", sessionInstance.ClientInstances.Count, sessionID);
                     }
                 }
 
@@ -201,7 +201,7 @@ namespace Aphysoft.Share
 
                         sessionInstance.ClientInstances.Remove(clientID);
 
-                        Share.Database.Execute("update session set SS_ClientsCount = {0} where SS_SID = {1}", sessionInstance.ClientInstances.Count, sessionID);
+                        Share.Database.Execute("update [Session] set SS_ClientsCount = {0} where SS_SID = {1}", sessionInstance.ClientInstances.Count, sessionID);
 
                         if (sessionInstance.ClientInstances.Count == 0)
                         {

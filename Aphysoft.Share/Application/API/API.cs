@@ -25,7 +25,7 @@ namespace Aphysoft.Share
         {
             Database share = Share.Database;
 
-            Dictionary<string, Row> rapi = share.QueryDictionary("select * from Api", "AP_Name");
+            Dictionary<string, Row> rapi = share.QueryDictionary("select * from [Api]", "AP_Name");
 
             foreach (KeyValuePair<string, Row> pair in rapi)
             {

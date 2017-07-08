@@ -157,7 +157,7 @@ namespace Aphysoft.Share
                     int keyID = registers[key];
 
                     // get database's user setting version   
-                    Column settingCol = dc.Scalar("select US_V from UserSetting where US_U = {0} and US_SID = {1}", userID, keyID);
+                    Column settingCol = dc.Scalar("select US_V from [UserSetting] where US_U = {0} and US_SID = {1}", userID, keyID);
 
                     int settingV = settingCol.ToInt();
                     
@@ -183,7 +183,7 @@ namespace Aphysoft.Share
                     {
                         int newVersion;
 
-                        Result rows = dc.Query("select US_Value, US_V from UserSetting where US_U = {0} AND US_SID = {1}",
+                        Result rows = dc.Query("select US_Value, US_V from [UserSetting] where US_U = {0} AND US_SID = {1}",
                             userID, keyID);
 
                         if (rows.Count >= 1)
@@ -197,7 +197,7 @@ namespace Aphysoft.Share
                             returnValue = defaultValues[key];
                             newVersion = 0;
                             // insert this returnValue to database
-                            dc.Execute("insert into UserSetting(US_ID, US_U, US_SID, US_Value, US_V) values({0}, {1}, {2}, {3}, {4})",
+                            dc.Execute("insert into [UserSetting](US_ID, US_U, US_SID, US_Value, US_V) values({0}, {1}, {2}, {3}, {4})",
                                 Database.ID(), userID, keyID, returnValue, newVersion);
                         }
                                                     
@@ -234,7 +234,7 @@ namespace Aphysoft.Share
                     Database dc = Share.Database;
                     int keyID = registers[key];
 
-                    Column settingVersionColumn = dc.Scalar("select US_V from UserSetting where US_U = {0} and US_SID = {1}",
+                    Column settingVersionColumn = dc.Scalar("select US_V from [UserSetting] where US_U = {0} and US_SID = {1}",
                         userID, keyID);
                     
                     bool isNoSettingInDatabase = false;
@@ -290,13 +290,13 @@ namespace Aphysoft.Share
                     {
                         // new, insert to database
                         // insert this returnValue to database
-                        dc.Execute("insert into UserSetting(US_ID, US_U, US_SID, US_Value, US_V) values({0}, {1}, {2}, {3}, {4})",
+                        dc.Execute("insert into [UserSetting](US_ID, US_U, US_SID, US_Value, US_V) values({0}, {1}, {2}, {3}, {4})",
                             Database.ID(), userID, keyID, value, newVersion);
                     }
                     else
                     {
                         // update
-                        dc.Execute("update UserSetting set US_Value = {0}, US_V = {1} where US_U = {2} and US_SID = {3}",
+                        dc.Execute("update [UserSetting] set US_Value = {0}, US_V = {1} where US_U = {2} and US_SID = {3}",
                             value, newVersion, userID, keyID);
                     }
                 }

@@ -15,24 +15,6 @@ namespace Aphysoft.Share
     /// </summary>
     public partial class Settings
     {
-        #region Developer Settings
-
-        private static string developmentModeAuthentication = "share:share";
-
-        internal static string DevelopmentModeAuthentication
-        {
-            get { return developmentModeAuthentication; }
-        }
-
-        private static string autoLoginUser = null;
-
-        internal static string AutoLoginUser
-        {
-            get { return autoLoginUser; }
-        }
-
-        #endregion
-
         #region Main
 
         private static string physicalApplicationPath = "";
@@ -67,12 +49,6 @@ namespace Aphysoft.Share
         public static string ResourceProviderPath
         {
             get { return resourceProviderPath; }
-        }
-
-        private static string serviceProviderPath = "services";
-        public static string ServiceProviderPath
-        {
-            get { return serviceProviderPath; }
         }
 
         #endregion
@@ -110,6 +86,13 @@ namespace Aphysoft.Share
         #endregion
 
         #region API
+
+        private static bool enableAPI = false;
+
+        public static bool EnableAPI
+        {
+            get { return enableAPI; }
+        }
 
         private static string apiDomain = "api.dummy.com";
 
@@ -363,10 +346,6 @@ namespace Aphysoft.Share
 
         private static void ReadSettings()
         {
-            // Developer Settings
-            ReadString("DevelopmentModeAuthentication", ref developmentModeAuthentication);
-            ReadString("AutoLoginUser", ref autoLoginUser);
-
             // Main
             ReadString("Name", ref name);
             ReadString("FullName", ref fullName);
@@ -382,6 +361,7 @@ namespace Aphysoft.Share
             ReadArrayInteger("ResolutionGroup", ref sizeGroups);
 
             // API
+            ReadBoolean("EnableAPI", ref enableAPI);
             ReadString("APIDomain", ref apiDomain);
 
             if (Settings.EnableLive)

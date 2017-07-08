@@ -29,12 +29,12 @@ namespace Aphysoft.Share
             if (applicationSettings.ContainsKey(settingLower))
             {
                 applicationSettings[settingLower] = value;
-                Share.Database.Execute("update Setting set S_Value = {0} where lower(S_Name) = {1}", value, settingLower);
+                Share.Database.Execute("update [Setting] set S_Value = {0} where lower(S_Name) = {1}", value, settingLower);
             }
             else
             {
                 applicationSettings.Add(settingLower, value);
-                Share.Database.Execute("insert into Setting(S_Name, S_Value) values({0}, {1})", settingLower, value);
+                Share.Database.Execute("insert into [Setting](S_Name, S_Value) values({0}, {1})", settingLower, value);
             }
         }
 
@@ -50,9 +50,7 @@ namespace Aphysoft.Share
         private static void ReadApplicationSettings()
         {
             // read all
-            string sql = "SELECT S_Name, S_Value FROM Setting";
-
-            Result r = Share.Database.Query(sql);
+            Result r = Share.Database.Query("SELECT S_Name, S_Value FROM [Setting]");
 
             if (r.Count > 0)
             {
@@ -76,7 +74,7 @@ namespace Aphysoft.Share
         {
             notInApplicationSettings.Add(key);
 
-            Result r = Share.Database.Query("select S_Value FROM Setting where S_Name = {0}", key);
+            Result r = Share.Database.Query("select S_Value FROM [Setting] where S_Name = {0}", key);
 
             if (r.Count > 0)
             {
@@ -175,13 +173,8 @@ namespace Aphysoft.Share
 
         private static void SettingsInit()
         {
-            Database s = Share.Database;
-
-            if (s.Test())
-            {
-                ReadSettings();
-                ReadApplicationSettings();
-            }
+            ReadSettings();
+            ReadApplicationSettings();
         }
 
         internal static void ClientInit()

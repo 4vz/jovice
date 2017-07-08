@@ -115,7 +115,7 @@ namespace Aphysoft.Share
 
                     Result newsession = share.ExecuteIdentity(@"
 insert into 
-Session(SS_SID, SS_Created, SS_Accessed, SS_UserAgent, SS_IPAddress)
+[Session](SS_SID, SS_Created, SS_Accessed, SS_UserAgent, SS_IPAddress)
 values({0}, GETUTCDATE(), GETUTCDATE(), {1}, {2})
 ", sessionID, request.UserAgent, request.UserHostAddress);
 
@@ -138,7 +138,7 @@ values({0}, GETUTCDATE(), GETUTCDATE(), {1}, {2})
                 string sessionID = request.Cookies[cookieSessionID].Value;
 
                 Result session = share.Query(@"
-select SS_IPAddress from Session where SS_SID = {0}
+select SS_IPAddress from [Session] where SS_SID = {0}
 ", sessionID);
                 if (session.Count == 1)
                 {

@@ -500,7 +500,8 @@ namespace Center
         None,
         Connection,
         Database,
-        Request
+        Request,
+        ALURequest
     }
 
     internal class ProbeProcessResult
@@ -795,7 +796,7 @@ namespace Center
             if (outputIdentifier == null)
                 oi = defaultOutputIdentifier;
             else
-                oi = outputIdentifier;
+                oi = defaultOutputIdentifier + "|" + outputIdentifier;
 
             Necrow.Event(message, oi);
         }
@@ -1016,73 +1017,87 @@ namespace Center
         private void MainLoop()
         {
             Culture.Default();
-            
+
+            Row restartCurrentNode = null;
+            int restartCount = 0;
+
             while (true)
             {
                 int xpID = -1;
                 Row node = null;
+                bool continueProcess = false;
                 bool prioritizeProcess = false;
                 bool prioritizeAsk = false;
-
                 probeRequestData = null;
 
-                Tuple<string, ProbeRequestData> prioritize = null;
-
-                if (properties.Case == "MAIN")
+                if (restartCurrentNode != null)
                 {
-                    prioritize = Necrow.NextPrioritize();
+                    node = restartCurrentNode;
+                    restartCount++;
+                    restartCurrentNode = null;
+                }
+                else
+                {
+                    Tuple<string, ProbeRequestData> prioritize = null;
 
-                    if (prioritize != null)
+                    if (properties.Case == "MAIN")
                     {
-                        string prioritizeNode = prioritize.Item1;
+                        prioritize = Necrow.NextPrioritize();
 
-                        if (prioritizeNode.EndsWith("*"))
+                        if (prioritize != null)
                         {
-                            prioritizeNode = prioritizeNode.TrimEnd(new char[] { '*' });
-                            prioritizeProcess = true;
-                        }
-                        else if (prioritizeNode.EndsWith("?"))
-                        {
-                            prioritizeNode = prioritizeNode.TrimEnd(new char[] { '?' });
-                            prioritizeAsk = true;
-                        }
+                            string prioritizeNode = prioritize.Item1;
 
-
-                        Event("Prioritizing Probe: " + prioritizeNode);
-                        Result rnode = Query("select * from Node where upper(NO_Name) = {0}", prioritizeNode);
-
-                        if (rnode.Count == 1)
-                        {
-                            node = rnode[0];
-
-                            if (prioritize.Item2 != null)
+                            if (prioritizeNode.EndsWith("*"))
                             {
-                                probeRequestData = prioritize.Item2;
-                                probeRequestData.Message.Data = new object[] { node["NO_Name"].ToString(), "STARTING" };
-                                probeRequestData.Connection.Reply(probeRequestData.Message);
+                                prioritizeNode = prioritizeNode.TrimEnd(new char[] { '*' });
+                                prioritizeProcess = true;
+                            }
+                            else if (prioritizeNode.EndsWith("?"))
+                            {
+                                prioritizeNode = prioritizeNode.TrimEnd(new char[] { '?' });
+                                prioritizeAsk = true;
+                            }
+
+
+                            Event("Prioritizing Probe: " + prioritizeNode);
+                            Result rnode = Query("select * from Node where upper(NO_Name) = {0}", prioritizeNode);
+
+                            if (rnode.Count == 1)
+                            {
+                                node = rnode[0];
+
+                                if (prioritize.Item2 != null)
+                                {
+                                    probeRequestData = prioritize.Item2;
+                                    probeRequestData.Message.Data = new object[] { node["NO_Name"].ToString(), "STARTING" };
+                                    probeRequestData.Connection.Reply(probeRequestData.Message);
+                                }
+                            }
+                            else
+                            {
+                                Event("Failed, not exists in the database.");
+                                continue;
                             }
                         }
-                        else
-                        {
-                            Event("Failed, not exists in the database.");
-                            continue;
-                        }
                     }
-                }
 
-                if (prioritize == null)
-                {
-                    Tuple<int, string> noded = Necrow.NextNode(properties.Case);
+                    if (prioritize == null)
+                    {
+                        Tuple<int, string> noded = Necrow.NextNode(properties.Case);
 
-                    xpID = noded.Item1;
-                    Result rnode = Query("select * from Node where NO_ID = {0}", noded.Item2);
-                    node = rnode[0];
+                        xpID = noded.Item1;
+                        Result rnode = Query("select * from Node where NO_ID = {0}", noded.Item2);
+                        node = rnode[0];
+                    }
+
+                    restartCount = 0;
                 }
 
                 if (node != null)
                 {
-                    bool continueProcess = false;
                     bool caughtError = false;
+                    
                     string info = null;
                     ProbeProcessResult probe = null;
 #if !DEBUG
@@ -1094,7 +1109,21 @@ namespace Center
 
                     if (probe != null)
                     {
-                        if (probe.FailureType != FailureTypes.None)
+                        if (probe.FailureType == FailureTypes.ALURequest)
+                        {
+                            // restart?
+                            Event("Probe error: ALU request has failed");
+
+                            if (restartCount < 2) restartCurrentNode = node;
+                            else
+                            {
+                                Update(UpdateTypes.Remark, "PROBEFAILED");
+                                caughtError = true;
+                            }
+
+                            continueProcess = false;
+                        }
+                        else if (probe.FailureType != FailureTypes.None)
                         {
                             string errorMessage = null;
                             if (probe.FailureType == FailureTypes.Connection) errorMessage = "Connection error";
@@ -1221,7 +1250,19 @@ namespace Center
 
                         if (probe != null)
                         {
-                            if (probe.FailureType != FailureTypes.None)
+                            if (probe.FailureType == FailureTypes.ALURequest)
+                            {
+                                // restart?
+                                Event("Probe error: ALU request has failed");
+
+                                if (restartCount < 2) restartCurrentNode = node;
+                                else
+                                {
+                                    Update(UpdateTypes.Remark, "PROBEFAILED");
+                                    caughtError = true;
+                                }
+                            }
+                            else if (probe.FailureType != FailureTypes.None)
                             {
                                 string errorMessage = null;
                                 if (probe.FailureType == FailureTypes.Connection) errorMessage = "Connection error";
@@ -1237,8 +1278,8 @@ namespace Center
                             }
                         }
 
-                        Necrow.AcknowledgeNodeVersion(nodeManufacture, nodeVersion, nodeSubVersion);
 #if !DEBUG
+                            Necrow.AcknowledgeNodeVersion(nodeManufacture, nodeVersion, nodeSubVersion);
                         }
                         catch (Exception ex)
                         {
@@ -1272,6 +1313,13 @@ namespace Center
                         Stop();
 
                         started = false;
+                    }
+                    else if (restartCurrentNode != null)
+                    {
+                        Event("Probe process to the node is to be restarted");
+
+                        if (probing)
+                            Exit();
                     }
                     else
                     {
@@ -1398,7 +1446,7 @@ namespace Center
                 // print message where we are waiting (or why)
                 Event(waitMessage + "... (" + loop + ")");
 
-                if (loop == 1)
+                if (loop == 1 && usingBash == false)
                 {
                     Event("Using bash session...");
                     usingBash = true;
@@ -1697,6 +1745,8 @@ namespace Center
             bool timeout = false;
             lines = null;
 
+            bool aluError = false;
+
             while (requestLoop)
             {
                 outputs.Clear();
@@ -1841,9 +1891,38 @@ namespace Center
                     }
                     else
                     {
-                        Event("Request completed (" + lines.Length + " lines in " + string.Format("{0:0.###}", stopwatch.Elapsed.TotalSeconds) + "s)");
                         lines = listLines.ToArray();
+
+                        bool completed = false;
+
+                        if (nodeManufacture == alu)
+                        {
+                            // alu: check for Command not allowed for this user
+                            foreach (string line in lines)
+                            {
+                                if (line.IndexOf("Command not allowed for this user") > -1)
+                                {
+                                    aluError = true;
+                                    break;
+                                }
+                            }
+                        }
+                        else completed = true;
+
+                        if (completed)
+                        {
+                            Event("Request completed (" + lines.Length + " lines in " + string.Format("{0:0.###}", stopwatch.Elapsed.TotalSeconds) + "s)");
+                        }
+                        else
+                        {
+                            if (aluError)
+                            {
+                                Event("Request not completed: ALU Request Error");
+                            }
+                        }
+
                         requestLoop = false;
+
                     }
                 }
                 else requestLoop = false;
@@ -1851,8 +1930,16 @@ namespace Center
 
             if (!timeout)
             {
-                probe.FailureType = FailureTypes.None;
-                return false;
+                if (aluError)
+                {
+                    probe.FailureType = FailureTypes.ALURequest;
+                    return false;
+                }
+                else
+                {
+                    probe.FailureType = FailureTypes.None;
+                    return false;
+                }
             }
             else
             {
@@ -2000,7 +2087,7 @@ namespace Center
             {
                 looppass = false;
 
-                MCEExpectResult expect = MCEExpect("assword:", "Connection refused");
+                MCEExpectResult expect = MCEExpect("assword:", "Connection refused", "Not replacing existing known_hosts", "Host key verification failed", "Permission denied (publickey");
                 if (expect.Index == 0)
                 {
                     Event("Authenticating: Password");
@@ -2019,6 +2106,18 @@ namespace Center
                         else SendControlC();
                     }
                 }
+                else if (expect.Index >= 2)
+                {
+                    SendControlC();
+                    // fail to ssh-keygen, just remove the known_hosts
+                    Event("Removing known_hosts file because an error...");
+                    SendLine("rm ~/.ssh/known_hosts");
+
+                    Thread.Sleep(500);
+                    SendLine("ssh -o StrictHostKeyChecking=no " + user + "@" + host);
+
+                    looppass = true;
+                }
                 else
                 {
                     SendControlC();
@@ -2034,7 +2133,6 @@ namespace Center
                         else
                         {
                             // the other error probaby ssh key expired or failing
-                            looppass = true;
                             Event("Trying to regenerate new ssh key...");
                             SendLine("ssh-keygen -R " + host);
 
@@ -2048,12 +2146,13 @@ namespace Center
 
                             Thread.Sleep(500);
                             SendLine("ssh -o StrictHostKeyChecking=no " + user + "@" + host);
+
+                            looppass = true;
                         }
                     }
                     else if (expect.Index == 0)
                     {
                         // connection refuse
-
                     }
                 }
             }

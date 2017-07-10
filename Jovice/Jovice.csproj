@@ -8,7 +8,7 @@
     <ProjectGuid>{123E8A09-3F7A-4A85-8E3A-DA92B55CE6CC}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Jovice</RootNamespace>
+    <RootNamespace>Center</RootNamespace>
     <AssemblyName>Jovice</AssemblyName>
     <TargetFrameworkVersion>v4.7</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -42,39 +42,35 @@
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="DiffieHellman">
-      <HintPath>..\_External\DiffieHellman.dll</HintPath>
-    </Reference>
     <Reference Include="Humanizer, Version=2.2.0.0, Culture=neutral, PublicKeyToken=979442b78dfc278e, processorArchitecture=MSIL">
       <HintPath>..\packages\Humanizer.Core.2.2.0\lib\netstandard1.0\Humanizer.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Newtonsoft.Json.10.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
-    </Reference>
-    <Reference Include="Org.Mentalis.Security">
-      <HintPath>..\_External\Org.Mentalis.Security.dll</HintPath>
+      <HintPath>..\packages\Newtonsoft.Json.10.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
-    <Reference Include="QuickGraph">
-      <HintPath>..\_External\QuickGraph.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
+    <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Diagnostics.DiagnosticSource, Version=4.0.1.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Diagnostics.DiagnosticSource.4.3.0\lib\net46\System.Diagnostics.DiagnosticSource.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="System.Diagnostics.DiagnosticSource, Version=4.0.2.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Diagnostics.DiagnosticSource.4.4.0\lib\net46\System.Diagnostics.DiagnosticSource.dll</HintPath>
     </Reference>
     <Reference Include="System.Drawing" />
+    <Reference Include="System.IO, Version=4.1.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.IO.4.3.0\lib\net462\System.IO.dll</HintPath>
+    </Reference>
     <Reference Include="System.Management" />
-    <Reference Include="System.Net.Http, Version=4.1.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Net.Http.4.3.1\lib\net46\System.Net.Http.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="System.Net.Http, Version=4.1.1.1, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Net.Http.4.3.2\lib\net46\System.Net.Http.dll</HintPath>
     </Reference>
     <Reference Include="System.Net.Http.Formatting, Version=5.2.3.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.AspNet.WebApi.Client.5.2.3\lib\net45\System.Net.Http.Formatting.dll</HintPath>
       <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Runtime, Version=4.1.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Runtime.4.3.0\lib\net462\System.Runtime.dll</HintPath>
     </Reference>
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Security.Cryptography.Algorithms, Version=4.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
@@ -100,6 +96,9 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Include="Tamir.SharpSSH, Version=1.1.1.13, Culture=neutral">
+      <HintPath>..\packages\Tamir.SharpSSH.1.1.1.13\lib\Tamir.SharpSSH.dll</HintPath>
+    </Reference>
     <Reference Include="Telegram.Bot, Version=10.4.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\Telegram.Bot.10.4.0\lib\net46\Telegram.Bot.dll</HintPath>
       <Private>True</Private>
@@ -114,283 +113,12 @@
     <Compile Include="Application\QOS.cs" />
     <Compile Include="Application\NetworkInterface.cs" />
     <Compile Include="Jovice.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\AlgorithmBase.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\EdgeRouting\EdgeRoutingAlgorithmBase.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\EdgeRouting\EdgeRoutingParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\EdgeRouting\IEdgeRoutingAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\EdgeRouting\IEdgeRoutingAlgorithmFactory.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\EdgeRouting\IEdgeRoutingParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\EdgeRouting\StandardEdgeRoutingAlgorithmFactory.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\FactoryHelper.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Highlight\HighlightAlgorithmBase.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Highlight\HighlightContext.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Highlight\HighlightParameterBase.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Highlight\IHighlightAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Highlight\IHighlightAlgorithmFactory.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Highlight\IHighlightContext.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Highlight\IHighlightController.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Highlight\IHighlightParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Highlight\SimpleHighlightAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Highlight\StandardHighlightAlgorithmFactory.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\IAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\IAlgorithmParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\LayeredTopologicalSortAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Compound\CompoundLayoutContext.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Compound\CompoundLayoutIterationEventArgs.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Compound\CompoundVertexInnerLayoutType.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Compound\FDP\CompoundFDPLayoutAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Compound\FDP\CompoundFDPLayoutAlgorithm.Data.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Compound\FDP\CompoundFDPLayoutAlgorithm.Init.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Compound\FDP\CompoundFDPLayoutParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Compound\ICompoundLayoutAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Compound\ICompoundLayoutContext.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Compound\ICompoundLayoutIterationEventArgs.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Compound\TestingCompoundLayoutIterationEventArgs.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Compound\TestingCompoundVertexInfo.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Contextual\ContextualLayoutAlgorithmFactory.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Contextual\ContextualLayoutContext.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Contextual\DoubleTreeLayoutAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Contextual\DoubleTreeLayoutParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Contextual\IContextualLayoutAlgorithmFactory.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Contextual\RadialTreeLayoutAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Contextual\RadialTreeLayoutParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\ILayoutAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\ILayoutAlgorithmFactory.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\ILayoutContext.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\ILayoutInfoIterationEventArgs.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\ILayoutIterationEventArgs.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\ILayoutParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\IParameterizedLayoutAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\LayoutAlgorithmBase.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\LayoutContext.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\LayoutDirection.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\LayoutIterationEventArgs.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\LayoutMode.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\LayoutParametersBase.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\LayoutState.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\LayoutUtil.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\ParameterizedLayoutAlgorithmBase.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Circular\CircularLayoutAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Circular\CircularLayoutParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\FDP\BoundedFRLayoutParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\FDP\FRCoolingFunction.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\FDP\FreeFRLayoutParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\FDP\FRLayoutAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\FDP\FRLayoutParametersBase.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\FDP\ISOMLayoutAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\FDP\ISOMLayoutParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\FDP\KKLayoutAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\FDP\KKLayoutParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\FDP\LinLogLayoutAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\FDP\LinLogLayoutAlgorithm.QuadTree.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\FDP\LinLogLayoutParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Hierarchical\EfficientSugiyamaAlgorithm.BuildSparseNormalizedGraph.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Hierarchical\EfficientSugiyamaAlgorithm.DoCrossingMinimizations.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Hierarchical\EfficientSugiyamaAlgorithm.DoPreparing.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Hierarchical\EfficientSugiyamaLayoutAlgorithm.AlternatingLayer.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Hierarchical\EfficientSugiyamaLayoutAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Hierarchical\EfficientSugiyamaLayoutAlgorithm.Data.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Hierarchical\EfficientSugiyamaLayoutAlgorithm.HorizontalAssignment.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Hierarchical\EfficientSugiyamaLayoutAlgorithm.SegmentContainer.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Hierarchical\EfficientSugiyamaLayoutParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Hierarchical\SugiyamaEdgeRoutings.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Hierarchical\SugiyamaLayoutAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Hierarchical\SugiyamaLayoutAlgorithm.Enums.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Hierarchical\SugiyamaLayoutAlgorithm.SugiEdge.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Hierarchical\SugiyamaLayoutAlgorithm.SugiVertex.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Hierarchical\SugiyamaLayoutAlgorithm.VertexLayer.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Hierarchical\SugiyamaLayoutAlgorithm.VertexLayerCollection.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Hierarchical\SugiyamaLayoutParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Tree\BalloonTreeLayoutAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Tree\BalloonTreeLayoutParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Tree\SimpleTreeLayoutAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Tree\SimpleTreeLayoutAlgorithm.Data.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Tree\SimpleTreeLayoutAlgorithm.WidthAndHeightOpt.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Tree\SimpleTreeLayoutParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\Simple\Tree\SpanningTreeGeneration.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\Layout\StandardLayoutAlgorithmFactory.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\OverlapRemoval\FSAAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\OverlapRemoval\IOverlapRemovalAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\OverlapRemoval\IOverlapRemovalAlgorithmFactory.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\OverlapRemoval\IOverlapRemovalContext.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\OverlapRemoval\IOverlapRemovalParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\OverlapRemoval\OneWayFSAAlgorithm.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\OverlapRemoval\OneWayFSAParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\OverlapRemoval\OverlapRemovalAlgorithmBase.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\OverlapRemoval\OverlapRemovalContext.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\OverlapRemoval\OverlapRemovalHelper.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\OverlapRemoval\OverlapRemovalParameters.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\OverlapRemoval\RectangleWrapper.cs" />
-    <Compile Include="Application\Library\GraphSharp\Algorithms\OverlapRemoval\StandardOverlapRemovalAlgorithmFactory.cs" />
-    <Compile Include="Application\Library\GraphSharp\CompoundGraph.cs" />
-    <Compile Include="Application\Library\GraphSharp\Contracts\ICompoundGraphContract.cs" />
-    <Compile Include="Application\Library\GraphSharp\Contracts\IContextualLayoutAlgorithmFactoryContract.cs" />
-    <Compile Include="Application\Library\GraphSharp\Contracts\ILayoutAlgorithmFactoryContract.cs" />
-    <Compile Include="Application\Library\GraphSharp\Contracts\ILayoutContextContract.cs" />
-    <Compile Include="Application\Library\GraphSharp\GraphHelper.cs" />
-    <Compile Include="Application\Library\GraphSharp\GraphHideHelper.cs" />
-    <Compile Include="Application\Library\GraphSharp\HierarchicalGraph.cs" />
-    <Compile Include="Application\Library\GraphSharp\ICompoundGraph.cs" />
-    <Compile Include="Application\Library\GraphSharp\IHierarchicalBidirectionalGraph.cs" />
-    <Compile Include="Application\Library\GraphSharp\IMutableCompoundGraph.cs" />
-    <Compile Include="Application\Library\GraphSharp\ISoftMutableGraph.cs" />
-    <Compile Include="Application\Library\GraphSharp\SoftMutableBidirectionalGraph.cs" />
-    <Compile Include="Application\Library\GraphSharp\SoftMutableHierarchicalGraph.cs" />
-    <Compile Include="Application\Library\GraphSharp\TypedEdge.cs" />
-    <Compile Include="Application\Library\GraphSharp\WeightedEdge.cs" />
-    <Compile Include="Application\Library\GraphSharp\WrappedVertex.cs" />
     <Compile Include="Application\SshConnection.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Application\Library\SharpSSH\ITransferProtocol.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\Exception.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\io\File.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\io\FileInputStream.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\io\FileOutputStream.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\io\InputStream.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\io\InputStreamWrapper.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\io\JStream.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\io\OutputStream.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\lang\Class.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\lang\Integer.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\lang\Runnable.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\lang\StringBuffer.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\lang\Thread.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\net\InetAddress.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\net\ServerSocket.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\net\Socket.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\Platform.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\RuntimeException.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\String.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\System.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\util\Arrays.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\util\Enumeration.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\util\Hashtable.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\util\JavaString.cs" />
-    <Compile Include="Application\Library\SharpSSH\java\util\Vector.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\Buffer.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\Channel.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\Channel.old.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\ChannelDirectTCPIP.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\ChannelExec.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\ChannelForwardedTCPIP.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\ChannelSession.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\ChannelSftp.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\ChannelSftpStreamGet.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\ChannelSftpStreamPut.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\ChannelShell.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\ChannelSubsystem.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\ChannelX11.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\Cipher.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\Compression.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\DH.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\DHG1.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\DHGEX.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\examples\AES.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\examples\ChangePassphrase.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\examples\KeyGen.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\examples\KnownHosts.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\examples\PortForwardingL.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\examples\PortForwardingR.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\examples\ScpFrom.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\examples\ScpTo.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\examples\Sftp.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\examples\Shell.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\examples\StreamForwarding.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\examples\UserAuthPubKey.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\examples\util\ConsoleProgressBar.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\examples\util\InputForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Application\Library\SharpSSH\jsch\ForwardedTCPIPDaemon.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\HASH.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\HostKey.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\HostKeyRepository.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\Identity.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\IdentityFile.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\IO.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\jce\AES128CBC.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\jce\BlowfishCBC.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\jce\DH.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\jce\HMACMD5.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\jce\HMACMD596.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\jce\HMACSHA1.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\jce\HMACSHA196.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\jce\KeyPairGenDSA.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\jce\KeyPairGenRSA.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\jce\MD5.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\jce\Random.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\jce\SHA1.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\jce\SignatureDSA.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\jce\SignatureRSA.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\jce\TripleDESCBC.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\JSch.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\JSchAuthCancelException.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\JSchException.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\JSchPartialAuthException.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\KeyExchange.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\KeyPair.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\KeyPairDSA.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\KeyPairGenDSA.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\KeyPairGenRSA.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\KeyPairRSA.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\KnownHosts.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\MAC.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\Packet.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\PortWatcher.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\Proxy.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\ProxyHTTP.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\Random.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\Request.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\RequestExec.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\RequestPtyReq.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\RequestSftp.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\RequestShell.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\RequestSignal.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\RequestSubsystem.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\RequestWindowChange.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\RequestX11.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\ServerSocketFactory.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\Session.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\SftpATTRS.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\SftpException.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\SftpProgressMonitor.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\SignatureDSA.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\SignatureRSA.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\SocketFactory.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\UIKeyboardInteractive.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\UserAuth.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\UserAuthKeyboardInteractive.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\UserAuthNone.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\UserAuthPassword.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\UserAuthPublicKey.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\UserInfo.cs" />
-    <Compile Include="Application\Library\SharpSSH\jsch\Util.cs" />
-    <Compile Include="Application\Library\SharpSSH\Scp.cs" />
-    <Compile Include="Application\Library\SharpSSH\Sftp.cs" />
-    <Compile Include="Application\Library\SharpSSH\SshBase.cs" />
-    <Compile Include="Application\Library\SharpSSH\SshExe.cs" />
-    <Compile Include="Application\Library\SharpSSH\SshShell.cs" />
-    <Compile Include="Application\Library\SharpSSH\SshStream.cs" />
-    <Compile Include="Application\Library\SharpSSH\SshTransferException.cs" />
-    <Compile Include="Application\Library\SharpSSH\SshTransferProtocolBase.cs" />
-    <Compile Include="Application\Library\SharpSSH\Streams\CombinedStream.cs" />
-    <Compile Include="Application\Library\SharpSSH\Streams\InputStream.cs" />
-    <Compile Include="Application\Library\SharpSSH\Streams\OutputStream.cs" />
-    <Compile Include="Application\Library\SharpSSH\Streams\PipedInputStream.cs" />
-    <Compile Include="Application\Library\SharpSSH\Streams\PipedOutputStream.cs" />
-    <Compile Include="Application\Library\SharpSSH\Streams\ProtectedConsoleStream.cs" />
     <Compile Include="Service\Client.cs" />
     <Compile Include="Service\Server.cs" />
     <Compile Include="Service\Telegram\Intent.cs" />
     <Compile Include="Service\Telegram\TelegramBot.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="Application\Library\SharpSSH\jsch\examples\README.txt" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Application\Library\SharpSSH\jsch\examples\util\InputForm.resx">
-      <DependentUpon>InputForm.cs</DependentUpon>
-    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Aphysoft.Protected\Aphysoft.Protected.csproj">
@@ -403,7 +131,6 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="app.config" />
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

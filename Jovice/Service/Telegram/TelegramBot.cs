@@ -687,7 +687,7 @@ dbo.DoubleMetaPhone({0}) and LOWER(SUBSTRING(NO_Name, 0, CHARINDEX('-', NO_Name,
                 Service.Debug("elapsed: " + timeProcess.ElapsedMilliseconds + "ms");
                 foreach (IntentEntity ent in intent.Entities)
                 {
-                    Service.Debug("intent: " + ent.Intent + "; asking: " + ent.Asking);
+                    Service.Debug("intent: " + ent.Intent + "; asking: " + ent.Asking + "; mentionMyName: " + ent.MentionMyName);
 
                 }
             }

@@ -178,8 +178,7 @@ namespace Center
                 necrowConnection.Send(message);
             }
         }
-
-
+        
         #endregion
 
         private static void ClientNecrowServiceMessageHandler(MessageEventArgs e)
@@ -198,6 +197,7 @@ namespace Center
 
             e.Connection.Reply(m);
         }
+
         #endregion
     }
 

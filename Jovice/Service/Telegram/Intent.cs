@@ -24,15 +24,22 @@ namespace Center
             get { return asking; }
         }
 
-        public IntentEntity(string intent, bool asking)
+        private bool mentionMyName;
+
+        public bool MentionMyName
+        {
+            get { return mentionMyName; }
+            set { mentionMyName = value; }
+        }
+
+        public IntentEntity(string intent, bool asking, bool mentionMyName)
         {
             this.intent = intent;
             this.asking = asking;
+            this.mentionMyName = mentionMyName;
         }
     }
     
-
-
     internal class Intent
     {
         private List<IntentEntity> entities = new List<IntentEntity>();
@@ -178,6 +185,12 @@ namespace Center
             int startIndex = 0;
             foreach (string token in messageLower.Split(messageSeparators, StringSplitOptions.RemoveEmptyEntries))
             {                
+                if (token == "center")
+                {
+                    tokens.Add("{MENTIONMYNAME}");
+                    continue;
+                }
+
                 int tokenIndex = messageOneSpace.IndexOf(token, startIndex);
                 startIndex = tokenIndex + token.Length;
 
@@ -185,7 +198,7 @@ namespace Center
                 {
                     if (messageOneSpace[tokenIndex - 2] == '?') tokens.Add("{QUESTIONMARK}");
                 }
-                
+                                
                 string ntoken = token;
                 if (ntoken.Length > 2 && !char.IsDigit(ntoken[0]) && ntoken.EndsWith("2"))
                     ntoken = string.Format("{0}-{0}", ntoken);
@@ -229,25 +242,19 @@ namespace Center
 
                         if (s != string.Empty)
                         {
-                            List<Tuple<string, string>> references = null;
-                            if (intentReferences.TryGetValue(s, out references))
+                            if (intentReferences.TryGetValue(s, out List<Tuple<string, string>> references))
                             {
                                 foreach (Tuple<string, string> reference in references)
                                 {
                                     string name = reference.Item1;
                                     string constraint = reference.Item2;
                                     bool ask = false;
+                                    bool mentionmyname = false;
 
                                     if (constraint == "SW")
                                     {
                                         if (i > 0) continue;
                                     }
-
-                                    if (constraint == "SW")
-                                    {
-                                        if (i > 0) continue;
-                                    }
-
                                     for (int y = 0; y < checkPair; y++)
                                     {
                                         dmTokens[y + i] = "";
@@ -257,6 +264,7 @@ namespace Center
                                     if (dmTokens.Count > te)
                                     {
                                         if (dmTokens[te] == "{QUESTIONMARK}") ask = true;
+                                        else if (dmTokens[te] == "{MENTIONMYNAME}") mentionmyname = true;
                                     }
 
 
@@ -271,7 +279,7 @@ namespace Center
                                     }
                                     if (!exists)
                                     {
-                                        intent.entities.Add(new IntentEntity(name, ask));
+                                        intent.entities.Add(new IntentEntity(name, ask, mentionmyname));
                                     }
                                 }
                             }

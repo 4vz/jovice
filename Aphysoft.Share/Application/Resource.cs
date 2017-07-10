@@ -472,13 +472,11 @@ namespace Aphysoft.Share
                         {
                             if (resourceType == ResourceTypes.JavaScript)
                             {
-                                var minifier = new Microsoft.Ajax.Utilities.Minifier();
-                                data = Encoding.UTF8.GetBytes(minifier.MinifyJavaScript(Encoding.UTF8.GetString(originalData)));
+                                data = Encoding.UTF8.GetBytes(WebUtilities.Minifier.MinifyJavaScript(Encoding.UTF8.GetString(originalData)));
                             }
                             else if (resourceType == ResourceTypes.CSS)
                             {
-                                var minifier = new Microsoft.Ajax.Utilities.Minifier();
-                                data = Encoding.UTF8.GetBytes(minifier.MinifyStyleSheet(Encoding.UTF8.GetString(originalData)));
+                                data = Encoding.UTF8.GetBytes(WebUtilities.Minifier.MinifyJavaScript(Encoding.UTF8.GetString(originalData)));
                             }
                             else
                                 data = originalData;

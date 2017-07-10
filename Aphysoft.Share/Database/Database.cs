@@ -3,8 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
-using Oracle.DataAccess.Client;
-using MySql.Data.MySqlClient;
+//using Oracle.DataAccess.Client;
+//using MySql.Data.MySqlClient;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -447,10 +447,10 @@ namespace Aphysoft.Share
 
             if (this.databaseType == DatabaseType.SqlServer)
                 connection = new SqlServerDatabaseConnection(this);
-            else if (this.databaseType == DatabaseType.Oracle)
-                connection = new OracleDatabaseConnection(this);
-            else
-                connection = new MySqlDatabaseConnection(this);
+            //else if (this.databaseType == DatabaseType.Oracle)
+            //    connection = new OracleDatabaseConnection(this);
+            //else
+            //    connection = new MySqlDatabaseConnection(this);
         }
 
         public Database(string connectionString, DatabaseType databaseType) : this(connectionString, databaseType, null)
@@ -1141,6 +1141,9 @@ namespace Aphysoft.Share
         #endregion
     }
 
+    #region Oracle and MySql DatabaseConnection
+    /*
+
     internal class OracleDatabaseConnection : DatabaseConnection
     {
         #region Constructor
@@ -1422,6 +1425,9 @@ namespace Aphysoft.Share
 
         #endregion
     }
+
+    //*/
+    #endregion
 
     [Serializable]
     public sealed class Result : IList<Row>

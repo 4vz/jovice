@@ -119,7 +119,10 @@ namespace Aphysoft.Share
         {
             BaseService instance = Service.Instance;
 
-            return instance.Wait<T>(originalMessage, new MessageWaitCallback(ClientConnectedCallback), HttpContext.Current);
+            if (HttpContext.Current != null)
+                return instance.Wait<T>(originalMessage, new MessageWaitCallback(ClientConnectedCallback), HttpContext.Current);
+            else
+                return instance.Wait<T>(originalMessage);
         }
 
         private static bool ClientConnectedCallback(object obj)
@@ -144,6 +147,12 @@ namespace Aphysoft.Share
         #endregion
 
         #region Static
+
+        public static new void FileReceive(int[] files, StartFileReceiveEventHandler handler)
+        {
+            BaseService instance = Instance;
+            instance.FileReceive(files, handler);
+        }
 
         public static void Server()
         {
@@ -180,6 +189,14 @@ namespace Aphysoft.Share
             if (!IsServer && !IsClient)
             {
                 Instance.Client(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 23474));
+            }
+        }
+
+        public static void Client(IPAddress server)
+        {
+            if (!IsServer && !IsClient)
+            {
+                Instance.Client(new IPEndPoint(server, 23474));
             }
         }
 

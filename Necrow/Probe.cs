@@ -892,6 +892,9 @@ namespace Center
             {
                 started = true;
                 Event("Connecting... (" + properties.SSHUser + "@" + properties.SSHServerAddress + " [" + properties.TacacUser + "])");
+#if DEBUG
+                Event("DEBUG SSH Password: " + properties.SSHPassword);
+#endif
                 new Thread(new ThreadStart(delegate ()
                 {
                     Thread.Sleep(RandomHelper.Next(0, 500));
@@ -993,7 +996,13 @@ namespace Center
             string message = exception.Message;
             if (message.IndexOf("Auth fail") > -1) Event("Connection failed: Authentication failed");
             else if (message.IndexOf("unreachable") > -1) Event("Connection failed: Server unreachable");
-            else Event("Connection failed");
+            else
+            {
+                Event("Connection failed");
+#if DEBUG
+                Event("DEBUG " + message);
+#endif
+            }
 
             if (Necrow.InTime(properties))
             {

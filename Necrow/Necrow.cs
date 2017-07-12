@@ -163,6 +163,8 @@ namespace Center
             get { return joviceLastException; }
         }
 
+        private static Thread start;
+
         #endregion
 
         #region Helpers
@@ -247,7 +249,7 @@ namespace Center
 
         public static void Start()
         {
-            Thread start = new Thread(new ThreadStart(delegate ()
+            start = new Thread(new ThreadStart(delegate ()
             {
                 Batch batch;
                 Result result;
@@ -687,6 +689,19 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
 
         public static void Stop()
         {
+            // kill start
+            start.Abort();
+            start = null;
+
+            // kill all instance in process
+            foreach (KeyValuePair<string, Probe> pair in instances)
+            {
+                Probe probe = pair.Value;
+                probe.Stop();
+            }
+
+            // clean database
+            j.Execute("update ProbeProgress set XP_StartTime = NULL, XP_Status = NULL");
 
         }
 

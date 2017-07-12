@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26403.7
+VisualStudioVersion = 15.0.26430.12
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aphysoft.Share", "Aphysoft.Share\Aphysoft.Share.csproj", "{BE59C0C5-8B77-445F-88ED-D88A4EB7709E}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -48,6 +48,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Center.API", "Center.API\Ce
 		{123E8A09-3F7A-4A85-8E3A-DA92B55CE6CC} = {123E8A09-3F7A-4A85-8E3A-DA92B55CE6CC}
 		{DBEB5569-93E8-457A-84F1-535D5B128AF2} = {DBEB5569-93E8-457A-84F1-535D5B128AF2}
 		{BE59C0C5-8B77-445F-88ED-D88A4EB7709E} = {BE59C0C5-8B77-445F-88ED-D88A4EB7709E}
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NecrowService", "NecrowService\NecrowService.csproj", "{66B9EB65-5404-4AA2-BB33-92C6134E0E0C}"
+	ProjectSection(ProjectDependencies) = postProject
+		{FFACD4FE-CA5A-4E45-9F7D-F99F8A925544} = {FFACD4FE-CA5A-4E45-9F7D-F99F8A925544}
 	EndProjectSection
 EndProject
 Global
@@ -162,6 +167,18 @@ Global
 		{8C7E0739-0D82-43DF-B6CD-E81D6E71C551}.Release|Mixed Platforms.Build.0 = Release|Any CPU
 		{8C7E0739-0D82-43DF-B6CD-E81D6E71C551}.Release|x86.ActiveCfg = Release|Any CPU
 		{8C7E0739-0D82-43DF-B6CD-E81D6E71C551}.Release|x86.Build.0 = Release|Any CPU
+		{66B9EB65-5404-4AA2-BB33-92C6134E0E0C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{66B9EB65-5404-4AA2-BB33-92C6134E0E0C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{66B9EB65-5404-4AA2-BB33-92C6134E0E0C}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{66B9EB65-5404-4AA2-BB33-92C6134E0E0C}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{66B9EB65-5404-4AA2-BB33-92C6134E0E0C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{66B9EB65-5404-4AA2-BB33-92C6134E0E0C}.Debug|x86.Build.0 = Debug|Any CPU
+		{66B9EB65-5404-4AA2-BB33-92C6134E0E0C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{66B9EB65-5404-4AA2-BB33-92C6134E0E0C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{66B9EB65-5404-4AA2-BB33-92C6134E0E0C}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{66B9EB65-5404-4AA2-BB33-92C6134E0E0C}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{66B9EB65-5404-4AA2-BB33-92C6134E0E0C}.Release|x86.ActiveCfg = Release|Any CPU
+		{66B9EB65-5404-4AA2-BB33-92C6134E0E0C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

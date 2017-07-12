@@ -39,7 +39,7 @@
             // 
             // serviceInstaller
             // 
-            this.serviceInstaller.Description = "Necrow";
+            this.serviceInstaller.Description = "Necrow Service";
             this.serviceInstaller.DisplayName = "Necrow Service";
             this.serviceInstaller.ServiceName = "NecrowService";
             this.serviceInstaller.StartType = System.ServiceProcess.ServiceStartMode.Automatic;

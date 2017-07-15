@@ -476,7 +476,7 @@ namespace Aphysoft.Share
                             }
                             else if (resourceType == ResourceTypes.CSS)
                             {
-                                data = Encoding.UTF8.GetBytes(WebUtilities.Minifier.MinifyJavaScript(Encoding.UTF8.GetString(originalData)));
+                                data = Encoding.UTF8.GetBytes(WebUtilities.Minifier.MinifyStyleSheet(Encoding.UTF8.GetString(originalData)));
                             }
                             else
                                 data = originalData;

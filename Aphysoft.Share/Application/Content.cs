@@ -488,55 +488,25 @@ namespace Aphysoft.Share
             }
 
             Resource defaultShortcutIcon = Resource.Get(shortcutIconKey);
-            response.Write("<link rel=\"icon\" type=\"" + defaultShortcutIcon.MimeType + "\" href=\"" + Resource.GetPath(shortcutIconKey) + "?v=2\" />");
+            response.Write("<link rel=\"icon\" type=\"" + defaultShortcutIcon.MimeType + "\" href=\"" + Resource.GetPath(shortcutIconKey) + "\" />");
 
             #region Internal StyleSheet
+
+            #region WebFont url
+
+            if (WebFont.webFontsUrl.Count > 0)
+            {
+                foreach (KeyValuePair<string, string> url in WebFont.webFontsUrl)
+                {
+                    response.Write("<link href=\"" + url.Value + "\" rel=\"stylesheet\">");
+                }
+            }
+
+            #endregion
 
             response.Write("<style>");
 
             StringBuilder sbstyle = new StringBuilder();
-
-            #region Webfont
-            foreach (KeyValuePair<string, WebFontType> font in WebFont.webFonts)
-            {
-                WebFontType w = font.Value;
-
-                string weightClause;
-
-                if (w.FontWeight == WebFontWeight.Bold)
-                    weightClause = "font-weight: bold; ";
-                else if (w.FontWeight == WebFontWeight.Weight100)
-                    weightClause = "font-weight: 100; ";
-                else if (w.FontWeight == WebFontWeight.Weight200)
-                    weightClause = "font-weight: 200; ";
-                else if (w.FontWeight == WebFontWeight.Weight300)
-                    weightClause = "font-weight: 300; ";
-                else if (w.FontWeight == WebFontWeight.Weight500)
-                    weightClause = "font-weight: 500; ";
-                else if (w.FontWeight == WebFontWeight.Weight600)
-                    weightClause = "font-weight: 600; ";
-                else if (w.FontWeight == WebFontWeight.Weight800)
-                    weightClause = "font-weight: 800; ";
-                else if (w.FontWeight == WebFontWeight.Weight900)
-                    weightClause = "font-weight: 900; ";
-                else
-                    weightClause = string.Empty;
-
-                sbstyle.Append(string.Format("@font-face {{ font-family: '{0}'; {2}src: url({1}) format('truetype'), url({3}) format('woff'); }}\r\n",
-                        w.FontFamily,
-                        Resource.GetPath(w.TtfKey),
-                        weightClause,
-                        Resource.GetPath(w.WoffKey)
-                    ));
-                if (!string.IsNullOrEmpty(w.AltFontFamily))
-                    sbstyle.Append(string.Format("@font-face {{ font-family: '{0}'; src: url({1}) format('truetype'), url({3}) format('woff'); }}\r\n",
-                        w.AltFontFamily,
-                        Resource.GetPath(w.TtfKey),
-                        weightClause,
-                        Resource.GetPath(w.WoffKey)
-                    ));
-            }
-            #endregion
 
             #region Core
 

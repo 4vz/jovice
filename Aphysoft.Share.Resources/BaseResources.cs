@@ -73,42 +73,7 @@ namespace Aphysoft.Share
 
                 if (Settings.EnableUI)
                 {
-                    if (Settings.FontHeadings == Settings.FontHeadingsDefault)
-                    {
-                        WebFont.Register("avenir85", "Avenir", null, WebFontWeight.Normal,
-                            Resource.Register("font_avenir85_ttf", ResourceTypes.TTF, Resources.Resources.Fonts.ResourceManager, "avenir85_ttf"),
-                            Resource.Register("font_avenir85_woff", ResourceTypes.WOFF, Resources.Resources.Fonts.ResourceManager, "avenir85_woff"),
-                            null);
-                    }
-
-                    if (Settings.FontBody == Settings.FontBodyDefault)
-                    {
-                        WebFont.Register("segoeuil", "Segoe UI", "Segoe UI Light", WebFontWeight.Weight200,
-                            Resource.Register("font_segoeuil_ttf", ResourceTypes.TTF, Resources.Resources.Fonts.ResourceManager, "segoeuil_ttf"),
-                            Resource.Register("font_segoeuil_woff", ResourceTypes.WOFF, Resources.Resources.Fonts.ResourceManager, "segoeuil_woff"),
-                            null);
-                        WebFont.Register("segoeuisl", "Segoe UI", "Segoe UI SemiLight", WebFontWeight.Weight300,
-                            Resource.Register("font_segoeuis_ttf", ResourceTypes.TTF, Resources.Resources.Fonts.ResourceManager, "segoeuisl_ttf"),
-                            Resource.Register("font_segoeuis_woff", ResourceTypes.WOFF, Resources.Resources.Fonts.ResourceManager, "segoeuisl_woff"),
-                            null);
-                        WebFont.Register("segoeui", "Segoe UI", null, WebFontWeight.Normal,
-                            Resource.Register("font_segoeui_ttf", ResourceTypes.TTF, Resources.Resources.Fonts.ResourceManager, "segoeui_ttf"),
-                            Resource.Register("font_segoeui_woff", ResourceTypes.WOFF, Resources.Resources.Fonts.ResourceManager, "segoeui_woff"),
-                            null);
-                        WebFont.Register("seguisb", "Segoe UI", "Segoe UI SemiBold", WebFontWeight.Weight600,
-                            Resource.Register("font_seguisb_ttf", ResourceTypes.TTF, Resources.Resources.Fonts.ResourceManager, "seguisb_ttf"),
-                            Resource.Register("font_seguisb_woff", ResourceTypes.WOFF, Resources.Resources.Fonts.ResourceManager, "seguisb_woff"),
-                            null);
-                        WebFont.Register("segoeuib", "Segoe UI", null, WebFontWeight.Bold,
-                            Resource.Register("font_segoeuib_ttf", ResourceTypes.TTF, Resources.Resources.Fonts.ResourceManager, "segoeuib_ttf"),
-                            Resource.Register("font_segoeuib_woff", ResourceTypes.WOFF, Resources.Resources.Fonts.ResourceManager, "segoeuib_woff"),
-                            null);
-                    }
-
-                    WebFont.Register("keepcalmm", "Keep Calm", null, WebFontWeight.Normal,
-                        Resource.Register("font_keepcalmm_ttf", ResourceTypes.TTF, Resources.Resources.Fonts.ResourceManager, "keepcalmm_ttf"),
-                        Resource.Register("font_keepcalmm_woff", ResourceTypes.WOFF, Resources.Resources.Fonts.ResourceManager, "keepcalmm_woff"),
-                        null);
+                    WebFont.Register("roboto", "https://fonts.googleapis.com/css?family=Roboto:100,100i,300,300i,400,400i,500,500i,700,700i,900,900i");
                 }
             }
         }

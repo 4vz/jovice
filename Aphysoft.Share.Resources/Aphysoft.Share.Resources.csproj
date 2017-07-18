@@ -52,11 +52,6 @@
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
     </Compile>
-    <Compile Include="Resources\Fonts.Designer.cs">
-      <DependentUpon>Fonts.resx</DependentUpon>
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-    </Compile>
     <Compile Include="Resources\Images.Designer.cs">
       <DependentUpon>Images.resx</DependentUpon>
       <AutoGen>True</AutoGen>
@@ -84,36 +79,9 @@
     <Content Include="Resources\Scripts\ui.js" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\Fonts\avenir65.ttf" />
-    <None Include="Resources\Fonts\avenir65.woff" />
-    <None Include="Resources\Fonts\avenir85.ttf" />
-    <None Include="Resources\Fonts\avenir85.woff" />
-    <None Include="Resources\Fonts\keepcalmm.ttf" />
-    <None Include="Resources\Fonts\keepcalmm.woff" />
-    <None Include="Resources\Fonts\segoeui.ttf" />
-    <None Include="Resources\Fonts\segoeui.woff" />
-    <None Include="Resources\Fonts\segoeuib.ttf" />
-    <None Include="Resources\Fonts\segoeuib.woff" />
-    <None Include="Resources\Fonts\segoeuii.ttf" />
-    <None Include="Resources\Fonts\segoeuii.woff" />
-    <None Include="Resources\Fonts\segoeuil.ttf" />
-    <None Include="Resources\Fonts\segoeuil.woff" />
-    <None Include="Resources\Fonts\segoeuisl.ttf" />
-    <None Include="Resources\Fonts\segoeuisl.woff" />
-    <None Include="Resources\Fonts\segoeuiz.ttf" />
-    <None Include="Resources\Fonts\segoeuiz.woff" />
-    <None Include="Resources\Fonts\seguisb.ttf" />
-    <None Include="Resources\Fonts\seguisb.woff" />
-  </ItemGroup>
-  <ItemGroup>
     <EmbeddedResource Include="Resources\Css.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Css.Designer.cs</LastGenOutput>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Resources\Fonts.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Fonts.Designer.cs</LastGenOutput>
       <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="Resources\Images.resx">

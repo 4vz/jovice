@@ -1,5 +1,5 @@
 ﻿/*! On Screen Debug */
-(function (ui) {
+(function () {
     "use strict";
 
     var t = $("#top");
@@ -41,7 +41,7 @@
                 var diff = $$.date() - lastDate;
                 //_debug(diff);
                 if (diff > 500) {
-                    var sep = ui.box(b)({
+                    var sep = $$.box(b)({
                         size: [100, 5],
                         left: 10,
                         data: ["tag", "separator"],
@@ -58,7 +58,7 @@
                 x[0].text($$.date("{HH}:{mm}:{ss}:{sss}") + ">" + s + "(" + (++lastCount) + ")");
             }
             else {
-                var te = ui.text(b);
+                var te = $$.text(b);
                 te.text($$.date("{HH}:{mm}:{ss}:{sss}") + ">" + s);
                 te.backgroundColor(0);
                 te.color(100);
@@ -108,4 +108,4 @@
     $$(function () {
         debug("DEVELOPMENT MODE");
     });
-})(ui);
+})();

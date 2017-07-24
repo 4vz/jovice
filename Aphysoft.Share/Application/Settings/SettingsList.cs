@@ -236,16 +236,7 @@ namespace Aphysoft.Share
             get { return ajaxify; }
         }
 
-        public const string FontHeadingsDefault = "Avenir";        
-
-        private static string fontHeadings = FontHeadingsDefault;
-
-        public static string FontHeadings
-        {
-            get { return fontHeadings; }
-        }
-
-        public const string FontBodyDefault = "Segoe UI";
+        public const string FontBodyDefault = "Roboto";
 
         private static string fontBody = FontBodyDefault;
 
@@ -404,7 +395,6 @@ namespace Aphysoft.Share
             {
                 ReadString("UrlPrefix", ref urlPrefix);
                 ReadBoolean("Ajaxify", ref ajaxify);
-                ReadString("FontHeadings", ref fontHeadings);
                 ReadString("FontBody", ref fontBody);
 
                 string sc = "";

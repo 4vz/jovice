@@ -66,17 +66,16 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Resources\Css\ui.css" />
+    <Content Include="Resources\Css\share.css" />
     <Content Include="Resources\Images\shortcuticon.png" />
     <Content Include="Resources\Scripts\fabric.js" />
-    <Content Include="Resources\Scripts\ui_debug.js" />
+    <Content Include="Resources\Scripts\debug.js" />
     <Content Include="Resources\Scripts\jquery.js" />
     <Content Include="Resources\Scripts\libs.js" />
     <Content Include="Resources\Scripts\modernizr.js" />
     <Content Include="Resources\Scripts\raphael.js" />
     <Content Include="Resources\Scripts\share.js" />
     <Content Include="Resources\Scripts\three.js" />
-    <Content Include="Resources\Scripts\ui.js" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources\Css.resx">

@@ -72,9 +72,9 @@ namespace Aphysoft.Share.Resources.Resources {
         ///div._PS           { position: absolute; z-index: 1; overflow-y: hidden; overflow-x: hidden }
         ///div._PG           { position: absolute; width:100%; height:100%; [rest of string was truncated]&quot;;.
         /// </summary>
-        internal static string ui {
+        internal static string share {
             get {
-                return ResourceManager.GetString("ui", resourceCulture);
+                return ResourceManager.GetString("share", resourceCulture);
             }
         }
     }

@@ -751,7 +751,6 @@ select AA_ID from [ApiSubscription], [Api], [ApiAccess] where AS_AA = AA_ID and 
                 scriptData.System("color0", string.Format("#{0}", us.Get("COLOR0")));
                 scriptData.System("color100", string.Format("#{0}", us.Get("COLOR100")));
 
-                scriptData.System("fontHeadings", Settings.FontHeadings);
                 scriptData.System("fontBody", Settings.FontBody);
             }
 
@@ -781,7 +780,6 @@ select AA_ID from [ApiSubscription], [Api], [ApiAccess] where AS_AA = AA_ID and 
                 Color c0 = new Color(us.Get("COLOR0"));
                 Color c100 = new Color(us.Get("COLOR100"));
 
-                styleSheetData.Add("._FH", "font-family: \"" + Settings.FontHeadings + "\"");
                 styleSheetData.Add("._FB", "font-family: \"" + Settings.FontBody + "\"; color: #" + c0.Hex() + "");
 
                 //int ro = 20;

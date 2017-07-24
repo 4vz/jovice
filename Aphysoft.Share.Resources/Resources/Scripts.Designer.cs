@@ -61,6 +61,39 @@ namespace Aphysoft.Share.Resources.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to /*! On Screen Debug */
+        ///(function () {
+        ///    &quot;use strict&quot;;
+        ///
+        ///    var t = $(&quot;#top&quot;);
+        ///    var b = $(&quot;#bottom&quot;);
+        ///
+        ///    var x = [];
+        ///    var maxLine = 15;
+        ///    var last = null;
+        ///    var lastCount = 1;
+        ///    var lastDate = null;
+        ///
+        ///    var _debug = window.debug;
+        ///    var debug = function () {
+        ///        //return;
+        ///        var o = arguments;
+        ///        var s = null;
+        ///
+        ///        var ss;
+        ///        if (o.length == 1)
+        ///            ss = JSON.stringify(o[0]);
+        ///        else {
+        ///            var sss = [];
+        ///            $.each(o, [rest of string was truncated]&quot;;.
+        /// </summary>
+        internal static string debug {
+            get {
+                return ResourceManager.GetString("debug", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to var fabric=fabric||{version:&quot;1.7.6&quot;};&quot;undefined&quot;!=typeof exports&amp;&amp;(exports.fabric=fabric),&quot;undefined&quot;!=typeof document&amp;&amp;&quot;undefined&quot;!=typeof window?(fabric.document=document,fabric.window=window,window.fabric=fabric):(fabric.document=require(&quot;jsdom&quot;).jsdom(decodeURIComponent(&quot;%3C!DOCTYPE%20html%3E%3Chtml%3E%3Chead%3E%3C%2Fhead%3E%3Cbody%3E%3C%2Fbody%3E%3C%2Fhtml%3E&quot;)),fabric.window=fabric.document.createWindow?fabric.document.createWindow():fabric.document.parentWindow),fabric.isTouchSupported=&quot;ontouchstart&quot; [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string fabric {
@@ -162,68 +195,6 @@ namespace Aphysoft.Share.Resources.Resources {
         internal static string three {
             get {
                 return ResourceManager.GetString("three", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to /*! Aphysoft.Share UI | share.aphysoft.com */
-        ///(function ($) {
-        ///    &quot;use strict&quot;;
-        ///    
-        ///    var ui;
-        ///
-        ///    // ui .load .marginTop .marginLeft .marginBottom .marginRight
-        ///    (function (window, share, jQuery) {
-        ///
-        ///        var loaded = false;
-        ///        var count = 0;
-        ///        var transferring;
-        ///        var pages = [];
-        ///        var css = {};
-        ///        var transferData = null;
-        ///        var objects = {};
-        ///        var scripts = {};
-        ///        var ajaxify;
-        ///        var contentProviderUrl;
-        ///        var urlPrefix;
-        ///    [rest of string was truncated]&quot;;.
-        /// </summary>
-        internal static string ui {
-            get {
-                return ResourceManager.GetString("ui", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to /*! On Screen Debug */
-        ///(function (ui) {
-        ///    &quot;use strict&quot;;
-        ///
-        ///    var t = $(&quot;#top&quot;);
-        ///    var b = $(&quot;#bottom&quot;);
-        ///
-        ///    var x = [];
-        ///    var maxLine = 15;
-        ///    var last = null;
-        ///    var lastCount = 1;
-        ///    var lastDate = null;
-        ///
-        ///    var _debug = window.debug;
-        ///    var debug = function () {
-        ///        //return;
-        ///        var o = arguments;
-        ///        var s = null;
-        ///
-        ///        var ss;
-        ///        if (o.length == 1)
-        ///            ss = JSON.stringify(o[0]);
-        ///        else {
-        ///            var sss = [];
-        ///            $.each( [rest of string was truncated]&quot;;.
-        /// </summary>
-        internal static string ui_debug {
-            get {
-                return ResourceManager.GetString("ui_debug", resourceCulture);
             }
         }
     }

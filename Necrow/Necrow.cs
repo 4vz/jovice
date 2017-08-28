@@ -133,7 +133,7 @@ namespace Center
     {
         #region Fields
 
-        internal readonly static int Version = 24;
+        internal readonly static int Version = 25;
 
         private static Database j = null;
 

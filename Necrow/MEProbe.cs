@@ -1681,6 +1681,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                             {
                                 string[] linex = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
+
                                 if (linex.Length > 1)
                                 {
                                     MEPeerToDatabase c = new MEPeerToDatabase();
@@ -1698,7 +1699,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                         if (sdpdb.ContainsKey(sdpvcid[0])) c.SDPID = sdpdb[c.SDP]["MS_ID"].ToString();
                                         else c.SDPID = null;
 
-                                        c.Type = linex[2][0] + "";
+                                        c.Type = linex[2][0] + "";                                        
                                         c.Protocol = linex[4] == "Up";
 
                                         if (c.CircuitID != null && c.SDPID != null)
@@ -2055,13 +2056,13 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
                                 if (interfacelive.ContainsKey(portex))
                                 {
-                                    interfacelive[portex].Status = linex[1].Trim() == "Up";
-                                    interfacelive[portex].Enable = interfacelive[portex].Status;
+                                    interfacelive[portex].Enable = linex[1].Trim() == "Up";
+                                    interfacelive[portex].Protocol = linex[2].Trim() == "Yes";
 
                                     string il3 = linex[3].Trim();
                                     if (il3 == "Link") il3 = "Up";
 
-                                    interfacelive[portex].Protocol = il3 == "Up";
+                                    interfacelive[portex].Status = il3 == "Up";
                                              
                                     if (linex.Length >= 7)
                                     {
@@ -2334,19 +2335,19 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                 if (circuitdb.ContainsKey(linex[1])) circuitID = circuitdb[linex[1]]["MC_ID"].ToString();
                                 else circuitID = null;
 
-                                string status, protocol;
+                                string adm, opr;
                                 string ingressID = null;
                                 string egressID = null;
-                                if (nodeVersion.StartsWith("TiMOS-B-8"))
+                                if (nodeVersion.StartsWith("TiMOS-B-8") || nodeVersion.StartsWith("TiMOS-B-7"))
                                 {
-                                    status = linex[5];
-                                    protocol = linex[6];
+                                    adm = linex[5];
+                                    opr = linex[6];
                                     if (qosdb.ContainsKey("0_" + linex[2])) ingressID = qosdb["0_" + linex[2]]["MQ_ID"].ToString();
                                 }
                                 else
                                 {
-                                    status = linex[6];
-                                    protocol = linex[7];
+                                    adm = linex[6];
+                                    opr = linex[7];
                                     if (qosdb.ContainsKey("0_" + linex[2])) ingressID = qosdb["0_" + linex[2]]["MQ_ID"].ToString();
                                     if (qosdb.ContainsKey("1_" + linex[4])) egressID = qosdb["1_" + linex[4]]["MQ_ID"].ToString();
                                 }
@@ -2355,9 +2356,9 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                 {
                                     MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                     mid.Name = thisport;
-                                    mid.Status = status == "Up";
-                                    mid.Protocol = protocol == "Up";
-                                    mid.Enable = mid.Status;
+                                    mid.Status = opr == "Up";
+                                    mid.Protocol = opr == "Up";
+                                    mid.Enable = adm == "Up";
                                     mid.CircuitID = circuitID;
                                     mid.IngressID = ingressID;
                                     mid.EgressID = egressID;
@@ -2423,11 +2424,11 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                     if (interfacelive.ContainsKey("Ag" + lag))
                                     {
                                         current = interfacelive["Ag" + lag];
-                                        bool enup = line.Substring(17, 2) == "up" ? true : false;
-                                        bool prot = line.Substring(33, 2) == "up" ? true : false;
-                                        current.Status = enup;
-                                        current.Enable = enup;
-                                        current.Protocol = prot;
+                                        bool cadm = line.Substring(17, 2) == "up" ? true : false;
+                                        bool copr = line.Substring(33, 2) == "up" ? true : false;
+                                        current.Status = copr;
+                                        current.Enable = cadm;
+                                        current.Protocol = copr;
                                         if (line.Length >= 40)
                                         {
                                             description = new StringBuilder();
@@ -2456,8 +2457,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
                     port = null;
                     description = new StringBuilder();
-                    string status = null;
-                    string protocol = null;
+                    string adm = null;
+                    string opr = null;
                     string circuitID = null;
                     int dot1q = -1;
                     foreach (string line in lines)
@@ -2476,9 +2477,9 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                         MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                         mid.Name = port;
                                         mid.Description = desc;
-                                        mid.Status = status == "Up";
-                                        mid.Protocol = protocol == "Up";
-                                        mid.Enable = mid.Status;
+                                        mid.Status = opr == "Up";
+                                        mid.Protocol = opr == "Up";
+                                        mid.Enable = adm == "Up";
                                         mid.CircuitID = circuitID;
                                         mid.Dot1Q = dot1q;
 
@@ -2514,8 +2515,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 if (circuitdb.ContainsKey(linex[1])) circuitID = circuitdb[linex[1]]["MC_ID"].ToString();
                                 else circuitID = null;
 
-                                status = linex[2];
-                                protocol = linex[3];
+                                adm = linex[2];
+                                opr = linex[3];
 
                                 description.Clear();
                                 if (line.Length > 58)
@@ -2554,8 +2555,9 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                         MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                                         mid.Name = port;
                                         mid.Description = desc;
-                                        mid.Status = status == "Up";
-                                        mid.Protocol = protocol == "Up";
+                                        mid.Status = opr == "Up";
+                                        mid.Protocol = opr == "Up";
+                                        mid.Enable = adm == "Up";
                                         mid.CircuitID = circuitID;
 
                                         interfacelive.Add(port, mid);
@@ -2575,9 +2577,9 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
                             mid.Name = port;
                             mid.Description = desc;
-                            mid.Status = status == "Up";
-                            mid.Protocol = protocol == "Up";
-                            mid.Enable = mid.Status;
+                            mid.Status = opr == "Up";
+                            mid.Protocol = opr == "Up";
+                            mid.Enable = adm == "Up";
                             mid.CircuitID = circuitID;
                             mid.Dot1Q = dot1q;
 

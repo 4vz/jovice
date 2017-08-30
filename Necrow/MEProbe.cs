@@ -1965,6 +1965,12 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 if (!result.OK) return DatabaseFailure(probe);
                 result = Execute("update MEInterface set MI_MI = NULL where MI_MI in (" + duplicatedinterfacestr + ")");
                 if (!result.OK) return DatabaseFailure(probe);
+                result = Execute("update MEInterface set MI_TO_MI = NULL where MI_TO_MI in (" + duplicatedinterfacestr + ")");
+                if (!result.OK) return DatabaseFailure(probe);
+                result = Execute("delete from DerivedAreaConnection where DAC_MI_1 in (" + duplicatedinterfacestr + ") or DAC_MI_2 in (" + duplicatedinterfacestr + ")");
+                if (!result.OK) return DatabaseFailure(probe);
+                result = Execute("delete from MEMac where MA_MI in (" + duplicatedinterfacestr + ")");
+                if (!result.OK) return DatabaseFailure(probe);
                 result = Execute("delete from MEInterface where MI_ID in (" + duplicatedinterfacestr + ")");
                 if (!result.OK) return DatabaseFailure(probe);
                 Event(result, EventActions.Delete, EventElements.Interface, true);

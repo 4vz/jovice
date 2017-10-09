@@ -19,9 +19,8 @@ namespace Center
 
             #region Development
 #if DEBUG
-            Resource.Common(Resource.Register("css_ui", ResourceTypes.CSS, "../Aphysoft.Share.Resources/Resources/Css/ui.css"));
+            Resource.Common(Resource.Register("css_ui", ResourceTypes.CSS, "../Aphysoft.Share.Resources/Resources/Css/share.css"));
             Resource.Common(Resource.Register("script_share", ResourceTypes.JavaScript, "../Aphysoft.Share.Resources/Resources/Scripts/share.js").NoMinify().NoCache());
-            Resource.Common(Resource.Register("script_ui", ResourceTypes.JavaScript, "../Aphysoft.Share.Resources/Resources/Scripts/ui.js").NoMinify().NoCache());
 
             BaseResources.Debug();
 #endif

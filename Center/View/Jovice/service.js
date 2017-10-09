@@ -6,7 +6,7 @@
     var topbox, serviceID, customerName, serviceType;
 
 
-    ui("jovice_service", {
+    $$("jovice_service", {
         init: function (p) {
             page = center.init(p);
             transfer = p.transfer();

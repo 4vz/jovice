@@ -38,7 +38,7 @@
             eus = unescape(eus);            
             search = eus;
 
-            center.setSearchBoxValue(search);
+            $$.setSearchText(search);
 
             $.each(eua, function (ei, ev) {
                 if (ei > 0) {
@@ -71,13 +71,13 @@
                 }
             });
 
-            center.startLoading();
+            $$.startLoading();
             searchJQXHR = $$.get(101, { s: search, p: page, n: npage, o: sortBy, ot: sortType, m: 1 }, function (d) {
-                center.endLoading();
+                $$.endLoading();
                 count = d.n; type = d.t; subType = d.st;
                 var refsearch = d.rs;
                 if (refsearch != null) {
-                    center.setSearchBoxValue(refsearch);
+                    $$.setSearchText(refsearch);
                 }
                 searchid = d.sid;
                 columns = d.c;
@@ -230,10 +230,10 @@
         if (modify) {
             var ar = getSortListIndex();
             if (results[ar][page * npage] == null) {
-                center.startLoading();
+                $$.startLoading();
                 //debug(page, npage, search);
                 searchJQXHR = $$.get(101, { s: search, p: page, n: npage, o: sortBy, ot: sortType, sid: searchid, m: 1 }, function (d) {
-                    center.endLoading();
+                    $$.endLoading();
                     captureResults(d.r);
                     setResults(getCurrentEntries());
                 });
@@ -251,17 +251,15 @@
             });
         }, 100);
     };
-
-
-
+    
     // topology
     function drawTopology(f, ref, topology, index, area) {
         if (topology.length > 0) {
             area.show();
 
             if (ref.topologyCanvas == null) {
-                ref.topologyCanvas = ui.raphael(area)({ left: 0, top: 0, height: 28 });
-                ref.topologyContents = ui.box(area)({ left: 0, top: 0, height: 28 });
+                ref.topologyCanvas = $$.raphael(area)({ left: 0, top: 0, height: 28 });
+                ref.topologyContents = $$.box(area)({ left: 0, top: 0, height: 28 });
             }
 
             function setWidth(w) {
@@ -281,7 +279,7 @@
             var g = ref.topologyCanvas.paper(); g.clear();
             var c = ref.topologyContents; c.removeChildren();
 
-            ui.icon(c, center.icon("topology"))({ top: 7, left: 0, color: 45, size: [16, 16] });
+            $$.icon(c, center.icon("topology"))({ top: 7, left: 0, color: 45, size: [16, 16] });
             
             var clink = null;
             var clinkstate = null;
@@ -292,16 +290,16 @@
             // pi
             var pi = getSection("PI");
             if (pi != null) {
-                var piNO = ui.text(c)({
-                    text: pi[1], top: 3, font: 15, left: left, noBreak: true, clickToSelect: true, cursor: "copy"
+                var piNO = $$.text(c)({
+                    text: pi[1], top: 5, font: 15, left: left, noBreak: true, clickToSelect: true, cursor: "copy"
                 });
                 left = piNO.leftWidth();
-                var piName = ui.text(c)({
-                    text: center.formatInterfaceName(pi[8], pi[2]), top: 5, font: 12, left: left + 10, color: pi[10] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                var piName = $$.text(c)({
+                    text: center.formatInterfaceName(pi[8], pi[2]), top: 7, font: 12, left: left + 10, color: pi[10] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
                 });
                 left = piName.leftWidth();
 
-                clink = g.rect(left + 10, 11, 15, 5).attr({ stroke: "none", fill: ui.color(pi[11] ? 35 : 75) });
+                clink = g.rect(left + 10, 11, 15, 5).attr({ stroke: "none", fill: $$.color(pi[11] ? 35 : 75) });
                 left += 25;
 
                 clinkstate = pi[11];
@@ -357,22 +355,22 @@
             if (xpi != null) {
                 //1: no
                 //2: pi
-                var xpiNO = ui.text(c)({
-                    text: xpi[1], top: 3, left: left, font: 15, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
+                var xpiNO = $$.text(c)({
+                    text: xpi[1], top: 5, left: left, font: 15, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
                 });
                 left = xpiNO.leftWidth();
-                var xpiName = ui.text(c)({
-                    text: xpi[2], top: 5, font: 12, left: left + 10, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
+                var xpiName = $$.text(c)({
+                    text: xpi[2], top: 7, font: 12, left: left + 10, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
                 });
                 left = xpiName.leftWidth();
 
-                clink = g.rect(left + 10, 11, 15, 5).attr({ stroke: "none", fill: ui.color(75) });
+                clink = g.rect(left + 10, 11, 15, 5).attr({ stroke: "none", fill: $$.color(75) });
                 left += 25;
                 clinkstate = true;
 
                 setWidth(left);
 
-                var nebox = ui.box(c)({
+                var nebox = $$.box(c)({
                     color: 96, size: [69, 22], left: (left - 69) / 2, top: 2, cursor: "default", button: {
                         normal: function () {
                             nebox.animate({ opacity: 1 }, { duration: 50 });
@@ -382,20 +380,20 @@
                         }
                     }
                 });
-                var netxt = ui.text(nebox)({
-                    text: "MISSING", left: 5, top: 1, font: 15, noBreak: true
+                var netxt = $$.text(nebox)({
+                    text: "MISSING", left: 5, top: 3, font: 15, noBreak: true
                 });
             }
 
             var mid = getSection("MID");
             if (mid != null) {
-                var midNO = ui.text(c)({
-                    text: mid[1], left: left, top: 3, font: 15, color: 0, noBreak: true, clickToSelect: true, cursor: "copy"
+                var midNO = $$.text(c)({
+                    text: mid[1], left: left, top: 5, font: 15, color: 0, noBreak: true, clickToSelect: true, cursor: "copy"
                 });
                 left = midNO.leftWidth();
 
-                var midName = ui.text(c)({
-                    text: center.formatInterfaceName(mid[5], mid[2]), top: 5, font: 12, left: left + 10, color: mid[7] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                var midName = $$.text(c)({
+                    text: center.formatInterfaceName(mid[5], mid[2]), top: 7, font: 12, left: left + 10, color: mid[7] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
                 });
                 left = midName.leftWidth();
 
@@ -407,41 +405,41 @@
             // mil
             var mil = getSection("MIL");
             if (mil != null) {
-                var endlLocal = ui.text(c)({
-                    text: "LAST MILE", left: left, top: 5, font: 12, noBreak: true
+                var endlLocal = $$.text(c)({
+                    text: "LAST MILE", left: left, top: 7, font: 12, noBreak: true
                 });
                 left = endlLocal.leftWidth();
 
                 if (mil[1] != null) {
-                    g.rect(left + 10, 11, 5, 5).attr({ stroke: "none", fill: ui.color(35) });
-                    g.rect(left + 10 + 8, 11, 5, 5).attr({ stroke: "none", fill: ui.color(35) });
-                    g.rect(left + 10 + 16, 11, 5, 5).attr({ stroke: "none", fill: ui.color(35) });
-                    g.rect(left + 10 + 24, 11, 5, 5).attr({ stroke: "none", fill: ui.color(35) });
+                    g.rect(left + 10, 11, 5, 5).attr({ stroke: "none", fill: $$.color(35) });
+                    g.rect(left + 10 + 8, 11, 5, 5).attr({ stroke: "none", fill: $$.color(35) });
+                    g.rect(left + 10 + 16, 11, 5, 5).attr({ stroke: "none", fill: $$.color(35) });
+                    g.rect(left + 10 + 24, 11, 5, 5).attr({ stroke: "none", fill: $$.color(35) });
 
                     left += 40;
 
-                    var end2NO = ui.text(c)({
-                        text: mil[1], top: 3, font: 15, left: left + 10, noBreak: true, clickToSelect: true, cursor: "copy"
+                    var end2NO = $$.text(c)({
+                        text: mil[1], top: 5, font: 15, left: left + 10, noBreak: true, clickToSelect: true, cursor: "copy"
                     });
                     left = end2NO.leftWidth();
 
                     var end2NameVar = mil[2];
                     if (end2NameVar != "UNSPECIFIED" && end2NameVar != null) {
                         if (end2NameVar.startsWith("Ex")) end2NameVar = end2NameVar.substr(2);
-                        var end2Name = ui.text(c)({
-                            text: end2NameVar, top: 5, font: 12, left: left + 10, color: 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                        var end2Name = $$.text(c)({
+                            text: end2NameVar, top: 7, font: 12, left: left + 10, color: 55, noBreak: true, clickToSelect: true, cursor: "copy"
                         });
                         left = end2Name.leftWidth();
                     }
 
-                    lightningLeft = ui.icon(c, center.icon("lightning"))({
+                    lightningLeft = $$.icon(c, center.icon("lightning"))({
                         size: [20, 20], left: left + 4, top: 5, color: 35,
                         tooltipSpanColor: ["accent+50"]
                     });
                     left += 20;
                 }
 
-                clink = g.rect(left + 10, 11, 15, 5).attr({ stroke: "none", fill: ui.color(35) });
+                clink = g.rect(left + 10, 11, 15, 5).attr({ stroke: "none", fill: $$.color(35) });
                 left += 25;
                 clinkstate = true;
 
@@ -458,18 +456,18 @@
                         lightningLeft.tooltip("{0|" + mil[1] + "} is based on interface description found on {0|" + mi2[1] + "} and may not same as actual device's name");
 
                     if (clinkstate == mi2[8]) clink.attr({ width: 30 });
-                    else g.rect(left, 11, 15, 5).attr({ stroke: "none", fill: ui.color(mi2[8] ? 35 : 75) });
+                    else g.rect(left, 11, 15, 5).attr({ stroke: "none", fill: $$.color(mi2[8] ? 35 : 75) });
                     left += 15;
 
-                    var mi2Name = ui.text(c)({
-                        text: center.formatInterfaceName(mi2[5], mi2[2]), top: 5, font: 12, left: left + 10, color: mi2[7] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                    var mi2Name = $$.text(c)({
+                        text: center.formatInterfaceName(mi2[5], mi2[2]), top: 7, font: 12, left: left + 10, color: mi2[7] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
                     });
                     left = mi2Name.leftWidth();
 
                     //24
                     if (mi2[24] != null && mi2[24] > 1) {
-                        var multi = ui.icon(c, center.icon("split"))({
-                            size: [20, 20], left: left + 6, top: 3, color: 35, rotation: 90, flip: "V",
+                        var multi = $$.icon(c, center.icon("split"))({
+                            size: [20, 20], left: left + 6, top: 5, color: 35, rotation: 90, flip: "V",
                             tooltip: "{0|" + mi2[24] + "} INTERFACES",
                             tooltipSpanColor: ["accent+50"]
                         });
@@ -478,8 +476,8 @@
                     left += 10;
                 }
 
-                var mi2NO = ui.text(c)({
-                    text: mi2[1], top: 3, font: 15, left: left, noBreak: true, clickToSelect: true, cursor: "copy"
+                var mi2NO = $$.text(c)({
+                    text: mi2[1], top: 5, font: 15, left: left, noBreak: true, clickToSelect: true, cursor: "copy"
                 });
                 left = mi2NO.leftWidth();
 
@@ -494,24 +492,24 @@
                     pi2Link = clink;
                 }
                 else
-                    pi2Link = g.rect(left, 11, 15, 5).attr({ stroke: "none", fill: ui.color(pi[11] ? 35 : 75) });
+                    pi2Link = g.rect(left, 11, 15, 5).attr({ stroke: "none", fill: $$.color(pi[11] ? 35 : 75) });
                 left += 15;
 
                 var pivar = pi[19];
                 if (pivar == "EX") {
                     // 20 21 22
-                    var xmi2Name = ui.text(c)({
-                        text: center.formatInterfaceName(pi[20], pi[22]), top: 5, font: 12, left: left + 10, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
+                    var xmi2Name = $$.text(c)({
+                        text: center.formatInterfaceName(pi[20], pi[22]), top: 7, font: 12, left: left + 10, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
                     });
                     var xle = left;
                     left = xmi2Name.leftWidth();
-                    var xmi2NO = ui.text(c)({
-                        text: pi[21], top: 3, font: 15, left: left + 10, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
+                    var xmi2NO = $$.text(c)({
+                        text: pi[21], top: 5, font: 15, left: left + 10, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
                     });
-                    pi2Link.attr({ fill: ui.color(75) });
+                    pi2Link.attr({ fill: $$.color(75) });
                     left = xmi2NO.leftWidth();
 
-                    var nebox = ui.box(c)({
+                    var nebox = $$.box(c)({
                         color: 96, size: [69, 22], left: (left - xle - 69) / 2 + xle, top: 2, cursor: "default", button: {
                             normal: function () {
                                 nebox.animate({ opacity: 1 }, { duration: 50 });
@@ -521,8 +519,8 @@
                             }
                         }
                     });
-                    var netxt = ui.text(nebox)({
-                        text: "MISSING", left: 5, top: 1, font: 15, noBreak: true
+                    var netxt = $$.text(nebox)({
+                        text: "MISSING", left: 5, top: 3, font: 15, noBreak: true
                     });
                 }
                 else {
@@ -533,20 +531,20 @@
                         if (pi[20] != "UNSPECIFIED") {
                             var text = pi[20];
                             if (text.startsWith("Ex")) text = text.substr(2);
-                            var piEndName = ui.text(c)({
-                                text: text, top: 5, font: 12, left: left + 10, color: pi[4] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                            var piEndName = $$.text(c)({
+                                text: text, top: 7, font: 12, left: left + 10, color: pi[4] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
                             });
                             left = piEndName.leftWidth();
                         }
-                        var piEndNO = ui.text(c)({
-                            text: pi[21], top: 3, font: 15, left: left + 10, noBreak: true, clickToSelect: true, cursor: "copy"
+                        var piEndNO = $$.text(c)({
+                            text: pi[21], top: 5, font: 15, left: left + 10, noBreak: true, clickToSelect: true, cursor: "copy"
                         });
                         left = piEndNO.leftWidth();
 
                     }
                     else {
-                        var piEnd = ui.text(c)({
-                            text: "LAST MILE", top: 5, font: 12, left: left + 10, noBreak: true
+                        var piEnd = $$.text(c)({
+                            text: "LAST MILE", top: 7, font: 12, left: left + 10, noBreak: true
                         });
                         left = piEnd.leftWidth();
                     }
@@ -558,20 +556,20 @@
                 // xmi2
                 var xmi2 = getSection("XMI2");
                 if (xmi2 != null) {
-                    var xpiName = ui.text(c)({
-                        text: "PE", top: 5, font: 12, left: left + 10, color: 75, noBreak: true
+                    var xpiName = $$.text(c)({
+                        text: "PE", top: 7, font: 12, left: left + 10, color: 75, noBreak: true
                     });
                     left = xpiName.leftWidth();
 
-                    var xpiLink = g.rect(left + 10, 11, 30, 5).attr({ stroke: "none", fill: ui.color(75) });
+                    var xpiLink = g.rect(left + 10, 11, 30, 5).attr({ stroke: "none", fill: $$.color(75) });
                     left += 40;
 
-                    var xmi2Name = ui.text(c)({
-                        text: "METRO END 2", top: 5, font: 12, left: left + 10, color: 75, noBreak: true
+                    var xmi2Name = $$.text(c)({
+                        text: "METRO END 2", top: 7, font: 12, left: left + 10, color: 75, noBreak: true
                     });
                     left = xmi2Name.leftWidth();
 
-                    var nebox = ui.box(c)({
+                    var nebox = $$.box(c)({
                         color: 96, size: [69, 22], left: (left - 69) / 2 + 20, top: 2, cursor: "default", button: {
                             normal: function () {
                                 nebox.animate({ opacity: 1 }, { duration: 50 });
@@ -581,8 +579,8 @@
                             }
                         }
                     });
-                    var netxt = ui.text(nebox)({
-                        text: "MISSING", left: 5, top: 1, font: 15, noBreak: true
+                    var netxt = $$.text(nebox)({
+                        text: "MISSING", left: 5, top: 3, font: 15, noBreak: true
                     });
                     setWidth(left);
                 }
@@ -590,7 +588,7 @@
 
             var mx = getSection("MX");
             if (mx != null) {
-                var multi = ui.icon(c, center.icon("split"))({
+                var multi = $$.icon(c, center.icon("split"))({
                     size: [20, 20], left: left + 4, top: 3, color: 35, rotation: 90,
                     tooltip: "{0|" + mx[1] + "} REMOTE PEERS",
                     tooltipSpanColor: ["accent+50"]
@@ -599,16 +597,16 @@
 
                 var vcid = f.column("VCID")[index];
 
-                var linkbox = ui.box(c)({
+                var linkbox = $$.box(c)({
                     left: left + 10, top: 2, height: 22, color: 50, cursor: "pointer", button: {
                         normal: function () { linkbox.color(50); },
-                        click: function () { center.searchExecute("services that bound to VCID " + vcid); },
+                        click: function () { $$.search("services that bound to VCID " + vcid); },
                         over: function () { linkbox.color(60); }
                     }
                 });
 
-                var cloudsid = ui.text(linkbox)({
-                    left: 10, top: 2, font: 12, text: "CLOUD METRO VCID " + vcid, color: 100, noBreak: true
+                var cloudsid = $$.text(linkbox)({
+                    left: 10, top: 4, font: 12, text: "CLOUD METRO VCID " + vcid, color: 100, noBreak: true
                 });
 
                 linkbox.width(cloudsid.width() + 20);
@@ -630,17 +628,17 @@
                 }
 
 
-                var mpLink1 = g.rect(left + 10, 11, 15, 5).attr({ stroke: "none", fill: ui.color(mc[6] ? 35 : 75) });
+                var mpLink1 = g.rect(left + 10, 11, 15, 5).attr({ stroke: "none", fill: $$.color(mc[6] ? 35 : 75) });
                 left += 25;
 
                 if (mc[9] == mc[6]) {
                     mpLink1.attr({ width: 30 });
                 }
-                else g.rect(left, 11, 15, 5).attr({ stroke: "none", fill: ui.color(mc[9] ? 35 : 75) });
+                else g.rect(left, 11, 15, 5).attr({ stroke: "none", fill: $$.color(mc[9] ? 35 : 75) });
                 left += 15;
 
                 if (mc[18] != null && mc[18] > 1) {
-                    var multi = ui.icon(c, center.icon("split"))({
+                    var multi = $$.icon(c, center.icon("split"))({
                         size: [20, 20], left: left + 4, top: 3, color: 35, rotation: 90, flip: "V",
                         tooltip: "{0|" + mc[18] + "} REMOTE PEERS",
                         tooltipSpanColor: ["accent+50"]
@@ -648,8 +646,8 @@
                     left += 20;
                 }
 
-                var mi1NO = ui.text(c)({
-                    text: mc[1], top: 3, font: 15, left: left + 10, noBreak: true, clickToSelect: true, cursor: "copy"
+                var mi1NO = $$.text(c)({
+                    text: mc[1], top: 5, font: 15, left: left + 10, noBreak: true, clickToSelect: true, cursor: "copy"
                 });
                 left = mi1NO.leftWidth();
 
@@ -658,25 +656,25 @@
 
             var xmc = getSection("XMC");
             if (xmc != null) {
-                g.rect(left + 10, 11, 30, 5).attr({ stroke: "none", fill: ui.color(75) });
+                g.rect(left + 10, 11, 30, 5).attr({ stroke: "none", fill: $$.color(75) });
                 var xleft = left;
                 left += 40;
 
-                var xmi1NO = ui.text(c)({
-                    text: xmc[1], top: 3, font: 15, left: left + 10, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
+                var xmi1NO = $$.text(c)({
+                    text: xmc[1], top: 5, font: 15, left: left + 10, color: 75, noBreak: true, clickToSelect: true, cursor: "copy"
                 });
                 left = xmi1NO.leftWidth();
 
-                g.rect(left + 10, 11, 30, 5).attr({ stroke: "none", fill: ui.color(75) });
+                g.rect(left + 10, 11, 30, 5).attr({ stroke: "none", fill: $$.color(75) });
                 left += 40;
 
-                var end1Local = ui.text(c)({
-                    text: "LAST MILE", top: 5, font: 12, left: left + 10, color: 75, noBreak: true
+                var end1Local = $$.text(c)({
+                    text: "LAST MILE", top: 7, font: 12, left: left + 10, color: 75, noBreak: true
                 });
 
                 left = end1Local.leftWidth();
 
-                var nebox = ui.box(c)({
+                var nebox = $$.box(c)({
                     color: 96, size: [69, 22], left: (left + xleft - 69) / 2, top: 2, cursor: "default", button: {
                         normal: function () {
                             nebox.animate({ opacity: 1 }, { duration: 50 });
@@ -686,8 +684,8 @@
                         }
                     }
                 });
-                var netxt = ui.text(nebox)({
-                    text: "MISSING", left: 5, top: 1, font: 15, noBreak: true
+                var netxt = $$.text(nebox)({
+                    text: "MISSING", left: 5, top: 3, font: 15, noBreak: true
                 });
 
                 setWidth(left);
@@ -708,12 +706,12 @@
                 if (mc != null) ntype = mc[2];
                 else ntype = mi2[2];
 
-                var mi1Name = ui.text(c)({
-                    text: center.formatInterfaceName(mi1[1], ntype), top: 5, font: 12, left: left + 10, color: mi1[3] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                var mi1Name = $$.text(c)({
+                    text: center.formatInterfaceName(mi1[1], ntype), top: 7, font: 12, left: left + 10, color: mi1[3] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
                 });
                 left = mi1Name.leftWidth();
 
-                var mi1Link = g.rect(left + 10, 11, 30, 5).attr({ stroke: "none", fill: ui.color(mi1[4] ? 35 : 75) });
+                var mi1Link = g.rect(left + 10, 11, 30, 5).attr({ stroke: "none", fill: $$.color(mi1[4] ? 35 : 75) });
                 left += 40;
 
                 var end1var = mi1[13];
@@ -725,15 +723,15 @@
                     var end1var2 = mi1[17];
                     if (end1var2 != "UNSPECIFIED" && end1var2 != null) {
                         end1var2 = center.formatInterfaceName(end1var2, "NEIGHBOR");
-                        var end1Name = ui.text(c)({
-                            text: end1var2, top: 5, font: 12, left: left + 10, color: mi1[4] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
+                        var end1Name = $$.text(c)({
+                            text: end1var2, top: 7, font: 12, left: left + 10, color: mi1[4] ? 0 : 55, noBreak: true, clickToSelect: true, cursor: "copy"
                         });
                         left = end1Name.leftWidth();
                     }
                 }
 
-                var end1 = ui.text(c)({
-                    text: end1NO, top: end1var == null ? 5 : 3, font: end1var == null ? 12 : 15, left: left + 10, noBreak: true, clickToSelect: end1var == null ? false : true, cursor: end1var == null ? "" : "copy"
+                var end1 = $$.text(c)({
+                    text: end1NO, top: end1var == null ? 7 : 5, font: end1var == null ? 12 : 15, left: left + 10, noBreak: true, clickToSelect: end1var == null ? false : true, cursor: end1var == null ? "" : "copy"
                 });
                 left = end1.leftWidth();
                 
@@ -742,7 +740,7 @@
                     if (mc != null) nused = mc[1];
                     else if (mi2 != null) nused = mi2[1];
 
-                    ui.icon(c, center.icon("lightning"))({
+                    $$.icon(c, center.icon("lightning"))({
                         size: [20, 20], left: left + 4, top: 5, color: 35,
                         tooltip: "{0|" + end1NO + "} is based on interface description found on {0|" + nused + "} and may not same as actual device's name",
                         tooltipSpanColor: ["accent+50"]
@@ -756,15 +754,15 @@
             }
 
             if (rightLastMile) {
-                g.rect(left + 10, 11, 5, 5).attr({ stroke: "none", fill: ui.color(35) });
-                g.rect(left + 10 + 8, 11, 5, 5).attr({ stroke: "none", fill: ui.color(35) });
-                g.rect(left + 10 + 16, 11, 5, 5).attr({ stroke: "none", fill: ui.color(35) });
-                g.rect(left + 10 + 24, 11, 5, 5).attr({ stroke: "none", fill: ui.color(35) });
+                g.rect(left + 10, 11, 5, 5).attr({ stroke: "none", fill: $$.color(35) });
+                g.rect(left + 10 + 8, 11, 5, 5).attr({ stroke: "none", fill: $$.color(35) });
+                g.rect(left + 10 + 16, 11, 5, 5).attr({ stroke: "none", fill: $$.color(35) });
+                g.rect(left + 10 + 24, 11, 5, 5).attr({ stroke: "none", fill: $$.color(35) });
 
                 left += 40;
 
-                var end1Local = ui.text(c)({
-                    text: "LAST MILE", top: 5, font: 12, left: left + 10, noBreak: true
+                var end1Local = $$.text(c)({
+                    text: "LAST MILE", top: 7, font: 12, left: left + 10, noBreak: true
                 });
 
                 left = end1Local.leftWidth();
@@ -773,21 +771,21 @@
 
             if (rightcloud != null) {
 
-                var linkbox = ui.box(c)({
+                var linkbox = $$.box(c)({
                     left: left + 10, top: 2, height: 22, color: 50, cursor: "pointer", button: {
                         normal: function () { linkbox.color(50); },
-                        click: function (e) { center.searchExecute("service that sid is " + rightcloudsid); },
+                        click: function (e) { $$.search("service that sid is " + rightcloudsid); },
                         over: function () { linkbox.color(60); }
                     }
                 });
 
-                var cloudsid = ui.text(linkbox)({
-                    left: 10, top: 2, font: 12, text: "SID " + rightcloudsid, color: 100, noBreak: true
+                var cloudsid = $$.text(linkbox)({
+                    left: 10, top: 4, font: 12, text: "SID " + rightcloudsid, color: 100, noBreak: true
                 });
 
                 linkbox.width(cloudsid.width() + 20);
 
-                rightcloud.attr({ width: left - rightcloud.attr("x") + 10, fill: ui.color(80), opacity: .5 });
+                rightcloud.attr({ width: left - rightcloud.attr("x") + 10, fill: $$.color(80), opacity: .5 });
                 left = linkbox.leftWidth();
             }
 
@@ -798,14 +796,15 @@
         else area.hide();
     };
 
-    ui("search", {
+    $$.page("search", {
         init: function (p) {
+
             uipage = center.init(p);
 
-            var titlearea = ui.box(p)({ size: ["100%", 40], top: 0 });
+            var titlearea = $$.box(p)({ size: ["100%", 40], top: 40 });
 
             var titleBoxFocus = 0;
-            var titleBox1 = ui.box(titlearea)({
+            var titleBox1 = $$.box(titlearea)({
                 topBottom: [0, 0], left: 0, width: 200, hide: true, cursor: "default", button: {
                     normal: function () {
                         titleBox1({ color: null });
@@ -836,9 +835,9 @@
                     }
                 }
             });
-            var title1 = ui.text(titleBox1)({ font: ["head", 12], color: "accent", left: 20, bottom: 13, noBreak: true });
-            var focusBorder = ui.box(titlearea)({ height: 2.5, width: 176, color: "accent", bottom: 0, left: 20, hide: true });
-            var titleBox2 = ui.box(titlearea)({
+            var title1 = $$.text(titleBox1)({ font: ["body", 12], weight: "600", color: "accent", left: 20, bottom: 13, noBreak: true });
+            var focusBorder = $$.box(titlearea)({ height: 2.5, width: 176, color: "accent", bottom: 0, left: 20, hide: true });
+            var titleBox2 = $$.box(titlearea)({
                 topBottom: [0, 0], left: 0, width: 200, hide: true, cursor: "default", button: {
                     normal: function () {
                         titleBox2({ color: null });
@@ -871,22 +870,22 @@
                     }
                 }
             });
-            var title2 = ui.text(titleBox2)({ font: ["head", 12], color: 35, left: 20, bottom: 13, noBreak: true });
+            var title2 = $$.text(titleBox2)({ font: ["body", 12], weight: "600", color: 35, left: 20, bottom: 13, noBreak: true });
                 
-            var filter = ui.box(p)({ width: "100%", top: 40, height: 40, color: 85, hide: true});                
-            var searchresult = ui.box(p)({ width: "100%", topBottom: [40, 0], scroll: { horizontal: false }, hide: true });
-            var related = ui.box(p)({ width: "100%", topBottom: [40, 0], scroll: { horizontal: false }, hide: true, color: 90 });
-            var nomatch = ui.box(p)({ width: "100%", topBottom: [40, 0], hide: true, color: 90 });
+            var filter = $$.box(p)({ width: "100%", top: 80, height: 40, color: 85, hide: true});                
+            var searchresult = $$.box(p)({ width: "100%", topBottom: [120, 0], scroll: { horizontal: false }, hide: true });
+            var related = $$.box(p)({ width: "100%", topBottom: [120, 0], scroll: { horizontal: false }, hide: true, color: 90 });
+            var nomatch = $$.box(p)({ width: "100%", topBottom: [120, 0], hide: true, color: 90 });
 
-            var filterHead = ui.text(filter)({ text: "SORT BY", font: ["body", 11], color: 45, left: 20, top: 13 });
-            var pagingarea = ui.box(titlearea)({ height: "100%", right: 40, width: 270, hide: true });
+            var filterHead = $$.text(filter)({ text: "SORT BY", font: ["body", 11], color: 45, left: 20, top: 13 });
+            var pagingarea = $$.box(titlearea)({ height: "100%", right: 40, width: 270, hide: true });
 
-            var nomatchtext = ui.text(nomatch)({ top: 20, leftRight: [20, 20], font: ["body", 14], text: "NO MATCH TEXT HERE" });
+            var nomatchtext = $$.text(nomatch)({ top: 20, leftRight: [20, 20], font: ["body", 14], text: "NO MATCH TEXT HERE" });
 
             var pagebox = [];
             var pagetext = [];
             $$.for(0, 9, function (index) {
-                pagebox[index] = ui.box(pagingarea)({
+                pagebox[index] = $$.box(pagingarea)({
                     height: 40, hide: true, button: {
                         normal: function () {
                             if (pagetext[index].text() != ((page + 1) + ""))
@@ -901,14 +900,14 @@
                             searchModify("page:" + ioc);                                
                         }
                     }});
-                pagetext[index] = ui.text(pagebox[index])({ text: "", left: 5, bottom: 13, font: ["head", 12], color: "accent" });
+                pagetext[index] = $$.text(pagebox[index])({ text: "", left: 5, bottom: 13, font: ["body", 12], weight: "600", color: "accent" });
             });
-            var trimLastBox = ui.box(pagingarea)({ height: 40, width: 20, hide: true });
-            var trimLastText = ui.text(trimLastBox)({ text: "...", left: 4, bottom: 13, font: ["head", 12], color: 35 });
-            var trimNextBox = ui.box(pagingarea)({ height: 40, width: 20, hide: true });
-            var trimNextText = ui.text(trimNextBox)({ text: "...", left: 4, bottom: 13, font: ["head", 12], color: 35 });
+            var trimLastBox = $$.box(pagingarea)({ height: 40, width: 20, hide: true });
+            var trimLastText = $$.text(trimLastBox)({ text: "...", left: 4, bottom: 13, font: ["body", 12], weight: "600", color: 35 });
+            var trimNextBox = $$.box(pagingarea)({ height: 40, width: 20, hide: true });
+            var trimNextText = $$.text(trimNextBox)({ text: "...", left: 4, bottom: 13, font: ["body", 12], weight: "600", color: 35 });
 
-            var nextbutton = ui.box(titlearea)({
+            var nextbutton = $$.box(titlearea)({
                 size: [40, 40], right: 0, cursor: "pointer", hide: true,
                 button: {
                     normal: function () {
@@ -924,10 +923,10 @@
                     }
                 }
             });
-            var nexticon = ui.icon(nextbutton, "arrow")({
+            var nexticon = $$.icon(nextbutton, "arrow")({
                 size: [17, 17], bottom: 12, left: 5
             });
-            var backbutton = ui.box(titlearea)({
+            var backbutton = $$.box(titlearea)({
                 size: [40, 40], right: 340, cursor: "pointer", hide: true,
                 button: {
                     normal: function () {
@@ -943,7 +942,7 @@
                     }
                 }
             });
-            var backicon = ui.icon(backbutton, "arrow")({
+            var backicon = $$.icon(backbutton, "arrow")({
                 size: [17, 17], bottom: 12, right: 5, rotation: 180
             });
                 
@@ -1092,7 +1091,7 @@
                     }
                 }
                 else {
-                    ui.script("search_" + type, function (proc) {
+                    $$.loadScript("search_" + type, function (proc) {
                         searchresult.show();
                         related.hide();
 
@@ -1134,8 +1133,8 @@
                         }
 
                         if (boxswapper == null) {
-                            boxswapper = ui.box(searchresult)({ z: 2 });
-                            boxswapper2 = ui.box(searchresult)({ z: 2, hide: true });
+                            boxswapper = $$.box(searchresult)({ z: 2 });
+                            boxswapper2 = $$.box(searchresult)({ z: 2, hide: true });
                         }
                         boxswapper.removeChildren();
                         boxswapper2.removeChildren();
@@ -1374,7 +1373,7 @@
 
                             var b = resultBoxes[ei];
                             if (b == null) {
-                                b = ui.box(searchresult)({
+                                b = $$.box(searchresult)({
                                     size: ["100%", 1], top: ei * 1, z: 1
                                 });
                                 resultBoxes[ei] = b;
@@ -1655,7 +1654,7 @@
 
                         if (b == null) {
                             create = true;
-                            b = ui.box(filter)({
+                            b = $$.box(filter)({
                                 size: [0, "100%"], cursor: "pointer"
                             });
                             filterBoxes[ei] = b;
@@ -1667,13 +1666,13 @@
                         if (r == null) {
                             r = {};
                             filterEntriesReferences[ei] = r;
-                            r.text = ui.text(b)({
+                            r.text = $$.text(b)({
                                 font: ["body", 11], left: 10, top: 13, noBreak: true, color: 20
                             });
-                            r.icon1 = ui.icon(b, "arrow2")({
+                            r.icon1 = $$.icon(b, "arrow2")({
                                 size: [10, 10], top: 14, right: 10, hide: true
                             });
-                            r.icon2 = ui.icon(b, "arrow2")({
+                            r.icon2 = $$.icon(b, "arrow2")({
                                 size: [10, 10], top: 13, right: 10, hide: true, rotation: 180
                             });
                         }
@@ -1746,14 +1745,14 @@
             setRelated = function (queries, explainations, otherQueries, otherExplainations, didYouMean, didntUnderstand) {
                     
                 if (relatedTitleBox == null) {
-                    relatedTitleBox = ui.box(related)({ size: ["100%", 40], color: 85 });
-                    relatedTitleText = ui.text(relatedTitleBox)({ font: ["body", 11], color: 45, left: 20, top: 13, text: "BASED ON YOUR SEARCH" });
+                    relatedTitleBox = $$.box(related)({ size: ["100%", 40], color: 85 });
+                    relatedTitleText = $$.text(relatedTitleBox)({ font: ["body", 11], color: 45, left: 20, top: 13, text: "BASED ON YOUR SEARCH" });
 
-                    otherTitleBox = ui.box(related)({ size: ["100%", 40], color: 85 });
-                    otherTitleText = ui.text(otherTitleBox)({ font: ["body", 11], color: 45, left: 20, top: 13, text: "YOU MIGHT WANT TO TRY THIS" });
+                    otherTitleBox = $$.box(related)({ size: ["100%", 40], color: 85 });
+                    otherTitleText = $$.text(otherTitleBox)({ font: ["body", 11], color: 45, left: 20, top: 13, text: "YOU MIGHT WANT TO TRY THIS" });
 
                     $$.for(0, 10, function (i) {
-                        var b = ui.box(related)({
+                        var b = $$.box(related)({
                             size: ["100%", 60], hide: true, color: i % 2 == 0 ? 91 : 93, cursor: "pointer", z: 100,
                             button: {
                                 normal: function () {
@@ -1762,13 +1761,13 @@
                                 },
                                 over: function () { b.color(97); },
                                 click: function () {
-                                    center.searchExecute(relatedQuery[i].text());
+                                    $$.search(relatedQuery[i].text());
                                 }
                             }
                         });
                         relatedBoxes[i] = b;
-                        relatedQuery[i] = ui.text(b)({ font: ["body", 15], left: 20, top: 10 });
-                        relatedExplaination[i] = ui.text(b)({ font: ["body", 13], left: 20, top: 30, color: 50 });
+                        relatedQuery[i] = $$.text(b)({ font: ["body", 15], left: 20, top: 10 });
+                        relatedExplaination[i] = $$.text(b)({ font: ["body", 13], left: 20, top: 30, color: 50 });
                     });
                 }
 

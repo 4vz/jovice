@@ -95,10 +95,6 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Aphysoft.Protected\Aphysoft.Protected.csproj">
-      <Project>{dbeb5569-93e8-457a-84f1-535d5b128af2}</Project>
-      <Name>Aphysoft.Protected</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Aphysoft.Share.Resources\Aphysoft.Share.Resources.csproj">
       <Project>{aef02dd0-e683-47c1-ba25-fbaeff863a17}</Project>
       <Name>Aphysoft.Share.Resources</Name>
@@ -126,9 +122,10 @@
     <Content Include="Web.config">
       <SubType>Designer</SubType>
     </Content>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Properties\PublishProfiles\Profile.pubxml" />
+    <None Include="Web.Release.config">
+      <DependentUpon>Web.config</DependentUpon>
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources.resx">
@@ -160,6 +157,9 @@
       </FlavorProperties>
     </VisualStudio>
   </ProjectExtensions>
+  <PropertyGroup>
+    <PostBuildEvent>del Center.dll.config</PostBuildEvent>
+  </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

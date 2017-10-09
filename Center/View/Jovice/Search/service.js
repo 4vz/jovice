@@ -3,7 +3,7 @@
 
 
 
-    ui("search_jovice_service", function (b, r, f, p, t) {
+    $$.script("search_jovice_service", function (b, r, f, p, t) {
                 
         //--- match properties
         /*
@@ -90,11 +90,11 @@
         var streamSeID = f.column("StreamServiceID");
         
         if (f.create) {                        
-            r.serviceID = ui.text(b)({ font: ["body", 15], color: "accent", top: 13, left: 20, weight: "600", noBreak: true, clickToSelect: true, cursor: "copy" });
-            r.serviceType = ui.text(b)({ font: ["body", 15], color: 25, clickToSelect: true, cursor: "copy", attach: [r.serviceID, "right", 20] });
-            r.customerName = ui.text(b)({ font: ["body", 15], color: 25, weight: "600", noBreak: true, truncate: true, attach: [r.serviceType, "right2", 20, 20] });
+            r.serviceID = $$.text(b)({ font: ["body", 15], color: "accent", top: 13, left: 20, weight: "600", noBreak: true, clickToSelect: true, cursor: "copy" });
+            r.serviceType = $$.text(b)({ font: ["body", 15], color: 25, clickToSelect: true, cursor: "copy", attach: [r.serviceID, "right", 20] });
+            r.customerName = $$.text(b)({ font: ["body", 15], color: 25, weight: "600", noBreak: true, truncate: true, attach: [r.serviceType, "right2", 20, 20] });
 
-            r.serviceInformation = ui.box(b)({ top: 40, height: 60, leftRight: 20 });
+            r.serviceInformation = $$.box(b)({ top: 40, height: 60, leftRight: 20 });
 
             r.topologyReferences = [];
         }
@@ -140,41 +140,41 @@
                 r.topologyReferences[topologyIndex] = {};
                 ref = r.topologyReferences[topologyIndex];
 
-                ref.purpose = ui.text(b)({
+                ref.purpose = $$.text(b)({
                     cursor: "pointer", font: ["body", 15], hide: true, button: {
                         normal: function () { this.color(25); },
                         over: function () { this.color(50); },
                     }
                 });
 
-                ref.area = ui.box(r.serviceInformation)({ size: ["100%", 60], top: topologyIndex * 60 });
+                ref.area = $$.box(r.serviceInformation)({ size: ["100%", 60], top: topologyIndex * 60 });
 
-                ref.speedArea = ui.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: false });
-                ui.icon(ref.speedArea, center.icon("speed"))({ top: 2, left: 0, color: 45, size: [16, 16] });
-                ref.speedText = ui.text(ref.speedArea)({ font: ["body", 13], color: 0, top: 0, left: 22, noBreak: true });
+                ref.speedArea = $$.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: false });
+                $$.icon(ref.speedArea, center.icon("speed"))({ top: 2, left: 0, color: 45, size: [16, 16] });
+                ref.speedText = $$.text(ref.speedArea)({ font: ["body", 13], color: 0, top: 2, left: 22, noBreak: true });
 
-                ref.vrfArea = ui.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
-                ui.icon(ref.vrfArea, center.icon("cloud"))({ top: 2, left: 0, color: 45, size: [16, 16] });
-                ref.vrfText = ui.text(ref.vrfArea)({ font: ["body", 13], color: 0, top: 0, left: 22, noBreak: true, clickToSelect: true, cursor: "copy" });
+                ref.vrfArea = $$.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
+                $$.icon(ref.vrfArea, center.icon("cloud"))({ top: 2, left: 0, color: 45, size: [16, 16] });
+                ref.vrfText = $$.text(ref.vrfArea)({ font: ["body", 13], color: 0, top: 2, left: 22, noBreak: true, clickToSelect: true, cursor: "copy" });
 
-                ref.ipArea = ui.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
-                ui.icon(ref.ipArea, center.icon("IP"))({ top: 2, left: 0, color: 45, size: [16, 16] });
-                ref.ipText = ui.text(ref.ipArea)({ font: ["body", 13], color: 0, top: 0, left: 22, noBreak: true, clickToSelect: true, cursor: "copy" });
+                ref.ipArea = $$.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
+                $$.icon(ref.ipArea, center.icon("IP"))({ top: 2, left: 0, color: 45, size: [16, 16] });
+                ref.ipText = $$.text(ref.ipArea)({ font: ["body", 13], color: 0, top: 2, left: 22, noBreak: true, clickToSelect: true, cursor: "copy" });
 
-                ref.vcidArea = ui.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
-                ui.text(ref.vcidArea)({ top: 2, left: 4, font: ["body", 6], text: "VC", color: 10 });
-                ui.text(ref.vcidArea)({ top: 8, left: 5, font: ["body", 6], text: "ID", color: 10 });
-                ref.vcidText = ui.text(ref.vcidArea)({ font: ["body", 13], color: 0, top: 0, left: 22, noBreak: true, clickToSelect: true, cursor: "copy" });
+                ref.vcidArea = $$.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
+                $$.text(ref.vcidArea)({ top: 3, left: 4, font: ["body", 6], text: "VC", color: 10 });
+                $$.text(ref.vcidArea)({ top: 9, left: 5, font: ["body", 6], text: "ID", color: 10 });
+                ref.vcidText = $$.text(ref.vcidArea)({ font: ["body", 13], color: 0, top: 2, left: 22, noBreak: true, clickToSelect: true, cursor: "copy" });
 
-                ref.routeArea = ui.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
-                ui.icon(ref.routeArea, center.icon("map"))({ top: 2, left: 0, color: 45, size: [16, 16] });
-                ref.routeText = ui.text(ref.routeArea)({ font: ["body", 13], color: 0, top: 0, left: 22, noBreak: true });
+                ref.routeArea = $$.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
+                $$.icon(ref.routeArea, center.icon("map"))({ top: 2, left: 0, color: 45, size: [16, 16] });
+                ref.routeText = $$.text(ref.routeArea)({ font: ["body", 13], color: 0, top: 2, left: 22, noBreak: true });
 
-                ref.updateArea = ui.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
-                ui.icon(ref.updateArea, center.icon("time"))({ top: 2, left: 0, color: 45, size: [16, 16] });
-                ref.updateText = ui.text(ref.updateArea)({ font: ["body", 13], color: 0, top: 0, left: 22, noBreak: true });
+                ref.updateArea = $$.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
+                $$.icon(ref.updateArea, center.icon("time"))({ top: 2, left: 0, color: 45, size: [16, 16] });
+                ref.updateText = $$.text(ref.updateArea)({ font: ["body", 13], color: 0, top: 2, left: 22, noBreak: true });
 
-                ref.topologyArea = ui.box(ref.area)({ leftRight: [0, 0], top: 22, height: 28, hide: true, scroll: { vertical: false, horizontal: true, type: "button" } });
+                ref.topologyArea = $$.box(ref.area)({ leftRight: [0, 0], top: 22, height: 28, hide: true, scroll: { vertical: false, horizontal: true, type: "button" } });
             }
 
             ref.area.show();

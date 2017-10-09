@@ -6,6 +6,8 @@ using System.IO;
 
 using Center;
 
+using Aphysoft.Share;
+
 namespace NecrowConsole
 {
     class Program
@@ -13,19 +15,15 @@ namespace NecrowConsole
         static void Main(string[] args)
         {
             Console.WriteLine("NecrowConsole");
-
+            
+            Necrow necrow = new Necrow();
 #if DEBUG
             Console.WriteLine("DEBUG MODE");
-            if (Necrow.Debug())
-            {
-                Necrow.Test("ME-D6-TRD");
+            necrow.Test("ME-D2-SPU");
+            necrow.Start(true);
+#else
+            necrow.Start();
 #endif
-                Necrow.Start();
-#if DEBUG
-            }
-#endif
-
-            Necrow.Console();
         }
     }
 }

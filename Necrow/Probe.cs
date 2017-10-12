@@ -547,7 +547,8 @@ namespace Center
             Version,
             SubVersion,
             VersionTime,
-            LastConfiguration
+            LastConfiguration,
+            StartUpTime,
         }
 
         private enum EventActions { Add, Remove, Delete, Update }
@@ -562,6 +563,8 @@ namespace Center
         #endregion
 
         #region Fields
+
+        private Necrow instance = null;
 
         private ProbeProperties properties;
         internal ProbeProperties Properties { get { return properties; } }
@@ -596,6 +599,8 @@ namespace Center
         private string nodeType;
         private int nodeNVER;
         private TimeSpan nodeTimeOffset;
+        private DateTime nodeStartUp = DateTime.MaxValue;
+
         private int probeProgressID = -1;
 
         private DateTime nodeProbeStartTime = DateTime.MinValue;
@@ -779,10 +784,13 @@ namespace Center
 
         #region Static
 
-        public static Probe Create(ProbeProperties access, string identifier)
+        public static Probe Create(Necrow instance, ProbeProperties access, string identifier)
         {
-            Probe probe = new Probe(access);
-            probe.defaultOutputIdentifier = identifier;
+            Probe probe = new Probe(access)
+            {
+                defaultOutputIdentifier = identifier,
+                instance = instance
+            };
 
             return probe;
         }
@@ -791,14 +799,10 @@ namespace Center
 
         private void Event(string message)
         {
-            string oi;
-
             if (outputIdentifier == null)
-                oi = defaultOutputIdentifier;
+                instance.Event(message, defaultOutputIdentifier);
             else
-                oi = defaultOutputIdentifier + "|" + outputIdentifier;
-
-            Necrow.Event(message, oi);
+                instance.Event(message, defaultOutputIdentifier, outputIdentifier);
         }
 
         private void Event(Result result, EventActions action, EventElements element, bool reportzero)
@@ -1051,7 +1055,7 @@ namespace Center
 
                     if (properties.Case == "MAIN")
                     {
-                        prioritize = Necrow.NextPrioritize();
+                        prioritize = instance.NextPrioritize();
 
                         if (prioritize != null)
                         {
@@ -1093,7 +1097,7 @@ namespace Center
 
                     if (prioritize == null)
                     {
-                        Tuple<int, string> noded = Necrow.NextNode(properties.Case);
+                        Tuple<int, string> noded = instance.NextNode(properties.Case);
 
                         xpID = noded.Item1;
                         Result rnode = Query("select * from Node where NO_ID = {0}", noded.Item2);
@@ -1136,7 +1140,7 @@ namespace Center
                         {
                             string errorMessage = null;
                             if (probe.FailureType == FailureTypes.Connection) errorMessage = "Connection error";
-                            else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error: " + Necrow.JoviceLastException.Message.Trim(new char[] { '\r', '\n', ' ' }) + ", SQL: " + Necrow.JoviceLastException.Sql;
+                            else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error: " + instance.JoviceLastException.Message.Trim(new char[] { '\r', '\n', ' ' }) + ", SQL: " + instance.JoviceLastException.Sql;
                             else if (probe.FailureType == FailureTypes.Request) errorMessage = "Request error";
 #if !DEBUG
                             throw new Exception(errorMessage);
@@ -1155,7 +1159,7 @@ namespace Center
                         if (ex.Message.IndexOf("was being aborted") == -1)
                         {
                             info = ex.Message;
-                            Necrow.Log(nodeName, ex.Message, ex.StackTrace);
+                            instance.Log(nodeName, ex.Message, ex.StackTrace);
                             Update(UpdateTypes.Remark, "PROBEFAILED");
                         }
 
@@ -1275,7 +1279,7 @@ namespace Center
                             {
                                 string errorMessage = null;
                                 if (probe.FailureType == FailureTypes.Connection) errorMessage = "Connection error";
-                                else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error: " + Necrow.JoviceLastException.Message.Trim(new char[] { '\r', '\n', ' ' }) + ", SQL: " + Necrow.JoviceLastException.Sql;
+                                else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error: " + instance.JoviceLastException.Message.Trim(new char[] { '\r', '\n', ' ' }) + ", SQL: " + instance.JoviceLastException.Sql;
                                 else if (probe.FailureType == FailureTypes.Request) errorMessage = "Request error";
 #if !DEBUG
                                 throw new Exception(errorMessage);
@@ -1288,14 +1292,14 @@ namespace Center
                         }
 
 #if !DEBUG
-                            Necrow.AcknowledgeNodeVersion(nodeManufacture, nodeVersion, nodeSubVersion);
+                            instance.AcknowledgeNodeVersion(nodeManufacture, nodeVersion, nodeSubVersion);
                         }
                         catch (Exception ex)
                         {
                             if (ex.Message.IndexOf("was being aborted") == -1)
                             {
                                 info = ex.Message;
-                                Necrow.Log(nodeName, ex.Message, ex.StackTrace);
+                                instance.Log(nodeName, ex.Message, ex.StackTrace);
                                 Event("Caught error: " + ex.Message + ", exiting current node...");
                                 Update(UpdateTypes.Remark, "PROBEFAILED");
                                 caughtError = true;
@@ -1607,36 +1611,53 @@ namespace Center
         private string MCECheckNodeIP(string hostname, bool reverse)
         {
             string cpeip = null;
+            hostname = hostname.ToLower();
 
             bool timeout;
-            List<string> lines = MCESendLine("cat /etc/hosts | grep -i " + hostname, out timeout);
+            //List<string> lines = MCESendLine("cat /etc/hosts | grep -i " + hostname, out timeout);
+            List<string> lines = MCESendLine("cat /etc/hosts", out timeout);
             if (timeout) ConnectionFailure();
 
             Dictionary<string, string> greppair = new Dictionary<string, string>();
             foreach (string line in lines)
             {
                 if (line.Length > 0 && char.IsDigit(line[0]))
-                {
-                    string[] linex = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                {                    
+                    string[] linex = line.Trim().Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
                     if (linex.Length == 2)
                     {
-                        IPAddress address;
-                        if (IPAddress.TryParse(linex[0], out address))
+                        string gip = linex[0];
+                        string ghn = linex[1].ToLower();
+
+
+                        if (!reverse)
                         {
-                            if (!reverse && !greppair.ContainsKey(linex[1].ToLower()))
+                            if (ghn == hostname)
                             {
-                                greppair.Add(linex[1].ToLower(), linex[0]);
+                                if (!greppair.ContainsKey(ghn))
+                                {
+                                    greppair.Add(ghn, gip);
+                                    break;
+                                }
                             }
-                            else if (!greppair.ContainsKey(linex[0]))
+                        }
+                        else
+                        {
+                            if (!greppair.ContainsKey(gip))
                             {
-                                greppair.Add(linex[0], linex[1]);
+                                greppair.Add(gip, ghn);
+                                break;
                             }
                         }
                     }
                 }
             }
-            if (greppair.ContainsKey(hostname.ToLower())) cpeip = greppair[hostname.ToLower()].ToUpper();
-            return cpeip;
+
+            if (greppair.ContainsKey(hostname.ToLower()))
+                cpeip = greppair[hostname.ToLower()].ToUpper();
+            return 
+                cpeip;
         }
 
         private void Update(UpdateTypes type, object value)
@@ -1659,6 +1680,7 @@ namespace Center
                 case UpdateTypes.SubVersion: key = "NO_SubVersion"; break;
                 case UpdateTypes.VersionTime: key = "NO_VersionTime"; break;
                 case UpdateTypes.LastConfiguration: key = "NO_LastConfiguration"; break;
+                case UpdateTypes.StartUpTime: key = "NO_LastStartUp"; break;
             }
 
             if (key != null)
@@ -2133,30 +2155,37 @@ namespace Center
 
                     if (expect.Index == -1)
                     {
-                        int llength = expect.Output.Length - lastSendLine.Length;
-
-                        if (llength == 2)
+                        if (expect.Output == null)
                         {
-                            // connect fail for some reason
+                            Event("Expect output null");
                         }
                         else
                         {
-                            // the other error probaby ssh key expired or failing
-                            Event("Trying to regenerate new ssh key...");
-                            SendLine("ssh-keygen -R " + host);
+                            int llength = expect.Output.Length - lastSendLine.Length;
 
-                            expect = MCEExpect("Not replacing existing known_hosts", "Host key verification failed", "Permission denied (publickey");
-                            if (expect.Index >= 0)
+                            if (llength == 2)
                             {
-                                // fail to ssh-keygen, just remove the known_hosts
-                                Event("Removing known_hosts file because an error...");
-                                SendLine("rm ~/.ssh/known_hosts");
+                                // connect fail for some reason
                             }
+                            else
+                            {
+                                // the other error probaby ssh key expired or failing
+                                Event("Trying to regenerate new ssh key...");
+                                SendLine("ssh-keygen -R " + host);
 
-                            Thread.Sleep(500);
-                            SendLine("ssh -o StrictHostKeyChecking=no " + user + "@" + host);
+                                expect = MCEExpect("Not replacing existing known_hosts", "Host key verification failed", "Permission denied (publickey");
+                                if (expect.Index >= 0)
+                                {
+                                    // fail to ssh-keygen, just remove the known_hosts
+                                    Event("Removing known_hosts file because an error...");
+                                    SendLine("rm ~/.ssh/known_hosts");
+                                }
 
-                            looppass = true;
+                                Thread.Sleep(500);
+                                SendLine("ssh -o StrictHostKeyChecking=no " + user + "@" + host);
+
+                                looppass = true;
+                            }
                         }
                     }
                     else if (expect.Index == 0)
@@ -2195,9 +2224,9 @@ namespace Center
             update = Update("Node");
             foreach (KeyValuePair<string, object> pair in updates)
             {
-                if (Necrow.keeperNode.ContainsKey(nodeID))
+                if (instance.KeeperNode.ContainsKey(nodeID))
                 {
-                    Dictionary<string, object> keeper = Necrow.keeperNode[nodeID];
+                    Dictionary<string, object> keeper = instance.KeeperNode[nodeID];
                     if (pair.Key == "NO_IP")
                     {
                         keeper["NO_IP"] = pair.Value;
@@ -2302,7 +2331,7 @@ namespace Center
             }
             catch (Exception ex)
             {
-                Necrow.Log(nodeName, ex.Message, ex.StackTrace);
+                instance.Log(nodeName, ex.Message, ex.StackTrace);
                 Event("Caught error on Save(): " + ex.Message + ", try again");
                 Save();
             }
@@ -2719,8 +2748,15 @@ namespace Center
             bool nodeTimeRetrieved = false;
             DateTime utcTime = DateTime.UtcNow;
             DateTime nodeTime = DateTime.MinValue;
+            TimeSpan uptime = TimeSpan.Zero;
+
+            DateTime currentNodeStartUp = DateTime.MinValue;
+            bool ignoreSecond = false;
+            bool ignoreUptime = false;
 
             string[] junShowSystemUptimeLines = null;
+
+            bool nodeStartTimeRetrieved = false;
 
             if (nodeManufacture == alu)
             {
@@ -2736,6 +2772,56 @@ namespace Center
                         //01234567890123456789012345678901234567890
                         string ps = line.Substring(22, 19);
                         if (DateTime.TryParseExact(ps, "yyyy/MM/dd HH:mm:ss", null, DateTimeStyles.None, out nodeTime)) { nodeTimeRetrieved = true; }
+                        break;
+                    }
+                }
+
+                if (Request("show uptime", out lines, probe)) return probe;
+
+                foreach (string line in lines)
+                {
+                    if (line.StartsWith("System Up Time"))
+                    {
+                        //System Up Time         : 215 days, 21:04:59.62 (hr:min:sec)
+                        string[] tokens = line.Split(new char[] { ':', '(' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (tokens.Length > 2)
+                        {
+                            string daytime = tokens[1];
+                            string[] tokens2 = daytime.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                            if (tokens2.Length == 2)
+                            {
+                                int day = 0;
+
+                                string[] daytoken = tokens2[0].Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                                if (daytoken.Length == 2)
+                                {
+                                    day = int.Parse(daytoken[0]);
+                                }
+
+                                int hour = 0;
+                                int minute = 0;
+                                int second = 0;
+
+                                string[] timetoken = tokens2[1].Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
+                                if (timetoken.Length == 3)
+                                {
+                                    hour = int.Parse(timetoken[0]);
+                                    minute = int.Parse(timetoken[1]);
+                                    string[] tokens3 = timetoken[2].Split(StringSplitTypes.Dot, StringSplitOptions.RemoveEmptyEntries);
+
+                                    second = int.Parse(tokens3[0]);
+
+                                    if (tokens3.Length == 2)
+                                    {
+                                        int milisecond = (int)Math.Round(1000 / (double)int.Parse(tokens3[1]));
+                                        if (milisecond >= 500) second++;
+                                    }
+                                }
+
+                                uptime = new TimeSpan(day, hour, minute, second);
+                                nodeStartTimeRetrieved = true;
+                            }
+                        }
                         break;
                     }
                 }
@@ -2761,6 +2847,102 @@ namespace Center
                     }
                 }
 
+                if (nodeVersion == null)
+                {
+                    if (Request("show version | in IOS", out lines, probe)) return probe;
+
+                    string sl = string.Join("", lines.ToArray());
+
+                    if (sl.IndexOf("Cisco IOS XR Software") > -1) nodeVersion = "XR";
+                    else nodeVersion = "IOS";
+                }
+
+                if (nodeVersion == xr)
+                {
+                    #region xr
+                    if (Request("sh ver brief | in uptime", out lines, probe)) return probe;
+
+                    //sh ver brief | in uptime
+                    foreach (string line in lines)
+                    {
+                        //PE2-D2-JT2-VPN uptime is 39 weeks, 6 days, 14 hours, 20 minutes
+                        int uptimeIs = line.IndexOf("uptime is");
+                        if (uptimeIs > -1)
+                        {
+                            string[] tokens = line.Substring(uptimeIs + 9).Trim().Split(StringSplitTypes.Comma, StringSplitOptions.RemoveEmptyEntries);
+
+                            int day = 0;
+                            int hour = 0;
+                            int minute = 0;
+
+                            foreach (string token in tokens)
+                            {
+                                string otoken = token.Trim().ToLower();
+                                string[] tokens2 = otoken.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                                if (tokens2.Length == 2)
+                                {
+                                    int dal = int.Parse(tokens2[0]);
+
+                                    if (tokens2[1].StartsWith("year")) day += (dal * 365);
+                                    else if (tokens2[1].StartsWith("week")) day += (dal * 7);
+                                    else if (tokens2[1].StartsWith("day")) day += dal;
+                                    else if (tokens2[1].StartsWith("hour")) hour = dal;
+                                    else if (tokens2[1].StartsWith("minute")) minute = dal;
+                                }
+                            }
+
+                            uptime = new TimeSpan(day, hour, minute, 0);
+                            nodeStartTimeRetrieved = true;
+                            ignoreSecond = true;
+                        }
+                    }
+                    #endregion
+                }
+                else
+                {
+                    #region ios
+                    if (Request("show version | in uptime", out lines, probe)) return probe;
+
+                    //sh ver brief | in uptime
+                    foreach (string line in lines)
+                    {
+                        //PE2-D2-JT2-VPN uptime is 39 weeks, 6 days, 14 hours, 20 minutes
+                        int uptimeIs = line.IndexOf("uptime is");
+                        if (uptimeIs > -1)
+                        {
+                            string[] tokens = line.Substring(uptimeIs + 9).Trim().Split(StringSplitTypes.Comma, StringSplitOptions.RemoveEmptyEntries);
+
+                            int day = 0;
+                            int hour = 0;
+                            int minute = 0;
+
+                            foreach (string token in tokens)
+                            {
+                                string otoken = token.Trim().ToLower();
+                                string[] tokens2 = otoken.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                                if (tokens2.Length == 2)
+                                {
+                                    int dal = int.Parse(tokens2[0]);
+
+                                    if (tokens2[1].StartsWith("year")) day += (dal * 365);
+                                    else if (tokens2[1].StartsWith("week")) day += (dal * 7);
+                                    else if (tokens2[1].StartsWith("day")) day += dal;
+                                    else if (tokens2[1].StartsWith("hour")) hour = dal;
+                                    else if (tokens2[1].StartsWith("minute")) minute = dal;
+                                }
+                            }
+
+                            uptime = new TimeSpan(day, hour, minute, 0);
+                            nodeStartTimeRetrieved = true;
+                            ignoreSecond = true;
+                        }
+                    }
+
+                    #endregion
+                }
+
                 #endregion
             }
             else if (nodeManufacture == hwe)
@@ -2784,6 +2966,44 @@ namespace Center
                     }
                 }
 
+                if (Request("display version | in Master", out lines, probe)) return probe;
+
+                //MPU(Master) 9  : uptime is 128 days, 16 hours, 12 minutes
+                foreach (string line in lines)
+                {
+                    int uptimeIs = line.IndexOf("uptime is");
+                    if (uptimeIs > -1 && line.IndexOf("Master") > -1)
+                    {
+                        string[] tokens = line.Substring(uptimeIs + 9).Trim().Split(StringSplitTypes.Comma, StringSplitOptions.RemoveEmptyEntries);
+
+                        int day = 0;
+                        int hour = 0;
+                        int minute = 0;
+
+                        foreach (string token in tokens)
+                        {
+                            string otoken = token.Trim().ToLower();
+                            string[] tokens2 = otoken.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                            if (tokens2.Length == 2)
+                            {
+                                int dal = int.Parse(tokens2[0]);
+
+                                if (tokens2[1].StartsWith("day")) day = dal;
+                                else if (tokens2[1].StartsWith("hour")) hour = dal;
+                                else if (tokens2[1].StartsWith("minute")) minute = dal;
+                            }                            
+                        }
+
+                        uptime = new TimeSpan(day, hour, minute, 0);
+                        nodeStartTimeRetrieved = true;
+                        ignoreSecond = true;
+
+                        break;
+                    }
+                }
+
+
                 #endregion
             }
             else if (nodeManufacture == jun)
@@ -2799,6 +3019,17 @@ namespace Center
                         //0123456789012345678901234567890123456789
                         string ps = line.Substring(14, 19);
                         if (DateTime.TryParseExact(ps, "yyyy-MM-dd HH:mm:ss", null, DateTimeStyles.None, out nodeTime)) { nodeTimeRetrieved = true; }
+                    }
+                    else if (line.StartsWith("System booted:"))
+                    {
+                        //System booted: 2013-04-03 16:14:08 WIT (236w0d 22:30 ago)
+                        //0123456789012345
+                        string ps = line.Substring(15, 19);
+                        if (DateTime.TryParseExact(ps, "yyyy-MM-dd HH:mm:ss", null, DateTimeStyles.None, out currentNodeStartUp))
+                        {
+                            ignoreUptime = true;
+                            nodeStartTimeRetrieved = true;
+                        }
                         break;
                     }
                 }
@@ -2810,6 +3041,10 @@ namespace Center
             {
                 throw new Exception("Failure on node time retrieval");
             }
+            if (!nodeStartTimeRetrieved)
+            {
+                throw new Exception("Failure on node start up time retrieval");
+            }
 
             utcTime = new DateTime(
                 utcTime.Ticks - (utcTime.Ticks % TimeSpan.TicksPerSecond),
@@ -2820,6 +3055,22 @@ namespace Center
             Event("Local time: " + nodeTime.ToString("yyyy/MM/dd HH:mm:ss"));
             Event("UTC offset: " + nodeTimeOffset.TotalHours + "h");
             Update(UpdateTypes.TimeOffset, nodeTimeOffset.TotalHours);
+
+            if (!ignoreUptime)
+            {
+                currentNodeStartUp = utcTime - uptime;
+                if (ignoreSecond)
+                    currentNodeStartUp = new DateTime(currentNodeStartUp.Year, currentNodeStartUp.Month, currentNodeStartUp.Day, currentNodeStartUp.Hour, currentNodeStartUp.Minute, 0, 0);
+            }
+            else
+            {
+                // convert to UTC
+                currentNodeStartUp = currentNodeStartUp - nodeTimeOffset;
+            }
+            Update(UpdateTypes.StartUpTime, currentNodeStartUp);
+
+            Event("Node start up: " + currentNodeStartUp.ToString("yyyy/MM/dd HH:mm:ss") + " UTC");
+            
 
             #endregion
 
@@ -3028,7 +3279,6 @@ namespace Center
                             model = line.Substring(7).Trim();
                         }
                     }
-
                     #endregion
                 }
 
@@ -4381,9 +4631,9 @@ namespace Center
         {
             List<string> testInterfaces = new List<string>();
 
-            if (type != null && Necrow.InterfaceTestPrefixes.ContainsKey(type))
+            if (type != null && instance.InterfaceTestPrefixes.ContainsKey(type))
             {
-                foreach (string prefix in Necrow.InterfaceTestPrefixes[type])
+                foreach (string prefix in instance.InterfaceTestPrefixes[type])
                 {
                     testInterfaces.Add(port);
                     testInterfaces.Add(prefix + port);

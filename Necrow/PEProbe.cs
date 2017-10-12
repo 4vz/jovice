@@ -1365,9 +1365,31 @@ namespace Center
             #region INTERFACE
 
             SortedDictionary<string, PEInterfaceToDatabase> interfacelive = new SortedDictionary<string, PEInterfaceToDatabase>();
-            Dictionary<string, Row> interfacedb = QueryDictionary("select * from PEInterface where PI_NO = {0}", "PI_Name", nodeID);
+            List<string> duplicatedinterfaces = new List<string>();
+            Dictionary<string, Row> interfacedb = QueryDictionary("select * from PEInterface where PI_NO = {0}", "PI_Name", delegate (Row row) { duplicatedinterfaces.Add(row["PI_ID"].ToString()); }, nodeID);
             if (interfacedb == null) return DatabaseFailure(probe);
             Dictionary<string, List<string[]>> ipdb = new Dictionary<string, List<string[]>>();
+
+            if (duplicatedinterfaces.Count > 0)
+            {
+                Event(duplicatedinterfaces.Count + " interface(s) are found duplicated, began deleting...");
+                string duplicatedinterfacestr = "'" + string.Join("', '", duplicatedinterfaces.ToArray()) + "'";
+                result = Execute("update MEInterface set MI_TO_PI = NULL where MI_TO_PI in (" + duplicatedinterfacestr + ")");
+                if (!result.OK) return DatabaseFailure(probe);
+                result = Execute("update PEInterface set PI_PI = NULL where PI_PI in (" + duplicatedinterfacestr + ")");
+                if (!result.OK) return DatabaseFailure(probe);
+                result = Execute("update PERoute set PR_PI = NULL where PR_PI in (" + duplicatedinterfacestr + ")");
+                if (!result.OK) return DatabaseFailure(probe);
+                result = Execute("update PERouteUse set PU_PI = NULL where PU_PI in (" + duplicatedinterfacestr + ")");
+                if (!result.OK) return DatabaseFailure(probe);
+                result = Execute("update POP set OO_PI = NULL where OO_PI in (" + duplicatedinterfacestr + ")");
+                if (!result.OK) return DatabaseFailure(probe);
+                result = Execute("delete from PEInterfaceIP where PP_PI in (" + duplicatedinterfacestr + ")");
+                if (!result.OK) return DatabaseFailure(probe);
+                result = Execute("delete from PEInterface where PI_ID in (" + duplicatedinterfacestr + ")");
+                if (!result.OK) return DatabaseFailure(probe);
+                Event(result, EventActions.Delete, EventElements.Interface, true);
+            }
 
             result = Query(@"select PI_Name, PP_ID, CAST(PP_IPv6 as varchar) + '_' + CAST(PP_Order as varchar) + '_' + PP_IP as IPKEY 
 from PEInterface, PEInterfaceIP where PP_PI = PI_ID and PI_NO = {0} order by PI_Name asc", nodeID);

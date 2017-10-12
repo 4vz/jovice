@@ -4190,6 +4190,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     if (!alucustlive.ContainsKey(pair.Key))
                     {
                         Event("ALU-Customer DELETE: " + pair.Key);
+                        batch.Execute("update MECircuit set MC_MU = NULL where MC_MU = {0}", row["MU_ID"].ToString()); // in case theres stupid circuit left around
                         batch.Execute("delete from MECustomer where MU_ID = {0}", row["MU_ID"].ToString());
                     }
                 }

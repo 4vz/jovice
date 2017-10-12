@@ -94,7 +94,9 @@
     <None Include="App.config">
       <SubType>Designer</SubType>
     </None>
-    <None Include="App.source.config" />
+    <None Include="App.source.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Include="Properties\app.manifest" />
   </ItemGroup>
   <ItemGroup>

@@ -11,6 +11,8 @@ namespace Center
     {
         #region Fields
 
+        private static Necrow instance;
+
         private static bool ready = false;
 
         public static bool IsReady
@@ -85,8 +87,10 @@ namespace Center
 
         #region Methods
 
-        internal static void Load()
+        internal static void Load(Necrow instance)
         {
+            NecrowVirtualization.instance = instance;
+
             Database jovice = Jovice.Database;
             Result result;
             Batch batch = jovice.Batch();
@@ -138,7 +142,7 @@ order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
                 pePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(currentNode, currentPEInterfaces));
             }
 
-            Necrow.Event("Loaded " + count + " PE physical interfaces");
+            instance.Event("Loaded " + count + " PE physical interfaces");
 
             #endregion
 
@@ -186,7 +190,7 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
                 mePhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(currentNode, currentMEInterfaces));
             }
 
-            Necrow.Event("Loaded " + count + " ME physical interfaces");
+            instance.Event("Loaded " + count + " ME physical interfaces");
 
             #endregion
 
@@ -194,16 +198,16 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
 
             count = AliasLoad();
 
-            Necrow.Event("Loaded " + count + " node aliases");
+            instance.Event("Loaded " + count + " node aliases");
 
             #endregion
 
             #region Neighbor
 
             Tuple<int, int, int> counts = NeighborLoad();
-            Necrow.Event("Loaded " + counts.Item1 + " neighbors");
-            Necrow.Event("Loaded " + counts.Item2 + " neighbor interfaces");
-            Necrow.Event("Loaded " + counts.Item3 + " neighbor references");
+            instance.Event("Loaded " + counts.Item1 + " neighbors");
+            instance.Event("Loaded " + counts.Item2 + " neighbor interfaces");
+            instance.Event("Loaded " + counts.Item3 + " neighbor references");
 
             #endregion
 
@@ -225,7 +229,7 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
                 derivedAreaConnections.Add(id, new Tuple<string, string, string, string>(ar1, ar2, mi1, mi2));
             }
 
-            Necrow.Event("Loaded " + derivedAreaConnections.Count + " derived area connections");
+            instance.Event("Loaded " + derivedAreaConnections.Count + " derived area connections");
 
             #endregion
 
@@ -417,7 +421,7 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID order by NA_Nam
                         nodeNeighbors.Add(name, id);
                     else
                     {
-                        Necrow.Event("Duplicated NodeNeighbor " + name + " removed ID " + id);
+                        instance.Event("Duplicated NodeNeighbor " + name + " removed ID " + id);
                         batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
                         batch.Execute("update MEInterface set MI_TO_NI = NULL where MI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
                         batch.Execute("delete from NeighborInterface where NI_NN = {0}", id);
@@ -501,7 +505,7 @@ select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NeighborInterface on NI
                             batch.Execute("update MEInterface set MI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
                             batch.Execute("delete from NeighborInterface where NI_NN = {0}", id);
                             batch.Execute("delete from NodeNeighbor where NN_ID = {0}", id);
-                            Necrow.Event("Removed duplicated neighbor key: " + node);
+                            instance.Event("Removed duplicated neighbor key: " + node);
                         }
                     }
                     else
@@ -516,7 +520,7 @@ select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NeighborInterface on NI
                         batch.Execute(insert);
                         nnUnspecifiedInterfaces.Add(node, unid);
 
-                        Necrow.Event("Added missing UNSPECIFIED interface to neighbor node " + node);
+                        instance.Event("Added missing UNSPECIFIED interface to neighbor node " + node);
                     }
                 }
 

@@ -129,102 +129,41 @@ namespace Center
         #endregion
     }
 
-    public static class Necrow
+    public class Necrow : BaseServiceInstance
     {
         #region Fields
 
         internal readonly static int Version = 25;
 
-        private static Database j = null;
+        private Database j = Jovice.Database;
 
-#if DEBUG
-        private static bool console = true;
-#else
-        private static bool console = false;
-#endif
-        private static Dictionary<string, Queue<Tuple<int, string>>> list = null;
-
-        private static Queue<Tuple<string, ProbeRequestData>> prioritize = new Queue<Tuple<string, ProbeRequestData>>();
-
-        private static List<Tuple<string, string, string>> supportedVersions = null;
-
-        private static bool mainLoop = true;
-
-        private static Dictionary<string, Probe> instances = null;
-
-        internal static Dictionary<string, Dictionary<string, object>> keeperNode = null;
+        private Dictionary<string, Queue<Tuple<int, string>>> list = null;
+        private Queue<Tuple<string, ProbeRequestData>> prioritize = new Queue<Tuple<string, ProbeRequestData>>();
+        private List<Tuple<string, string, string>> supportedVersions = null;
+        private Dictionary<string, Probe> instances = null;
+        private Dictionary<string, Dictionary<string, object>> keeperNode = null;
+        internal Dictionary<string, Dictionary<string, object>> KeeperNode { get => keeperNode; }
+        private Dictionary<string, string[]> interfaceTestPrefixes = null;
+        internal Dictionary<string, string[]> InterfaceTestPrefixes { get => interfaceTestPrefixes; }
 
         private static Timer helloTimer;
 
-        private static DatabaseExceptionEventArgs joviceLastException = null;
-
-        public static DatabaseExceptionEventArgs JoviceLastException
-        {
-            get { return joviceLastException; }
-        }
-
-        private static Thread start;
+        private DatabaseExceptionEventArgs joviceLastException = null;
+        internal DatabaseExceptionEventArgs JoviceLastException { get => joviceLastException; }
 
         #endregion
 
-        #region Helpers
+        #region Constructors 
 
-        private static Dictionary<string, string[]> interfaceTestPrefixes = null;
-
-        internal static Dictionary<string, string[]> InterfaceTestPrefixes
+        public Necrow()
         {
-            get { return interfaceTestPrefixes; }
         }
 
         #endregion
 
-        #region Methods
+        #region Static Methods
 
-        internal static void Event(string message, string subsystem)
-        {
-            if (console)
-            {
-                //yyyy/MM/dd 
-                if (subsystem == null)
-                    System.Console.WriteLine(DateTime.UtcNow.ToString("HH:mm:ss.fff") + "|" + message);
-                else
-                    System.Console.WriteLine(DateTime.UtcNow.ToString("HH:mm:ss.fff") + "|" + subsystem + "|" + message);
-            }
-        }
-
-        internal static void Event(string message)
-        {
-            Event(message, null);
-        }
-
-#if DEBUG
-        public static bool Debug()
-        {
-            return true;
-        }
-
-        public static void Test(string name)
-        {
-            prioritize.Enqueue(new Tuple<string, ProbeRequestData>(name.ToUpper() + "*", null));
-        }
-#else
-        internal static void Log(string source, string message, string stacktrace)
-        {
-            Insert insert = j.Insert("ProbeLog");
-            insert.Value("XL_TimeStamp", DateTime.UtcNow);
-            insert.Value("XL_Source", source);
-            insert.Value("XL_Message", message);
-            insert.Value("XL_StackTrace", stacktrace);
-            insert.Execute();
-        }
-
-        internal static void Log(string source, string message)
-        {
-            Log(source, message, null);
-        }
-#endif
-
-        public static bool InTime(ProbeProperties properties)
+        internal static bool InTime(ProbeProperties properties)
         {
             string days = properties.Days;
             TimeSpan start = properties.TimeStart;
@@ -246,466 +185,17 @@ namespace Center
 
             return isTimeOK && isDayOK;
         }
+        
+        #endregion
 
-        public static void Start()
+        #region Methods
+
+        public void Test(string name)
         {
-            start = new Thread(new ThreadStart(delegate ()
-            {
-                Batch batch;
-                Result result;
-
-                Culture.Default();
-                Event("Necrow is Starting...");
-
-                Service.Client();
-                Service.Connected += delegate (Connection connection)
-                {
-                    Event("Connecting to Service...");
-                    helloTimer = new Timer(new TimerCallback(delegate (object state)
-                    {
-                        Service.Send(new ServerNecrowServiceMessage(NecrowServiceMessageType.Hello));
-                    }), null, 0, 20000);
-
-                };
-                Service.Register(typeof(ServerNecrowServiceMessage), NecrowServiceMessageHandler);
-
-                Event("Checking Jovice Database connection... ");
-
-                bool joviceDatabaseConnected = false;
-                j = Jovice.Database;
-
-                DatabaseExceptionEventHandler checkingDatabaseException = delegate (object sender, DatabaseExceptionEventArgs eventArgs)
-                {
-                    Event("Connection Failed: " + eventArgs.Message);
-                };
-
-                j.Exception += checkingDatabaseException;
-
-                if (j.Test())
-                {
-                    joviceDatabaseConnected = true;
-                    Event("Jovice Database OK");
-                }
-
-                j.Exception -= checkingDatabaseException;
-
-                j.Exception += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
-                {
-                    joviceLastException = eventArgs;
-                };
-                j.Retry += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
-                {
-                    if (eventArgs.Exception == DatabaseException.Timeout)
-                    {
-                        Event("Database query has timed out, retrying");
-                    }
-                    else
-                    {
-                        eventArgs.NoRetry = true;
-                    }
-                };
-                j.QueryAttempts = 5;
-                j.Timeout = 300;
-
-                if (joviceDatabaseConnected)
-                {
-                    batch = j.Batch();
-
-                    #region Graph
-
-                    //JoviceGraph.Update();
-
-                    #endregion
-
-                    #region Database Check
-
-                    Event("Checking database...");
-
-                    DatabaseCheck();
-
-                    Event("Database checks completed");
-
-                    #endregion
-
-                    #region Virtualizations
-
-                    Event("Starting database virtualizations...");
-
-                    NecrowVirtualization.Load();
-
-                    Event("Database virtualizations completed");
-
-                    #endregion
-
-                    #region Etc
-
-                    interfaceTestPrefixes = new Dictionary<string, string[]>();
-                    interfaceTestPrefixes.Add("Hu", new string[] { "H", "HU", "GI", "GE" });
-                    interfaceTestPrefixes.Add("Te", new string[] { "T", "TE", "TENGIGE", "GI", "GE", "XE" }); // kadang Te-gig direfer sebagai Gi dammit people
-                    interfaceTestPrefixes.Add("Gi", new string[] { "G", "GI", "GE", "GIGAE", "GIGABITETHERNET", "TE" }); // kadang Te-gig direfer sebagai Gi dammit people
-                    interfaceTestPrefixes.Add("Fa", new string[] { "F", "FA", "FE", "FASTE" });
-                    interfaceTestPrefixes.Add("Et", new string[] { "E", "ET", "ETH" });
-                    interfaceTestPrefixes.Add("Ag", new string[] { "LAG", "ETH-TRUNK", "BE" });
-
-                    #endregion
-
-                    #region Probe initialization
-
-                    // PROBE LIST
-
-                    Event("Loading probe list...");
-
-                    list = new Dictionary<string, Queue<Tuple<int, string>>>();
-
-                    list.Add("MAIN", new Queue<Tuple<int, string>>());
-                    list.Add("M", new Queue<Tuple<int, string>>());
-
-                    foreach (Row xp in j.Query("select * from ProbeProgress order by XP_ID asc"))
-                    {
-                        string c = xp["XP_Case"].ToString();
-                        if (c == null) c = "MAIN";
-                        if (list.ContainsKey(c)) list[c].Enqueue(new Tuple<int, string>(xp["XP_ID"].ToInt(), xp["XP_NO"].ToString()));
-                    }
-
-                    foreach (KeyValuePair<string, Queue<Tuple<int, string>>> pair in list)
-                    {
-                        if (pair.Value.Count == 0)
-                        {
-                            CreateNodeQueue(pair.Key);
-                        }
-                        else
-                        {
-                            Event("Case: " + pair.Key + " is using existing list, " + pair.Value.Count + " node" + (pair.Value.Count > 1 ? "s" : "") + " remaining");
-                        }
-                    }
-
-                    j.Execute("update ProbeProgress set XP_StartTime = NULL, XP_Status = NULL");
-
-                    // SUPPORTED VERSION
-
-                    if (supportedVersions == null)
-                    {
-                        Result sver = j.Query("select * from NodeSupport");
-
-                        supportedVersions = new List<Tuple<string, string, string>>();
-
-                        foreach (Row sve in sver)
-                        {
-                            supportedVersions.Add(new Tuple<string, string, string>(sve["NT_Manufacture"].ToString(), sve["NT_Version"].ToString(), sve["NT_SubVersion"].ToString()));
-                        }
-                    }
-
-                    #endregion
-
-                    #region Database Keepers
-
-                    #region Node Keeper
-
-                    result = j.Query("select * from Node");
-                    keeperNode = new Dictionary<string, Dictionary<string, object>>();
-
-                    foreach (Row row in result)
-                    {
-                        Dictionary<string, object> values = new Dictionary<string, object>();
-                        keeperNode.Add(row["NO_ID"].ToString(), values);
-
-                        values.Add("NO_Name", row["NO_Name"].ToString());
-                        values.Add("NO_Type", row["NO_Type"].ToString());
-                        values.Add("NO_Manufacture", row["NO_Manufacture"].ToString());
-                        values.Add("NO_IP", row["NO_IP"].ToString());
-                    }
-
-                    #endregion
-
-                    #endregion
-
-                    instances = new Dictionary<string, Probe>();
-
-                    long loops = 0;
-
-                    while (mainLoop)
-                    {
-                        #region Check Regularly
-                        if (loops % 10 == 0)
-                        {
-                            result = j.Query("select * from Node");
-
-                            batch.Begin();
-                            foreach (Row row in result)
-                            {
-                                string id = row["NO_ID"].ToString();
-
-                                if (keeperNode.ContainsKey(id))
-                                {
-                                    Dictionary<string, object> keeper = keeperNode[id];
-
-                                    Update update = j.Update("Node");
-                                    update.Where("NO_ID", id);
-
-                                    if ((string)keeper["NO_Name"] != row["NO_Name"].ToString()) update.Set("NO_Name", (string)keeper["NO_Name"]);
-                                    if ((string)keeper["NO_Type"] != row["NO_Type"].ToString()) update.Set("NO_Type", (string)keeper["NO_Type"]);
-                                    if ((string)keeper["NO_Manufacture"] != row["NO_Manufacture"].ToString()) update.Set("NO_Manufacture", (string)keeper["NO_Manufacture"]);
-                                    if ((string)keeper["NO_IP"] != row["NO_IP"].ToString()) update.Set("NO_IP", (string)keeper["NO_IP"]);
-
-                                    batch.Execute(update);
-                                }
-                                else
-                                {
-                                    Dictionary<string, object> values = new Dictionary<string, object>();
-                                    keeperNode.Add(row["NO_ID"].ToString(), values);
-
-                                    string newNodeName = row["NO_Name"].ToString();
-                                    values.Add("NO_Name", newNodeName);
-                                    values.Add("NO_Type", row["NO_Type"].ToString());
-                                    values.Add("NO_Manufacture", row["NO_Manufacture"].ToString());
-                                    values.Add("NO_IP", row["NO_IP"].ToString());
-
-                                    prioritize.Enqueue(new Tuple<string, ProbeRequestData>(newNodeName, null));
-
-                                    Event("New Node Registered: " + newNodeName);
-                                }
-                            }
-                            batch.Commit();
-
-                            result = j.Query(@"
-select XA_ID, XA_Days, XA_TimeStart, XA_TimeEnd, XA_Case, XU_ServerUser, XU_ServerPassword, XU_TacacUser, XU_TacacPassword, XS_Address, XS_ConsolePrefixFormat
-from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID");
-
-                            foreach (Row row in result)
-                            {
-                                string id = row["XA_ID"].ToString();
-
-                                if (!instances.ContainsKey(id))
-                                {
-                                    // NEW
-                                    ProbeProperties prop = new ProbeProperties();
-                                    prop.SSHUser = row["XU_ServerUser"].ToString();
-                                    prop.SSHPassword = row["XU_ServerPassword"].ToString();
-                                    prop.TacacUser = row["XU_TacacUser"].ToString();
-                                    prop.TacacPassword = row["XU_TacacPassword"].ToString();
-                                    prop.SSHServerAddress = row["XS_Address"].ToString();
-                                    prop.SSHTerminal = string.Format(row["XS_ConsolePrefixFormat"].ToString(), prop.SSHUser);
-                                    prop.Days = row["XA_Days"].ToString("0123456");
-                                    prop.TimeStart = row["XA_TimeStart"].ToTimeSpan(TimeSpan.MinValue);
-                                    prop.TimeEnd = row["XA_TimeEnd"].ToTimeSpan(TimeSpan.MaxValue);
-                                    string accessCase = row["XA_Case"].ToString();
-                                    prop.Case = accessCase == null ? "MAIN" : accessCase;
-
-                                    if (prop.Case.ArgumentIndexOf("MAIN", "M") > -1)
-                                    {
-                                        Thread.Sleep(100);
-                                        instances.Add(id, Probe.Create(prop, "PROBE" + id.Trim()));
-
-                                        Event("ADD PROBE" + id.Trim() + ": " + prop.SSHUser + "@" + prop.SSHServerAddress + " [" + prop.TacacUser + "] " + ((prop.TimeStart == TimeSpan.Zero || prop.TimeEnd == TimeSpan.Zero) ? "" : (prop.TimeStart + "-" + prop.TimeEnd)));
-                                    }
-                                    else
-                                    {
-                                        Event("PROBE" + id.Trim() + " CASE INVALID");
-                                    }
-                                }
-                                else
-                                {
-                                    // UPDATE
-                                    ProbeProperties prop = instances[id].Properties;
-
-                                    List<string> updateinfo = new List<string>();
-
-                                    // change timestart
-                                    TimeSpan newstart = row["XA_TimeStart"].ToTimeSpan(TimeSpan.MinValue);
-                                    TimeSpan newend = row["XA_TimeEnd"].ToTimeSpan(TimeSpan.MaxValue);
-                                    bool updatetime = false;
-
-                                    if (newstart != prop.TimeStart)
-                                    {
-                                        updatetime = true;
-                                        prop.TimeStart = newstart;
-                                    }
-                                    if (newend != prop.TimeEnd)
-                                    {
-                                        updatetime = true;
-                                        prop.TimeEnd = newend;
-                                    }
-                                    if (updatetime) updateinfo.Add("time changed to " + ((prop.TimeStart == TimeSpan.Zero || prop.TimeEnd == TimeSpan.Zero) ? "" : (prop.TimeStart + "-" + prop.TimeEnd)));
-
-                                    // change days
-                                    string newdays = row["XA_Days"].ToString("0123456");
-                                    bool updatedays = false;
-
-                                    if (newdays != prop.Days)
-                                    {
-                                        updatedays = true;
-                                        prop.Days = newdays;
-                                    }
-                                    if (updatedays) updateinfo.Add("days changed to " + prop.Days);
-
-                                    // change case
-                                    string newCase = row["XA_Case"].ToString();
-                                    newCase = newCase == null ? "MAIN" : newCase;
-
-                                    if (newCase != prop.Case)
-                                    {
-                                        updateinfo.Add("case " + prop.Case + " -> " + newCase);
-                                        prop.Case = newCase;
-                                    }
-
-                                    // change tacac
-                                    string newtacacuser = row["XU_TacacUser"].ToString();
-                                    string newtacacpassword = row["XU_TacacPassword"].ToString();
-
-                                    if (newtacacuser != prop.TacacUser)
-                                    {
-                                        updateinfo.Add("tacacuser " + prop.TacacUser + " -> " + newtacacuser);
-                                        prop.TacacUser = newtacacuser;
-                                    }
-                                    if (newtacacpassword != prop.TacacPassword)
-                                    {
-                                        updateinfo.Add("tacacpass changed");
-                                        prop.TacacPassword = newtacacpassword;
-                                    }
-
-                                    // change ssh
-                                    string newsshuser = row["XU_ServerUser"].ToString();
-                                    string newsshpassword = row["XU_ServerPassword"].ToString();
-                                    string newsshserveraddress = row["XS_Address"].ToString();
-
-                                    bool updatessh = false;
-
-                                    if (newsshuser != prop.SSHUser)
-                                    {
-                                        updatessh = true;
-                                        updateinfo.Add("sshuser " + prop.SSHUser + " -> " + newsshuser);
-                                        prop.SSHUser = newsshuser;
-                                    }
-                                    if (newsshpassword != prop.SSHPassword)
-                                    {
-                                        updatessh = true;
-                                        updateinfo.Add("sshpass changed");
-                                        prop.SSHPassword = newsshpassword;
-                                    }
-                                    if (newsshserveraddress != prop.SSHServerAddress)
-                                    {
-                                        updatessh = true;
-                                        updateinfo.Add("sshaddress " + prop.SSHServerAddress + " -> " + newsshserveraddress);
-                                        prop.SSHServerAddress = newsshserveraddress;
-                                    }
-
-                                    if (updateinfo.Count > 0)
-                                    {
-                                        Event("UPDATE PROBE" + id.Trim() + ": " + string.Join(", ", updateinfo.ToArray()));
-                                    }
-
-                                    if (updatessh)
-                                    {
-                                        prop.SSHTerminal = string.Format(row["XS_ConsolePrefixFormat"].ToString(), prop.SSHUser);
-                                        instances[id].QueueStop();
-                                    }
-                                }
-                            }
-
-                            List<string> remove = new List<string>();
-                            foreach (KeyValuePair<string, Probe> pair in instances)
-                            {
-                                bool found = false;
-                                foreach (Row row in result)
-                                {
-                                    string id = row["XA_ID"].ToString();
-                                    if (pair.Key == id)
-                                    {
-                                        found = true;
-                                        break;
-                                    }
-                                }
-
-                                if (!found)
-                                {
-                                    Event("DELETE PROBE" + pair.Key.Trim());
-                                    pair.Value.QueueStop();
-                                    remove.Add(pair.Key);
-                                }
-                            }
-                            foreach (string key in remove)
-                                instances.Remove(key);
-                        }
-                        #endregion
-
-                        /* 
-                         * STARTED = probe is started
-                         * CONNECTED = probe is connected to SSH
-                         * PROBING = probe is probing to Node
-                         * 
-                         */
-
-                        foreach (KeyValuePair<string, Probe> pair in instances)
-                        {
-                            Probe probe = pair.Value;
-
-                            if (probe.IsStarted)
-                            {
-                                if (probe.IsConnected)
-                                {
-                                    if (probe.IsProbing)
-                                    {
-                                    }
-                                    else
-                                    {
-                                        if (!InTime(probe.Properties))
-                                        {
-                                            Event("Probe session has ended");
-                                            probe.SessionStart = false;
-                                            probe.Stop();
-                                        }
-                                        else if ((DateTime.UtcNow - probe.SSHProbeStartTime).TotalHours > 3)
-                                        {
-                                            Event("Restarting the probe");
-                                            probe.Stop();
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                }
-                            }
-                            else
-                            {
-                                if (InTime(probe.Properties))
-                                {
-                                    if (!probe.SessionStart)
-                                    {
-                                        Event("Probe session has started");
-                                        probe.SessionStart = true;
-                                    }
-                                    probe.Start();
-                                }
-                            }
-                        }
-
-                        Thread.Sleep(1000);
-                        loops++;
-                    }
-                }
-            }));
-            start.Start();
+            prioritize.Enqueue(new Tuple<string, ProbeRequestData>(name.ToUpper() + "*", null));
         }
 
-        public static void Stop()
-        {
-            // kill start
-            start.Abort();
-            start = null;
-
-            // kill all instance in process
-            foreach (KeyValuePair<string, Probe> pair in instances)
-            {
-                Probe probe = pair.Value;
-                probe.Stop();
-            }
-
-            // clean database
-            j.Execute("update ProbeProgress set XP_StartTime = NULL, XP_Status = NULL");
-
-        }
-
-        private static void CreateNodeQueue(string queueCase)
+        private void CreateNodeQueue(string queueCase)
         {
             lock (list)
             {
@@ -839,10 +329,10 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 }
             }
         }
-
-        private static void DatabaseCheck()
+        
+        private void DatabaseCheck()
         {
-            Database jovice = Necrow.j;
+            Database jovice = j;
             Result result;
             Batch batch = jovice.Batch();
 
@@ -959,7 +449,7 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
             }
         }
 
-        internal static Tuple<int, string> NextNode(string probeCase)
+        internal Tuple<int, string> NextNode(string probeCase)
         {
             Tuple<int, string> noded = null;
 
@@ -980,7 +470,7 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
             return noded;
         }
 
-        internal static Tuple<string, ProbeRequestData> NextPrioritize()
+        internal Tuple<string, ProbeRequestData> NextPrioritize()
         {
             Tuple<string, ProbeRequestData> node = null;
 
@@ -995,7 +485,7 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
             return node;
         }
 
-        internal static void AcknowledgeNodeVersion(string manufacture, string version, string subVersion)
+        internal void AcknowledgeNodeVersion(string manufacture, string version, string subVersion)
         {
             bool exists = false;
 
@@ -1024,34 +514,7 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
             }
         }
 
-        public static void Console()
-        {
-            console = true;
-
-            bool consoleLoop = true;
-
-            while (consoleLoop)
-            {
-                string line = System.Console.ReadLine();
-                ConsoleInput cs = new ConsoleInput(line);
-
-                if (cs.IsCommand("exit"))
-                {
-                    Stop();
-                    consoleLoop = false;
-                }
-                else if (cs.IsCommand("probe"))
-                {
-                    if (cs.Clauses.Count == 2)
-                    {
-                        string nodename = cs.Clauses[1];
-                        prioritize.Enqueue(new Tuple<string, ProbeRequestData>(nodename.ToUpper(), null));
-                    }
-                }
-            }
-        }
-
-        private static void NecrowServiceMessageHandler(MessageEventArgs e)
+        private void NecrowServiceMessageHandler(MessageEventArgs e)
         {
             ServerNecrowServiceMessage m = (ServerNecrowServiceMessage)e.Message;
 
@@ -1093,6 +556,478 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
                 if (m.Data.Length > 1 && (string)m.Data[1] == "FORCE") option = "*";
                 prioritize.Enqueue(new Tuple<string, ProbeRequestData>(node + option, new ProbeRequestData(e.Connection, m)));
             }
+        }
+
+        internal void Log(string source, string message, string stacktrace)
+        {
+            Insert insert = j.Insert("ProbeLog");
+            insert.Value("XL_TimeStamp", DateTime.UtcNow);
+            insert.Value("XL_Source", source);
+            insert.Value("XL_Message", message);
+            insert.Value("XL_StackTrace", stacktrace);
+            insert.Execute();
+        }
+
+        internal void Log(string source, string message)
+        {
+            Log(source, message, null);
+        }
+
+        #endregion
+
+        #region Methods
+
+        protected override void OnStart()
+        {
+            Batch batch;
+            Result result;
+            
+            Event("Necrow is Starting...");
+
+            Service.Client();
+            Service.Connected += delegate (Connection connection)
+            {
+                Event("Connecting to Service...");
+                helloTimer = new Timer(new TimerCallback(delegate (object state)
+                {
+                    Service.Send(new ServerNecrowServiceMessage(NecrowServiceMessageType.Hello));
+                }), null, 0, 20000);
+
+            };
+            Service.Register(typeof(ServerNecrowServiceMessage), NecrowServiceMessageHandler);
+
+            Event("Checking Jovice Database connection... ");
+
+            bool joviceDatabaseConnected = false;
+            j = Jovice.Database;
+
+            DatabaseExceptionEventHandler checkingDatabaseException = delegate (object sender, DatabaseExceptionEventArgs eventArgs)
+            {
+                Event("Connection Failed: " + eventArgs.Message);
+            };
+
+            j.Exception += checkingDatabaseException;
+
+            if (j.Test())
+            {
+                joviceDatabaseConnected = true;
+                Event("Jovice Database OK");
+            }
+
+            j.Exception -= checkingDatabaseException;
+
+            j.Exception += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
+            {
+                joviceLastException = eventArgs;
+            };
+            j.Retry += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
+            {
+                if (eventArgs.Exception == DatabaseException.Timeout)
+                {
+                    Event("Database query has timed out, retrying");
+                }
+                else
+                {
+                    eventArgs.NoRetry = true;
+                }
+            };
+            j.QueryAttempts = 5;
+            j.Timeout = 300;
+
+            if (joviceDatabaseConnected)
+            {
+                batch = j.Batch();
+
+                #region Graph
+
+                //JoviceGraph.Update();
+
+                #endregion
+
+                #region Database Check
+
+                Event("Checking database...");
+
+                DatabaseCheck();
+
+                Event("Database checks completed");
+
+                #endregion
+
+                #region Virtualizations
+
+                Event("Starting database virtualizations...");
+
+                NecrowVirtualization.Load(this);
+
+                Event("Database virtualizations completed");
+
+                #endregion
+
+                #region Etc
+
+                interfaceTestPrefixes = new Dictionary<string, string[]>();
+                interfaceTestPrefixes.Add("Hu", new string[] { "H", "HU", "GI", "GE" });
+                interfaceTestPrefixes.Add("Te", new string[] { "T", "TE", "TENGIGE", "GI", "GE", "XE" }); // kadang Te-gig direfer sebagai Gi dammit people
+                interfaceTestPrefixes.Add("Gi", new string[] { "G", "GI", "GE", "GIGAE", "GIGABITETHERNET", "TE" }); // kadang Te-gig direfer sebagai Gi dammit people
+                interfaceTestPrefixes.Add("Fa", new string[] { "F", "FA", "FE", "FASTE" });
+                interfaceTestPrefixes.Add("Et", new string[] { "E", "ET", "ETH" });
+                interfaceTestPrefixes.Add("Ag", new string[] { "LAG", "ETH-TRUNK", "BE" });
+
+                #endregion
+
+                #region Probe initialization
+
+                // PROBE LIST
+
+                Event("Loading probe list...");
+
+                list = new Dictionary<string, Queue<Tuple<int, string>>>();
+
+                list.Add("MAIN", new Queue<Tuple<int, string>>());
+                list.Add("M", new Queue<Tuple<int, string>>());
+
+                foreach (Row xp in j.Query("select * from ProbeProgress order by XP_ID asc"))
+                {
+                    string c = xp["XP_Case"].ToString();
+                    if (c == null) c = "MAIN";
+                    if (list.ContainsKey(c)) list[c].Enqueue(new Tuple<int, string>(xp["XP_ID"].ToInt(), xp["XP_NO"].ToString()));
+                }
+
+                foreach (KeyValuePair<string, Queue<Tuple<int, string>>> pair in list)
+                {
+                    if (pair.Value.Count == 0)
+                    {
+                        CreateNodeQueue(pair.Key);
+                    }
+                    else
+                    {
+                        Event("Case: " + pair.Key + " is using existing list, " + pair.Value.Count + " node" + (pair.Value.Count > 1 ? "s" : "") + " remaining");
+                    }
+                }
+
+                j.Execute("update ProbeProgress set XP_StartTime = NULL, XP_Status = NULL");
+
+                // SUPPORTED VERSION
+
+                if (supportedVersions == null)
+                {
+                    Result sver = j.Query("select * from NodeSupport");
+
+                    supportedVersions = new List<Tuple<string, string, string>>();
+
+                    foreach (Row sve in sver)
+                    {
+                        supportedVersions.Add(new Tuple<string, string, string>(sve["NT_Manufacture"].ToString(), sve["NT_Version"].ToString(), sve["NT_SubVersion"].ToString()));
+                    }
+                }
+
+                #endregion
+
+                #region Database Keepers
+
+                #region Node Keeper
+
+                result = j.Query("select * from Node");
+                keeperNode = new Dictionary<string, Dictionary<string, object>>();
+
+                foreach (Row row in result)
+                {
+                    Dictionary<string, object> values = new Dictionary<string, object>();
+                    keeperNode.Add(row["NO_ID"].ToString(), values);
+
+                    values.Add("NO_Name", row["NO_Name"].ToString());
+                    values.Add("NO_Type", row["NO_Type"].ToString());
+                    values.Add("NO_Manufacture", row["NO_Manufacture"].ToString());
+                    values.Add("NO_IP", row["NO_IP"].ToString());
+                }
+
+                #endregion
+
+                #endregion
+
+                instances = new Dictionary<string, Probe>();
+
+                long loops = 0;
+
+                while (true)
+                {
+                    #region Check Regularly
+                    if (loops % 10 == 0)
+                    {
+                        result = j.Query("select * from Node");
+
+                        batch.Begin();
+                        foreach (Row row in result)
+                        {
+                            string id = row["NO_ID"].ToString();
+
+                            if (keeperNode.ContainsKey(id))
+                            {
+                                Dictionary<string, object> keeper = keeperNode[id];
+
+                                Update update = j.Update("Node");
+                                update.Where("NO_ID", id);
+
+                                if ((string)keeper["NO_Name"] != row["NO_Name"].ToString()) update.Set("NO_Name", (string)keeper["NO_Name"]);
+                                if ((string)keeper["NO_Type"] != row["NO_Type"].ToString()) update.Set("NO_Type", (string)keeper["NO_Type"]);
+                                if ((string)keeper["NO_Manufacture"] != row["NO_Manufacture"].ToString()) update.Set("NO_Manufacture", (string)keeper["NO_Manufacture"]);
+                                if ((string)keeper["NO_IP"] != row["NO_IP"].ToString()) update.Set("NO_IP", (string)keeper["NO_IP"]);
+
+                                batch.Execute(update);
+                            }
+                            else
+                            {
+                                Dictionary<string, object> values = new Dictionary<string, object>();
+                                keeperNode.Add(row["NO_ID"].ToString(), values);
+
+                                string newNodeName = row["NO_Name"].ToString();
+                                values.Add("NO_Name", newNodeName);
+                                values.Add("NO_Type", row["NO_Type"].ToString());
+                                values.Add("NO_Manufacture", row["NO_Manufacture"].ToString());
+                                values.Add("NO_IP", row["NO_IP"].ToString());
+
+                                prioritize.Enqueue(new Tuple<string, ProbeRequestData>(newNodeName, null));
+
+                                Event("New Node Registered: " + newNodeName);
+                            }
+                        }
+                        batch.Commit();
+
+                        result = j.Query(@"
+select XA_ID, XA_Days, XA_TimeStart, XA_TimeEnd, XA_Case, XU_ServerUser, XU_ServerPassword, XU_TacacUser, XU_TacacPassword, XS_Address, XS_ConsolePrefixFormat
+from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID");
+
+                        foreach (Row row in result)
+                        {
+                            string id = row["XA_ID"].ToString();
+
+                            if (!instances.ContainsKey(id))
+                            {
+                                // NEW
+                                ProbeProperties prop = new ProbeProperties();
+                                prop.SSHUser = row["XU_ServerUser"].ToString();
+                                prop.SSHPassword = row["XU_ServerPassword"].ToString();
+                                prop.TacacUser = row["XU_TacacUser"].ToString();
+                                prop.TacacPassword = row["XU_TacacPassword"].ToString();
+                                prop.SSHServerAddress = row["XS_Address"].ToString();
+                                prop.SSHTerminal = string.Format(row["XS_ConsolePrefixFormat"].ToString(), prop.SSHUser);
+                                prop.Days = row["XA_Days"].ToString("0123456");
+                                prop.TimeStart = row["XA_TimeStart"].ToTimeSpan(TimeSpan.MinValue);
+                                prop.TimeEnd = row["XA_TimeEnd"].ToTimeSpan(TimeSpan.MaxValue);
+                                string accessCase = row["XA_Case"].ToString();
+                                prop.Case = accessCase == null ? "MAIN" : accessCase;
+
+                                if (prop.Case.ArgumentIndexOf("MAIN", "M") > -1)
+                                {
+                                    Thread.Sleep(100);
+                                    instances.Add(id, Probe.Create(this, prop, "PROBE" + id.Trim()));
+
+                                    Event("ADD PROBE" + id.Trim() + ": " + prop.SSHUser + "@" + prop.SSHServerAddress + " [" + prop.TacacUser + "] " + ((prop.TimeStart == TimeSpan.Zero || prop.TimeEnd == TimeSpan.Zero) ? "" : (prop.TimeStart + "-" + prop.TimeEnd)));
+                                }
+                                else
+                                {
+                                    Event("PROBE" + id.Trim() + " CASE INVALID");
+                                }
+                            }
+                            else
+                            {
+                                // UPDATE
+                                ProbeProperties prop = instances[id].Properties;
+
+                                List<string> updateinfo = new List<string>();
+
+                                // change timestart
+                                TimeSpan newstart = row["XA_TimeStart"].ToTimeSpan(TimeSpan.MinValue);
+                                TimeSpan newend = row["XA_TimeEnd"].ToTimeSpan(TimeSpan.MaxValue);
+                                bool updatetime = false;
+
+                                if (newstart != prop.TimeStart)
+                                {
+                                    updatetime = true;
+                                    prop.TimeStart = newstart;
+                                }
+                                if (newend != prop.TimeEnd)
+                                {
+                                    updatetime = true;
+                                    prop.TimeEnd = newend;
+                                }
+                                if (updatetime) updateinfo.Add("time changed to " + ((prop.TimeStart == TimeSpan.Zero || prop.TimeEnd == TimeSpan.Zero) ? "" : (prop.TimeStart + "-" + prop.TimeEnd)));
+
+                                // change days
+                                string newdays = row["XA_Days"].ToString("0123456");
+                                bool updatedays = false;
+
+                                if (newdays != prop.Days)
+                                {
+                                    updatedays = true;
+                                    prop.Days = newdays;
+                                }
+                                if (updatedays) updateinfo.Add("days changed to " + prop.Days);
+
+                                // change case
+                                string newCase = row["XA_Case"].ToString();
+                                newCase = newCase == null ? "MAIN" : newCase;
+
+                                if (newCase != prop.Case)
+                                {
+                                    updateinfo.Add("case " + prop.Case + " -> " + newCase);
+                                    prop.Case = newCase;
+                                }
+
+                                // change tacac
+                                string newtacacuser = row["XU_TacacUser"].ToString();
+                                string newtacacpassword = row["XU_TacacPassword"].ToString();
+
+                                if (newtacacuser != prop.TacacUser)
+                                {
+                                    updateinfo.Add("tacacuser " + prop.TacacUser + " -> " + newtacacuser);
+                                    prop.TacacUser = newtacacuser;
+                                }
+                                if (newtacacpassword != prop.TacacPassword)
+                                {
+                                    updateinfo.Add("tacacpass changed");
+                                    prop.TacacPassword = newtacacpassword;
+                                }
+
+                                // change ssh
+                                string newsshuser = row["XU_ServerUser"].ToString();
+                                string newsshpassword = row["XU_ServerPassword"].ToString();
+                                string newsshserveraddress = row["XS_Address"].ToString();
+
+                                bool updatessh = false;
+
+                                if (newsshuser != prop.SSHUser)
+                                {
+                                    updatessh = true;
+                                    updateinfo.Add("sshuser " + prop.SSHUser + " -> " + newsshuser);
+                                    prop.SSHUser = newsshuser;
+                                }
+                                if (newsshpassword != prop.SSHPassword)
+                                {
+                                    updatessh = true;
+                                    updateinfo.Add("sshpass changed");
+                                    prop.SSHPassword = newsshpassword;
+                                }
+                                if (newsshserveraddress != prop.SSHServerAddress)
+                                {
+                                    updatessh = true;
+                                    updateinfo.Add("sshaddress " + prop.SSHServerAddress + " -> " + newsshserveraddress);
+                                    prop.SSHServerAddress = newsshserveraddress;
+                                }
+
+                                if (updateinfo.Count > 0)
+                                {
+                                    Event("UPDATE PROBE" + id.Trim() + ": " + string.Join(", ", updateinfo.ToArray()));
+                                }
+
+                                if (updatessh)
+                                {
+                                    prop.SSHTerminal = string.Format(row["XS_ConsolePrefixFormat"].ToString(), prop.SSHUser);
+                                    instances[id].QueueStop();
+                                }
+                            }
+                        }
+
+                        List<string> remove = new List<string>();
+                        foreach (KeyValuePair<string, Probe> pair in instances)
+                        {
+                            bool found = false;
+                            foreach (Row row in result)
+                            {
+                                string id = row["XA_ID"].ToString();
+                                if (pair.Key == id)
+                                {
+                                    found = true;
+                                    break;
+                                }
+                            }
+
+                            if (!found)
+                            {
+                                Event("DELETE PROBE" + pair.Key.Trim());
+                                pair.Value.QueueStop();
+                                remove.Add(pair.Key);
+                            }
+                        }
+                        foreach (string key in remove)
+                            instances.Remove(key);
+                    }
+                    #endregion
+
+                    /* 
+                     * STARTED = probe is started
+                     * CONNECTED = probe is connected to SSH
+                     * PROBING = probe is probing to Node
+                     * 
+                     */
+
+                    foreach (KeyValuePair<string, Probe> pair in instances)
+                    {
+                        Probe probe = pair.Value;
+
+                        if (probe.IsStarted)
+                        {
+                            if (probe.IsConnected)
+                            {
+                                if (probe.IsProbing)
+                                {
+                                }
+                                else
+                                {
+                                    if (!InTime(probe.Properties))
+                                    {
+                                        Event("Probe session has ended");
+                                        probe.SessionStart = false;
+                                        probe.Stop();
+                                    }
+                                    else if ((DateTime.UtcNow - probe.SSHProbeStartTime).TotalHours > 3)
+                                    {
+                                        Event("Restarting the probe");
+                                        probe.Stop();
+                                    }
+                                }
+                            }
+                            else
+                            {
+                            }
+                        }
+                        else
+                        {
+                            if (InTime(probe.Properties))
+                            {
+                                if (!probe.SessionStart)
+                                {
+                                    Event("Probe session has started");
+                                    probe.SessionStart = true;
+                                }
+                                probe.Start();
+                            }
+                        }
+                    }
+
+                    Thread.Sleep(1000);
+                    loops++;
+                }
+            }
+        }
+
+        protected override void OnStop()
+        {
+            // kill all instance in process
+            foreach (KeyValuePair<string, Probe> pair in instances)
+            {
+                Probe probe = pair.Value;
+                probe.Stop();
+            }
+
+            // clean database
+            j.Execute("update ProbeProgress set XP_StartTime = NULL, XP_Status = NULL");
+        }
+
+        protected override void OnEvent(string message)
+        {
+            Console.WriteLine(message);
         }
 
         #endregion

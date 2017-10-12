@@ -13,19 +13,23 @@ namespace NecrowService
 {
     public partial class ServiceMain : ServiceBase
     {
+        private Necrow necrow;
+
         public ServiceMain()
         {
             InitializeComponent();
+
+            necrow = new Necrow();
         }
 
         protected override void OnStart(string[] args)
         {
-            Necrow.Start();
+            necrow.Start();
         }
 
         protected override void OnStop()
         {
-            Necrow.Stop();
+            necrow.Stop();
         }
     }
 }

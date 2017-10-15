@@ -146,8 +146,6 @@ namespace Center
         private Dictionary<string, string[]> interfaceTestPrefixes = null;
         internal Dictionary<string, string[]> InterfaceTestPrefixes { get => interfaceTestPrefixes; }
 
-        private static Timer helloTimer;
-
         private DatabaseExceptionEventArgs joviceLastException = null;
         internal DatabaseExceptionEventArgs JoviceLastException { get => joviceLastException; }
 
@@ -514,13 +512,32 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
             }
         }
 
+        internal void Log(string source, string message, string stacktrace)
+        {
+            Insert insert = j.Insert("ProbeLog");
+            insert.Value("XL_TimeStamp", DateTime.UtcNow);
+            insert.Value("XL_Source", source);
+            insert.Value("XL_Message", message);
+            insert.Value("XL_StackTrace", stacktrace);
+            insert.Execute();
+        }
+
+        internal void Log(string source, string message)
+        {
+            Log(source, message, null);
+        }
+
+        #endregion
+
+        #region Handler
+        
         private void NecrowServiceMessageHandler(MessageEventArgs e)
         {
             ServerNecrowServiceMessage m = (ServerNecrowServiceMessage)e.Message;
 
             if (m.Type == NecrowServiceMessageType.HelloResponse)
             {
-                helloTimer.Dispose();
+                EndConnect();
                 Event("Service Connected");
             }
             else if (m.Type == NecrowServiceMessageType.Request)
@@ -557,22 +574,7 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
                 prioritize.Enqueue(new Tuple<string, ProbeRequestData>(node + option, new ProbeRequestData(e.Connection, m)));
             }
         }
-
-        internal void Log(string source, string message, string stacktrace)
-        {
-            Insert insert = j.Insert("ProbeLog");
-            insert.Value("XL_TimeStamp", DateTime.UtcNow);
-            insert.Value("XL_Source", source);
-            insert.Value("XL_Message", message);
-            insert.Value("XL_StackTrace", stacktrace);
-            insert.Execute();
-        }
-
-        internal void Log(string source, string message)
-        {
-            Log(source, message, null);
-        }
-
+        
         #endregion
 
         #region Methods
@@ -581,61 +583,48 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
         {
             Batch batch;
             Result result;
-            
+            bool joviceDatabaseConnected = false;
+            string testMessage = null;
+
             Event("Necrow is Starting...");
 
-            Service.Client();
-            Service.Connected += delegate (Connection connection)
-            {
-                Event("Connecting to Service...");
-                helloTimer = new Timer(new TimerCallback(delegate (object state)
-                {
-                    Service.Send(new ServerNecrowServiceMessage(NecrowServiceMessageType.Hello));
-                }), null, 0, 20000);
-
-            };
+            // Handlers
             Service.Register(typeof(ServerNecrowServiceMessage), NecrowServiceMessageHandler);
 
             Event("Checking Jovice Database connection... ");
-
-            bool joviceDatabaseConnected = false;
-            j = Jovice.Database;
-
-            DatabaseExceptionEventHandler checkingDatabaseException = delegate (object sender, DatabaseExceptionEventArgs eventArgs)
-            {
-                Event("Connection Failed: " + eventArgs.Message);
-            };
-
-            j.Exception += checkingDatabaseException;
-
-            if (j.Test())
+            
+            if (j.Test(delegate (string message) {
+                testMessage = message;
+            }))
             {
                 joviceDatabaseConnected = true;
-                Event("Jovice Database OK");
+                Event("Jovice Database Connection OK");
             }
-
-            j.Exception -= checkingDatabaseException;
-
-            j.Exception += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
+            else
             {
-                joviceLastException = eventArgs;
-            };
-            j.Retry += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
-            {
-                if (eventArgs.Exception == DatabaseException.Timeout)
-                {
-                    Event("Database query has timed out, retrying");
-                }
-                else
-                {
-                    eventArgs.NoRetry = true;
-                }
-            };
-            j.QueryAttempts = 5;
-            j.Timeout = 300;
-
+                Event("Jovice Database Connection Failed: " + testMessage);
+            }
+            
             if (joviceDatabaseConnected)
             {
+                j.Exception += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
+                {
+                    joviceLastException = eventArgs;
+                };
+                j.Retry += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
+                {
+                    if (eventArgs.Exception == DatabaseException.Timeout)
+                    {
+                        Event("Database query has timed out, retrying");
+                    }
+                    else
+                    {
+                        eventArgs.NoRetry = true;
+                    }
+                };
+                j.QueryAttempts = 5;
+                j.Timeout = 300;
+
                 batch = j.Batch();
 
                 #region Graph
@@ -682,10 +671,11 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
 
                 Event("Loading probe list...");
 
-                list = new Dictionary<string, Queue<Tuple<int, string>>>();
-
-                list.Add("MAIN", new Queue<Tuple<int, string>>());
-                list.Add("M", new Queue<Tuple<int, string>>());
+                list = new Dictionary<string, Queue<Tuple<int, string>>>
+                {
+                    { "MAIN", new Queue<Tuple<int, string>>() },
+                    { "M", new Queue<Tuple<int, string>>() }
+                };
 
                 foreach (Row xp in j.Query("select * from ProbeProgress order by XP_ID asc"))
                 {
@@ -1027,7 +1017,14 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
 
         protected override void OnEvent(string message)
         {
-            Console.WriteLine(message);
+            if (IsConsole)
+                Console.WriteLine(message);
+        }
+
+        protected override void OnServiceConnected()
+        {
+            // Introduce ourselves
+            Service.Send(new ServerNecrowServiceMessage(NecrowServiceMessageType.Hello));
         }
 
         #endregion

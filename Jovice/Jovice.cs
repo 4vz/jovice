@@ -6,6 +6,7 @@ using System.Net;
 using System.Text;
 
 using Aphysoft.Share;
+using System.Configuration;
 
 namespace Center
 {
@@ -21,31 +22,13 @@ namespace Center
             {
                 if (jovice == null)
                 {
+                    string key = "jovice";
 #if DEBUG
-                    jovice = new Database(Aphysoft.Protected.Project.Database("JOVICE_DEBUG"), DatabaseType.SqlServer);
-#else
-                    jovice = new Database(Aphysoft.Protected.Project.Database("JOVICE_RELEASE"), DatabaseType.SqlServer);
+                    key = "jovice_debug";
 #endif
+                    jovice = new Database(ConfigurationManager.AppSettings[key], DatabaseType.SqlServer);
                 }
                 return jovice;
-            }
-        }
-
-        private static Database centerDatabase = null;
-
-        public static Database CenterDatabase
-        {
-            get
-            {
-                if (centerDatabase == null)
-                {
-#if DEBUG
-                    centerDatabase = new Database(Aphysoft.Protected.Project.Database("CENTER_DEBUG"), DatabaseType.SqlServer);
-#else
-                    centerDatabase = new Database(Aphysoft.Protected.Project.Database("CENTER_RELEASE"), DatabaseType.SqlServer);
-#endif
-                }
-                return centerDatabase;
             }
         }
 

@@ -71,7 +71,7 @@ namespace Center
         public static void Init()
         {
             Result result;
-            Database center = Jovice.CenterDatabase;
+            Database center = Share.Database;
 
             intentReferences.Clear();
 

@@ -73,7 +73,7 @@ namespace Center
             set
             {
                 name = value;
-                Jovice.CenterDatabase.Execute("update BotGroup set BG_Name = {0} where BG_ID = {1}", name, id);
+                Share.Database.Execute("update BotGroup set BG_Name = {0} where BG_ID = {1}", name, id);
             }
         }
 
@@ -85,7 +85,7 @@ namespace Center
             set
             {
                 administrative = value;
-                Jovice.CenterDatabase.Execute("update BotGroup set BG_Administrative = {0} where BG_ID = {1}", administrative.ToInt(), id);
+                Share.Database.Execute("update BotGroup set BG_Administrative = {0} where BG_ID = {1}", administrative.ToInt(), id);
             }
         }
 
@@ -129,7 +129,7 @@ namespace Center
             set
             {
                 name = value;
-                Jovice.CenterDatabase.Execute("update BotUser set BU_Name = {0} where BU_ID = {1}", name, id);               
+                Share.Database.Execute("update BotUser set BU_Name = {0} where BU_ID = {1}", name, id);               
             }
         }
 
@@ -215,8 +215,7 @@ namespace Center
             telegramBot = new TelegramBotClient("302702777:AAEvFgWiSnqM6DZb9dq-uAnnOmJMLGNiDbw");
             userName = "@TelkomCenterBot";
 #endif
-
-            Database center = Jovice.CenterDatabase;
+            Database center = Share.Database;
             Result result;
 
             telegramBot.OnMessage += OnMessage;

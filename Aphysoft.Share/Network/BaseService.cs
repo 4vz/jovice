@@ -36,7 +36,7 @@ namespace Aphysoft.Share
         private Socket clientSocket = null;
 
         private IPEndPoint endPoint = null;
-
+        
         private Thread connectionThread = null;
 
         private Connection clientConnection = null;
@@ -44,6 +44,8 @@ namespace Aphysoft.Share
         private bool isConnecting = false;
 
         private bool reconnectAfterDisconnection = true;
+
+        private bool cancelConnect = false;
 
         private int reconnectDelay = 5000;
 
@@ -72,6 +74,8 @@ namespace Aphysoft.Share
         private List<int> abortedResponses = new List<int>();
 
         private object abortedResponsesWaitSync = new object();
+
+        private string lastExceptionMessage = null;
         
         #endregion
 
@@ -149,6 +153,11 @@ namespace Aphysoft.Share
                 }
                 else return false;
             }
+        }
+
+        public string LastExceptionMessage
+        {
+            get { return lastExceptionMessage; }
         }
 
         #endregion
@@ -330,7 +339,8 @@ namespace Aphysoft.Share
             catch (Exception ex)
             {
                 // connection failure
-                Debug("Connect failed: " + ex.Message);
+                lastExceptionMessage = "Connect failed: " + ex.Message;
+                Debug(lastExceptionMessage);
 
                 clientSocket.Close();
                 clientSocket = null;
@@ -346,21 +356,20 @@ namespace Aphysoft.Share
             try
             {                
                 clientSocket.EndConnect(ar);
-                isConnecting = false;
-
                 Debug("Connected to " + clientSocket.RemoteEndPoint.ToString());
-
                 connectionOk = true;
             }
             catch (Exception ex)
             {
-                Debug("EndConnect failed: " + ex.Message);
+                lastExceptionMessage = "EndConnect failed: " + ex.Message;
+                Debug(lastExceptionMessage);
 
                 clientSocket.Close();
                 clientSocket = null;
-
-                isConnecting = false;
+                                
             }
+
+            isConnecting = false;
 
             if (connectionOk)
             {
@@ -371,7 +380,15 @@ namespace Aphysoft.Share
             }
             else
             {
-                Reconnect();
+                if (cancelConnect)
+                {
+                    Debug("EndConnect End");
+                }
+                else
+                {
+                    Debug("EndConnect Reconnect");
+                    Reconnect();
+                }
             }
         }
 
@@ -396,10 +413,8 @@ namespace Aphysoft.Share
                 if (IsConnecting)
                 {
                     Debug("Cancel connecting...");
-
                     clientSocket.Close();
-
-                    isConnecting = false;
+                    cancelConnect = true;
                 }
                 else
                 {
@@ -432,18 +447,16 @@ namespace Aphysoft.Share
         {
             if (reconnectAfterDisconnection)
             {
-                connectionThread = new Thread(new ThreadStart(EndReconnect));
+                connectionThread = new Thread(new ThreadStart(delegate()
+                {
+                    Debug("Preparing to reconnect");
+
+                    Thread.Sleep(reconnectDelay);
+
+                    Connect();
+                }));
                 connectionThread.Start();
             }
-        }
-
-        private void EndReconnect()
-        {
-            Debug("Preparing to reconnect");
-
-            Thread.Sleep(reconnectDelay);
-
-            Connect();
         }
 
         private void Accept()

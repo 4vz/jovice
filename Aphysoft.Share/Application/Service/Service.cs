@@ -70,9 +70,19 @@ namespace Aphysoft.Share
         {
             get
             {
-                BaseService instance = Service.Instance;
+                BaseService instance = Instance;
 
                 return instance.IsConnected;
+            }
+        }
+
+        internal static new string LastExceptionMessage
+        {
+            get
+            {
+                BaseService instance = Instance;
+
+                return instance.LastExceptionMessage;
             }
         }
 
@@ -163,7 +173,9 @@ namespace Aphysoft.Share
         {
             if (!IsServer && !IsClient)
             {
-                if (share.Test())
+                if (share.Test(delegate(string message)
+                {
+                }))
                 {
                     if (type < ServiceTraceLevels.None)
                     {
@@ -175,7 +187,7 @@ namespace Aphysoft.Share
                     }
                     
                     Instance.SetTraceType(type);
-                    Instance.Server(IPAddress.Any, 23474);
+                    Instance.Server(IPAddress.Any, 2347);
 
                     Provider.ServerInit();
 
@@ -188,7 +200,7 @@ namespace Aphysoft.Share
         {
             if (!IsServer && !IsClient)
             {
-                Instance.Client(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 23474));
+                Client(new IPEndPoint(IPAddress.Loopback, 2347), ServiceTraceLevels.None);
             }
         }
 
@@ -196,7 +208,41 @@ namespace Aphysoft.Share
         {
             if (!IsServer && !IsClient)
             {
-                Instance.Client(new IPEndPoint(server, 23474));
+                Client(new IPEndPoint(server, 23474), ServiceTraceLevels.None);
+            }
+        }
+
+        public static new void Client(IPEndPoint server)
+        {
+            if (!IsServer && !IsClient)
+            {
+                Client(server, ServiceTraceLevels.None);
+            }
+        }
+
+        public static void Client(IPEndPoint server, ServiceTraceLevels type)
+        {
+            if (!IsServer && !IsClient)
+            {
+                if (type < ServiceTraceLevels.None)
+                {
+                    Console.WriteLine("ServiceTraceLevels: " + type);
+                    Traced += delegate (string message)
+                    {
+                        Console.WriteLine(message);
+                    };
+                }
+
+                Instance.SetTraceType(type);
+                ((BaseService)Instance).Client(server);
+            }
+        }
+
+        public static void End()
+        {
+            if (IsServer || IsClient)
+            {
+                Instance.Disconnect();
             }
         }
 

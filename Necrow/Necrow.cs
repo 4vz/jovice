@@ -79,14 +79,6 @@ namespace Center
             set { tacacPassword = value; }
         }
 
-        private string sshTerminal;
-
-        public string SSHTerminal
-        {
-            get { return sshTerminal; }
-            set { sshTerminal = value; }
-        }
-
         private string sshServerAddress;
 
         public string SSHServerAddress
@@ -146,9 +138,6 @@ namespace Center
         private Dictionary<string, string[]> interfaceTestPrefixes = null;
         internal Dictionary<string, string[]> InterfaceTestPrefixes { get => interfaceTestPrefixes; }
 
-        private DatabaseExceptionEventArgs joviceLastException = null;
-        internal DatabaseExceptionEventArgs JoviceLastException { get => joviceLastException; }
-
         #endregion
 
         #region Constructors 
@@ -157,33 +146,6 @@ namespace Center
         {
         }
 
-        #endregion
-
-        #region Static Methods
-
-        internal static bool InTime(ProbeProperties properties)
-        {
-            string days = properties.Days;
-            TimeSpan start = properties.TimeStart;
-            TimeSpan end = properties.TimeEnd;
-            TimeSpan time = DateTime.UtcNow.TimeOfDay;
-            DayOfWeek dow = DateTime.UtcNow.DayOfWeek;
-
-            bool isTimeOK = (start < end && start < time && time < end) ||
-                   (start > end && (time > start || time < end)) ||
-                   (start == end);
-
-            bool isDayOK = dow == DayOfWeek.Monday ? days.IndexOf('0') > -1 :
-                dow == DayOfWeek.Tuesday ? days.IndexOf('1') > -1 :
-                dow == DayOfWeek.Wednesday ? days.IndexOf('2') > -1 :
-                dow == DayOfWeek.Thursday ? days.IndexOf('3') > -1 :
-                dow == DayOfWeek.Friday ? days.IndexOf('4') > -1 :
-                dow == DayOfWeek.Saturday ? days.IndexOf('5') > -1 :
-                dow == DayOfWeek.Sunday ? days.IndexOf('6') > -1 : false;
-
-            return isTimeOK && isDayOK;
-        }
-        
         #endregion
 
         #region Methods
@@ -447,6 +409,29 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
             }
         }
 
+        private bool InTime(ProbeProperties properties)
+        {
+            string days = properties.Days;
+            TimeSpan start = properties.TimeStart;
+            TimeSpan end = properties.TimeEnd;
+            TimeSpan time = DateTime.UtcNow.TimeOfDay;
+            DayOfWeek dow = DateTime.UtcNow.DayOfWeek;
+
+            bool isTimeOK = (start < end && start < time && time < end) ||
+                   (start > end && (time > start || time < end)) ||
+                   (start == end);
+
+            bool isDayOK = dow == DayOfWeek.Monday ? days.IndexOf('0') > -1 :
+                dow == DayOfWeek.Tuesday ? days.IndexOf('1') > -1 :
+                dow == DayOfWeek.Wednesday ? days.IndexOf('2') > -1 :
+                dow == DayOfWeek.Thursday ? days.IndexOf('3') > -1 :
+                dow == DayOfWeek.Friday ? days.IndexOf('4') > -1 :
+                dow == DayOfWeek.Saturday ? days.IndexOf('5') > -1 :
+                dow == DayOfWeek.Sunday ? days.IndexOf('6') > -1 : false;
+
+            return isTimeOK && isDayOK;
+        }
+
         internal Tuple<int, string> NextNode(string probeCase)
         {
             Tuple<int, string> noded = null;
@@ -583,6 +568,7 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
         {
             Batch batch;
             Result result;
+            
             bool joviceDatabaseConnected = false;
             string testMessage = null;
 
@@ -604,22 +590,17 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
             {
                 Event("Jovice Database Connection Failed: " + testMessage);
             }
-            
+
             if (joviceDatabaseConnected)
             {
-                j.Exception += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
-                {
-                    joviceLastException = eventArgs;
-                };
                 j.Retry += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
                 {
-                    if (eventArgs.Exception == DatabaseException.Timeout)
-                    {
-                        Event("Database query has timed out, retrying");
-                    }
+                    if (eventArgs.Exception == DatabaseException.Timeout) Event("Database query has timed out, retrying");
                     else
                     {
+                        Event("Jovice Database Connection failed: " + eventArgs.Message);
                         eventArgs.NoRetry = true;
+                        Stop();
                     }
                 };
                 j.QueryAttempts = 5;
@@ -785,7 +766,7 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
                         batch.Commit();
 
                         result = j.Query(@"
-select XA_ID, XA_Days, XA_TimeStart, XA_TimeEnd, XA_Case, XU_ServerUser, XU_ServerPassword, XU_TacacUser, XU_TacacPassword, XS_Address, XS_ConsolePrefixFormat
+select XA_ID, XA_Days, XA_TimeStart, XA_TimeEnd, XA_Case, XU_ServerUser, XU_ServerPassword, XU_TacacUser, XU_TacacPassword, XS_Address
 from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID");
 
                         foreach (Row row in result)
@@ -801,7 +782,6 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
                                 prop.TacacUser = row["XU_TacacUser"].ToString();
                                 prop.TacacPassword = row["XU_TacacPassword"].ToString();
                                 prop.SSHServerAddress = row["XS_Address"].ToString();
-                                prop.SSHTerminal = string.Format(row["XS_ConsolePrefixFormat"].ToString(), prop.SSHUser);
                                 prop.Days = row["XA_Days"].ToString("0123456");
                                 prop.TimeStart = row["XA_TimeStart"].ToTimeSpan(TimeSpan.MinValue);
                                 prop.TimeEnd = row["XA_TimeEnd"].ToTimeSpan(TimeSpan.MaxValue);
@@ -811,7 +791,32 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
                                 if (prop.Case.ArgumentIndexOf("MAIN", "M") > -1)
                                 {
                                     Thread.Sleep(100);
-                                    instances.Add(id, Probe.Create(this, prop, "PROBE" + id.Trim()));
+
+                                    string identifier = "PROBE" + id.Trim();
+                                    Probe probe = new Probe(prop, this, identifier);
+
+                                    probe.ConnectionFailed += delegate (object sender, Exception exception)
+                                    {
+                                        string message = exception.Message;
+                                        if (message.IndexOf("Auth fail") > -1) Event("Connection failed: Authentication failed", identifier);
+                                        else if (message.IndexOf("unreachable") > -1) Event("Connection failed: Server unreachable", identifier);
+                                        else if (message.IndexOf("respond after a period of time") > -1) Event("Connection failed: Connection time out", identifier);
+                                        else
+                                        {
+                                            Event("Connection failed", identifier);
+#if DEBUG
+                                            Event("DEBUG " + message, identifier);
+#endif
+                                        }
+
+                                        if (InTime(prop))
+                                        {
+                                            Event("Reconnecting in 20 seconds...", identifier);
+                                            Thread.Sleep(20000);
+                                        }
+                                    };
+
+                                    instances.Add(id, probe);
 
                                     Event("ADD PROBE" + id.Trim() + ": " + prop.SSHUser + "@" + prop.SSHServerAddress + " [" + prop.TacacUser + "] " + ((prop.TimeStart == TimeSpan.Zero || prop.TimeEnd == TimeSpan.Zero) ? "" : (prop.TimeStart + "-" + prop.TimeEnd)));
                                 }
@@ -913,7 +918,6 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
 
                                 if (updatessh)
                                 {
-                                    prop.SSHTerminal = string.Format(row["XS_ConsolePrefixFormat"].ToString(), prop.SSHUser);
                                     instances[id].QueueStop();
                                 }
                             }
@@ -958,7 +962,7 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
 
                         if (probe.IsStarted)
                         {
-                            if (probe.IsConnected)
+                            if (probe.IsRunning)
                             {
                                 if (probe.IsProbing)
                                 {
@@ -998,21 +1002,28 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
 
                     Thread.Sleep(1000);
                     loops++;
+
+                    if (!IsRunning)
+                    {
+                        Event("Necrow terminated");
+
+                        // kill all instance in process
+                        foreach (KeyValuePair<string, Probe> pair in instances)
+                        {
+                            Probe probe = pair.Value;
+                            probe.Stop();
+                        }
+
+                        j.Execute("update ProbeProgress set XP_StartTime = NULL, XP_Status = NULL");
+
+                        break;
+                    }
                 }
             }
         }
 
         protected override void OnStop()
         {
-            // kill all instance in process
-            foreach (KeyValuePair<string, Probe> pair in instances)
-            {
-                Probe probe = pair.Value;
-                probe.Stop();
-            }
-
-            // clean database
-            j.Execute("update ProbeProgress set XP_StartTime = NULL, XP_Status = NULL");
         }
 
         protected override void OnEvent(string message)

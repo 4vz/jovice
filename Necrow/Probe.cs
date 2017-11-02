@@ -568,18 +568,14 @@ namespace Center
 
         private ProbeProperties properties;
         internal ProbeProperties Properties { get { return properties; } }
-
-        private Thread mainLoop = null;
+        
         private Thread idleThread = null;
-
-        private Queue<string> outputs = new Queue<string>();
+        
         private Dictionary<string, object> updates;
         private Dictionary<string, string> summaries;
         private string defaultOutputIdentifier = null;
         private string outputIdentifier = null;
-
-        private string lastSendLine = null;
-
+        
         private Database j;
 
         private string lastNodeName = null;
@@ -644,22 +640,6 @@ namespace Center
 
         private bool usingBash = false;
 
-
-        private bool started = false;
-
-        public bool IsStarted
-        {
-            get { return started; }
-        }
-
-        public new bool IsConnected
-        {
-            get
-            {
-                return mainLoop != null;
-            }
-        }
-
         private bool probing = false;
 
         public bool IsProbing
@@ -686,16 +666,13 @@ namespace Center
 
         #region Constructors
 
-        public Probe(ProbeProperties access)
+        public Probe(ProbeProperties properties, Necrow instance, string identifier)
         {
-            this.properties = access;
+            this.properties = properties;
+            this.defaultOutputIdentifier = identifier;
+            this.instance = instance;
 
             j = Jovice.Database;
-
-            Connected += OnConnected;
-            Disconnected += OnDisconnected;
-            ConnectionFailed += OnConnectionFailed;
-            Received += OnReceived;
         }
 
         #endregion
@@ -782,20 +759,7 @@ namespace Center
 
         #endregion
 
-        #region Static
-
-        public static Probe Create(Necrow instance, ProbeProperties access, string identifier)
-        {
-            Probe probe = new Probe(access)
-            {
-                defaultOutputIdentifier = identifier,
-                instance = instance
-            };
-
-            return probe;
-        }
-
-        #endregion
+        #region Event
 
         private void Event(string message)
         {
@@ -885,151 +849,45 @@ namespace Center
             }
         }
 
-        internal void QueueStop()
+        #endregion
+
+        #region Start Stop
+
+        public void QueueStop()
         {
             queueStop = true;
         }
 
-        internal void Start()
+        public void Start()
         {
-            if (!IsStarted)
-            {
-                started = true;
-                Event("Connecting... (" + properties.SSHUser + "@" + properties.SSHServerAddress + " [" + properties.TacacUser + "])");
-#if DEBUG
-                Event("DEBUG SSH Password: " + properties.SSHPassword);
-#endif
-                new Thread(new ThreadStart(delegate ()
-                {
-                    Thread.Sleep(RandomHelper.Next(0, 500));
-                    Start(properties.SSHServerAddress, properties.SSHUser, properties.SSHPassword);
-                })).Start();
-            }  
+            Start(properties.SSHServerAddress, properties.SSHUser, properties.SSHPassword);
         }
 
-        internal new void Stop()
+        #endregion
+        
+        #region Handlers
+
+        protected override void OnStarting()
         {
-            queueStop = false;
-            base.Stop();
+            Event("Connecting... (" + properties.SSHUser + "@" + properties.SSHServerAddress + " [" + properties.TacacUser + "])");
+            Thread.Sleep(RandomHelper.Next(0, 500));
         }
 
-        private void ConnectionFailure()
-        {
-            outputIdentifier = null;
-            Event("Connection failure has occured");
-            Thread.Sleep(5000);
-            Stop();
-
-            started = false;
-        }
-
-        private ProbeProcessResult DatabaseFailure(ProbeProcessResult probe)
-        {
-            Event("Database failure has occured");
-            Thread.Sleep(5000);
-
-            probe.FailureType = FailureTypes.Database;
-
-            return probe;
-        }
-
-        private void OnConnected(object sender)
+        protected override void OnConnected()
         {
             Event("Connected!");
-
-            if (mainLoop != null)
-            {
-                mainLoop.Abort();
-                mainLoop = null;
-            }
 
             usingBash = false;
 
             sshProbeStartTime = DateTime.UtcNow;
 
-            mainLoop = new Thread(new ThreadStart(MainLoop));
-            mainLoop.Start();
-        }
-        
-        private void OnDisconnected(object sender)
-        {
-            outputIdentifier = null;
-
-            Thread stop = new Thread(new ThreadStart(delegate ()
-            {
-                do
-                {
-                    if (mainLoop != null)
-                    {
-                        if (!mainLoop.IsAlive)
-                        {
-                            mainLoop = null;
-                            break;
-                        }
-                    }
-                    else break;
-
-                    Thread.Sleep(100);
-                }
-                while (true);
-
-                probing = false;
-                started = false;
-                sshProbeStartTime = DateTime.MinValue;
-
-                Event("Disconnected");
-            }));
-
-            stop.Start();
-
-            if (idleThread != null)
-            {
-                Event("Destroying idle thread");
-                idleThread.Abort();
-                idleThread = null;
-            }
-            if (mainLoop != null)
-            {
-                Event("Destroying main thread");
-                mainLoop.Abort();
-            }
-        }
-        
-        private void OnConnectionFailed(object sender, Exception exception)
-        {            
-            string message = exception.Message;
-            if (message.IndexOf("Auth fail") > -1) Event("Connection failed: Authentication failed");
-            else if (message.IndexOf("unreachable") > -1) Event("Connection failed: Server unreachable");
-            else
-            {
-                Event("Connection failed");
-#if DEBUG
-                Event("DEBUG " + message);
-#endif
-            }
-
-            if (Necrow.InTime(properties))
-            {
-                Event("Reconnecting in 20 seconds...");
-                Thread.Sleep(20000);
-            }
-            started = false;
-        }
-        
-        private void OnReceived(object sender, string output)
-        {
-            if (output != null && output != "")
-            {
-                lock (outputs)
-                {
-                    outputs.Enqueue(output);
-                }
-            }
         }
 
-        private void MainLoop()
+        protected override void OnProcess()
         {
             Culture.Default();
+
+            Event("Terminal prefix: " + terminalPrefix);
 
             Row restartCurrentNode = null;
             int restartCount = 0;
@@ -1140,7 +998,7 @@ namespace Center
                         {
                             string errorMessage = null;
                             if (probe.FailureType == FailureTypes.Connection) errorMessage = "Connection error";
-                            else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error: " + instance.JoviceLastException.Message.Trim(new char[] { '\r', '\n', ' ' }) + ", SQL: " + instance.JoviceLastException.Sql;
+                            else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error: " + j.LastException.Message.Trim(new char[] { '\r', '\n', ' ' }) + ", SQL: " + j.LastException.Sql;
                             else if (probe.FailureType == FailureTypes.Request) errorMessage = "Request error";
 #if !DEBUG
                             throw new Exception(errorMessage);
@@ -1279,7 +1137,7 @@ namespace Center
                             {
                                 string errorMessage = null;
                                 if (probe.FailureType == FailureTypes.Connection) errorMessage = "Connection error";
-                                else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error: " + instance.JoviceLastException.Message.Trim(new char[] { '\r', '\n', ' ' }) + ", SQL: " + instance.JoviceLastException.Sql;
+                                else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error: " + j.LastException.Message.Trim(new char[] { '\r', '\n', ' ' }) + ", SQL: " + j.LastException.Sql;
                                 else if (probe.FailureType == FailureTypes.Request) errorMessage = "Request error";
 #if !DEBUG
                                 throw new Exception(errorMessage);
@@ -1320,12 +1178,7 @@ namespace Center
                     {
                         Save();
 
-                        outputIdentifier = null;
-                        Event("Connection failure has occured");
-                        Thread.Sleep(5000);
-                        Stop();
-
-                        started = false;
+                        ConnectionFailure();
                     }
                     else if (restartCurrentNode != null)
                     {
@@ -1361,6 +1214,54 @@ namespace Center
             }
         }
 
+        protected override void OnBeforeTerminate()
+        {
+            outputIdentifier = null;
+        }
+
+        protected override void OnTerminated()
+        {
+            probing = false;
+            sshProbeStartTime = DateTime.MinValue;
+            Event("Disconnected");
+        }
+
+        protected override void OnDisconnected()
+        {
+            if (idleThread != null)
+            {
+                Event("Destroying idle thread");
+                idleThread.Abort();
+                idleThread = null;
+            }
+        }
+
+        protected override void OnConnectionFailure()
+        {
+            Event("Connection failure has occured");
+
+            outputIdentifier = null;
+           
+            Thread.Sleep(5000);
+        }
+
+        protected override void OnBeforeStop()
+        {
+            queueStop = false;
+        }
+
+        #endregion
+
+        private ProbeProcessResult DatabaseFailure(ProbeProcessResult probe)
+        {
+            Event("Database failure has occured");
+            Thread.Sleep(5000);
+
+            probe.FailureType = FailureTypes.Database;
+
+            return probe;
+        }
+
         private static void Shuffle<T>(IList<T> list)
         {
             int n = list.Count;
@@ -1372,116 +1273,6 @@ namespace Center
                 list[k] = list[n];
                 list[n] = value;
             }
-        }
-
-        private void SendLine(string command)
-        {
-            SendLine(command, false);
-        }
-
-        private void SendLine(string command, bool saveOnFailure)
-        {
-            if (IsConnected)
-            {
-                lastSendLine = command;
-                Thread.Sleep(200);
-                bool res = WriteLine(command);
-                if (res == false)
-                {
-                    if (saveOnFailure) Save();
-                    ConnectionFailure();
-                }
-            }
-        }
-
-        private void Send(string line)
-        {
-            if (IsConnected)
-            {
-                Thread.Sleep(50);
-                bool res = Write(line);
-                if (res == false) ConnectionFailure();
-            }
-        }
-
-        private void SendCharacter(char character)
-        {
-            Send(character.ToString());
-        }
-
-        private void SendSpace()
-        {
-            SendCharacter((char)32);
-        }
-
-        private void SendControlRightBracket()
-        {
-            SendCharacter((char)29);
-        }
-
-        private void SendControlC()
-        {
-            SendCharacter((char)3);
-        }
-
-        private void SendControlZ()
-        {
-            SendCharacter((char)26);
-        }
-
-        private void WaitUntilMCETerminalReady(string waitMessage)
-        {
-            int loop = 0;
-
-            while (true)
-            {
-                // check output, break when terminal is ready
-                int wait = 0;
-                bool continueWait = true;
-                while (wait < 100)
-                {
-                    while (outputs.Count > 0) lock (outputs) outputs.Dequeue();
-                    if (LastOutput != null && LastOutput.TrimEnd().EndsWith(properties.SSHTerminal))
-                    {
-                        continueWait = false;
-                        break;
-                    }
-                    //Event(LastOutput);
-                    Thread.Sleep(100);
-                    wait++;
-                }
-                if (continueWait == false) break;
-
-                // else continue wait...
-                loop++;
-                if (loop == 3) ConnectionFailure(); // loop 3 times, its a failure
-
-                // print message where we are waiting (or why)
-                Event(waitMessage + "... (" + loop + ")");
-
-                if (loop == 1 && usingBash == false)
-                {
-                    Event("Using bash session...");
-                    usingBash = true;
-                    SendLine("bash");
-                }
-
-                //Event("Last Reading Output: ");
-                //int lp = LastOutput.Length - 200;
-                //if (lp < 0) lp = 0;
-                //string lop = LastOutput.Substring(lp);
-                //lop = lop.Replace("\r", "<CR>");
-                //lop = lop.Replace("\n", "<NL>");
-                //Event(lop);
-
-                // try sending exit characters
-                SendCharacter((char)13);
-                SendControlRightBracket();
-                SendControlC();
-
-                Thread.Sleep(1000);
-            }
-
         }
 
         private List<string> MCESendLine(string command, out bool timeout)
@@ -1499,30 +1290,27 @@ namespace Center
             int wait = 0;
             while (true)
             {
-                if (outputs.Count > 0)
+                if (OutputCount > 0)
                 {
-                    lock (outputs)
+                    wait = 0;
+                    string output = GetOutput();
+                    if (output == null) continue;
+
+                    lastOutputSB.Append(output);
+
+                    for (int i = 0; i < output.Length; i++)
                     {
-                        wait = 0;
-                        string output = outputs.Dequeue();
-                        if (output == null) continue;
-
-                        lastOutputSB.Append(output);
-
-                        for (int i = 0; i < output.Length; i++)
+                        byte b = (byte)output[i];
+                        if (b == 10)
                         {
-                            byte b = (byte)output[i];
-                            if (b == 10)
-                            {
-                                string line = lineBuilder.ToString().Trim();
-                                lines.Add(line);
-                                lineBuilder.Clear();
-                            }
-                            else if (b == 9) lineBuilder.Append(' ');
-                            else if (b >= 32) lineBuilder.Append((char)b);
+                            string line = lineBuilder.ToString().Trim();
+                            lines.Add(line);
+                            lineBuilder.Clear();
                         }
-                        if (lastOutputSB.ToString().IndexOf("end request") > -1) break;
+                        else if (b == 9) lineBuilder.Append(' ');
+                        else if (b >= 32) lineBuilder.Append((char)b);
                     }
+                    if (lastOutputSB.ToString().IndexOf("end request") > -1) break;
                 }
                 else
                 {
@@ -1545,6 +1333,7 @@ namespace Center
         
         private MCEExpectResult MCEExpect(params string[] args)
         {
+            Queue<string> lastOutputs = new Queue<string>();
             string expectOutput = null;
 
             if (args.Length == 0) return new MCEExpectResult(-1, null);
@@ -1552,44 +1341,37 @@ namespace Center
             int wait = 0;
             int expectReturn = -1;
 
-            Queue<string> lastOutputs = new Queue<string>();
-
             while (true)
             {
-                if (outputs.Count > 0)
+                string output = GetOutput();
+
+                if (output != null)
                 {
-                    lock (outputs)
+                    wait = 0;
+
+                    lastOutputs.Enqueue(output);
+                    if (lastOutputs.Count > 100) lastOutputs.Dequeue();
+
+                    StringBuilder lastOutputSB = new StringBuilder();
+                    foreach (string s in lastOutputs)
+                        lastOutputSB.Append(s);
+
+                    string lastOutput = lastOutputSB.ToString();
+
+                    expectOutput = lastOutput;
+
+                    bool found = false;
+                    for (int i = 0; i < args.Length; i++)
                     {
-                        wait = 0;
-
-                        string output = outputs.Dequeue();
-                        if (output != null)
+                        string expect = args[i];
+                        if (lastOutput.IndexOf(expect) > -1)
                         {
-                            lastOutputs.Enqueue(output);
-                            if (lastOutputs.Count > 100) lastOutputs.Dequeue();
-
-                            StringBuilder lastOutputSB = new StringBuilder();
-                            foreach (string s in lastOutputs)
-                                lastOutputSB.Append(s);
-
-                            string lastOutput = lastOutputSB.ToString();
-
-                            expectOutput = lastOutput;
-
-                            bool found = false;
-                            for (int i = 0; i < args.Length; i++)
-                            {
-                                string expect = args[i];
-                                if (lastOutput.IndexOf(expect) > -1)
-                                {
-                                    expectReturn = i;
-                                    found = true;
-                                    break;
-                                }
-                            }
-                            if (found) break;
+                            expectReturn = i;
+                            found = true;
+                            break;
                         }
                     }
+                    if (found) break;
                 }
                 else
                 {
@@ -1754,7 +1536,7 @@ namespace Center
             else if (manufacture == cso) SendLine("exit");
             else if (manufacture == jun) SendLine("exit");
 
-            WaitUntilMCETerminalReady("MCE Waiting on exit node");
+            WaitUntilTerminalReady();
         }
 
         private void SaveExit()
@@ -1762,11 +1544,6 @@ namespace Center
             Save();
             Exit();
         }
-
-        //private bool Request(string command, out string[] lines)
-        //{
-        //    return Request(command, out lines, null);
-        //}
 
         private bool Request(string command, out string[] lines, ProbeProcessResult probe)
         {
@@ -1780,7 +1557,7 @@ namespace Center
 
             while (requestLoop)
             {
-                outputs.Clear();
+                ClearOutput();
                 SendLine(command);
 
                 Stopwatch stopwatch = new Stopwatch();
@@ -1795,71 +1572,68 @@ namespace Center
 
                 while (true)
                 {
-                    if (outputs.Count > 0)
+                    if (OutputCount > 0)
                     {
                         ending = false;
 
-                        lock (outputs)
+                        wait = 0;
+                        string output = GetOutput();
+
+                        for (int i = 0; i < output.Length; i++)
                         {
-                            wait = 0;
-                            string output = outputs.Dequeue();
+                            byte b = (byte)output[i];
 
-                            for (int i = 0; i < output.Length; i++)
+                            if (skip > 0) skip--;
+                            else if (b >= 32) lineBuilder.Append((char)b);
+
+                            string line = lineBuilder.ToString();
+                            bool pressingMore = false;
+
+                            if (line.EndsWith(nodeTerminal))
                             {
-                                byte b = (byte)output[i];
+                                ending = true;
+                                break;
+                            }
+                            else if (nodeManufacture == hwe && line.EndsWith("---- More ----"))
+                            {
+                                pressingMore = true;
+                                lineBuilder.Clear();
+                                SendSpace();
+                                skip = 42;
+                            }
+                            else if (nodeManufacture == alu && line.EndsWith("Press any key to continue (Q to quit)"))
+                            {
+                                pressingMore = true;
+                                lineBuilder.Clear();
+                                SendSpace();
+                                skip = 40;
+                            }
+                            else if (b == 10)
+                            {
+                                lineBuilder.Clear();
+                                if (nodeManufacture == hwe && nodeVersion == "5.160" && line.Length > 80)
+                                {
+                                    int looptimes = (int)Math.Ceiling((float)line.Length / 80);
 
-                                if (skip > 0) skip--;
-                                else if (b >= 32) lineBuilder.Append((char)b);
-
-                                string line = lineBuilder.ToString();
-                                bool pressingMore = false;
-
-                                if (line.EndsWith(nodeTerminal))
-                                {
-                                    ending = true;
-                                    break;
-                                }
-                                else if (nodeManufacture == hwe && line.EndsWith("---- More ----"))
-                                {
-                                    pressingMore = true;
-                                    lineBuilder.Clear();
-                                    SendSpace();
-                                    skip = 42;
-                                }
-                                else if (nodeManufacture == alu && line.EndsWith("Press any key to continue (Q to quit)"))
-                                {
-                                    pressingMore = true;
-                                    lineBuilder.Clear();
-                                    SendSpace();
-                                    skip = 40;
-                                }
-                                else if (b == 10)
-                                {
-                                    lineBuilder.Clear();
-                                    if (nodeManufacture == hwe && nodeVersion == "5.160" && line.Length > 80)
+                                    for (int loop = 0; loop < looptimes; loop++)
                                     {
-                                        int looptimes = (int)Math.Ceiling((float)line.Length / 80);
-
-                                        for (int loop = 0; loop < looptimes; loop++)
-                                        {
-                                            int sisa = 80;
-                                            if (loop == looptimes - 1) sisa = line.Length - (loop * 80);
-                                            string curline = line.Substring(loop * 80, sisa);
-                                            listLines.Add(curline);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        listLines.Add(line);
+                                        int sisa = 80;
+                                        if (loop == looptimes - 1) sisa = line.Length - (loop * 80);
+                                        string curline = line.Substring(loop * 80, sisa);
+                                        listLines.Add(curline);
                                     }
                                 }
-                                
-                                if (pressingMore)
+                                else
                                 {
-                                    //Event("<WAITING-2>" + listlines[listlines.Count - 1]);
-                                    //Event("<WAITING-1>" + line);
-                                    //Event("Sending space command for waiting message");
-                                }                      
+                                    listLines.Add(line);
+                                }
+                            }
+
+                            if (pressingMore)
+                            {
+                                //Event("<WAITING-2>" + listlines[listlines.Count - 1]);
+                                //Event("<WAITING-1>" + line);
+                                //Event("Sending space command for waiting message");
                             }
                         }
                     }
@@ -1917,7 +1691,7 @@ namespace Center
                     if (improperCommand)
                     {
                         Event("Improper command, send request again...");
-                        outputs.Clear();
+                        ClearOutput();
                         Thread.Sleep(500);
                     }
                     else
@@ -2160,8 +1934,8 @@ namespace Center
                             Event("Expect output null");
                         }
                         else
-                        {
-                            int llength = expect.Output.Length - lastSendLine.Length;
+                        {                            
+                            int llength = expect.Output.Length - LastSendLine.Length;
 
                             if (llength == 2)
                             {
@@ -2351,7 +2125,7 @@ namespace Center
 
             continueProcess = false;
 
-            WaitUntilMCETerminalReady("MCE Waiting on preparation to connect");
+            WaitUntilTerminalReady();
 
             updates = new Dictionary<string, object>();
             summaries = new Dictionary<string, string>();
@@ -2574,7 +2348,7 @@ namespace Center
 
             while (true)
             {
-                WaitUntilMCETerminalReady("MCE Waiting before connect node");
+                WaitUntilTerminalReady();
 
                 string currentConnectType = null;
 
@@ -2614,7 +2388,7 @@ namespace Center
                 int loop = 0;
                 while (true)
                 {
-                    WaitUntilMCETerminalReady("MCE Waiting before trying to other node");
+                    WaitUntilTerminalReady();
 
                     string testOtherNode;
 

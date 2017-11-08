@@ -479,6 +479,49 @@ namespace Center
         }
     }
 
+    internal class SlotToDatabase : ToDatabase
+    {
+        private string slotID1 = null;
+
+        public string SlotID1 { get => slotID1; set => slotID1 = value; }
+
+        private string slotID2 = null;
+
+        public string SlotID2 { get => slotID2; set => slotID2 = value; }
+
+        private string info1 = null;
+
+        public string Info1 { get => info1; set => info1 = value; }
+
+        private string info2 = null;
+
+        public string Info2 { get => info2; set => info2 = value; }
+
+        private string info3 = null;
+
+        public string Info3 { get => info3; set => info3 = value; }
+
+        private string info4 = null;
+
+        public string Info4 { get => info4; set => info4 = value; }        
+
+        private bool updateInfo1 = false;
+
+        public bool UpdateInfo1 { get => updateInfo1; set => updateInfo1 = value; }
+
+        private bool updateInfo2 = false;
+
+        public bool UpdateInfo2 { get => updateInfo2; set => updateInfo2 = value; }
+
+        private bool updateInfo3 = false;
+
+        public bool UpdateInfo3 { get => updateInfo3; set => updateInfo3 = value; }
+
+        private bool updateInfo4 = false;
+
+        public bool UpdateInfo4 { get => updateInfo4; set => updateInfo4 = value; }
+    }
+
     #endregion
 
     internal static class ProbeExtensions
@@ -501,6 +544,7 @@ namespace Center
         Connection,
         Database,
         Request,
+        ProbeStopped,
         ALURequest
     }
 
@@ -546,7 +590,6 @@ namespace Center
             Model,
             Version,
             SubVersion,
-            VersionTime,
             LastConfiguration,
             StartUpTime,
         }
@@ -557,7 +600,8 @@ namespace Center
             ALUCustomer, QOS, SDP, Circuit, Interface, Peer, CircuitReference,
             VRFReference, VRF, VRFRouteTarget, InterfaceIP, Service, Customer, NodeReference, InterfaceReference,
             NodeAlias, NodeSummary, POPInterfaceReference, Routing, NeighborInterface,
-            PrefixList, PrefixEntry, MAC
+            PrefixList, PrefixEntry, MAC,
+            Slot
         }
 
         #endregion
@@ -595,7 +639,7 @@ namespace Center
         private string nodeType;
         private int nodeNVER;
         private TimeSpan nodeTimeOffset;
-        private DateTime nodeStartUp = DateTime.MaxValue;
+        private DateTime nodeStartUp = DateTime.MinValue;
 
         private int probeProgressID = -1;
 
@@ -628,17 +672,12 @@ namespace Center
         private readonly string hwe = "HUAWEI";
         private readonly string cso = "CISCO";
         private readonly string jun = "JUNIPER";
-
         private readonly string xr = "XR";
-
-        private char[] newline = new char[] { (char)13, (char)10 };
 
         private Dictionary<string, Row> reserves;
         private Dictionary<string, Row> popInterfaces;
 
         private ProbeRequestData probeRequestData = null;
-
-        private bool usingBash = false;
 
         private bool probing = false;
 
@@ -804,6 +843,7 @@ namespace Center
                         case EventElements.PrefixList: sb.Append("prefix-list"); break;
                         case EventElements.PrefixEntry: sb.Append("prefix-list entry"); break;
                         case EventElements.MAC: sb.Append("mac-address"); break;
+                        case EventElements.Slot: sb.Append("chassis slot"); break;
                     }
                 }
                 else
@@ -833,6 +873,7 @@ namespace Center
                         case EventElements.PrefixList: sb.Append("prefix-lists"); break;
                         case EventElements.PrefixEntry: sb.Append("prefix-list entries"); break;
                         case EventElements.MAC: sb.Append("mac-addresses"); break;
+                        case EventElements.Slot: sb.Append("chassis slots"); break;
                     }
                 }
                 if (row > 1) sb.Append(" have been ");
@@ -877,10 +918,7 @@ namespace Center
         {
             Event("Connected!");
 
-            usingBash = false;
-
             sshProbeStartTime = DateTime.UtcNow;
-
         }
 
         protected override void OnProcess()
@@ -1133,12 +1171,18 @@ namespace Center
                                     caughtError = true;
                                 }
                             }
+                            else if (probe.FailureType == FailureTypes.ProbeStopped)
+                            {
+                                Event("Probe error: Probe has been stopped in the middle of request");
+                                caughtError = true;
+                            }
                             else if (probe.FailureType != FailureTypes.None)
                             {
                                 string errorMessage = null;
                                 if (probe.FailureType == FailureTypes.Connection) errorMessage = "Connection error";
                                 else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error: " + j.LastException.Message.Trim(new char[] { '\r', '\n', ' ' }) + ", SQL: " + j.LastException.Sql;
                                 else if (probe.FailureType == FailureTypes.Request) errorMessage = "Request error";
+
 #if !DEBUG
                                 throw new Exception(errorMessage);
 #else
@@ -1460,7 +1504,6 @@ namespace Center
                 case UpdateTypes.Model: key = "NO_Model"; break;
                 case UpdateTypes.Version: key = "NO_Version"; break;
                 case UpdateTypes.SubVersion: key = "NO_SubVersion"; break;
-                case UpdateTypes.VersionTime: key = "NO_VersionTime"; break;
                 case UpdateTypes.LastConfiguration: key = "NO_LastConfiguration"; break;
                 case UpdateTypes.StartUpTime: key = "NO_LastStartUp"; break;
             }
@@ -1550,7 +1593,7 @@ namespace Center
             Event("Request [" + command + "]...");
 
             bool requestLoop = true;
-            bool timeout = false;
+            bool requestFailed = false;
             lines = null;
 
             bool aluError = false;
@@ -1642,6 +1685,15 @@ namespace Center
                         if (ending)
                             break;
 
+                        if (!IsProbing)
+                        {
+                            Event("The probe is not probing anymore");
+                            requestFailed = true;
+                            probe.FailureType = FailureTypes.ProbeStopped;
+                            break;
+                        }
+
+
                         wait++;
                         if (wait % 200 == 0 && wait < 1600)
                         {
@@ -1652,7 +1704,7 @@ namespace Center
                         if (wait == 1600)
                         {
                             Event("Reading timeout, cancel the reading...");
-                            timeout = true;
+                            requestFailed = true;
                         }
                         else if (wait >= 1600 && wait % 50 == 0)
                         {
@@ -1662,7 +1714,7 @@ namespace Center
                         {
                             if (probe != null)
                             {
-                                timeout = false;
+                                requestFailed = false;
                                 probe.FailureType = FailureTypes.Connection;
                             }
                         }
@@ -1671,7 +1723,7 @@ namespace Center
 
                 stopwatch.Stop();
 
-                if (!timeout)
+                if (!requestFailed)
                 {
                     lines = listLines.ToArray();
                     bool improperCommand = false;
@@ -1733,7 +1785,7 @@ namespace Center
                 else requestLoop = false;
             }
 
-            if (!timeout)
+            if (!requestFailed)
             {
                 if (aluError)
                 {
@@ -2123,6 +2175,9 @@ namespace Center
             ProbeProcessResult probe = new ProbeProcessResult();
             string[] lines = null;
 
+            Batch batch = Batch();
+            Result result = null;
+
             continueProcess = false;
 
             WaitUntilTerminalReady();
@@ -2142,6 +2197,7 @@ namespace Center
             nodeAreaID = row["NO_AR"].ToString();
             nodeType = row["NO_Type"].ToString();
             nodeNVER = row["NO_NVER"].ToInt(0);
+            nodeStartUp = row["NO_LastStartUp"].ToDateTime(DateTime.MinValue);
 
             this.probeProgressID = probeProgressID;
 
@@ -2165,6 +2221,10 @@ namespace Center
             {
                 throw new Exception("Unsupported node manufacture");
             }
+
+            bool checkChassis = false;
+            updatingNecrow = false;
+            if (nodeNVER < Necrow.Version) updatingNecrow = true;
 
             #region CHECK ACCESS RULE
 
@@ -2215,7 +2275,7 @@ namespace Center
 
                     if (hostName != null)
                     {
-                        Result result = Query("select * from Node where NO_Name = {0}", hostName);
+                        result = Query("select * from Node where NO_Name = {0}", hostName);
 
                         if (result.Count == 0)
                         {
@@ -2840,11 +2900,21 @@ namespace Center
             {
                 // convert to UTC
                 currentNodeStartUp = currentNodeStartUp - nodeTimeOffset;
-            }
-            Update(UpdateTypes.StartUpTime, currentNodeStartUp);
+            }            
 
-            Event("Node start up: " + currentNodeStartUp.ToString("yyyy/MM/dd HH:mm:ss") + " UTC");
-            
+            if (nodeStartUp < currentNodeStartUp)
+            {
+                Event("Last node start up: " + nodeStartUp.ToString("yyyy/MM/dd HH:mm:ss") + " UTC");
+                Event("Current node start up: " + currentNodeStartUp.ToString("yyyy/MM/dd HH:mm:ss") + " UTC");
+
+                Update(UpdateTypes.StartUpTime, currentNodeStartUp);
+
+                checkChassis = true; // node probably has been updated, check chassis configuration (versions/modul etc)
+            }
+            else
+            {
+                Event("Node is still up since last time, last start up: " + currentNodeStartUp.ToString("yyyy/MM/dd HH:mm:ss") + " UTC");
+            }
 
             #endregion
 
@@ -2882,26 +2952,31 @@ namespace Center
 
             #endregion
 
-            #region VERSION
+            #region CHASSIS
 
-            bool checkVersion = false;
+            if (nodeVersion == null || nodeModel == null || updatingNecrow || prioritizeProcess)
+                checkChassis = true;
 
-            if (nodeVersion == null) checkVersion = true;
-            else if (nodeModel == null) checkVersion = true;
-            else
+            if (checkChassis)
             {
-                DateTime versionTime = row["NO_VersionTime"].ToDateTime();
-                TimeSpan span = utcTime - versionTime;
-                if (span.TotalDays >= 3) checkVersion = true;
-            }
-
-            if (checkVersion)
-            {
-                Event("Checking Version");
+                Event("Checking Chassis");
 
                 string version = null;
                 string subVersion = null;
                 string model = null;
+
+                Dictionary<string, SlotToDatabase> slotlive = new Dictionary<string, SlotToDatabase>();
+                Dictionary<string, Row> slotdb = QueryDictionary("select * from NodeSlot where NC_NO = {0}", delegate (Row slotr)
+                {
+
+                    return slotr["NC_ID1"].ToString() + "-" + slotr["NC_ID2"].ToString("");
+                }, nodeID);
+                if (slotdb == null) return DatabaseFailure(probe);
+                List<SlotToDatabase> slotinsert = new List<SlotToDatabase>();
+                List<SlotToDatabase> slotupdate = new List<SlotToDatabase>();
+
+                int maxSlot = 0;
+                int curSlot = 0;
 
                 if (nodeManufacture == alu)
                 {
@@ -2919,8 +2994,8 @@ namespace Center
                         }
                     }
 
-                    if (Request("show chassis | match \"  Type\"", out lines, probe)) return probe;
-                    
+                    if (Request("show chassis | match expression \"  Type|slots\"", out lines, probe)) return probe;
+
                     foreach (string line in lines)
                     {
                         string lineTrim = line.Trim();
@@ -2929,9 +3004,77 @@ namespace Center
                         {
                             string[] tokens = lineTrim.Split(new char[] { ':' });
                             if (tokens.Length == 2)
-                            {
                                 model = tokens[1].Trim();
-                                break;
+                        }
+                        else if (lineTrim.StartsWith("Number of slots"))
+                        {
+                            string[] tokens = lineTrim.Split(new char[] { ':' });
+                            if (tokens.Length == 2)
+                            {
+                                string slots = tokens[1].Trim();
+                                if (int.TryParse(slots, out int c))
+                                {
+                                    if (c > 2)
+                                        maxSlot = c - 2;
+                                }
+                            }
+                        }
+                    }
+
+                    if (Request("show mda", out lines, probe)) return probe;
+
+                    string sid = null;
+                    bool capturing = false;
+
+                    foreach (string line in lines)
+                    {
+                        if (line.Length > 0)
+                        {
+                            if (char.IsDigit(line[0]))
+                            {
+                                capturing = true;
+                            }
+
+                            if (capturing)
+                            {
+                                if (line[0] != '=')
+                                {
+                                    string[] tokens = line.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                                    bool secondary = line[0] == ' ';
+
+                                    string mda = null;
+                                    string slotinfo = null;
+                                    string slotadmin = null;
+                                    string slotprotocol = null;
+
+                                    if (!secondary)
+                                    {
+                                        sid = tokens[0];
+                                        mda = tokens[1];
+                                        slotinfo = tokens[2];
+                                        slotadmin = tokens[3];
+                                        slotprotocol = tokens[4];
+
+                                        curSlot++;
+                                    }
+                                    else
+                                    {
+                                        mda = tokens[0];
+                                        slotinfo = tokens[1];
+                                        slotadmin = tokens[2];
+                                        slotprotocol = tokens[3];
+                                    }
+
+                                    SlotToDatabase li = new SlotToDatabase();
+                                    li.SlotID1 = sid;
+                                    li.SlotID2 = mda;
+                                    li.Info1 = slotinfo;
+                                    li.Info2 = slotadmin;
+                                    li.Info3 = slotprotocol;
+
+                                    slotlive.Add(sid + "-" + mda, li);
+
+                                }
                             }
                         }
                     }
@@ -2941,16 +3084,90 @@ namespace Center
                 else if (nodeManufacture == hwe)
                 {
                     #region hwe
-                    if (Request("display version", out lines, probe)) return probe;
+                    if (Request("display version | in VRP|HUAWEI", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
                         if (line.StartsWith("VRP (R) software"))
-                        {
                             version = line.Substring(26, line.IndexOf(' ', 26) - 26).Trim();
-                            break;
+                        if (line.StartsWith("HUAWEI "))
+                            model = line.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries)[1];
+                        if (version != null && model != null) break;
+                    }
+
+                    if (Request("display version | in LPU|StartupTime|Version", out lines, probe)) return probe;
+
+                    string lpu = null;
+                    string startuptime = null;
+                    string pcb = null;
+
+                    foreach (string line in lines)
+                    {
+                        if (line.Length > 0)
+                        {
+                            string lineTrim = line.Trim();
+
+                            if (lineTrim.StartsWith("LPU  Slot  Quantity"))
+                            {
+                                string[] tokens = lineTrim.Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
+                                if (tokens.Length == 2 && int.TryParse(tokens[1].Trim(), out int c)) maxSlot = c;
+                            }
+                            else if (lineTrim.StartsWith("LPU "))
+                            {
+                                curSlot++;
+
+                                string[] tokens = lineTrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                                if (tokens.Length > 1)
+                                {
+                                    string s = tokens[1].Trim();
+                                    if (int.TryParse(s, out int c))
+                                    {
+                                        lpu = s;
+                                        startuptime = null;
+                                        pcb = null;
+                                    }
+                                }
+                            }
+                            else if (lpu != null)
+                            {
+                                if (lineTrim.StartsWith("StartupTime"))
+                                {
+                                    string[] tokens = lineTrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                                    if (tokens.Length == 3)
+                                    {
+                                        string date = tokens[1];
+                                        string time = tokens[2];
+                                        if (DateTime.TryParseExact(date + " " + time, "yyyy/MM/dd HH:mm:ss", null, DateTimeStyles.None, out DateTime startupDateTime))
+                                        {
+                                            startuptime = startupDateTime.ToEpochTime() + "";
+                                        }
+                                    }
+                                }
+                                else if (line.IndexOf("PCB") > -1 && line.IndexOf("Version :") > -1)
+                                {
+                                    string[] tokens = lineTrim.Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
+                                    if (tokens.Length == 2)
+                                    {
+                                        pcb = tokens[1].Trim();
+
+                                        SlotToDatabase li = new SlotToDatabase();
+                                        li.SlotID1 = lpu;
+                                        li.Info1 = pcb;
+                                        li.Info2 = startuptime;
+
+                                        slotlive.Add(lpu + "-", li);
+
+                                        lpu = null;
+                                    }
+                                }
+                            }
                         }
                     }
+
+
+
+
                     // additional setup for huawei >5.90 for screen-width tweak (help problem with 5.160 auto text-wrap)
                     //if (version == "5.160")
                     //{
@@ -2958,18 +3175,6 @@ namespace Center
                     //    NodeRead(out timeout);
                     //    if (timeout) { NodeStop(); return true; }
                     //}
-
-                    if (Request("display device", out lines, probe)) return probe;
-
-                    foreach (string line in lines)
-                    {
-                        string lineTrim = line.Trim();
-
-                        if (lineTrim.IndexOf("s Device") > -1)
-                        {
-                            model = lineTrim.Split(new char[] { '\'' })[0];
-                        }
-                    }
 
                     #endregion
                 }
@@ -3086,7 +3291,124 @@ namespace Center
                     Event("SubVersion updated: " + subVersion);
                 }
 
-                Update(UpdateTypes.VersionTime, DateTime.UtcNow);
+                #region Check
+
+                foreach (KeyValuePair<string, SlotToDatabase> pair in slotlive)
+                {
+                    SlotToDatabase li = pair.Value;
+
+                    if (!slotdb.ContainsKey(pair.Key))
+                    {
+                        Event("Slot ADD: " + pair.Key);
+
+                        li.ID = Database.ID();
+                        slotinsert.Add(li);
+                    }
+                    else
+                    {
+                        Row db = slotdb[pair.Key];
+
+                        SlotToDatabase u = new SlotToDatabase();
+                        u.ID = db["NC_ID"].ToString();
+                        li.ID = u.ID;
+
+                        bool update = false;
+                        StringBuilder updateinfo = new StringBuilder();
+
+                        if (db["NC_Info1"].ToString() != li.Info1)
+                        {
+                            update = true;
+                            u.UpdateInfo1 = true;
+                            u.Info1 = li.Info1;
+                            UpdateInfo(updateinfo, "info1", db["NC_Info1"].ToString(), li.Info1);
+                        }
+                        if (db["NC_Info2"].ToString() != li.Info2)
+                        {
+                            update = true;
+                            u.UpdateInfo2 = true;
+                            u.Info2 = li.Info2;
+                            UpdateInfo(updateinfo, "info2", db["NC_Info2"].ToString(), li.Info2);
+                        }
+                        if (db["NC_Info3"].ToString() != li.Info3)
+                        {
+                            update = true;
+                            u.UpdateInfo3 = true;
+                            u.Info3 = li.Info3;
+                            UpdateInfo(updateinfo, "info3", db["NC_Info3"].ToString(), li.Info3);
+                        }
+                        if (db["NC_Info4"].ToString() != li.Info4)
+                        {
+                            update = true;
+                            u.UpdateInfo4= true;
+                            u.Info4 = li.Info4;
+                            UpdateInfo(updateinfo, "info4", db["NC_Info4"].ToString(), li.Info4);
+                        }
+
+                        if (update)
+                        {
+                            Event("Slot UPDATE: " + pair.Key + " " + updateinfo.ToString());
+                            slotupdate.Add(u);
+                        }
+                    }
+                }
+
+                #endregion
+
+                #region Execute
+
+                // ADD
+                batch.Begin();
+                foreach (SlotToDatabase s in slotinsert)
+                {
+                    Insert insert = Insert("NodeSlot");
+                    insert.Value("NC_ID", s.ID);
+                    insert.Value("NC_NO", nodeID);
+                    insert.Value("NC_ID1", s.SlotID1);
+                    insert.Value("NC_ID2", s.SlotID2);
+                    insert.Value("NC_Info1", s.Info1);
+                    insert.Value("NC_Info2", s.Info2);
+                    insert.Value("NC_Info3", s.Info3);
+                    insert.Value("NC_Info4", s.Info4);
+                    batch.Execute(insert);
+                }
+                result = batch.Commit();
+                if (!result.OK) return DatabaseFailure(probe);
+                Event(result, EventActions.Add, EventElements.Slot, false);
+
+                // UPDATE
+                batch.Begin();
+                foreach (SlotToDatabase s in slotupdate)
+                {
+                    Update update = Update("NodeSlot");
+                    update.Set("NC_Info1", s.Info1, s.UpdateInfo1);
+                    update.Set("NC_Info2", s.Info2, s.UpdateInfo2);
+                    update.Set("NC_Info3", s.Info3, s.UpdateInfo3);
+                    update.Set("NC_Info4", s.Info4, s.UpdateInfo4);
+                    update.Where("NC_ID", s.ID);
+                    batch.Execute(update);
+                }
+                result = batch.Commit();
+                if (!result.OK) return DatabaseFailure(probe);
+                Event(result, EventActions.Update, EventElements.Slot, false);
+
+                // SDP DELETE
+                batch.Begin();
+                foreach (KeyValuePair<string, Row> pair in slotdb)
+                {
+                    if (!slotlive.ContainsKey(pair.Key))
+                    {
+                        Event("Slot DELETE: " + pair.Key);
+                        batch.Execute("delete from NodeSlot where NC_ID = {0}", pair.Value["NC_ID"].ToString());
+                    }
+                }
+                result = batch.Commit();
+                if (!result.OK) return DatabaseFailure(probe);
+                Event(result, EventActions.Delete, EventElements.Slot, false);
+
+                #endregion
+
+                Summary("CHASSIS_PROCESS_SLOT_MAX", maxSlot);
+                Summary("CHASSIS_PROCESS_SLOT_COUNT", curSlot);
             }
 
             if (nodeVersion == null)
@@ -3833,19 +4155,11 @@ namespace Center
 
             #endregion
 
-            updatingNecrow = false;
-
             if (properties.Case == "MAIN")
             {
-                if (configurationHasChanged || nodeNVER < Necrow.Version)
+                if (configurationHasChanged)
                 {
                     continueProcess = true;
-                    if (nodeNVER < Necrow.Version)
-                    {
-                        updatingNecrow = true;
-                        Event("Updated to newer Necrow version");
-                        Update(UpdateTypes.NecrowVersion, Necrow.Version);
-                    }
                 }
                 else if (prioritizeProcess)
                 {
@@ -3867,6 +4181,13 @@ namespace Center
             else if (properties.Case == "M")
             {
                 continueProcess = true;
+            }
+
+            if (updatingNecrow)
+            {
+                continueProcess = true;
+                Event("Updated to newer Necrow version");
+                Update(UpdateTypes.NecrowVersion, Necrow.Version);
             }
 
             return probe;

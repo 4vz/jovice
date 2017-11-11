@@ -1555,7 +1555,11 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                     {
                         update = true;
                         u.ServiceID = null;
-                        if (li.Description != null) circuitServiceReference.Add(u, li.Description);
+                        if (li.Description != null)
+                        {
+                            circuitServiceReference.Add(u, li.Description);
+                            UpdateInfo(updateinfo, "SERVICE REFERENCE", "scanning");
+                        }
                     }
 
                     if (db["MC_MTU"].ToIntShort(-1) != li.AdmMTU)

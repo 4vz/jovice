@@ -63,6 +63,8 @@ namespace Aphysoft.Share
 
     public delegate void DatabaseExceptionEventHandler(object sender, DatabaseExceptionEventArgs eventArgs);
 
+    public delegate void DatabaseTestEventHandler(string message);
+
     public delegate void DatabaseRetryEventHandler(object sender, DatabaseExceptionEventArgs eventArgs);
 
     public delegate string QueryDictionaryKeyCallback(Row row);
@@ -427,6 +429,10 @@ namespace Aphysoft.Share
             set { timeout = value; }
         }
 
+        private DatabaseExceptionEventArgs lastException = null;
+
+        public DatabaseExceptionEventArgs LastException { get => lastException; }
+
         #endregion
 
         #region Events
@@ -485,16 +491,15 @@ namespace Aphysoft.Share
 
         internal void OnException(Exception e, string sql)
         {
-            if (Exception != null)
-            {
-                DatabaseExceptionEventArgs eventArgs = new DatabaseExceptionEventArgs();
+            DatabaseExceptionEventArgs eventArgs = new DatabaseExceptionEventArgs();
 
-                eventArgs.Exception = connection.ParseMessage(e.Message);
-                eventArgs.Message = e.Message;
-                eventArgs.Sql = sql;
+            eventArgs.Exception = connection.ParseMessage(e.Message);
+            eventArgs.Message = e.Message;
+            eventArgs.Sql = sql;
 
-                Exception(this, eventArgs);
-            }
+            lastException = eventArgs;
+
+            Exception?.Invoke(this, eventArgs);
         }
 
         internal bool OnRetry(Exception e, string sql)
@@ -552,9 +557,20 @@ namespace Aphysoft.Share
             return connection.Escape(sql);
         }
 
-        public bool Test()
+        public bool Test(DatabaseTestEventHandler handler)
         {
-            return connection.Test();
+            DatabaseExceptionEventHandler checkingDatabaseException = delegate (object sender, DatabaseExceptionEventArgs eventArgs)
+            {
+                handler(eventArgs.Message);
+            };
+
+            Exception += checkingDatabaseException;
+
+            bool result = connection.Test();
+
+            Exception -= checkingDatabaseException;
+
+            return result;
         }
 
         public string DateTime(DateTime dateTime)
@@ -875,18 +891,20 @@ namespace Aphysoft.Share
 
         private SqlCommand Begin(string sql, SqlConnection connection)
         {
+            SqlCommand command = null;
+
             try
             {
                 connection.Open();
+                command = new SqlCommand(sql, connection);
+                if (database.Timeout > -1)
+                    command.CommandTimeout = database.Timeout;
             }
             catch (Exception ex)
             {
                 database.OnException(ex, sql);
+                command = null;
             }
-
-            SqlCommand command = new SqlCommand(sql, connection);
-            if (database.Timeout > -1)
-                command.CommandTimeout = database.Timeout;
 
             return command;
         }
@@ -907,72 +925,79 @@ namespace Aphysoft.Share
             {
                 SqlCommand command = Begin(sql, connection);
 
-                lock (commands)
+                if (command != null)
                 {
-                    commands.Add(command);
-                }
 
-                bool doBreak = false;
-                for (int attempt = 0; attempt < attempts; attempt++)
-                {
-                    SqlDataReader reader = null;
-                    try
+                    lock (commands)
                     {
-                        stopwatch.Restart();
-                        reader = command.ExecuteReader();
-                        stopwatch.Stop();
-                        result.ExecutionTime = stopwatch.Elapsed;
-
-                        List<string> names = new List<string>();
-                        for (int i = 0; i < reader.FieldCount; i++) names.Add(reader.GetName(i));
-                        result.ColumnNames = names.ToArray();
-
-                        result.Clear();
-                        while (reader.Read())
-                        {
-                            Row row = new Row();
-                            for (int i = 0; i < reader.FieldCount; i++)
-                            {
-                                string name = names[i];
-                                bool isNull = reader.IsDBNull(i);
-                                object value = reader.GetValue(i);
-                                row.Add(name, new Column(name, value, isNull));
-                            }
-                            result.Add(row);
-                            if (result.Count >= 200000) break;
-                        }
-
-                        doBreak = true;
+                        commands.Add(command);
                     }
-                    catch (Exception e)
+
+                    bool doBreak = false;
+                    for (int attempt = 0; attempt < attempts; attempt++)
                     {
-                        if (!cancelling)
+                        SqlDataReader reader = null;
+                        try
                         {
-                            if (attempt == attempts - 1)
-                            {
-                                result.isExceptionThrown = true;
-                                database.OnException(e, sql);
-                            }
-                            else if (database.OnRetry(e, sql))
-                            {                                
-                                result.isExceptionThrown = true;
-                                database.OnException(e, sql);
-                                doBreak = true;
-                                break;
-                            }
-                                
-                        }
-                        else doBreak = true;
-                    }
-                    finally { if (reader != null) reader.Close(); }
-                    if (doBreak) break;
-                }
+                            stopwatch.Restart();
+                            reader = command.ExecuteReader();
+                            stopwatch.Stop();
+                            result.ExecutionTime = stopwatch.Elapsed;
 
-                End(connection, command);
-                lock (commands)
-                {
-                    if (commands.Contains(command)) commands.Remove(command);
+                            List<string> names = new List<string>();
+                            for (int i = 0; i < reader.FieldCount; i++) names.Add(reader.GetName(i));
+                            result.ColumnNames = names.ToArray();
+
+                            result.Clear();
+                            while (reader.Read())
+                            {
+                                Row row = new Row();
+                                for (int i = 0; i < reader.FieldCount; i++)
+                                {
+                                    string name = names[i];
+                                    bool isNull = reader.IsDBNull(i);
+                                    object value = reader.GetValue(i);
+                                    row.Add(name, new Column(name, value, isNull));
+                                }
+                                result.Add(row);
+                                if (result.Count >= 200000) break;
+                            }
+
+                            doBreak = true;
+                        }
+                        catch (Exception e)
+                        {
+                            if (!cancelling)
+                            {
+                                if (attempt == attempts - 1)
+                                {
+                                    result.isExceptionThrown = true;
+                                    database.OnException(e, sql);
+                                }
+                                else if (database.OnRetry(e, sql))
+                                {
+                                    result.isExceptionThrown = true;
+                                    database.OnException(e, sql);
+                                    doBreak = true;
+                                    break;
+                                }
+
+                            }
+                            else doBreak = true;
+                        }
+                        finally { if (reader != null) reader.Close(); }
+                        if (doBreak) break;
+                    }
+
+                    End(connection, command);
+                    lock (commands)
+                    {
+                        if (commands.Contains(command)) commands.Remove(command);
+                    }
+
                 }
+                else
+                    result.isExceptionThrown = true;
             }
             return result;
         }
@@ -986,45 +1011,51 @@ namespace Aphysoft.Share
             {
                 SqlCommand command = Begin(sql, connection);
 
-                lock (commands)
+                if (command != null)
                 {
-                    commands.Add(command);
-                }
 
-                bool doBreak = false;
-                for (int attempt = 0; attempt < attempts; attempt++)
-                {
-                    try
+                    lock (commands)
                     {
-                        object data = command.ExecuteScalar();
-                        if (data != null) column = new Column(null, data, false);
-                        doBreak = true;
+                        commands.Add(command);
                     }
-                    catch (Exception e)
+
+                    bool doBreak = false;
+                    for (int attempt = 0; attempt < attempts; attempt++)
                     {
-                        if (!cancelling)
+                        try
                         {
-                            if (attempt == attempts - 1)
-                            {
-                                database.OnException(e, sql);
-                            }
-                            else if (database.OnRetry(e, sql))
-                            {
-                                database.OnException(e, sql);
-                                doBreak = true;
-                                break;
-                            }
+                            object data = command.ExecuteScalar();
+                            if (data != null) column = new Column(null, data, false);
+                            doBreak = true;
                         }
-                        else doBreak = true;
+                        catch (Exception e)
+                        {
+                            if (!cancelling)
+                            {
+                                if (attempt == attempts - 1)
+                                {
+                                    database.OnException(e, sql);
+                                }
+                                else if (database.OnRetry(e, sql))
+                                {
+                                    database.OnException(e, sql);
+                                    doBreak = true;
+                                    break;
+                                }
+                            }
+                            else doBreak = true;
+                        }
+                        if (doBreak) break;
                     }
-                    if (doBreak) break;
-                }
 
-                End(connection, command);
-                lock (commands)
-                {
-                    if (commands.Contains(command)) commands.Remove(command);
+                    End(connection, command);
+                    lock (commands)
+                    {
+                        if (commands.Contains(command)) commands.Remove(command);
+                    }
                 }
+                else
+                { }
             }
             return column;
         }
@@ -1037,72 +1068,78 @@ namespace Aphysoft.Share
             using (SqlConnection connection = new SqlConnection(database.ConnectionString))
             {
                 SqlCommand command = Begin(sql, connection);
-                lock (commands)
+
+                if (command != null)
                 {
-                    commands.Add(command);
-                }
-
-                bool doBreak = false;
-                for (int attempt = 0; attempt < attempts; attempt++)
-                {
-                    SqlCommand identityCommand = null;
-                    try
+                    lock (commands)
                     {
-                        stopwatch.Restart();
-                        result.AffectedRows = command.ExecuteNonQuery();
-                        stopwatch.Stop();
-                        result.ExecutionTime = stopwatch.Elapsed;
-
-                        if (returnIdentity)
-                        {
-                            identityCommand = new SqlCommand("select cast(SCOPE_IDENTITY() as bigint)", connection);
-                            lock (commands)
-                            {
-                                commands.Add(identityCommand);
-                            }
-
-                            result.Identity = (Int64)identityCommand.ExecuteScalar();                            
-                        }
-                        doBreak = true;
+                        commands.Add(command);
                     }
-                    catch (Exception e)
+
+                    bool doBreak = false;
+                    for (int attempt = 0; attempt < attempts; attempt++)
                     {
-                        if (!cancelling)
+                        SqlCommand identityCommand = null;
+                        try
                         {
-                            if (attempt == attempts - 1)
-                            {
-                                result.isExceptionThrown = true;
-                                database.OnException(e, sql);
-                            }
-                            else if (database.OnRetry(e, sql))
-                            {
-                                result.isExceptionThrown = true;
-                                database.OnException(e, sql);
-                                doBreak = true;
-                                break;
-                            }
-                        }
-                        else doBreak = true;
-                    }
-                    finally
-                    {
-                        if (identityCommand != null)
-                        {
-                            identityCommand.Dispose();
-                            lock (commands)
-                            {
-                                if (commands.Contains(command)) commands.Remove(identityCommand);
-                            }
-                        }
-                    }
-                    if (doBreak) break;
-                }
+                            stopwatch.Restart();
+                            result.AffectedRows = command.ExecuteNonQuery();
+                            stopwatch.Stop();
+                            result.ExecutionTime = stopwatch.Elapsed;
 
-                End(connection, command);
-                lock (commands)
-                {
-                    if (commands.Contains(command)) commands.Remove(command);
+                            if (returnIdentity)
+                            {
+                                identityCommand = new SqlCommand("select cast(SCOPE_IDENTITY() as bigint)", connection);
+                                lock (commands)
+                                {
+                                    commands.Add(identityCommand);
+                                }
+
+                                result.Identity = (Int64)identityCommand.ExecuteScalar();                            
+                            }
+                            doBreak = true;
+                        }
+                        catch (Exception e)
+                        {
+                            if (!cancelling)
+                            {
+                                if (attempt == attempts - 1)
+                                {
+                                    result.isExceptionThrown = true;
+                                    database.OnException(e, sql);
+                                }
+                                else if (database.OnRetry(e, sql))
+                                {
+                                    result.isExceptionThrown = true;
+                                    database.OnException(e, sql);
+                                    doBreak = true;
+                                    break;
+                                }
+                            }
+                            else doBreak = true;
+                        }
+                        finally
+                        {
+                            if (identityCommand != null)
+                            {
+                                identityCommand.Dispose();
+                                lock (commands)
+                                {
+                                    if (commands.Contains(command)) commands.Remove(identityCommand);
+                                }
+                            }
+                        }
+                        if (doBreak) break;
+                    }
+
+                    End(connection, command);
+                    lock (commands)
+                    {
+                        if (commands.Contains(command)) commands.Remove(command);
+                    }
                 }
+                else
+                    result.isExceptionThrown = true;
             }
 
             return result;

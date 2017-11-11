@@ -641,7 +641,7 @@ namespace Center
         private TimeSpan nodeTimeOffset;
         private DateTime nodeStartUp = DateTime.MinValue;
 
-        private int probeProgressID = -1;
+        private string probeProgressID = null;
 
         private DateTime nodeProbeStartTime = DateTime.MinValue;
         private DateTime sshProbeStartTime = DateTime.MinValue;
@@ -932,7 +932,7 @@ namespace Center
 
             while (true)
             {
-                int xpID = -1;
+                string xpID = null;
                 Row node = null;
                 bool continueProcess = false;
                 bool prioritizeProcess = false;
@@ -993,7 +993,7 @@ namespace Center
 
                     if (prioritize == null)
                     {
-                        Tuple<int, string> noded = instance.NextNode(properties.Case);
+                        Tuple<string, string> noded = instance.NextNode(properties.Case);
 
                         xpID = noded.Item1;
                         Result rnode = Query("select * from Node where NO_ID = {0}", noded.Item2);
@@ -1028,6 +1028,8 @@ namespace Center
                             {
                                 Update(UpdateTypes.Remark, "PROBEFAILED");
                                 caughtError = true;
+
+                                instance.PendingNode(properties.Case, xpID, nodeID, TimeSpan.FromHours(4));
                             }
 
                             continueProcess = false;
@@ -1155,7 +1157,8 @@ namespace Center
                             if (nodeType == "P") probe = PEProcess();
                             else if (nodeType == "M") probe = MEProcess();
                         }
-                        else probe = MEMacProcess();
+                        else
+                            probe = MEMacProcess();
 
                         if (probe != null)
                         {
@@ -1169,12 +1172,16 @@ namespace Center
                                 {
                                     Update(UpdateTypes.Remark, "PROBEFAILED");
                                     caughtError = true;
+
+                                    instance.PendingNode(properties.Case, xpID, nodeID, TimeSpan.FromHours(4));
                                 }
                             }
                             else if (probe.FailureType == FailureTypes.ProbeStopped)
                             {
                                 Event("Probe error: Probe has been stopped in the middle of request");
                                 caughtError = true;
+
+                                instance.PendingNode(properties.Case, xpID, nodeID, TimeSpan.FromMinutes(30));
                             }
                             else if (probe.FailureType != FailureTypes.None)
                             {
@@ -1517,7 +1524,7 @@ namespace Center
 
         private void Status(string status)
         {
-            if (probeProgressID != -1) Execute("update ProbeProgress set XP_Status = {0} where XP_ID = {1}", status, probeProgressID);
+            if (probeProgressID != null) Execute("update ProbeProgress set XP_Status = {0} where XP_ID = {1}", status, probeProgressID);
         }
 
         private void Summary(string key, int value)
@@ -1699,6 +1706,10 @@ namespace Center
                         {
                             Event("Waiting...");
                             SendLine("");
+
+#if DEBUG
+                            Event("Last Output: " + LastOutput);
+#endif
                         }
                         Thread.Sleep(100);
                         if (wait == 1600)
@@ -2163,14 +2174,14 @@ namespace Center
             }
 #endif
 
-            if (probeProgressID != -1)
+            if (probeProgressID != null)
             {
                 Execute("delete from ProbeProgress where XP_ID = {0}", probeProgressID);
-                probeProgressID = -1;
+                probeProgressID = null;
             }
         }
 
-        private ProbeProcessResult Enter(Row row, int probeProgressID, out bool continueProcess, bool prioritizeProcess, bool prioritizeAsk)
+        private ProbeProcessResult Enter(Row row, string probeProgressID, out bool continueProcess, bool prioritizeProcess, bool prioritizeAsk)
         {
             ProbeProcessResult probe = new ProbeProcessResult();
             string[] lines = null;
@@ -2924,7 +2935,15 @@ namespace Center
 
             bool setNoPagePartition = !nodeRules.Contains("ENABLEPAGEPARTITION");
             if (!setNoPagePartition)
-                Event("No Page Partition disabled (by ENABLEPAGEPARTITION rule)");
+                Event("Enable Page Partition set (by ENABLEPAGEPARTITION rule)");
+
+#if DEBUG
+            if (!setNoPagePartition)
+            {
+                Event("DEBUG: Canceled Enable Page Partition rule");
+                setNoPagePartition = true;
+            }
+#endif
 
             if (nodeManufacture == alu)
             {

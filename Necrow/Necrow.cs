@@ -125,11 +125,12 @@ namespace Center
     {
         #region Fields
 
-        internal readonly static int Version = 26;
+        internal readonly static int Version = 27;
 
         private Database j = Jovice.Database;
 
-        private Dictionary<string, Queue<Tuple<int, string>>> list = null;
+        private Dictionary<string, Queue<Tuple<string, string>>> list = null;
+        private Dictionary<string, Dictionary<string, Tuple<string, DateTime>>> pendingList = null;
         private Queue<Tuple<string, ProbeRequestData>> prioritize = new Queue<Tuple<string, ProbeRequestData>>();
         private List<Tuple<string, string, string>> supportedVersions = null;
         private Dictionary<string, Probe> instances = null;
@@ -159,12 +160,13 @@ namespace Center
         {
             lock (list)
             {
-                if (list[queueCase].Count == 0)
+                Queue<Tuple<string, string>> queue = list[queueCase];
+                Dictionary<string, Tuple<string, DateTime>> pending = pendingList[queueCase];
+
+                if (queue.Count == 0)
                 {
                     List<string> newIDs = new List<string>();
                     string dbCase = null;
-
-                    int excluded = 0;
 
                     if (queueCase == "MAIN")
                     {
@@ -176,8 +178,8 @@ namespace Center
 select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_TimeStamp is null and NO_LastConfiguration is null                        
 ");
                         Result mres = j.Query(@"
-select a.NO_ID, a.NO_Name, a.NO_Remark, a.NO_TimeStamp, CASE WHEN a.span < 0 then 0 else a.span end as span from (
-select NO_ID, NO_Name, NO_Remark, NO_LastConfiguration, NO_TimeStamp, DateDiff(hour, NO_LastConfiguration, NO_TimeStamp) as span 
+select a.NO_ID, a.NO_Name, CASE WHEN a.span < 0 then 0 else a.span end as span from (
+select NO_ID, NO_Name, NO_LastConfiguration, DateDiff(hour, NO_LastConfiguration, NO_TimeStamp) as span 
 from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_TimeStamp is not null and NO_LastConfiguration is not null
 ) a
 order by span asc, a.NO_LastConfiguration asc
@@ -189,23 +191,6 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                         foreach (Row row in nres) newIDs.Add(row["NO_ID"].ToString());
                         foreach (Row row in mres)
                         {
-                            string remark = row["NO_Remark"].ToString();
-                            if (remark != null)
-                            {
-                                DateTime timestamp = row["NO_TimeStamp"].ToDateTime();
-                                TimeSpan span = DateTime.Now - timestamp;
-
-                                if (
-                                    (remark == "CONNECTFAIL" && span.TotalHours <= 3) ||
-                                    (remark == "UNRESOLVED" && span.TotalDays <= 1)
-                                )
-                                {
-                                    excluded++;
-                                    Event("Excluded: " + row["NO_Name"].ToString() + " Remark: " + remark);
-                                    continue;
-                                }
-                            }
-
                             string add = row["NO_ID"].ToString();
                             if (!newIDs.Contains(add))
                                 newIDs.Add(add);
@@ -229,23 +214,6 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
                         foreach (Row row in sres)
                         {
-                            string remark = row["NO_Remark"].ToString();
-                            if (remark != null)
-                            {
-                                DateTime timestamp = row["NO_TimeStamp"].ToDateTime();
-                                TimeSpan span = DateTime.Now - timestamp;
-
-                                if (
-                                    (remark == "CONNECTFAIL" && span.TotalHours <= 3) ||
-                                    (remark == "UNRESOLVED" && span.TotalDays <= 1)
-                                )
-                                {
-                                    excluded++;
-                                    Event("Excluded: " + row["NO_Name"].ToString() + " Remark: " + remark);
-                                    continue;
-                                }
-                            }
-
                             string add = row["NO_ID"].ToString();
                             if (!newIDs.Contains(add))
                                 newIDs.Add(add);
@@ -256,37 +224,60 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                         dbCase = "M";
                     }
 
-                    int total = newIDs.Count + excluded;
-                    Event("Total " + total + " nodes available, " + newIDs.Count + " nodes eligible, " + excluded + " excluded in this list");
+                    long queueIndex;
 
-                    // check incompleted probeprogress
-                    List<int> idExists = new List<int>();
-                    Result result = j.Query("select XP_ID from ProbeProgress");
-                    foreach (Row row in result) idExists.Add(row["XP_ID"].ToInt());
+                    Result result = j.Query("select top 1 XP_Queue from ProbeProgress order by XP_Queue desc");
+
+                    if (result.Count > 0) queueIndex = result[0]["XP_Queue"].ToLong() + 1;
+                    else queueIndex = 1;
 
                     Batch batch = j.Batch();
-
                     batch.Begin();
-                    int id = 1;
+
+                    
                     foreach (string newID in newIDs)
                     {
+                        // jika newID ada di pending, skip
+                        bool existInPending = false;
+                        foreach (KeyValuePair<string, Tuple<string, DateTime>> pair in pending)
+                        {
+                            if (pair.Value.Item1 == newID)
+                            {
+                                existInPending = true;
+                                break;
+                            }
+                        }
+
+                        if (existInPending) continue;
+
+                        string dbID = Database.ID();
+
                         Insert insert = j.Insert("ProbeProgress");
-
-                        while (idExists.Contains(id)) id++; // if id contained in incompleted id, then increase
-
-                        insert.Value("XP_ID", id++);
+                        insert.Value("XP_ID", dbID);
                         insert.Value("XP_NO", newID);
+                        insert.Value("XP_Queue", queueIndex++);
                         insert.Value("XP_Case", dbCase);
                         batch.Execute(insert);
+
+                        queue.Enqueue(new Tuple<string, string>(dbID, newID));
+                        
                     }
                     result = batch.Commit();
-                    if (result.Count > 0) Event("List created");
-
-                    foreach (Row xp in j.Query("select XP_ID, XP_NO from ProbeProgress where XP_Case " + (dbCase == null ? "is" : "=") + " {0} order by XP_ID asc", dbCase))
-                    {
-                        list[queueCase].Enqueue(new Tuple<int, string>(xp["XP_ID"].ToInt(), xp["XP_NO"].ToString()));
-                    }
                 }
+            }
+        }
+
+        internal void PendingNode(string queueCase, string xpID, string nodeID, TimeSpan duration)
+        {
+            if (pendingList.ContainsKey(queueCase))
+            {
+                lock (pendingList[queueCase])
+                {
+                    DateTime until = DateTime.UtcNow + duration;
+                    pendingList[queueCase].Add(xpID, new Tuple<string, DateTime>(nodeID, until));
+
+                    j.Execute("update ProbeProgress set XP_Pending = {0} where XP_ID = {1}", until, xpID);
+                }                
             }
         }
         
@@ -432,22 +423,52 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
             return isTimeOK && isDayOK;
         }
 
-        internal Tuple<int, string> NextNode(string probeCase)
+        internal Tuple<string, string> NextNode(string probeCase)
         {
-            Tuple<int, string> noded = null;
-
-            lock (list[probeCase])
+            Tuple<string, string> noded = null;
+            
+            lock (pendingList[probeCase])
             {
-                if (list[probeCase].Count == 0)
+                string removeMe = null;
+                foreach (KeyValuePair<string, Tuple<string, DateTime>> pair in pendingList[probeCase])
                 {
-                    // here were do things every loop
-                    DatabaseCheck();
+                    Tuple<string, DateTime> tup = pair.Value;
+                    string xpid = pair.Key;
 
-                    // create new list
-                    CreateNodeQueue(probeCase);
+                    if (DateTime.UtcNow > tup.Item2)
+                    {
+                        // expired,
+                        removeMe = xpid;
+                        noded = new Tuple<string, string>(xpid, tup.Item1);
+                        break;
+                    }
                 }
+                if (removeMe != null)
+                {
+                    Event("Node in pending list has been expired and set as next node");
+                    pendingList[probeCase].Remove(removeMe);
+                }
+            }
+                        
+            if (noded == null)
+            {
+                lock (list[probeCase])
+                {
+                    if (list[probeCase].Count == 0)
+                    {
+                        // here were do things every loop
+                        DatabaseCheck();
 
-                noded = list[probeCase].Dequeue();
+                        Event("Setup queue list...");
+
+                        // create new list
+                        CreateNodeQueue(probeCase);
+
+                        Event("Case " + probeCase + ": " + list[probeCase].Count + list[probeCase].Count.PluralCase(" node", " nodes"));
+                    }
+
+                    noded = list[probeCase].Dequeue();
+                }
             }
 
             return noded;
@@ -595,16 +616,17 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
             {
                 j.Retry += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
                 {
-                    if (eventArgs.Exception == DatabaseException.Timeout) Event("Database query has timed out, retrying");
+                    if (eventArgs.Exception == DatabaseException.Timeout)
+                        Event("Database query has timed out, retrying");
                     else
                     {
                         Event("Jovice Database Connection failed: " + eventArgs.Message);
                         eventArgs.NoRetry = true;
-                        Stop();
+                        //Stop();
                     }
                 };
                 j.QueryAttempts = 5;
-                j.Timeout = 300;
+                j.Timeout = 600;
 
                 batch = j.Batch();
 
@@ -649,38 +671,89 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
                 #region Probe initialization
 
                 // PROBE LIST
-
                 Event("Loading probe list...");
 
-                list = new Dictionary<string, Queue<Tuple<int, string>>>
+                list = new Dictionary<string, Queue<Tuple<string, string>>>
                 {
-                    { "MAIN", new Queue<Tuple<int, string>>() },
-                    { "M", new Queue<Tuple<int, string>>() }
+                    { "MAIN", new Queue<Tuple<string, string>>() },
+                    { "M", new Queue<Tuple<string, string>>() }
                 };
 
-                foreach (Row xp in j.Query("select * from ProbeProgress order by XP_ID asc"))
+                pendingList = new Dictionary<string, Dictionary<string, Tuple<string, DateTime>>>
+                {
+                    { "MAIN", new Dictionary<string, Tuple<string, DateTime>>() },
+                    { "M", new Dictionary<string, Tuple<string, DateTime>>() }
+                };
+
+                foreach (Row xp in j.Query("select * from ProbeProgress order by XP_Queue asc"))
                 {
                     string c = xp["XP_Case"].ToString();
                     if (c == null) c = "MAIN";
-                    if (list.ContainsKey(c)) list[c].Enqueue(new Tuple<int, string>(xp["XP_ID"].ToInt(), xp["XP_NO"].ToString()));
+
+                    if (list.ContainsKey(c))
+                    {
+                        Queue<Tuple<string, string>> queue = list[c];
+                        Dictionary<string, Tuple<string, DateTime>> pending = pendingList[c];
+
+                        string xpid = xp["XP_ID"].ToString();
+                        string xpno = xp["XP_NO"].ToString();
+                        DateTime? xppendinga = xp["XP_Pending"].ToNullableDateTime();
+
+                        // Remove duplicated
+                        bool duplicated = false;
+                        foreach (Tuple<string, string> tup in queue)
+                        {
+                            if (tup.Item2 == xpno)
+                            {
+                                duplicated = true;
+                                break;
+                            }
+                        }
+                        if (duplicated == false && pending.ContainsKey(xpid)) duplicated = true;
+
+                        if (duplicated)
+                            j.Execute("delete from ProbeProgress where XP_ID = {0}", xpid);
+                        else
+                        {
+                            if (xppendinga.HasValue)
+                                pending.Add(xpid, new Tuple<string, DateTime>(xpno, xppendinga.Value));
+                            else
+                                queue.Enqueue(new Tuple<string, string>(xpid, xpno));
+                        }
+                            
+                    }
                 }
 
-                foreach (KeyValuePair<string, Queue<Tuple<int, string>>> pair in list)
+                Event("Setup queue list...");
+
+                foreach (KeyValuePair<string, Queue<Tuple<string, string>>> pair in list)
                 {
-                    if (pair.Value.Count == 0)
+                    Queue<Tuple<string, string>> queue = pair.Value;
+
+                    if (queue.Count == 0)
                     {
                         CreateNodeQueue(pair.Key);
+                        Event("Case " + pair.Key + ": " + list[pair.Key].Count + list[pair.Key].Count.PluralCase(" node", " nodes"));
                     }
                     else
                     {
-                        Event("Case: " + pair.Key + " is using existing list, " + pair.Value.Count + " node" + (pair.Value.Count > 1 ? "s" : "") + " remaining");
+                        Event("Case " + pair.Key + " is using existing list: " + queue.Count + queue.Count.PluralCase(" node", " nodes"));
                     }
+                }
+
+                Event("Setup pending list...");
+
+                foreach (KeyValuePair<string, Dictionary<string, Tuple<string, DateTime>>> pair in pendingList)
+                {
+                    Dictionary<string, Tuple<string, DateTime>> pending = pair.Value;
+
+                    if (pending.Count > 0)
+                        Event("Case " + pair.Key + " is using existing list: " + pending.Count + pending.Count.PluralCase(" node", " nodes"));
                 }
 
                 j.Execute("update ProbeProgress set XP_StartTime = NULL, XP_Status = NULL");
 
                 // SUPPORTED VERSION
-
                 if (supportedVersions == null)
                 {
                     Result sver = j.Query("select * from NodeSupport");
@@ -711,6 +784,7 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
                     values.Add("NO_Type", row["NO_Type"].ToString());
                     values.Add("NO_Manufacture", row["NO_Manufacture"].ToString());
                     values.Add("NO_IP", row["NO_IP"].ToString());
+                    //values.Add("NO_Active", row["NO_Active"].ToBool());
                 }
 
                 #endregion
@@ -721,6 +795,10 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
 
                 long loops = 0;
 
+#if DEBUG
+                Event("DEBUG: Set single probe instance");
+                bool singleProbeStarted = false;
+#endif
                 while (true)
                 {
                     #region Check Regularly
@@ -995,7 +1073,13 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
                                     Event("Probe session has started");
                                     probe.SessionStart = true;
                                 }
+#if DEBUG
+                                if (singleProbeStarted) break;
+#endif
                                 probe.Start();
+#if DEBUG
+                                singleProbeStarted = true;
+#endif
                             }
                         }
                     }

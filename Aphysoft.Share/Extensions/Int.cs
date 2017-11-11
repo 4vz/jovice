@@ -27,5 +27,11 @@ namespace Aphysoft.Share
             else if (min <= value && value <= max) return true;
             else return false;
         }
+
+        public static string PluralCase(this int value, string singular, string plural)
+        {
+            if (value == 0 || value == 1) return singular;
+            else return plural;
+        }
     }
 }

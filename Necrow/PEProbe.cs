@@ -132,12 +132,12 @@ namespace Center
             set { updateNeighborCheckMITOPI = value; }
         }
 
-        private string routeID;
+        private string routeNameID;
 
-        public string RouteID
+        public string RouteNameID
         {
-            get { return routeID; }
-            set { routeID = value; }
+            get { return routeNameID; }
+            set { routeNameID = value; }
         }
 
         private bool updateRouteID = false;
@@ -582,6 +582,29 @@ namespace Center
         }
     }
 
+    class PERouteIPSummaryToDatabase : ToDatabase
+    {
+        private string ip;
+
+        public string IP { get => ip; set => ip = value; }
+
+        private string type;
+
+        public string Type { get => type; set => type = value; }
+
+        private bool updateType = false;
+
+        public bool UpdateType { get => updateType; set => updateType = value; }
+
+        private string routeID;
+
+        public string RouteID { get => routeID; set => routeID = value; }
+
+        private bool ipv6 = false;
+
+        public bool IPv6 { get => ipv6; set => ipv6 = value; }
+    }
+
     #endregion
 
     class NeighborGroup : PERouteUseToDatabase
@@ -605,12 +628,15 @@ namespace Center
             Batch batch = Batch();            
             Result result;
 
+            Dictionary<string, PERouteIPSummaryToDatabase> routeiplive = new Dictionary<string, PERouteIPSummaryToDatabase>();
+
             #region VRF
 
             Dictionary<string, PERouteNameToDatabase> routenamelive = new Dictionary<string, PERouteNameToDatabase>();
             Dictionary<string, Row> routenamedb = QueryDictionary("select * from PERouteName where PN_NO = {0}", "PN_Name", nodeID);
             if (routenamedb == null) return DatabaseFailure(probe);
             Dictionary<string, List<string>> routetargetlocaldb = new Dictionary<string, List<string>>();
+            Dictionary<string, string> routenameroutereference = new Dictionary<string, string>();
 
             result = Query("select * from PERouteName, PERouteTarget where PN_PR = PT_PR and PN_NO = {0}", nodeID);
             if (!result.OK) return DatabaseFailure(probe);
@@ -1163,6 +1189,14 @@ namespace Center
             routenamedb = QueryDictionary("select * from PERouteName where PN_NO = {0}", "PN_Name", nodeID);
             if (routenamedb == null) return DatabaseFailure(probe);
 
+            foreach (KeyValuePair<string, Row> pair in routenamedb)
+            {
+                string routeid = pair.Value["PN_PR"].ToString();
+                string routenameid = pair.Value["PN_ID"].ToString();
+
+                routenameroutereference.Add(routenameid, routeid);
+            }
+
             #endregion
 
             #region QOS
@@ -1636,7 +1670,7 @@ Last input 00:00:00, output 00:00:00
 
                                         if (interfacelive.ContainsKey(name))
                                         {
-                                            interfacelive[name].RouteID = currentVrf;
+                                            interfacelive[name].RouteNameID = currentVrf;
                                         }
                                     }
                                 }
@@ -1777,16 +1811,17 @@ Last input 00:00:00, output 00:00:00
                         if (linen <= (nodeVersion == xr ? 2 : 1)) continue;
 
                         string linex = line.Trim();
+                        string ip = null;
 
                         if (currentInterface != null && linex.StartsWith("Internet address"))
                         {
-                            string ip = linex.Substring(20);
+                            ip = linex.Substring(20);
                             if (currentInterface.IP == null) currentInterface.IP = new List<string>();
                             currentInterface.IP.Add("0_1_" + ip);
                         }
                         else if (currentInterface != null && linex.StartsWith("Secondary address"))
                         {
-                            string ip = linex.Substring(18);
+                            ip = linex.Substring(18);
                             if (currentInterface.IP == null) currentInterface.IP = new List<string>();
                             currentInterface.IP.Add("0_" + ipv4SecondaryAddressCtr + "_" + ip);
                             ipv4SecondaryAddressCtr++;
@@ -1805,6 +1840,23 @@ Last input 00:00:00, output 00:00:00
                                     string shortName = networkInterface.Name;
                                     if (interfacelive.ContainsKey(shortName))
                                         currentInterface = interfacelive[shortName];
+                                }
+                            }
+                        }
+
+                        if (currentInterface != null && ip != null)
+                        {
+                            if (currentInterface.RouteNameID != null)
+                            {
+                                if (routenameroutereference.ContainsKey(currentInterface.RouteNameID))
+                                {
+                                    PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+                                    pis.IP = ip;
+                                    pis.RouteID = routenameroutereference[currentInterface.RouteNameID];
+                                    pis.Type = "W";
+
+                                    string key = pis.RouteID + "_" + pis.IP;
+                                    if (!routeiplive.ContainsKey(key)) routeiplive.Add(key, pis);
                                 }
                             }
                         }
@@ -1841,8 +1893,26 @@ Last input 00:00:00, output 00:00:00
                             string nm = linetrim.Substring(linetrim.IndexOf('/') + 1);
 
                             if (currentInterface.IP == null) currentInterface.IP = new List<string>();
-                            currentInterface.IP.Add("1_" + ipv6AddressCtr + "_" + ip + "/" + nm);
+
+                            string ipnm = ip + "/" + nm;
+
+                            currentInterface.IP.Add("1_" + ipv6AddressCtr + "_" + ipnm);
                             ipv6AddressCtr++;
+
+                            if (currentInterface.RouteNameID != null)
+                            {
+                                if (routenameroutereference.ContainsKey(currentInterface.RouteNameID))
+                                {
+                                    PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+                                    pis.IP = ipnm;
+                                    pis.RouteID = routenameroutereference[currentInterface.RouteNameID];
+                                    pis.IPv6 = true;
+                                    pis.Type = "W";
+
+                                    string key = pis.RouteID + "_" + pis.IP;
+                                    if (!routeiplive.ContainsKey(key)) routeiplive.Add(key, pis);
+                                }
+                            }
                         }
                     }
 
@@ -1984,7 +2054,7 @@ Last input 00:00:00, output 00:00:00
                             if (parts.Length == 4)
                             {
                                 if (routenamedb.ContainsKey(parts[2]) && interfacelive.ContainsKey(parts[0]))
-                                    interfacelive[parts[0]].RouteID = routenamedb[parts[2]]["PN_ID"].ToString();
+                                    interfacelive[parts[0]].RouteNameID = routenamedb[parts[2]]["PN_ID"].ToString();
                             }
                         }
                     }
@@ -2414,15 +2484,17 @@ Last input 00:00:00, output 00:00:00
 
                         string linex = line.Trim();
 
+                        string ip = null;
+
                         if (currentInterface != null && linex.StartsWith("Internet address"))
                         {
-                            string ip = linex.Substring(20);
+                            ip = linex.Substring(20);
                             if (currentInterface.IP == null) currentInterface.IP = new List<string>();
                             currentInterface.IP.Add("0_1_" + ip);
                         }
                         else if (currentInterface != null && linex.StartsWith("Secondary address"))
                         {
-                            string ip = linex.Substring(18);
+                            ip = linex.Substring(18);
                             if (currentInterface.IP == null) currentInterface.IP = new List<string>();
                             currentInterface.IP.Add("0_" + secondaryAddressCtr + "_" + ip);
                             secondaryAddressCtr++;
@@ -2441,6 +2513,23 @@ Last input 00:00:00, output 00:00:00
                                     string shortName = networkInterface.Name;
                                     if (interfacelive.ContainsKey(shortName))
                                         currentInterface = interfacelive[shortName];
+                                }
+                            }
+                        }
+
+                        if (currentInterface != null && ip != null)
+                        {
+                            if (currentInterface.RouteNameID != null)
+                            {
+                                if (routenameroutereference.ContainsKey(currentInterface.RouteNameID))
+                                {
+                                    PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+                                    pis.IP = ip;
+                                    pis.RouteID = routenameroutereference[currentInterface.RouteNameID];
+                                    pis.Type = "W";
+
+                                    string key = pis.RouteID + "_" + pis.IP;
+                                    if (!routeiplive.ContainsKey(key)) routeiplive.Add(key, pis);
                                 }
                             }
                         }
@@ -2753,7 +2842,39 @@ Last input 00:00:00, output 00:00:00
                         {
                             string name = nif.Name;
                             if (interfacelive.ContainsKey(name) && routenamedb.ContainsKey(currentVRF))
-                                interfacelive[name].RouteID = routenamedb[currentVRF]["PN_ID"].ToString();
+                            {
+                                interfacelive[name].RouteNameID = routenamedb[currentVRF]["PN_ID"].ToString();
+
+                                if (routenameroutereference.ContainsKey(interfacelive[name].RouteNameID))
+                                {
+                                    List<string> ip = interfacelive[name].IP;
+
+                                    if (ip != null)
+                                    {
+                                        foreach (string ipx in ip)
+                                        {
+                                            string[] tokens = ipx.Split(new char[] { '_' }, StringSplitOptions.RemoveEmptyEntries);
+
+                                            if (tokens.Length == 3)
+                                            {
+                                                bool ipv6 = tokens[0] == "1";
+                                                string ipnm = tokens[2];
+
+                                                PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+
+                                                pis.IP = ipnm;
+                                                pis.IPv6 = ipv6;
+                                                pis.Type = "W";
+                                                pis.RouteID = routenameroutereference[interfacelive[name].RouteNameID];
+
+                                                string key = pis.RouteID + "_" + pis.IP;
+                                                if (!routeiplive.ContainsKey(key)) routeiplive.Add(key, pis);
+                                            }
+                                        }
+                                    }
+                                }
+
+                            }
                         }
                     }
                 }
@@ -3181,7 +3302,38 @@ Last input 00:00:00, output 00:00:00
                         }
 
                         if (routenamedb.ContainsKey(cvrf) && interfacelive.ContainsKey(inf))
-                            interfacelive[inf].RouteID = routenamedb[cvrf]["PN_ID"].ToString();
+                        {
+                            interfacelive[inf].RouteNameID = routenamedb[cvrf]["PN_ID"].ToString();
+
+                            if (routenameroutereference.ContainsKey(interfacelive[inf].RouteNameID))
+                            {
+                                List<string> ip = interfacelive[inf].IP;
+
+                                if (ip != null)
+                                {
+                                    foreach (string ipx in ip)
+                                    {
+                                        string[] tokens = ipx.Split(new char[] { '_' }, StringSplitOptions.RemoveEmptyEntries);
+
+                                        if (tokens.Length == 3)
+                                        {
+                                            bool ipv6 = tokens[0] == "1";
+                                            string ipnm = tokens[2];
+
+                                            PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+
+                                            pis.IP = ipnm;
+                                            pis.IPv6 = ipv6;
+                                            pis.Type = "W";
+                                            pis.RouteID = routenameroutereference[interfacelive[inf].RouteNameID];
+
+                                            string key = pis.RouteID + "_" + pis.IP;
+                                            if (!routeiplive.ContainsKey(key)) routeiplive.Add(key, pis);
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -3499,12 +3651,12 @@ Last input 00:00:00, output 00:00:00
                         u.Aggr = li.Aggr;
                         UpdateInfo(updateinfo, "aggr", db["PI_Aggregator"].ToIntShort(-1).NullableInfo(), li.Aggr.NullableInfo());
                     }
-                    if (db["PI_PN"].ToString() != li.RouteID)
+                    if (db["PI_PN"].ToString() != li.RouteNameID)
                     {
                         update = true;
                         u.UpdateRouteID = true;
-                        u.RouteID = li.RouteID;
-                        UpdateInfo(updateinfo, "routename", db["PI_PN"].ToString(), li.RouteID, true);
+                        u.RouteNameID = li.RouteNameID;
+                        UpdateInfo(updateinfo, "routename", db["PI_PN"].ToString(), li.RouteNameID, true);
                     }
                     if (db["PI_PQ_Input"].ToString() != li.InputQOSID)
                     {
@@ -3731,7 +3883,7 @@ Last input 00:00:00, output 00:00:00
                 insert.Value("PI_DOT1Q", s.Dot1Q.Nullable(-1));
                 insert.Value("PI_Aggregator", s.Aggr.Nullable(-1));
                 insert.Value("PI_Description", s.Description);
-                insert.Value("PI_PN", s.RouteID);
+                insert.Value("PI_PN", s.RouteNameID);
                 insert.Value("PI_PQ_Input", s.InputQOSID);
                 insert.Value("PI_PQ_Output", s.OutputQOSID);
                 insert.Value("PI_Rate_Input", s.RateInput.Nullable(-1));
@@ -3781,7 +3933,7 @@ Last input 00:00:00, output 00:00:00
                 update.Set("PI_Type", s.InterfaceType, s.UpdateInterfaceType);
                 update.Set("PI_DOT1Q", s.Dot1Q.Nullable(-1), s.UpdateDot1Q);
                 update.Set("PI_Aggregator", s.Aggr.Nullable(-1), s.UpdateAggr);
-                update.Set("PI_PN", s.RouteID, s.UpdateRouteID);
+                update.Set("PI_PN", s.RouteNameID, s.UpdateRouteID);
                 update.Set("PI_PQ_Input", s.InputQOSID, s.UpdateInputQOSID);
                 update.Set("PI_PQ_Output", s.OutputQOSID, s.UpdateOutputQOSID);
                 update.Set("PI_Rate_Input", s.RateInput.Nullable(-1), s.UpdateRateInput);
@@ -4114,6 +4266,18 @@ Last input 00:00:00, output 00:00:00
                                         i.Network = network;
                                         i.Neighbor = neighbor;
                                         i.InterfaceID = interfaceID;
+
+                                        if (routenameroutereference.ContainsKey(currentRouteNameID))
+                                        {
+                                            PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+
+                                            pis.IP = network;
+                                            pis.RouteID = routenameroutereference[currentRouteNameID];
+                                            pis.Type = "L";
+
+                                            string key2 = pis.RouteID + "_" + pis.IP;
+                                            if (!routeiplive.ContainsKey(key2)) routeiplive.Add(key2, pis);
+                                        }
 
                                         if (interfaceID == null && ifname != null)
                                         {
@@ -4713,6 +4877,18 @@ Last input 00:00:00, output 00:00:00
                                         i.InterfaceGone = ifname;
                                     }
 
+                                    if (routenameroutereference.ContainsKey(routeNameID))
+                                    {
+                                        PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+
+                                        pis.IP = network;
+                                        pis.RouteID = routenameroutereference[routeNameID];
+                                        pis.Type = "L";
+
+                                        string key2 = pis.RouteID + "_" + pis.IP;
+                                        if (!routeiplive.ContainsKey(key2)) routeiplive.Add(key2, pis);
+                                    }
+
                                     string key = routeNameID + "_S_" + network + "_" + (neighbor != null ? neighbor : "") + "_" + (interfaceID != null ? interfaceID : ifname != null ? ifname : "");
                                     routeuselive.Add(key, i);
                                 }
@@ -5052,7 +5228,7 @@ Last input 00:00:00, output 00:00:00
                                             {
                                                 PEInterfaceToDatabase li = pair.Value;
 
-                                                if (li.RouteID == i.RouteNameID)
+                                                if (li.RouteNameID == i.RouteNameID)
                                                 {
                                                     if (li.IP != null)
                                                     {
@@ -5082,6 +5258,49 @@ Last input 00:00:00, output 00:00:00
 
                                         i.PrefixListInID = currentPrefixListIN;
                                         i.PrefixListOutID = currentPrefixListOUT;
+
+                                        if (i.PrefixListInID != null && prefixlistlive.ContainsKey(i.PrefixListInID))
+                                        {
+                                            List<PEPrefixEntryToDatabase> entries = prefixlistlive[i.PrefixListInID].Item2;
+
+                                            foreach (PEPrefixEntryToDatabase entry in entries)
+                                            {
+                                                IPNetwork ipn = IPNetwork.Parse(entry.Network);
+
+                                                if (ipn != null && ipn.Cidr > 0 && entry.Access == "P" && routenameroutereference.ContainsKey(currentRouteNameID))
+                                                {
+                                                    PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+
+                                                    pis.IP = entry.Network;
+                                                    pis.Type = "L";
+                                                    pis.RouteID = routenameroutereference[currentRouteNameID];
+
+                                                    string key2 = pis.RouteID + "_" + pis.IP;
+                                                    if (!routeiplive.ContainsKey(key2)) routeiplive.Add(key2, pis);
+                                                }
+                                            }
+                                        }
+                                        if (i.PrefixListOutID != null && prefixlistlive.ContainsKey(i.PrefixListOutID))
+                                        {
+                                            List<PEPrefixEntryToDatabase> entries = prefixlistlive[i.PrefixListOutID].Item2;
+
+                                            foreach (PEPrefixEntryToDatabase entry in entries)
+                                            {
+                                                IPNetwork ipn = IPNetwork.Parse(entry.Network);
+
+                                                if (ipn != null && ipn.Cidr > 0 && entry.Access == "P" && routenameroutereference.ContainsKey(currentRouteNameID))
+                                                {
+                                                    PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+
+                                                    pis.IP = entry.Network;
+                                                    pis.Type = "L";
+                                                    pis.RouteID = routenameroutereference[currentRouteNameID];
+
+                                                    string key2 = pis.RouteID + "_" + pis.IP;
+                                                    if (!routeiplive.ContainsKey(key2)) routeiplive.Add(key2, pis);
+                                                }
+                                            }
+                                        }
 
                                         if (currentMaximumPrefix != null)
                                         {
@@ -5262,6 +5481,18 @@ Last input 00:00:00, output 00:00:00
                                 i.Network = network;
                                 i.Neighbor = nexthop;
                                 i.InterfaceID = FindInterfaceByNeighbor(i.Neighbor, currentRouteNameID, interfacelive);
+
+                                if (routenameroutereference.ContainsKey(currentRouteNameID))
+                                {
+                                    PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+
+                                    pis.IP = network;
+                                    pis.RouteID = routenameroutereference[currentRouteNameID];
+                                    pis.Type = "L";
+
+                                    string key2 = pis.RouteID + "_" + pis.IP;
+                                    if (!routeiplive.ContainsKey(key2)) routeiplive.Add(key2, pis);
+                                }
 
                                 string key = currentRouteNameID + "_S_" + network + "_" + (i.Neighbor != null ? i.Neighbor : "") + "_" + (i.InterfaceID != null ? i.InterfaceID : "");
                                 routeuselive.Add(key, i);
@@ -5464,6 +5695,18 @@ Last input 00:00:00, output 00:00:00
                                     i.InterfaceGone = ifname;
                                 }
 
+                                if (routenameroutereference.ContainsKey(routeNameID))
+                                {
+                                    PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+
+                                    pis.IP = network;
+                                    pis.RouteID = routenameroutereference[routeNameID];
+                                    pis.Type = "L";
+
+                                    string key2 = pis.RouteID + "_" + pis.IP;
+                                    if (!routeiplive.ContainsKey(key2)) routeiplive.Add(key2, pis);
+                                }
+
                                 string key = routeNameID + "_S_" + network + "_" + (neighbor != null ? neighbor : "") + "_" + (interfaceID != null ? interfaceID : ifname != null ? ifname : "");
                                 routeuselive.Add(key, i);
                             }
@@ -5539,9 +5782,6 @@ Last input 00:00:00, output 00:00:00
                         }
                     }
                 }
-
-
-
 
                 #endregion
 
@@ -5815,7 +6055,10 @@ Last input 00:00:00, output 00:00:00
                         // setup prefix list in and out ID
                         if (li.PrefixListInID != null)
                         {
-                            if (prefixlistlive.ContainsKey(li.PrefixListInID)) li.PrefixListInID = prefixlistlive[li.PrefixListInID].Item1.ID;
+                            if (prefixlistlive.ContainsKey(li.PrefixListInID))
+                            {
+                                li.PrefixListInID = prefixlistlive[li.PrefixListInID].Item1.ID;
+                            }
                             else
                             {
                                 li.PrefixListInGone = li.PrefixListInID = null;
@@ -5824,7 +6067,10 @@ Last input 00:00:00, output 00:00:00
                         }
                         if (li.PrefixListOutID != null)
                         {
-                            if (prefixlistlive.ContainsKey(li.PrefixListOutID)) li.PrefixListOutID = prefixlistlive[li.PrefixListOutID].Item1.ID;
+                            if (prefixlistlive.ContainsKey(li.PrefixListOutID))
+                            {
+                                li.PrefixListOutID = prefixlistlive[li.PrefixListOutID].Item1.ID;
+                            }
                             else
                             {
                                 li.PrefixListOutGone = li.PrefixListOutID = null;
@@ -5866,7 +6112,10 @@ Last input 00:00:00, output 00:00:00
                         // setup prefix list in and out ID
                         if (li.PrefixListInID != null)
                         {
-                            if (prefixlistlive.ContainsKey(li.PrefixListInID)) li.PrefixListInID = prefixlistlive[li.PrefixListInID].Item1.ID;
+                            if (prefixlistlive.ContainsKey(li.PrefixListInID))
+                            {
+                                li.PrefixListInID = prefixlistlive[li.PrefixListInID].Item1.ID;
+                            }
                             else
                             {
                                 li.PrefixListInGone = li.PrefixListInID;
@@ -5875,7 +6124,10 @@ Last input 00:00:00, output 00:00:00
                         }
                         if (li.PrefixListOutID != null)
                         {
-                            if (prefixlistlive.ContainsKey(li.PrefixListOutID)) li.PrefixListOutID = prefixlistlive[li.PrefixListOutID].Item1.ID;
+                            if (prefixlistlive.ContainsKey(li.PrefixListOutID))
+                            {
+                                li.PrefixListOutID = prefixlistlive[li.PrefixListOutID].Item1.ID;
+                            }
                             else
                             {
                                 li.PrefixListOutGone = li.PrefixListOutID;
@@ -6184,8 +6436,188 @@ Last input 00:00:00, output 00:00:00
 
             #endregion
 
+            #region ROUTE IP SUMMARY
+
+            Event("Building Route IP Summary");
+
+            List<string> routeipinsertnode = new List<string>();
+            List<PERouteIPSummaryToDatabase> routeipinsert = new List<PERouteIPSummaryToDatabase>();
+            List<PERouteIPSummaryToDatabase> routeipupdate = new List<PERouteIPSummaryToDatabase>();
+            Dictionary<string, Row> routeipdb = QueryDictionary("select PW_ID, PZ_ID, PZ_PR, PZ_IP, PZ_Type from PERouteIPSummaryNode, PERouteIPSummary where PW_NO = {0} and PW_PZ = PZ_ID", delegate(Row row)
+            {
+                return row["PZ_PR"].ToString() + "_" + row["PZ_IP"].ToString();
+            }, nodeID);
+
+            List<PERouteIPSummaryToDatabase> routeipliveadd = new List<PERouteIPSummaryToDatabase>();
+            List<string> routeipliveremove = new List<string>();
+
+            #region Check
+
+            foreach (KeyValuePair<string, PERouteIPSummaryToDatabase> pair in routeiplive)
+            {
+                PERouteIPSummaryToDatabase li = pair.Value;
+
+                string oip = li.IP;
+
+                if (!li.IPv6)
+                {
+                    IPNetwork ipn = IPNetwork.Parse(li.IP);
+                    li.IP = ipn.ToString();
+
+                    if (oip != li.IP)
+                    {
+                        routeipliveadd.Add(li);
+                        routeipliveremove.Add(pair.Key);
+                    }
+                }
+            }
+
+            foreach (string routeipliveremovex in routeipliveremove) routeiplive.Remove(routeipliveremovex);
+            foreach (PERouteIPSummaryToDatabase routeipliveaddx in routeipliveadd) routeiplive.Add(routeipliveaddx.RouteID + "_" + routeipliveaddx.IP, routeipliveaddx);
+
+            foreach (KeyValuePair<string, PERouteIPSummaryToDatabase> pair in routeiplive)
+            {
+                PERouteIPSummaryToDatabase li = pair.Value;
+
+                if (!routeipdb.ContainsKey(pair.Key))
+                {
+                    // cek apakah ada routeid_ip di database
+                    result = j.Query("select PZ_ID from PERouteIPSummary where PZ_PR = {0} and PZ_IP = {1}", li.RouteID, li.IP);                    
+
+                    if (result.Count == 0)
+                    {
+                        // theres no
+                        li.ID = Database.ID();
+                        routeipinsert.Add(li);
+                        routeipinsertnode.Add(li.ID);
+                    }
+                    else
+                    {
+                        string existingPZID = result[0]["PZ_ID"].ToString();
+
+                        // theres, insert node
+                        result = j.Query("select PW_ID from PERouteIPSummaryNode where PW_NO = {0} and PW_PZ = {1}", nodeID, existingPZID);
+                        if (result.Count == 0) routeipinsertnode.Add(existingPZID);
+                    }
+                }
+                else
+                {
+                    Row db = routeipdb[pair.Key];
+
+                    PERouteIPSummaryToDatabase u = new PERouteIPSummaryToDatabase();
+                    u.ID = db["PZ_ID"].ToString();
+                    li.ID = u.ID;
+
+                    bool update = false;
+
+                    if (db["PZ_Type"].ToString() != li.Type)
+                    {
+                        update = true;
+                        u.UpdateType = true;
+                        u.Type = li.Type;
+                    }
+
+                    if (update)
+                    {
+                        routeipupdate.Add(u);
+                    }
+                }
+            }
+
+            #endregion
+
+            #region Execute
+
+            // ADD
+            batch.Begin();
+            foreach (PERouteIPSummaryToDatabase s in routeipinsert)
+            {
+                Insert insert = Insert("PERouteIPSummary");
+                insert.Value("PZ_ID", s.ID);
+                insert.Value("PZ_PR", s.RouteID);
+                insert.Value("PZ_IP", s.IP);
+                insert.Value("PZ_IPv6", s.IPv6);
+                insert.Value("PZ_Type", s.Type);
+
+                batch.Execute(insert);
+            }
+            result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
+
+            // ADD NODE
+            batch.Begin();
+            foreach (string s in routeipinsertnode)
+            {
+                Insert insert = Insert("PERouteIPSummaryNode");
+                insert.Value("PW_ID", Database.ID());
+                insert.Value("PW_NO", nodeID);
+                insert.Value("PW_PZ", s);
+
+                batch.Execute(insert);
+            }
+            result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
+
+            // UPDATE
+            batch.Begin();
+            foreach (PERouteIPSummaryToDatabase s in routeipupdate)
+            {
+                Update update = Update("PERouteIPSummary");
+                update.Set("PZ_Type", s.Type, s.UpdateType);
+                update.Where("PZ_ID", s.ID);
+                batch.Execute(update);
+            }
+            result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
+
+            // DELETE
+            batch.Begin();
+            foreach (KeyValuePair<string, Row> pair in routeipdb)
+            {
+                if (!routeiplive.ContainsKey(pair.Key))
+                {
+                    string id = pair.Value["PZ_ID"].ToString();
+
+                    result = j.Query("select PW_ID, PW_NO from PERouteIPSummaryNode where PW_PZ = {0}", id);
+
+                    if (result.Count == 1)
+                    {
+                        string uno = result[0]["PW_NO"].ToString();
+
+                        if (uno == nodeID)
+                        {
+                            // im the only one
+                            // remove node
+                            batch.Execute("delete from PERouteIPSummaryNode where PW_ID = {0}", result[0]["PW_ID"].ToString());
+                            // remove summary
+                            batch.Execute("delete from PERouteIPSummary where PZ_ID = {0}", id);
+                        }
+                    }
+                    else
+                    {
+                        foreach (Row row in result)
+                        {
+                            string uno = row["PW_NO"].ToString();
+
+                            if (uno == nodeID)
+                            {
+                                // just remove node
+                                batch.Execute("delete from PERouteIPSummaryNode where PW_ID = {0}", row["PW_ID"].ToString());
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
+
+            #endregion
+
+            #endregion
+
             #region LATE DELETE
-            
+
             // DELETE Prefix-LIST
             batch.Begin();
             foreach (KeyValuePair<string, Row> pair in prefixlistdb)
@@ -6314,7 +6746,7 @@ Last input 00:00:00, output 00:00:00
                 {
                     PEInterfaceToDatabase li = pair.Value;
 
-                    if (li.RouteID == routeNameID)
+                    if (li.RouteNameID == routeNameID)
                     {
                         if (li.IP != null)
                         {

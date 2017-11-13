@@ -596,6 +596,14 @@ namespace Center
 
         public bool UpdateType { get => updateType; set => updateType = value; }
 
+        private bool privateAddress = false;
+
+        public bool PrivateAddress { get => privateAddress; set => privateAddress = value; }
+
+        private bool updatePrivateAddress = false;
+
+        public bool UpdatePrivateAddress { get => updatePrivateAddress; set => updatePrivateAddress = value; }
+
         private string routeID;
 
         public string RouteID { get => routeID; set => routeID = value; }
@@ -603,6 +611,17 @@ namespace Center
         private bool ipv6 = false;
 
         public bool IPv6 { get => ipv6; set => ipv6 = value; }
+    }
+
+    class PEMacToDatabase : MacToDatabase
+    {
+        private string ipAddress;
+
+        public string IPAddress { get => ipAddress; set => ipAddress = value; }
+
+        private string routeNameID;
+
+        public string RouteNameID { get => routeNameID; set => routeNameID = value; }
     }
 
     #endregion
@@ -1473,6 +1492,10 @@ from PEInterface, PEInterfaceIP where PP_PI = PI_ID and PI_NO = {0} order by PI_
             Dictionary<string, List<string>> ipinsert = new Dictionary<string, List<string>>();
             Dictionary<string, List<string>> ipdelete = new Dictionary<string, List<string>>();
 
+            Dictionary<string, string> physicalmac = new Dictionary<string, string>();
+            Dictionary<string, PEMacToDatabase> maclive = new Dictionary<string, PEMacToDatabase>();
+            Dictionary<string, string> activeroutename = new Dictionary<string, string>();
+
             ServiceReference interfaceServiceReference = new ServiceReference();
 
             Event("Checking Interface");
@@ -1907,7 +1930,7 @@ Last input 00:00:00, output 00:00:00
                                     pis.IP = ipnm;
                                     pis.RouteID = routenameroutereference[currentInterface.RouteNameID];
                                     pis.IPv6 = true;
-                                    pis.Type = "W";
+                                    pis.Type = "I";
 
                                     string key = pis.RouteID + "_" + pis.IP;
                                     if (!routeiplive.ContainsKey(key)) routeiplive.Add(key, pis);
@@ -2526,7 +2549,7 @@ Last input 00:00:00, output 00:00:00
                                     PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
                                     pis.IP = ip;
                                     pis.RouteID = routenameroutereference[currentInterface.RouteNameID];
-                                    pis.Type = "W";
+                                    pis.Type = "I";
 
                                     string key = pis.RouteID + "_" + pis.IP;
                                     if (!routeiplive.ContainsKey(key)) routeiplive.Add(key, pis);
@@ -2562,10 +2585,11 @@ Last input 00:00:00, output 00:00:00
                     }
                 }
 
-                if (Request("show interfaces detail | match \"^ *(Physical interface|Logical interface|Description:|Flags:|Last flapped|Link-level type|Addresses,|Destination:|Policer:)\"", out lines, probe)) return probe;
+                if (Request("show interfaces detail | match \"^ *(Physical interface|Logical interface|Description:|Flags:|Last flapped|Link-level type|Addresses,|Destination:|Policer:|Current address:)\"", out lines, probe)) return probe;
 
                 //Physical interface: ge-6/0/0, Enabled, Physical link is Up
                 //012345678901234567890123456789
+                //  Current address: 00:17:cb:a5:d4:1f, Hardware address: 00:17:cb:a5:d4:1f
                 //  Logical interface ge-1/0/0.56 (Index 139) (SNMP ifIndex 669) (Generation 204)
                 //  Last flapped   : 2016-05-13 13:38:23 WIT                 
                 PEInterfaceToDatabase current = null;
@@ -2573,6 +2597,7 @@ Last input 00:00:00, output 00:00:00
                 bool collectAddress = false;
                 int ipv4SecondaryAddressCtr = 1;
                 int ipv6SecondaryAddressCtr = 1;
+                string additionalSecondary = null;
 
                 foreach (string line in lines)
                 {
@@ -2598,6 +2623,8 @@ Last input 00:00:00, output 00:00:00
                                 physicalInterface = true;
                                 collectAddress = false;
                                 ipv4SecondaryAddressCtr = 1;
+                                ipv6SecondaryAddressCtr = 1;
+                                additionalSecondary = null;
 
                                 interfacelive.Add(current.Name, current);
                             }
@@ -2623,13 +2650,15 @@ Last input 00:00:00, output 00:00:00
                             physicalInterface = false;
                             collectAddress = false;
                             ipv4SecondaryAddressCtr = 1;
+                            ipv6SecondaryAddressCtr = 1;
+                            additionalSecondary = null;
 
                             interfacelive.Add(current.Name, current);
                         }
                         else current = null;
                     }
                     else if (current != null)
-                    { 
+                    {
                         if (lineTrim.StartsWith("Description:"))
                         {
                             //Description: IPTV MULTICAST TRAFFIC
@@ -2681,9 +2710,8 @@ Last input 00:00:00, output 00:00:00
                             }
                         }
                         else if (lineTrim.StartsWith("Addresses,")) collectAddress = true;
-                        else if (collectAddress && lineTrim.StartsWith("Destination:"))
-                        {
-                            collectAddress = false;
+                        else if (lineTrim.StartsWith("Destination:"))
+                        {                            
                             string[] tokens = lineTrim.Split(StringSplitTypes.Comma, StringSplitOptions.RemoveEmptyEntries);
                             // Destination: 10.1.3.36/30, Local: 10.1.3.37
                             if (tokens.Length >= 2)
@@ -2705,21 +2733,47 @@ Last input 00:00:00, output 00:00:00
                                             {
                                                 string iplocal = locals[1].Trim() + "/" + slash;
                                                 if (current.IP == null) current.IP = new List<string>();
-                                                if (iplocal.IndexOf(':') > -1)
+
+                                                if (collectAddress == false)
                                                 {
-                                                    current.IP.Add("1_" + ipv6SecondaryAddressCtr + "_" + iplocal);
-                                                    ipv6SecondaryAddressCtr++;
+                                                    // store ip to
+                                                    additionalSecondary = iplocal;
                                                 }
                                                 else
                                                 {
-                                                    current.IP.Add("0_" + ipv4SecondaryAddressCtr + "_" + iplocal);
-                                                    ipv4SecondaryAddressCtr++;
+                                                    if (iplocal.IndexOf(':') > -1)
+                                                    {
+                                                        current.IP.Add("1_" + ipv6SecondaryAddressCtr + "_" + iplocal);
+                                                        ipv6SecondaryAddressCtr++;
+                                                    }
+                                                    else
+                                                    {
+                                                        current.IP.Add("0_" + ipv4SecondaryAddressCtr + "_" + iplocal);
+                                                        ipv4SecondaryAddressCtr++;
+                                                    }                                        
+
+                                                    if (additionalSecondary != null)
+                                                    {
+                                                        if (additionalSecondary.IndexOf(':') > -1)
+                                                        {
+                                                            current.IP.Add("1_" + ipv6SecondaryAddressCtr + "_" + additionalSecondary);
+                                                            ipv6SecondaryAddressCtr++;
+                                                        }
+                                                        else
+                                                        {
+                                                            current.IP.Add("0_" + ipv4SecondaryAddressCtr + "_" + additionalSecondary);
+                                                            ipv4SecondaryAddressCtr++;
+                                                        }
+                                                        additionalSecondary = null;
+                                                    }
                                                 }
                                             }
                                         }
                                     }
                                 }
                             }
+
+                            collectAddress = false;
                         }
                         else if (lineTrim.StartsWith("Policer: "))
                         {
@@ -2782,6 +2836,23 @@ Last input 00:00:00, output 00:00:00
                             else
                                 current.LastDown = null;
 
+                        }
+                        else if (lineTrim.StartsWith("Current address:"))
+                        {
+                            //  Current address: 00:17:cb:a5:d4:1f, Hardware address: 00:17:cb:a5:d4:1f
+                            //                                      01234567890
+                            string[] tokads = lineTrim.Split(StringSplitTypes.Comma, StringSplitOptions.RemoveEmptyEntries);
+
+                            if (tokads.Length == 2)
+                            {
+                                string adds = tokads[1].Trim();
+                                string[] tokadds = adds.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                                if (tokadds.Length == 3)
+                                {
+                                    string mac = tokadds[2];
+                                    if (!physicalmac.ContainsKey(current.Name)) physicalmac.Add(current.Name, mac);
+                                }
+                            }
                         }
                     }
                 }
@@ -2864,7 +2935,7 @@ Last input 00:00:00, output 00:00:00
 
                                                 pis.IP = ipnm;
                                                 pis.IPv6 = ipv6;
-                                                pis.Type = "W";
+                                                pis.Type = "I";
                                                 pis.RouteID = routenameroutereference[interfacelive[name].RouteNameID];
 
                                                 string key = pis.RouteID + "_" + pis.IP;
@@ -3324,7 +3395,7 @@ Last input 00:00:00, output 00:00:00
 
                                             pis.IP = ipnm;
                                             pis.IPv6 = ipv6;
-                                            pis.Type = "W";
+                                            pis.Type = "I";
                                             pis.RouteID = routenameroutereference[interfacelive[inf].RouteNameID];
 
                                             string key = pis.RouteID + "_" + pis.IP;
@@ -3340,6 +3411,272 @@ Last input 00:00:00, output 00:00:00
                 #endregion
             }
 
+            // MAC
+            foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
+            {
+                PEInterfaceToDatabase li = pair.Value;
+
+                if (li.Protocol && li.IP != null && li.IP.Count > 0)
+                {
+                    string pnid = li.RouteNameID;
+
+                    if (pnid != null)
+                    {
+                        string pnname = null;
+                        foreach (KeyValuePair<string, Row> pair2 in routenamedb)
+                        {
+                            string rpnid = pair2.Value["PN_ID"].ToString();
+
+                            if (rpnid == pnid)
+                            {
+                                pnname = pair2.Key;
+                                break;
+                            }
+                        }
+
+                        if (!activeroutename.ContainsKey(pnname)) activeroutename.Add(pnname, pnid);
+                    }
+                }
+            }
+
+            if (nodeManufacture == cso)
+            {
+                #region cso
+
+                if (nodeVersion == xr)
+                {
+                    #region xr
+                    foreach (KeyValuePair<string, string> pair in activeroutename)
+                    {
+                        if (Request("show arp vrf " + pair.Key, out lines, probe)) return probe;
+
+                        foreach (string line in lines)
+                        {
+                            string lineTrim = line.Trim();
+
+                            if (lineTrim.Length > 0)
+                            {
+                                //36.66.108.41    00:00:31   a03d.6fd2.0d49  Dynamic    ARPA  GigabitEthernet0/7/1/6.3745
+                                //36.66.108.42    -          10f3.1104.890e  Interface  ARPA  GigabitEthernet0/7/1/6.4011
+                                //36.66.108.44    -          10f3.1104.890e  Interface  ARPA  GigabitEthernet0/7/1/6.3833
+                                //36.66.108.45    -          0000.0000.0000  Deleted    ARPA  GigabitEthernet0/7/1/6.3833
+
+                                string[] tokens = lineTrim.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                                if (tokens.Length == 6)
+                                {
+                                    string ip = tokens[0];
+                                    string age = tokens[1];
+                                    string mac = tokens[2];
+                                    string type = tokens[3];
+                                    string inter = tokens[5];
+
+                                    PEMacToDatabase li = new PEMacToDatabase();
+
+                                    int aged = -2;
+
+                                    if (age == "-") aged = -1;
+                                    else if (TimeSpan.TryParse(age, out TimeSpan agedd)) aged = (int)agedd.TotalSeconds;
+
+                                    if (aged >= -1)
+                                    {
+                                        li.Age = aged;
+
+                                        NetworkInterface nif = NetworkInterface.Parse(inter);
+                                        MacAddress ma = MacAddress.Parse(mac);
+
+                                        if (nif != null && ma != null && (type == "Dynamic" || type == "Interface"))
+                                        {
+                                            string ifname = nif.Name;
+                                            if (interfacelive.ContainsKey(ifname))
+                                            {
+                                                PEInterfaceToDatabase ili = interfacelive[ifname];
+
+                                                li.RouteNameID = ili.RouteNameID;
+                                                li.InterfaceID = ifname;
+                                                li.IPAddress = ip;
+                                                li.MacAddress = ma.ColonAddress;
+
+                                                maclive.Add(li.RouteNameID + "_" + li.IPAddress, li);
+
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    #endregion
+                }
+                else
+                {
+                    #region ios
+
+                    foreach (KeyValuePair<string, string> pair in activeroutename)
+                    {
+                        if (Request("show ip arp vrf " + pair.Key + " | in Internet", out lines, probe)) return probe;
+
+                        foreach (string line in lines)
+                        {
+                            string lineTrim = line.Trim();
+
+                            if (lineTrim.Length > 0)
+                            {
+                                //Internet  203.130.226.169         -   0014.f16a.8ec0  ARPA   GigabitEthernet1/19.3013
+                                //Internet  203.130.226.174         0   Incomplete ARPA
+
+                                string[] tokens = lineTrim.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                                if (tokens.Length == 6 && tokens[0] == "Internet")
+                                {
+                                    string ip = tokens[1];
+                                    string age = tokens[2];
+                                    string mac = tokens[3];
+                                    string inter = tokens[5];
+
+                                    PEMacToDatabase li = new PEMacToDatabase();
+
+                                    int aged = -2;
+
+                                    if (age == "-") aged = -1;
+                                    else if (int.TryParse(age, out int agedd)) aged = agedd;
+
+                                    if (aged >= -1)
+                                    {
+                                        li.Age = aged;
+
+                                        NetworkInterface nif = NetworkInterface.Parse(inter);
+                                        MacAddress ma = MacAddress.Parse(mac);
+
+                                        if (nif != null && ma != null)
+                                        {
+                                            string ifname = nif.Name;
+                                            if (interfacelive.ContainsKey(ifname))
+                                            {
+                                                PEInterfaceToDatabase ili = interfacelive[ifname];
+
+                                                li.RouteNameID = ili.RouteNameID;
+                                                li.InterfaceID = ifname;
+                                                li.IPAddress = ip;
+                                                li.MacAddress = ma.ColonAddress;
+
+                                                maclive.Add(li.RouteNameID + "_" + li.IPAddress, li);
+
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+
+
+                    }
+
+                    #endregion
+                }
+
+                #endregion
+            }
+            else if (nodeManufacture == jun)
+            {
+                #region jun
+                //MAC Address       Address         Name                      Interface           Flags
+                //02:01:00:00:00:05 10.0.0.5        10.0.0.5                  fxp2.0              none
+                //28:31:52:58:a7:0c 10.0.0.36       10.0.0.36                 ge-6/0/0.100        none
+                //b4:b3:62:ea:e2:f8 10.35.0.8       10.35.0.8                 ge-6/0/0.1675       none
+
+                if (Request("show arp", out lines, probe)) return probe;
+
+                foreach (string line in lines)
+                {
+                    string lineTrim = line.Trim();
+
+                    if (lineTrim.Length > 0)
+                    {
+                        string[] tokens = lineTrim.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                        if (tokens.Length == 5)
+                        {
+                            string mac = tokens[0];
+                            string ip = tokens[1];
+                            string inter = tokens[3];
+
+                            PEMacToDatabase li = new PEMacToDatabase();
+
+                            li.Age = 0;
+
+                            NetworkInterface nif = NetworkInterface.Parse(inter);
+                            MacAddress ma = MacAddress.Parse(mac);
+
+                            if (nif != null && ma != null)
+                            {
+                                string ifname = nif.Name;
+                                if (interfacelive.ContainsKey(ifname))
+                                {
+                                    PEInterfaceToDatabase ili = interfacelive[ifname];
+
+                                    li.RouteNameID = ili.RouteNameID;
+                                    li.InterfaceID = ifname;
+                                    li.IPAddress = ip;
+                                    li.MacAddress = ma.ColonAddress;
+
+                                    string ckey = li.RouteNameID + "_" + li.IPAddress;
+
+                                    if (!maclive.ContainsKey(ckey))
+                                    {
+                                        maclive.Add(ckey, li);
+
+                                        if (physicalmac.ContainsKey(nif.BaseName))
+                                        {
+                                            string pmac = physicalmac[nif.BaseName];
+
+                                            if (ili.IP != null && ili.IP.Count > 0)
+                                            {
+                                                foreach (string iliip in ili.IP)
+                                                {
+                                                    string[] toks = iliip.Split(new char[] { '_' }, StringSplitOptions.RemoveEmptyEntries);
+
+                                                    if (toks.Length == 3)
+                                                    {
+                                                        if (toks[0] == "0")
+                                                        {
+                                                            string logicalip = toks[2];
+
+                                                            string[] logicalips = logicalip.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+                                                            string thiip = logicalips[0];
+
+                                                            string pkey = li.RouteNameID + "_" + thiip;
+
+                                                            if (!maclive.ContainsKey(pkey))
+                                                            {
+                                                                PEMacToDatabase pli = new PEMacToDatabase();
+
+                                                                pli.RouteNameID = li.RouteNameID;
+                                                                pli.InterfaceID = nif.Name;
+                                                                pli.IPAddress = thiip;
+                                                                pli.MacAddress = pmac;
+                                                                pli.Age = -1;
+
+                                                                maclive.Add(pkey, pli);
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }                                    
+                                }
+                            }
+                        }
+                    }
+                }
+
+                #endregion
+            }
+
+            
             #endregion
 
             #region Check
@@ -3859,6 +4196,72 @@ Last input 00:00:00, output 00:00:00
             Summary("SUBINTERFACE_COUNT_FA_UP", ssubinffaup);
             Summary("SUBINTERFACE_COUNT_FA_UP_UP", ssubinffaupup);
 
+            Dictionary<string, Row> macdb = QueryDictionary("select * from PEMac where PA_NO = {0}", delegate (Row row)
+            {
+                return row["PA_PN"].ToString() + "_" + row["PA_IP"].ToString();
+            }, nodeID);
+            List<PEMacToDatabase> macinsert = new List<PEMacToDatabase>();
+            List<PEMacToDatabase> macupdate = new List<PEMacToDatabase>();
+
+            foreach (KeyValuePair<string, PEMacToDatabase> pair in maclive)
+            {
+                PEMacToDatabase li = pair.Value;
+
+                string name = li.InterfaceID;
+                li.InterfaceID = interfacelive[name].ID;
+
+                string routename = null;
+
+                foreach (KeyValuePair<string, Row> pair2 in routenamedb)
+                {
+                    if (pair2.Value["PN_ID"].ToString() == li.RouteNameID)
+                    {
+                        routename = pair2.Key;
+                        break;
+                    }
+                }
+
+                if (!macdb.ContainsKey(pair.Key))
+                {
+                    Event("MAC ADD: " + routename + " " + li.IPAddress + " " + li.MacAddress);
+
+                    li.ID = Database.ID();
+                    macinsert.Add(li);
+                }
+                else
+                {
+                    Row db = macdb[pair.Key];
+
+                    PEMacToDatabase u = new PEMacToDatabase();
+
+                    u.ID = db["PA_ID"].ToString();
+                    li.ID = u.ID;
+
+                    bool update = false;
+                    StringBuilder updateinfo = new StringBuilder();
+
+                    if (db["PA_Age"].ToInt() != li.Age)
+                    {
+                        update = true;
+                        u.UpdateAge = true;
+                        u.Age = li.Age;
+                        UpdateInfo(updateinfo, "Age", db["PA_Age"].ToInt().ToString(), li.Age.ToString());
+                    }
+                    if (db["PA_MAC"].ToString() != li.MacAddress)
+                    {
+                        update = true;
+                        u.UpdateMacAddress = true;
+                        u.MacAddress = li.MacAddress;
+                        UpdateInfo(updateinfo, "MAC", db["PA_MAC"].ToString(), li.MacAddress);
+                    }
+                    if (update)
+                    {
+                        macupdate.Add(u);
+                        Event("MAC UPDATE: " + routename + " " + li.IPAddress + " " + updateinfo.ToString());
+                    }
+                }
+            }
+
             #endregion
 
             #region Execute
@@ -4013,6 +4416,7 @@ Last input 00:00:00, output 00:00:00
                     Event("Interface DELETE: " + pair.Key);
                     string id = pair.Value["PI_ID"].ToString();
 
+                    batch.Execute("update PEMac set PA_PI = NULL where PA_PI = {0}", id);
                     batch.Execute("update MEInterface set MI_TO_PI = NULL where MI_TO_PI = {0}", id);
                     batch.Execute("update PERoute set PR_PI = NULL where PR_PI = {0}", id);
                     batch.Execute("update PEInterface set PI_PI = NULL where PI_PI = {0}", id);
@@ -4021,7 +4425,7 @@ Last input 00:00:00, output 00:00:00
             }
             result = batch.Commit();
             if (!result.OK) return DatabaseFailure(probe);
-            Event(result, EventActions.Delete, EventElements.Interface, false);
+            Event(result, EventActions.Delete, EventElements.InterfaceReference, false);
 
             // redone vPEPhysicalInterfaces
             vPEPhysicalInterfaces.Clear();
@@ -4046,6 +4450,14 @@ Last input 00:00:00, output 00:00:00
             {
                 batch.Execute("update POP set OO_PI = NULL where OO_PI = {0}", id);
                 batch.Execute("update PERouteUse set PU_PI = NULL, PU_PI_Gone = (select PI_Name from PEInterface where PI_ID = {0}) where PU_PI = {0}", id);
+            }
+            result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
+            Event(result, EventActions.Delete, EventElements.InterfaceReference, false);
+
+            batch.Begin();
+            foreach (string id in interfacedelete)
+            {
                 batch.Execute("delete from PEInterface where PI_ID = {0}", id);
             }
             result = batch.Commit();
@@ -4092,6 +4504,67 @@ Last input 00:00:00, output 00:00:00
             result = batch.Commit();
             if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.POPInterfaceReference, false);
+
+            // MAC
+            // ADD
+            batch.Begin();
+            foreach (PEMacToDatabase s in macinsert)
+            {
+                Insert insert = Insert("PEMac");
+                insert.Value("PA_ID", s.ID);
+                insert.Value("PA_NO", nodeID);
+                insert.Value("PA_PI", s.InterfaceID);
+                insert.Value("PA_PN", s.RouteNameID);
+                insert.Value("PA_IP", s.IPAddress);
+                insert.Value("PA_MAC", s.MacAddress);
+                insert.Value("PA_Age", s.Age);
+                batch.Execute(insert);
+            }
+            result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
+            Event(result, EventActions.Add, EventElements.Mac, false);
+
+            // UPDATE
+            batch.Begin();
+            foreach (PEMacToDatabase s in macupdate)
+            {
+                Update update = Update("PEMac");
+                update.Set("PA_MAC", s.MacAddress, s.UpdateMacAddress);
+                update.Set("PA_Age", s.Age, s.UpdateAge);
+                update.Where("PA_ID", s.ID);
+                batch.Execute(update);
+            }
+            result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
+            Event(result, EventActions.Update, EventElements.Mac, false);
+
+            // DELETE
+            batch.Begin();
+            foreach (KeyValuePair<string, Row> pair in macdb)
+            {
+                if (!maclive.ContainsKey(pair.Key))
+                {
+                    string routename = null;
+                    string routenameid = pair.Value["PA_PN"].ToString();
+
+                    foreach (KeyValuePair<string, Row> pair2 in routenamedb)
+                    {
+                        if (pair2.Value["PN_ID"].ToString() == routenameid)
+                        {
+                            routename = pair2.Key;
+                            break;
+                        }
+                    }
+
+                    Event("MAC DELETE: " + routename + " " + pair.Value["PA_IP"].ToString());
+                    string id = pair.Value["PA_ID"].ToString();
+
+                    batch.Execute("delete from PEMac where PA_ID = {0}", id);
+                }
+            }
+            result = batch.Commit();
+            if (!result.OK) return DatabaseFailure(probe);
+            Event(result, EventActions.Delete, EventElements.Mac, false);
 
             #endregion
 
@@ -4273,7 +4746,7 @@ Last input 00:00:00, output 00:00:00
 
                                             pis.IP = network;
                                             pis.RouteID = routenameroutereference[currentRouteNameID];
-                                            pis.Type = "L";
+                                            pis.Type = "R";
 
                                             string key2 = pis.RouteID + "_" + pis.IP;
                                             if (!routeiplive.ContainsKey(key2)) routeiplive.Add(key2, pis);
@@ -4883,7 +5356,7 @@ Last input 00:00:00, output 00:00:00
 
                                         pis.IP = network;
                                         pis.RouteID = routenameroutereference[routeNameID];
-                                        pis.Type = "L";
+                                        pis.Type = "R";
 
                                         string key2 = pis.RouteID + "_" + pis.IP;
                                         if (!routeiplive.ContainsKey(key2)) routeiplive.Add(key2, pis);
@@ -5272,7 +5745,7 @@ Last input 00:00:00, output 00:00:00
                                                     PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
 
                                                     pis.IP = entry.Network;
-                                                    pis.Type = "L";
+                                                    pis.Type = "R";
                                                     pis.RouteID = routenameroutereference[currentRouteNameID];
 
                                                     string key2 = pis.RouteID + "_" + pis.IP;
@@ -5293,7 +5766,7 @@ Last input 00:00:00, output 00:00:00
                                                     PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
 
                                                     pis.IP = entry.Network;
-                                                    pis.Type = "L";
+                                                    pis.Type = "R";
                                                     pis.RouteID = routenameroutereference[currentRouteNameID];
 
                                                     string key2 = pis.RouteID + "_" + pis.IP;
@@ -5488,7 +5961,7 @@ Last input 00:00:00, output 00:00:00
 
                                     pis.IP = network;
                                     pis.RouteID = routenameroutereference[currentRouteNameID];
-                                    pis.Type = "L";
+                                    pis.Type = "R";
 
                                     string key2 = pis.RouteID + "_" + pis.IP;
                                     if (!routeiplive.ContainsKey(key2)) routeiplive.Add(key2, pis);
@@ -5701,7 +6174,7 @@ Last input 00:00:00, output 00:00:00
 
                                     pis.IP = network;
                                     pis.RouteID = routenameroutereference[routeNameID];
-                                    pis.Type = "L";
+                                    pis.Type = "R";
 
                                     string key2 = pis.RouteID + "_" + pis.IP;
                                     if (!routeiplive.ContainsKey(key2)) routeiplive.Add(key2, pis);
@@ -6443,7 +6916,7 @@ Last input 00:00:00, output 00:00:00
             List<string> routeipinsertnode = new List<string>();
             List<PERouteIPSummaryToDatabase> routeipinsert = new List<PERouteIPSummaryToDatabase>();
             List<PERouteIPSummaryToDatabase> routeipupdate = new List<PERouteIPSummaryToDatabase>();
-            Dictionary<string, Row> routeipdb = QueryDictionary("select PW_ID, PZ_ID, PZ_PR, PZ_IP, PZ_Type from PERouteIPSummaryNode, PERouteIPSummary where PW_NO = {0} and PW_PZ = PZ_ID", delegate(Row row)
+            Dictionary<string, Row> routeipdb = QueryDictionary("select PW_ID, PZ_ID, PZ_PR, PZ_IP, PZ_Type, PZ_Private from PERouteIPSummaryNode, PERouteIPSummary where PW_NO = {0} and PW_PZ = PZ_ID", delegate(Row row)
             {
                 return row["PZ_PR"].ToString() + "_" + row["PZ_IP"].ToString();
             }, nodeID);
@@ -6461,19 +6934,28 @@ Last input 00:00:00, output 00:00:00
 
                 if (!li.IPv6)
                 {
-                    IPNetwork ipn = IPNetwork.Parse(li.IP);
-                    li.IP = ipn.ToString();
-
-                    if (oip != li.IP)
+                    if (IPNetwork.TryParse(li.IP, out IPNetwork ipn))
                     {
-                        routeipliveadd.Add(li);
-                        routeipliveremove.Add(pair.Key);
+                        li.IP = ipn.ToString();
+
+                        li.PrivateAddress = ipn.Network.IsPrivate();                        
+
+                        if (oip != li.IP)
+                        {
+                            routeipliveadd.Add(li);
+                            routeipliveremove.Add(pair.Key);
+                        }
                     }
+                    else routeipliveremove.Add(pair.Key);
                 }
             }
 
             foreach (string routeipliveremovex in routeipliveremove) routeiplive.Remove(routeipliveremovex);
-            foreach (PERouteIPSummaryToDatabase routeipliveaddx in routeipliveadd) routeiplive.Add(routeipliveaddx.RouteID + "_" + routeipliveaddx.IP, routeipliveaddx);
+            foreach (PERouteIPSummaryToDatabase routeipliveaddx in routeipliveadd)
+            {
+                string key = routeipliveaddx.RouteID + "_" + routeipliveaddx.IP;
+                if (!routeiplive.ContainsKey(key)) routeiplive.Add(key, routeipliveaddx);
+            }
 
             foreach (KeyValuePair<string, PERouteIPSummaryToDatabase> pair in routeiplive)
             {
@@ -6516,6 +6998,12 @@ Last input 00:00:00, output 00:00:00
                         u.UpdateType = true;
                         u.Type = li.Type;
                     }
+                    if (db["PZ_Private"].ToNullableBool() != li.PrivateAddress)
+                    {
+                        update = true;
+                        u.UpdatePrivateAddress = true;
+                        u.PrivateAddress = li.PrivateAddress;
+                    }
 
                     if (update)
                     {
@@ -6538,7 +7026,7 @@ Last input 00:00:00, output 00:00:00
                 insert.Value("PZ_IP", s.IP);
                 insert.Value("PZ_IPv6", s.IPv6);
                 insert.Value("PZ_Type", s.Type);
-
+                insert.Value("PZ_Private", s.PrivateAddress);
                 batch.Execute(insert);
             }
             result = batch.Commit();
@@ -6564,6 +7052,7 @@ Last input 00:00:00, output 00:00:00
             {
                 Update update = Update("PERouteIPSummary");
                 update.Set("PZ_Type", s.Type, s.UpdateType);
+                update.Set("PZ_Private", s.PrivateAddress, s.UpdatePrivateAddress);
                 update.Where("PZ_ID", s.ID);
                 batch.Execute(update);
             }
@@ -6641,7 +7130,10 @@ Last input 00:00:00, output 00:00:00
                 if (!qoslive.ContainsKey(pair.Key))
                 {
                     Event("QOS DELETE: " + pair.Key);
-                    batch.Execute("delete from PEQOS where PQ_ID = {0}", pair.Value["PQ_ID"].ToString());                    
+                    string pqid = pair.Value["PQ_ID"].ToString();
+                    batch.Execute("update PEInterface set PI_PQ_Input = NULL where PI_PQ_Input = {0}", pqid);
+                    batch.Execute("update PEInterface set PI_PQ_Output = NULL where PI_PQ_Output = {0}", pqid);
+                    batch.Execute("delete from PEQOS where PQ_ID = {0}", pqid);                    
                 }
             }
             result = batch.Commit();

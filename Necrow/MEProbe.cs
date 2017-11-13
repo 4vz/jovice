@@ -4211,7 +4211,10 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 if (!qoslive.ContainsKey(pair.Key))
                 {
                     Event("QOS DELETE: " + pair.Key);
-                    batch.Execute("delete from MEQOS where MQ_ID = {0}", row["MQ_ID"].ToString());
+                    string mqid = row["MQ_ID"].ToString();
+                    batch.Execute("update MEInterface set MI_MQ_Input = NULL where MI_MQ_Input = {0}", mqid);
+                    batch.Execute("update MEInterface set MI_MQ_Output = NULL where MI_MQ_Output = {0}", mqid);
+                    batch.Execute("delete from MEQOS where MQ_ID = {0}", mqid);
                 }
             }
             result = batch.Commit();

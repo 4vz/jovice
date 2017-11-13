@@ -417,6 +417,29 @@ namespace Center
         #endregion
     }
 
+    internal abstract class MacToDatabase : ToDatabase
+    {
+        private string macAddress;
+
+        public string MacAddress { get => macAddress; set => macAddress = value; }
+
+        private bool updateMacAddress = false;
+
+        public bool UpdateMacAddress { get => updateMacAddress; set => updateMacAddress = value; }
+
+        private string interfaceID;
+
+        public string InterfaceID { get => interfaceID; set => interfaceID = value; }
+
+        private int age;
+
+        public int Age { get => age; set => age = value; }
+
+        private bool updateAge = false;
+
+        public bool UpdateAge { get => updateAge; set => updateAge = value; }
+    }
+
     internal class CustomerToDatabase : ToDatabase
     {
         private string name;
@@ -600,7 +623,7 @@ namespace Center
             ALUCustomer, QOS, SDP, Circuit, Interface, Peer, CircuitReference,
             VRFReference, VRF, VRFRouteTarget, InterfaceIP, Service, Customer, NodeReference, InterfaceReference,
             NodeAlias, NodeSummary, POPInterfaceReference, Routing, NeighborInterface,
-            PrefixList, PrefixEntry, MAC,
+            PrefixList, PrefixEntry, Mac,
             Slot
         }
 
@@ -842,7 +865,7 @@ namespace Center
                         case EventElements.NeighborInterface: sb.Append("neighbor interface"); break;
                         case EventElements.PrefixList: sb.Append("prefix-list"); break;
                         case EventElements.PrefixEntry: sb.Append("prefix-list entry"); break;
-                        case EventElements.MAC: sb.Append("mac-address"); break;
+                        case EventElements.Mac: sb.Append("mac-address"); break;
                         case EventElements.Slot: sb.Append("chassis slot"); break;
                     }
                 }
@@ -872,7 +895,7 @@ namespace Center
                         case EventElements.NeighborInterface: sb.Append("neighbor interfaces"); break;
                         case EventElements.PrefixList: sb.Append("prefix-lists"); break;
                         case EventElements.PrefixEntry: sb.Append("prefix-list entries"); break;
-                        case EventElements.MAC: sb.Append("mac-addresses"); break;
+                        case EventElements.Mac: sb.Append("mac-addresses"); break;
                         case EventElements.Slot: sb.Append("chassis slots"); break;
                     }
                 }
@@ -2235,7 +2258,12 @@ namespace Center
 
             bool checkChassis = false;
             updatingNecrow = false;
-            if (nodeNVER < Necrow.Version) updatingNecrow = true;
+            if (nodeNVER < Necrow.Version)
+            {
+                updatingNecrow = true;
+                Event("Updated to newer Necrow version");
+                Update(UpdateTypes.NecrowVersion, Necrow.Version);
+            }
 
             #region CHECK ACCESS RULE
 
@@ -4185,6 +4213,10 @@ namespace Center
                     Event("Prioritized node, continuing process");
                     continueProcess = true;
                 }
+                else if (updatingNecrow)
+                {
+                    continueProcess = true;
+                }
                 else if (prioritizeAsk)
                 {
                     probeRequestData.Message.Data = new object[] { nodeName, "UPTODATE", lastConfLive };
@@ -4200,13 +4232,6 @@ namespace Center
             else if (properties.Case == "M")
             {
                 continueProcess = true;
-            }
-
-            if (updatingNecrow)
-            {
-                continueProcess = true;
-                Event("Updated to newer Necrow version");
-                Update(UpdateTypes.NecrowVersion, Necrow.Version);
             }
 
             return probe;

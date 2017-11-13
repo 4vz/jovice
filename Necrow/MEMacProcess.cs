@@ -10,16 +10,8 @@ namespace Center
 {
     #region To Database
     
-    class MEMACToDatabase : ToDatabase
+    class MEMacToDatabase : MacToDatabase
     {
-        private string address;
-
-        public string Address
-        {
-            get { return address; }
-            set { address = value; }
-        }
-
         private string circuitID;
 
         public string CircuitID
@@ -35,31 +27,7 @@ namespace Center
             get { return peerID; }
             set { peerID = value; }
         }
-
-        private string interfaceID;
-
-        public string InterfaceID
-        {
-            get { return interfaceID; }
-            set { interfaceID = value; }
-        }
-
-        private int age;
-
-        public int Age
-        {
-            get { return age; }
-            set { age = value; }
-        }
-
-        private bool updateAge = false;
-
-        public bool UpdateAge
-        {
-            get { return updateAge; }
-            set { updateAge = value; }
-        }
-
+        
         private DateTime? lastChange;
 
         public DateTime? LastChange
@@ -94,15 +62,15 @@ namespace Center
 
             Event("Checking Mac");
 
-            Dictionary<string, MEMACToDatabase> maclive = new Dictionary<string, MEMACToDatabase>();
+            Dictionary<string, MEMacToDatabase> maclive = new Dictionary<string, MEMacToDatabase>();
             Dictionary<string, Row> macdb = QueryDictionary("select * from MEMac where MA_NO = {0}", delegate (Row row) {
                 string peerID = row["MA_MP"].ToString();
                 string interfaceID = row["MA_MI"].ToString();
                 if (peerID != null) return row["MA_MAC"].ToString() + "_" + peerID;
                 else return row["MA_MAC"].ToString() + "_" + interfaceID;
             }, nodeID);
-            List<MEMACToDatabase> macinsert = new List<MEMACToDatabase>();
-            List<MEMACToDatabase> macupdate = new List<MEMACToDatabase>();
+            List<MEMacToDatabase> macinsert = new List<MEMacToDatabase>();
+            List<MEMacToDatabase> macupdate = new List<MEMacToDatabase>();
             
             // circuits
             Dictionary<string, Row> circuitdb = null;
@@ -163,7 +131,7 @@ namespace Center
 
                         if (tokens.Length == 6)
                         {
-                            MEMACToDatabase li = new MEMACToDatabase();
+                            MEMacToDatabase li = new MEMacToDatabase();
 
                             string circuitID = null;
                             string keydis = null;
@@ -191,7 +159,7 @@ namespace Center
 
                             if (circuitID != null)
                             {
-                                li.Address = tokens[1];
+                                li.MacAddress = tokens[1];
                                 li.CircuitID = circuitID;
 
                                 if (tokens[3].Length >= 3)
@@ -205,7 +173,7 @@ namespace Center
                                 if (DateTime.TryParseExact(tokens[4] + " " + tokens[5], "MM/dd/yy HH:mm:ss", null, DateTimeStyles.None, out dparse))
                                     li.LastChange = dparse - nodeTimeOffset;
 
-                                maclive.Add(li.Address + "_" + keydis, li);
+                                maclive.Add(li.MacAddress + "_" + keydis, li);
                             }
                         }
                     }
@@ -226,7 +194,7 @@ namespace Center
 
                 bool start = false;
 
-                MEMACToDatabase current = null;
+                MEMacToDatabase current = null;
 
                 foreach (string line in lines)
                 {
@@ -253,10 +221,10 @@ namespace Center
 
                                 if (token0 == "MAC Address")
                                 {
-                                    current = new MEMACToDatabase();
+                                    current = new MEMacToDatabase();
 
                                     string[] addressSplit = token10.Split(new char[] { '-' });
-                                    current.Address = addressSplit[0].Substring(0, 2) + ":" + addressSplit[0].Substring(2, 2) + ":" +
+                                    current.MacAddress = addressSplit[0].Substring(0, 2) + ":" + addressSplit[0].Substring(2, 2) + ":" +
                                         addressSplit[1].Substring(0, 2) + ":" + addressSplit[1].Substring(2, 2) + ":" +
                                         addressSplit[2].Substring(0, 2) + ":" + addressSplit[2].Substring(2, 2);
 
@@ -294,13 +262,13 @@ namespace Center
                                                 current.PeerID = peerdb[peerKey]["MP_ID"].ToString();
                                                 //current.CircuitID = peerlive[peerKey].CircuitID;
 
-                                                string key = current.Address + "_" + current.PeerID;
+                                                string key = current.MacAddress + "_" + current.PeerID;
                                                 if (!maclive.ContainsKey(key) && current.CircuitID != null) maclive.Add(key, current);
                                             }
                                         }
                                         else if (current.InterfaceID != null)
                                         {
-                                            string key = current.Address + "_" + current.InterfaceID;
+                                            string key = current.MacAddress + "_" + current.InterfaceID;
                                             if (!maclive.ContainsKey(key) && current.CircuitID != null) maclive.Add(key, current);
                                         }
                                     }
@@ -322,9 +290,9 @@ namespace Center
 
             #region Check
 
-            foreach (KeyValuePair<string, MEMACToDatabase> pair in maclive)
+            foreach (KeyValuePair<string, MEMacToDatabase> pair in maclive)
             {
-                MEMACToDatabase li = pair.Value;
+                MEMacToDatabase li = pair.Value;
 
                 if (!macdb.ContainsKey(pair.Key))
                 {
@@ -335,7 +303,7 @@ namespace Center
                 {
                     Row db = macdb[pair.Key];
 
-                    MEMACToDatabase u = new MEMACToDatabase();
+                    MEMacToDatabase u = new MEMacToDatabase();
                     u.ID = db["MA_ID"].ToString();
                     li.ID = u.ID;
 
@@ -368,7 +336,7 @@ namespace Center
 
             // ADD
             batch.Begin();
-            foreach (MEMACToDatabase s in macinsert)
+            foreach (MEMacToDatabase s in macinsert)
             {
                 Insert insert = Insert("MEMac");
                 insert.Value("MA_ID", s.ID);
@@ -376,18 +344,18 @@ namespace Center
                 insert.Value("MA_MI", s.InterfaceID);
                 insert.Value("MA_MP", s.PeerID);
                 insert.Value("MA_MC", s.CircuitID);
-                insert.Value("MA_MAC", s.Address);
+                insert.Value("MA_MAC", s.MacAddress);
                 insert.Value("MA_Age", s.Age);
                 insert.Value("MA_LastChange", s.LastChange);
                 batch.Execute(insert);
             }
             result = batch.Commit();
             if (!result.OK) return DatabaseFailure(probe);
-            Event(result, EventActions.Add, EventElements.MAC, false);
+            Event(result, EventActions.Add, EventElements.Mac, false);
 
             // UPDATE
             batch.Begin();
-            foreach (MEMACToDatabase s in macupdate)
+            foreach (MEMacToDatabase s in macupdate)
             {
                 Update update = Update("MEMac");
                 update.Set("MA_Age", s.Age, s.UpdateAge);
@@ -397,7 +365,7 @@ namespace Center
             }
             result = batch.Commit();
             if (!result.OK) return DatabaseFailure(probe);
-            Event(result, EventActions.Update, EventElements.MAC, false);
+            Event(result, EventActions.Update, EventElements.Mac, false);
 
             // DELETE
             batch.Begin();
@@ -410,7 +378,7 @@ namespace Center
             }
             result = batch.Commit();
             if (!result.OK) return DatabaseFailure(probe);
-            Event(result, EventActions.Delete, EventElements.MAC, false);
+            Event(result, EventActions.Delete, EventElements.Mac, false);
 
             #endregion
 

@@ -1493,6 +1493,7 @@ from PEInterface, PEInterfaceIP where PP_PI = PI_ID and PI_NO = {0} order by PI_
             Dictionary<string, List<string>> ipdelete = new Dictionary<string, List<string>>();
 
             Dictionary<string, string> physicalmac = new Dictionary<string, string>();
+            Dictionary<string, string> virtualmac = new Dictionary<string, string>();
             Dictionary<string, PEMacToDatabase> maclive = new Dictionary<string, PEMacToDatabase>();
             Dictionary<string, string> activeroutename = new Dictionary<string, string>();
 
@@ -2857,6 +2858,55 @@ Last input 00:00:00, output 00:00:00
                     }
                 }
 
+                if (Request("show vrrp detail | match \"^ *(Physical interface:|Virtual Mac:)\"", out lines, probe)) return probe;
+
+                string currentVirtualInterfaceReference = null;
+
+                foreach (string line in lines)
+                {
+                    //Physical interface: ge-0/0/0, Unit: 1048, Vlan-id: 1048, Address: 172.24.79.2/26
+                    //  Virtual Mac: 00:00:5e:00:01:b4
+                    //  012345678901234
+                    string lineTrim = line.Trim();
+                    if (line.StartsWith("Physical interface: "))
+                    {
+                        currentVirtualInterfaceReference = null;
+
+                        string[] tokens = lineTrim.Split(new string[] { ", Unit: " }, StringSplitOptions.RemoveEmptyEntries);
+
+                        if (tokens.Length == 2)
+                        {
+                            string[] tokensA = tokens[0].Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                            if (tokensA.Length == 3 && tokens[1].IndexOf(',') > -1)
+                            {
+                                string first = tokensA[2];
+                                string second = tokens[1].Substring(0, tokens[1].IndexOf(','));
+                                string inter = first + "." + second;
+
+                                NetworkInterface nif = NetworkInterface.Parse(inter);
+                                if (nif != null)
+                                {
+                                    string name = nif.Name;
+
+                                    if (interfacelive.ContainsKey(name))
+                                    {
+                                        currentVirtualInterfaceReference = name;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else if (currentVirtualInterfaceReference != null && lineTrim.StartsWith("Virtual Mac:"))
+                    {
+                        string mac = lineTrim.Substring(13).Trim();
+
+                        if (!virtualmac.ContainsKey(currentVirtualInterfaceReference))
+                        {
+                            virtualmac.Add(currentVirtualInterfaceReference, mac);
+                        }
+                    }
+                }
+
                 if (Request("show lacp interfaces", out lines, probe)) return probe;
 
                 int aesid = -1;
@@ -3626,6 +3676,7 @@ Last input 00:00:00, output 00:00:00
 
                                     if (!maclive.ContainsKey(ckey))
                                     {
+                                        // ADD DISCOVERED MAC TO SUBIF
                                         maclive.Add(ckey, li);
 
                                         if (physicalmac.ContainsKey(nif.BaseName))
@@ -3642,24 +3693,38 @@ Last input 00:00:00, output 00:00:00
                                                     {
                                                         if (toks[0] == "0")
                                                         {
+                                                            string toks1 = toks[1];
                                                             string logicalip = toks[2];
-
                                                             string[] logicalips = logicalip.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
                                                             string thiip = logicalips[0];
-
                                                             string pkey = li.RouteNameID + "_" + thiip;
 
-                                                            if (!maclive.ContainsKey(pkey))
+                                                            PEMacToDatabase pli = new PEMacToDatabase();
+
+                                                            pli.RouteNameID = li.RouteNameID;
+                                                            pli.InterfaceID = nif.Name;
+                                                            pli.IPAddress = thiip;                                                            
+                                                            pli.Age = -1;
+
+                                                            if (toks1 == "1")
+                                                            {    
+                                                                if (!maclive.ContainsKey(pkey))
+                                                                {
+                                                                    pli.MacAddress = pmac;
+                                                                    maclive.Add(pkey, pli);
+                                                                }
+                                                            }
+                                                            else
                                                             {
-                                                                PEMacToDatabase pli = new PEMacToDatabase();
+                                                                if (virtualmac.ContainsKey(ifname))
+                                                                {
+                                                                    if (!maclive.ContainsKey(pkey))
+                                                                    {
+                                                                        pli.MacAddress = virtualmac[ifname];
+                                                                        maclive.Add(pkey, pli);
+                                                                    }
 
-                                                                pli.RouteNameID = li.RouteNameID;
-                                                                pli.InterfaceID = nif.Name;
-                                                                pli.IPAddress = thiip;
-                                                                pli.MacAddress = pmac;
-                                                                pli.Age = -1;
-
-                                                                maclive.Add(pkey, pli);
+                                                                }
                                                             }
                                                         }
                                                     }

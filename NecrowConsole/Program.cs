@@ -14,12 +14,10 @@ namespace NecrowConsole
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("NecrowConsole");
-            
+            Console.WriteLine("NecrowConsole");            
             Necrow necrow = new Necrow();
 #if DEBUG
             Console.WriteLine("DEBUG MODE");
-            necrow.Test("PE-D2-ELK");
 #endif
             necrow.Start(true);
         }

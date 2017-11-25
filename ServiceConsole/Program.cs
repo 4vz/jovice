@@ -11,7 +11,7 @@ namespace ServiceConsole
     class Program
     {
         static void Main(string[] args)
-        {
+        {        
             Service.Server(ServiceTraceLevels.Default);
             Server.Init();
         }

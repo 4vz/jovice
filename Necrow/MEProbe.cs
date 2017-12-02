@@ -3614,12 +3614,12 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
                         UpdateInfo(updateinfo, "neighbor-mi-to-mi", li.NeighborCheckMITOMI, u.ID, true);
                     }
-                    if (db["MI_TO_NI"].ToString() != li.TopologyNeighborInterfaceID)
+                    if (db["MI_TO_NI"].ToString() != li.TopologyNBInterfaceID)
                     {
                         update = true;
-                        u.UpdateTopologyNeighborInterfaceID = true;
-                        u.TopologyNeighborInterfaceID = li.TopologyNeighborInterfaceID;
-                        UpdateInfo(updateinfo, "mi-to-ni", db["MI_TO_NI"].ToString(), li.TopologyNeighborInterfaceID, true);
+                        u.UpdateTopologyNBInterfaceID = true;
+                        u.TopologyNBInterfaceID = li.TopologyNBInterfaceID;
+                        UpdateInfo(updateinfo, "mi-to-ni", db["MI_TO_NI"].ToString(), li.TopologyNBInterfaceID, true);
                     }
                     if (db["MI_Description"].ToString() != li.Description)
                     {
@@ -3853,7 +3853,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 insert.Value("MI_MI", s.ParentID);
                 insert.Value("MI_TO_PI", s.TopologyPEInterfaceID);
                 insert.Value("MI_TO_MI", s.TopologyMEInterfaceID);
-                insert.Value("MI_TO_NI", s.TopologyNeighborInterfaceID);
+                insert.Value("MI_TO_NI", s.TopologyNBInterfaceID);
                 insert.Value("MI_LastDown", s.LastDown);
                 insert.Value("MI_Percentage_TrafficInput", s.TrafficInput.Nullable(-1));
                 insert.Value("MI_Percentage_TrafficOutput", s.TrafficInput.Nullable(-1));
@@ -3896,7 +3896,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 {
                     interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
                 }
-                update.Set("MI_TO_NI", s.TopologyNeighborInterfaceID, s.UpdateTopologyNeighborInterfaceID);
+                update.Set("MI_TO_NI", s.TopologyNBInterfaceID, s.UpdateTopologyNBInterfaceID);
                 update.Set("MI_Description", s.Description, s.UpdateDescription);
                 update.Set("MI_SE", s.ServiceID, s.UpdateDescription || updatingNecrow);
                 update.Set("MI_Status", s.Status, s.UpdateStatus);
@@ -3952,7 +3952,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             }
             result = batch.Commit();
             if (!result.OK) return DatabaseFailure(probe);
-            Event(result, EventActions.Update, EventElements.NeighborInterface, false);
+            Event(result, EventActions.Update, EventElements.NBInterface, false);
 
             // DELETE
             batch.Begin();

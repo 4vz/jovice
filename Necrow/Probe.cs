@@ -270,20 +270,20 @@ namespace Center
             set { updateTopologyMEInterfaceID = value; }
         }
 
-        private string topologyNeighborInterfaceID = null;
+        private string topologyNBInterfaceID = null;
 
-        public string TopologyNeighborInterfaceID
+        public string TopologyNBInterfaceID
         {
-            get { return topologyNeighborInterfaceID; }
-            set { topologyNeighborInterfaceID = value; }
+            get { return topologyNBInterfaceID; }
+            set { topologyNBInterfaceID = value; }
         }
 
-        private bool updateTopologyNeighborInterfaceID = false;
+        private bool updateTopologyNBInterfaceID = false;
 
-        public bool UpdateTopologyNeighborInterfaceID
+        public bool UpdateTopologyNBInterfaceID
         {
-            get { return updateTopologyNeighborInterfaceID; }
-            set { updateTopologyNeighborInterfaceID = value; }
+            get { return updateTopologyNBInterfaceID; }
+            set { updateTopologyNBInterfaceID = value; }
         }
 
         private bool physicalNeighborChecked = false;
@@ -607,7 +607,6 @@ namespace Center
             Remark,
             IP,
             Name,
-            Active,
             Terminal,
             ConnectType,
             Model,
@@ -622,7 +621,7 @@ namespace Center
         {
             ALUCustomer, QOS, SDP, Circuit, Interface, Peer, CircuitReference,
             VRFReference, VRF, VRFRouteTarget, InterfaceIP, Service, Customer, NodeReference, InterfaceReference,
-            NodeAlias, NodeSummary, POPInterfaceReference, Routing, NeighborInterface,
+            NodeAlias, NodeSummary, POPInterfaceReference, Routing, NBInterface,
             PrefixList, PrefixEntry, Mac,
             Slot
         }
@@ -862,7 +861,7 @@ namespace Center
                         case EventElements.NodeSummary: sb.Append("node summary"); break;
                         case EventElements.POPInterfaceReference: sb.Append("POP interface reference"); break;
                         case EventElements.Routing: sb.Append("routing"); break;
-                        case EventElements.NeighborInterface: sb.Append("neighbor interface"); break;
+                        case EventElements.NBInterface: sb.Append("neighbor interface"); break;
                         case EventElements.PrefixList: sb.Append("prefix-list"); break;
                         case EventElements.PrefixEntry: sb.Append("prefix-list entry"); break;
                         case EventElements.Mac: sb.Append("mac-address"); break;
@@ -892,7 +891,7 @@ namespace Center
                         case EventElements.NodeSummary: sb.Append("node summaries"); break;
                         case EventElements.POPInterfaceReference: sb.Append("POP interface references"); break;
                         case EventElements.Routing: sb.Append("routings"); break;
-                        case EventElements.NeighborInterface: sb.Append("neighbor interfaces"); break;
+                        case EventElements.NBInterface: sb.Append("neighbor interfaces"); break;
                         case EventElements.PrefixList: sb.Append("prefix-lists"); break;
                         case EventElements.PrefixEntry: sb.Append("prefix-list entries"); break;
                         case EventElements.Mac: sb.Append("mac-addresses"); break;
@@ -946,8 +945,6 @@ namespace Center
 
         protected override void OnProcess()
         {
-            Culture.Default();
-
             Event("Terminal prefix: " + terminalPrefix);
 
             Row restartCurrentNode = null;
@@ -1020,7 +1017,15 @@ namespace Center
 
                         xpID = noded.Item1;
                         Result rnode = Query("select * from Node where NO_ID = {0}", noded.Item2);
+                        
                         node = rnode[0];
+
+                        if (node["NO_Active"].ToBool() == false)
+                        {
+                            // remove this from progress and moveon
+                            Execute("delete from ProbeProgress where XP_ID = {0}", xpID);
+                            continue;
+                        }
                     }
 
                     restartCount = 0;
@@ -1246,8 +1251,6 @@ namespace Center
                         #endregion
                     }
 
-                    Update(UpdateTypes.Active, 1);
-
                     if (probe != null && probe.FailureType == FailureTypes.Connection)
                     {
                         Save();
@@ -1348,7 +1351,7 @@ namespace Center
                 list[n] = value;
             }
         }
-
+        
         private List<string> MCESendLine(string command, out bool timeout)
         {
             timeout = false;
@@ -1404,7 +1407,7 @@ namespace Center
             if (timeout == true) return null;
             else return lines;
         }
-        
+
         private MCEExpectResult MCEExpect(params string[] args)
         {
             Queue<string> lastOutputs = new Queue<string>();
@@ -1469,10 +1472,7 @@ namespace Center
             string cpeip = null;
             hostname = hostname.ToLower();
 
-            bool timeout;
-            //List<string> lines = MCESendLine("cat /etc/hosts | grep -i " + hostname, out timeout);
-            List<string> lines = MCESendLine("cat /etc/hosts", out timeout);
-            if (timeout) ConnectionFailure();
+            if (Request2("cat /etc/hosts | grep -i " + hostname, out string[] lines)) ConnectionFailure();
 
             Dictionary<string, string> greppair = new Dictionary<string, string>();
             foreach (string line in lines)
@@ -1528,7 +1528,6 @@ namespace Center
                 case UpdateTypes.Remark: key = "NO_Remark"; break;
                 case UpdateTypes.IP: key = "NO_IP"; break;
                 case UpdateTypes.Name: key = "NO_Name"; break;
-                case UpdateTypes.Active: key = "NO_Active"; break;
                 case UpdateTypes.Terminal: key = "NO_Terminal"; break;
                 case UpdateTypes.ConnectType: key = "NO_ConnectType"; break;
                 case UpdateTypes.Model: key = "NO_Model"; break;
@@ -1622,11 +1621,15 @@ namespace Center
         {
             Event("Request [" + command + "]...");
 
+#if DEBUG
+            Event("Command length: " + command.Length);
+#endif
+
             bool requestLoop = true;
             bool requestFailed = false;
             lines = null;
 
-            bool aluError = false;
+            int aluError = 0;
 
             while (requestLoop)
             {
@@ -1722,8 +1725,7 @@ namespace Center
                             probe.FailureType = FailureTypes.ProbeStopped;
                             break;
                         }
-
-
+                        
                         wait++;
                         if (wait % 200 == 0 && wait < 1600)
                         {
@@ -1783,8 +1785,9 @@ namespace Center
                     else
                     {
                         lines = listLines.ToArray();
+                        requestLoop = false;
 
-                        bool completed = false;
+                        bool completed = true;
 
                         if (nodeManufacture == alu)
                         {
@@ -1793,27 +1796,39 @@ namespace Center
                             {
                                 if (line.IndexOf("Command not allowed for this user") > -1)
                                 {
-                                    aluError = true;
+                                    aluError++;
+                                    completed = false;
                                     break;
                                 }
                             }
                         }
-                        else completed = true;
 
                         if (completed)
                         {
                             Event("Request completed (" + lines.Length + " lines in " + string.Format("{0:0.###}", stopwatch.Elapsed.TotalSeconds) + "s)");
+                            requestLoop = false;
                         }
                         else
                         {
-                            if (aluError)
+                            if (aluError > 0)
                             {
-                                Event("Request not completed: ALU Request Error");
+                                if (aluError < 5)
+                                {
+                                    Event("Request not completed: ALU Request Error. Try again");
+                                    Thread.Sleep(5000);
+                                    requestLoop = true;
+                                }
+                                else
+                                {
+                                    Event("Request not completed: ALU Request Error.");
+                                    requestLoop = false;
+                                    requestFailed = true;
+                                    probe.FailureType = FailureTypes.ALURequest;
+                                }
                             }
+                            else
+                                requestLoop = false;
                         }
-
-                        requestLoop = false;
-
                     }
                 }
                 else requestLoop = false;
@@ -1821,16 +1836,8 @@ namespace Center
 
             if (!requestFailed)
             {
-                if (aluError)
-                {
-                    probe.FailureType = FailureTypes.ALURequest;
-                    return false;
-                }
-                else
-                {
-                    probe.FailureType = FailureTypes.None;
-                    return false;
-                }
+                probe.FailureType = FailureTypes.None;
+                return false;
             }
             else
             {
@@ -1853,7 +1860,7 @@ namespace Center
             if (manufacture == alu)
             {
                 #region alu
-                MCEExpectResult expect = MCEExpect("ogin:");
+                MCEExpectResult expect = MCEExpect("ogin:", "No route to host");
                 if (expect.Index == 0)
                 {
                     Event("Authenticating: User");
@@ -1875,9 +1882,11 @@ namespace Center
                         SendControlZ();
                     }
                 }
+                else if (expect.Index > 0)
+                {
+                }
                 else
                 {
-                    Event("Cannot find login console prefix");
                     SendControlC();
                 }
                 #endregion
@@ -1885,7 +1894,7 @@ namespace Center
             else if (manufacture == hwe)
             {
                 #region hwe
-                MCEExpectResult expect = MCEExpect("sername:", "closed by foreign");
+                MCEExpectResult expect = MCEExpect("sername:", "closed by foreign", "No route to host");
                 if (expect.Index == 0)
                 {
                     Event("Authenticating: User");
@@ -1912,9 +1921,11 @@ namespace Center
                         SendControlC();
                     }
                 }
+                else if (expect.Index > 0)
+                {
+                }
                 else
                 {
-                    Event("Cannot find username console prefix");
                     SendControlC();
                 }
                 #endregion
@@ -1922,7 +1933,7 @@ namespace Center
             else if (manufacture == cso)
             {
                 #region cso
-                MCEExpectResult expect = MCEExpect("sername:");
+                MCEExpectResult expect = MCEExpect("sername:", "No route to host");
                 if (expect.Index == 0)
                 {
                     Event("Authenticating: User");
@@ -1949,9 +1960,11 @@ namespace Center
                         SendControlC();
                     }
                 }
+                else if (expect.Index > 0)
+                {
+                }
                 else
                 {
-                    Event("Cannot find username console prefix");
                     SendControlC();
                 }
                 #endregion
@@ -1978,7 +1991,7 @@ namespace Center
             {
                 looppass = false;
 
-                MCEExpectResult expect = MCEExpect("assword:", "Connection refused", "Not replacing existing known_hosts", "Host key verification failed", "Permission denied (publickey");
+                MCEExpectResult expect = MCEExpect("assword:", "Connection refused", "No route to host", "Not replacing existing known_hosts", "Host key verification failed", "Permission denied (publickey");
                 if (expect.Index == 0)
                 {
                     Event("Authenticating: Password");
@@ -1997,7 +2010,7 @@ namespace Center
                         else SendControlC();
                     }
                 }
-                else if (expect.Index >= 2)
+                else if (expect.Index >= 3)
                 {
                     SendControlC();
                     // fail to ssh-keygen, just remove the known_hosts
@@ -2011,10 +2024,10 @@ namespace Center
                 }
                 else
                 {
-                    SendControlC();
-
                     if (expect.Index == -1)
                     {
+                        SendControlC();
+
                         if (expect.Output == null)
                         {
                             Event("Expect output null");
@@ -2048,7 +2061,7 @@ namespace Center
                             }
                         }
                     }
-                    else if (expect.Index == 0)
+                    else if (expect.Index == 1 || expect.Index == 2)
                     {
                         // connection refuse
                     }
@@ -2236,9 +2249,19 @@ namespace Center
             this.probeProgressID = probeProgressID;
 
             string previousRemark = row["NO_Remark"].ToString();
+            DateTime? previousTimeStamp = row["NO_TimeStamp"].ToNullableDateTime();
+
+            TimeSpan deltaTimeStamp = TimeSpan.Zero;
+            if (previousTimeStamp != null)
+            {
+                deltaTimeStamp = DateTime.UtcNow - previousTimeStamp.Value;
+            }
+
 
             nodeProbeStartTime = DateTime.UtcNow;
-            Execute("update ProbeProgress set XP_StartTime = {0} where XP_ID = {1}", DateTime.UtcNow, this.probeProgressID);
+            
+            if (probeProgressID != null)
+                Execute("update ProbeProgress set XP_StartTime = {0} where XP_ID = {1}", DateTime.UtcNow, this.probeProgressID);
 
             Event("Begin probing into " + nodeName);
             Event("Manufacture: " + nodeManufacture + "");
@@ -2253,7 +2276,7 @@ namespace Center
             }
             else
             {
-                throw new Exception("Unsupported node manufacture");
+                return probe;
             }
 
             bool checkChassis = false;
@@ -2284,13 +2307,17 @@ namespace Center
                 {
                     Event("Hostname is unresolved");
 
-                    if (previousRemark == "UNRESOLVED")
+                    if (previousRemark == "UNRESOLVED1" && deltaTimeStamp > TimeSpan.FromHours(2))
                     {
-                        Event("Mark this node as inactive");
-                        Update(UpdateTypes.Active, 0);
-                    }
-                    else
                         Update(UpdateTypes.Remark, "UNRESOLVED");
+                        instance.DisableNode(nodeID);
+                    }
+                    else if (previousRemark == null || !previousRemark.StartsWith("UNRESOLVED"))
+                    {
+                        Update(UpdateTypes.Remark, "UNRESOLVED1");
+                        instance.PendingNode(properties.Case, probeProgressID, nodeID, TimeSpan.FromHours(2));
+                    }
+                    else Update(UpdateTypes.Remark, previousRemark);
 
                     Save();
                     return probe;
@@ -2387,7 +2414,7 @@ namespace Center
                             Event("Mark this node as inactive");
 
                             Update(UpdateTypes.Remark, "NAMECONFLICTED");
-                            Update(UpdateTypes.Active, 0);
+                            instance.DisableNode(nodeID);
 
                             Save();
                             return probe;
@@ -2397,16 +2424,17 @@ namespace Center
                     {
                         Event("Hostname has become unresolved");
 
-                        if (previousRemark == "UNRESOLVED")
+                        if (previousRemark == "UNRESOLVED1" && deltaTimeStamp > TimeSpan.FromHours(2))
                         {
-                            Event("Mark this node as inactive");
-                            Update(UpdateTypes.Active, 0);
-                        }
-                        else
-                        {
-                            Event("Will check again in next iteration");
                             Update(UpdateTypes.Remark, "UNRESOLVED");
+                            instance.DisableNode(nodeID);
                         }
+                        else if (previousRemark == null || !previousRemark.StartsWith("UNRESOLVED"))
+                        {
+                            Update(UpdateTypes.Remark, "UNRESOLVED1");
+                            instance.PendingNode(properties.Case, probeProgressID, nodeID, TimeSpan.FromHours(2));
+                        }
+                        else Update(UpdateTypes.Remark, previousRemark);
 
                         Save();
                         return probe;
@@ -2415,10 +2443,9 @@ namespace Center
                 else if (nodeIP != resolvedIP)
                 {
                     Event("Host IP has changed to: " + resolvedIP);
-                    Event("Mark this node as inactive");
 
                     Update(UpdateTypes.Remark, "IPHASCHANGED");
-                    Update(UpdateTypes.Active, 0);
+                    instance.DisableNode(nodeID);
 
                     Save();
                     return probe;
@@ -2433,133 +2460,163 @@ namespace Center
 
             #region CONNECT
 
-            string connectType = nodeConnectType;
-            int connectSequence = 0;
+            string connectType = null;            
             string connectBy = null;
-
-            if (connectType == null)
-            {
-                if (nodeManufacture == alu || nodeManufacture == cso) connectType = "T";
-                else if (nodeManufacture == hwe || nodeManufacture == jun) connectType = "S";
-            }
-
-            bool connectSuccess = false;
 
             while (true)
             {
-                WaitUntilTerminalReady();
+                int connectSequence = 0;
+                connectType = nodeConnectType;
 
-                string currentConnectType = null;
-
-                if (connectSequence == 0)
+                // Prepare connect preference
+                if (connectType == null)
                 {
-                    if (connectType == "T") currentConnectType = "T";
-                    else if (connectType == "S") currentConnectType = "S";
-                }
-                else if (connectSequence == 1)
-                {
-                    if (connectType == "T") currentConnectType = "S";
-                    else if (connectType == "S") currentConnectType = "T";
+                    if (nodeManufacture == alu || nodeManufacture == cso) connectType = "T";
+                    else if (nodeManufacture == hwe || nodeManufacture == jun) connectType = "S";
                 }
 
-                if (currentConnectType == "T")
-                {
-                    connectSuccess = ConnectByTelnet(nodeName, nodeManufacture);
-                    if (connectSuccess) connectBy = "T";
-                    else Event("Telnet failed");
-                }
-                else if (currentConnectType == "S")
-                {
-                    connectSuccess = ConnectBySSH(nodeName, nodeManufacture);
-                    if (connectSuccess) connectBy = "S";
-                    else Event("SSH failed");
-                }
+                bool connectSuccess = false;
 
-                if (connectSuccess || connectSequence == 1) break;
-                else connectSequence++;
-            }
-
-            if (connectSuccess == false)
-            {
-                Event("Connection failed");
-
-                bool tacacError = false;
-                int loop = 0;
                 while (true)
                 {
                     WaitUntilTerminalReady();
 
-                    string testOtherNode;
+                    string currentConnectType = null;
 
-                    if (nodeName == "PE2-D2-CKA-VPN") testOtherNode = "PE-D2-CKA-VPN";
-                    else testOtherNode = "PE2-D2-CKA-VPN";
-
-                    Event("Trying to connect to other node...(" + testOtherNode + ")");
-
-                    bool testConnected = ConnectByTelnet(testOtherNode, cso);
-
-                    if (testConnected)
+                    if (connectSequence == 0)
                     {
-                        Exit(cso);
-                        outputIdentifier = null;
-                        Event("Connected! TACAC server is OK.");
-                        break;
+                        if (connectType == "T") currentConnectType = "T";
+                        else if (connectType == "S") currentConnectType = "S";
+                    }
+                    else if (connectSequence == 1)
+                    {
+                        if (connectType == "T") currentConnectType = "S";
+                        else if (connectType == "S") currentConnectType = "T";
+                    }
+
+                    if (currentConnectType == "T")
+                    {
+                        connectSuccess = ConnectByTelnet(nodeName, nodeManufacture);
+                        if (connectSuccess) connectBy = "T";
+                        else Event("Telnet failed");
+                    }
+                    else if (currentConnectType == "S")
+                    {
+                        connectSuccess = ConnectBySSH(nodeName, nodeManufacture);
+                        if (connectSuccess) connectBy = "S";
+                        else Event("SSH failed");
+                    }
+
+                    if (connectSuccess || connectSequence == 1) break;
+                    else connectSequence++;
+                }
+
+                if (connectSuccess == false)
+                {
+                    Event("Connection failed");
+
+                    bool tacacWasNotOkay = false;
+
+                    int loop = 0;
+                    while (true)
+                    {
+                        WaitUntilTerminalReady();
+
+                        string testOtherNode;
+
+                        if (nodeName == "PE2-D2-CKA-VPN") testOtherNode = "PE-D2-CKA-VPN";
+                        else testOtherNode = "PE2-D2-CKA-VPN";
+
+                        Event("Trying to connect to other node...(" + testOtherNode + ")");
+
+                        bool testConnected = ConnectByTelnet(testOtherNode, cso);
+
+                        if (testConnected)
+                        {
+                            Exit(cso);
+                            outputIdentifier = null;
+
+                            if (tacacWasNotOkay)
+                                Event("Connected! TACAC server connection is restored");
+                            else
+                                Event("Connected! TACAC server is OK.");
+
+                            break;
+                        }
+                        else
+                        {
+                            tacacWasNotOkay = true;
+
+                            outputIdentifier = null;
+                            Event("Connection failed, TACAC server is possible overloaded/error/not responding.");
+
+                            int time = 1;
+                            #region time
+                            if (loop == 0)
+                            {
+                                Event("Try again in 1 minute");
+                            }
+                            else if (loop == 1)
+                            {
+                                Event("Try again in 5 minutes");
+                                time = 5;
+                            }
+                            else if (loop == 2)
+                            {
+                                Event("Try again in 15 minutes");
+                                time = 15;
+                            }
+                            else if (loop == 3)
+                            {
+                                Event("Try again in 30 minutes");
+                                time = 30;
+                            }
+                            else if (loop >= 4)
+                            {
+                                Event("Try again in 1 hour");
+                                time = 60;
+                            }
+                            #endregion
+
+                            Thread.Sleep(60000 * time);
+                            loop++;
+                        }
+                    }
+
+                    if (tacacWasNotOkay)
+                    {
+                        Event("Retrying...");
                     }
                     else
                     {
-                        tacacError = true;
-                        outputIdentifier = null;
-                        Event("Connection failed, TACAC server is possible overloaded/error/not responding.");
+                        if (previousRemark == "CONNECTFAIL1" && deltaTimeStamp > TimeSpan.FromHours(2))
+                        {
+                            Update(UpdateTypes.Remark, "CONNECTFAIL2");
+                            instance.PendingNode(properties.Case, probeProgressID, nodeID, TimeSpan.FromHours(6));
+                        }
+                        else if (previousRemark == "CONNECTFAIL2" && deltaTimeStamp > TimeSpan.FromHours(6))
+                        {
+                            Update(UpdateTypes.Remark, "CONNECTFAIL3");
+                            instance.PendingNode(properties.Case, probeProgressID, nodeID, TimeSpan.FromHours(12));
+                        }
+                        else if (previousRemark == "CONNECTFAIL3" && deltaTimeStamp > TimeSpan.FromHours(12))
+                        {
+                            Update(UpdateTypes.Remark, "CONNECTFAIL");
+                            instance.DisableNode(nodeID);
+                        }
+                        else if (previousRemark == null || !previousRemark.StartsWith("CONNECTFAIL"))
+                        {
+                            Update(UpdateTypes.Remark, "CONNECTFAIL1");
+                            instance.PendingNode(properties.Case, probeProgressID, nodeID, TimeSpan.FromHours(2));
+                        }
+                        else Update(UpdateTypes.Remark, previousRemark);
 
-                        int time = 1;
-                        #region time
-                        if (loop == 0)
-                        {
-                            Event("Try again in 1 minute");
-                        }
-                        else if (loop == 1)
-                        {
-                            Event("Try again in 5 minutes");
-                            time = 5;
-                        }
-                        else if (loop == 2)
-                        {
-                            Event("Try again in 15 minutes");
-                            time = 15;
-                        }
-                        else if (loop == 3)
-                        {
-                            Event("Try again in 30 minutes");
-                            time = 30;
-                        }
-                        else if (loop >= 4)
-                        {
-                            Event("Try again in 1 hour");
-                            time = 60;
-                        }
-                        #endregion
+                        Save();
 
-                        Thread.Sleep(60000 * time);
-                        loop++;
+                        return probe;
                     }
                 }
-
-                if (tacacError)
-                {
-                    // this node is innocent
-                    // TODO: try again?
-                }
-                else
-                {
-                    //if (previousRemark == "CONNECTFAIL")
-                    //    Update(UpdateTypes.Active, 0);
-                    //else
-                    Update(UpdateTypes.Remark, "CONNECTFAIL");
-
-                }
-
-                Save();
-                return probe;
+                else break;
             }
 
             if (nodeConnectType == null || connectBy != connectType)
@@ -3291,7 +3348,10 @@ namespace Center
                 else if (nodeManufacture == jun)
                 {
                     #region jun
-                    if (Request("show version | match \"JUNOS Base OS boot|Model\"", out lines, probe)) return probe;
+                    //Model: mx960
+                    //Junos: 16.1R4-S1.3
+
+                    if (Request("show version | match \"Junos:|JUNOS Base OS boot|Model\"", out lines, probe)) return probe;
 
                     foreach (string line in lines)
                     {
@@ -3300,9 +3360,13 @@ namespace Center
                             string[] linex = line.Split(new char[] { '[', ']' }, StringSplitOptions.RemoveEmptyEntries);
                             if (linex.Length >= 2) version = linex[1];
                         }
-                        else if (line.StartsWith("Model: "))
+                        else if (line.StartsWith("Junos: "))
                         {
-                            model = line.Substring(7).Trim();
+                            version = line.Substring(7).Trim();
+                        }
+                        else if (line.IndexOf("Model: ") > -1)
+                        {
+                            model = line.Substring(line.IndexOf("Model: ") + 7).Trim();
                         }
                     }
                     #endregion
@@ -3320,7 +3384,7 @@ namespace Center
                     Event("Mark this node as inactive");
 
                     Update(UpdateTypes.Remark, "MODELCHANGED");
-                    Update(UpdateTypes.Active, 0);
+                    instance.DisableNode(nodeID);
 
                     Save();
                     return probe;
@@ -3558,9 +3622,17 @@ namespace Center
                             //1    1000000583    -                    850106          2016-05-04 16:32:38+07:00
                             //0123456789012345678901234567890123456789012345678901234567890123456789
                             //          1         2         3         4         5         6
-                            string ps = line.Substring(56, 19);
-                            if (DateTime.TryParseExact(ps, "yyyy-MM-dd HH:mm:ss", null, DateTimeStyles.None, out lastConfLive)) lastConfLiveRetrieved = true;
-                            break;
+                            string[] tokens = line.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                            if (tokens.Length == 6)
+                            {
+                                string ps2 = tokens[4] + " " + tokens[5];
+                                string[] tokens2 = ps2.Split(new char[] { '+' }, StringSplitOptions.RemoveEmptyEntries);
+                                string ps = tokens2[0];
+
+                                if (DateTime.TryParseExact(ps, "yyyy-MM-dd HH:mm:ss", null, DateTimeStyles.None, out lastConfLive)) lastConfLiveRetrieved = true;
+                                break;
+                            }
                         }
                     }
                 }
@@ -4844,10 +4916,10 @@ namespace Center
 
                     int leftMostFinding = neighborPEPart.Length;
 
-                    foreach (Tuple<string, string, string, string, string, string> currentNeighborInterface in currentNeighborPEInterfaces)
+                    foreach (Tuple<string, string, string, string, string, string> currentNBInterface in currentNeighborPEInterfaces)
                     {
-                        string neighborInterfaceName = currentNeighborInterface.Item1;
-                        string neighborInterfaceType = currentNeighborInterface.Item4;
+                        string neighborInterfaceName = currentNBInterface.Item1;
+                        string neighborInterfaceType = currentNBInterface.Item4;
                         string neighborInterfacePort = neighborInterfaceName.Substring(2);
 
                         foreach (string test in GenerateTestInterface(neighborInterfaceType, neighborInterfacePort))
@@ -4857,7 +4929,7 @@ namespace Center
                             if (pos > -1 && pos < leftMostFinding)
                             {
                                 leftMostFinding = pos;
-                                matchedInterface = currentNeighborInterface;
+                                matchedInterface = currentNBInterface;
                             }
                         }
                     }
@@ -4953,10 +5025,10 @@ namespace Center
 
                 int leftMostFinding = neighborMEPart.Length;
 
-                foreach (Tuple<string, string, string, string, string, string, string> currentNeighborInterface in currentNeighborMEInterfaces)
+                foreach (Tuple<string, string, string, string, string, string, string> currentNBInterface in currentNeighborMEInterfaces)
                 {
-                    string neighborInterfaceName = currentNeighborInterface.Item1;
-                    string neighborInterfaceType = currentNeighborInterface.Item4;
+                    string neighborInterfaceName = currentNBInterface.Item1;
+                    string neighborInterfaceType = currentNBInterface.Item4;
                     string neighborInterfacePort = neighborInterfaceName.Substring(2);
 
                     foreach (string test in GenerateTestInterface(neighborInterfaceType, neighborInterfacePort))
@@ -4966,7 +5038,7 @@ namespace Center
                         if (pos > -1 && pos < leftMostFinding)
                         {
                             leftMostFinding = pos;
-                            matchedInterface = currentNeighborInterface;
+                            matchedInterface = currentNBInterface;
                         }
                     }
                 }
@@ -5040,7 +5112,7 @@ namespace Center
                 foreach (Tuple<string, List<Tuple<string, string>>> nn in NecrowVirtualization.NNPhysicalInterfaces)
                 {
                     string neighborName = nn.Item1;
-                    List<Tuple<string, string>> currentNeighborInterfaces = nn.Item2;
+                    List<Tuple<string, string>> currentNBInterfaces = nn.Item2;
 
                     string neighborPart = FindNeighborPart(description, neighborName);
 
@@ -5055,9 +5127,9 @@ namespace Center
 
                         int leftMostFinding = neighborPart.Length;
 
-                        foreach (Tuple<string, string> currentNeighborInterface in currentNeighborInterfaces)
+                        foreach (Tuple<string, string> currentNBInterface in currentNBInterfaces)
                         {
-                            string neighborInterfaceName = currentNeighborInterface.Item1;
+                            string neighborInterfaceName = currentNBInterface.Item1;
 
                             foreach (string test in GenerateTestInterface(null, neighborInterfaceName))
                             {
@@ -5066,7 +5138,7 @@ namespace Center
                                 if (pos > -1 && pos < leftMostFinding)
                                 {
                                     leftMostFinding = pos;
-                                    matchedInterface = currentNeighborInterface;
+                                    matchedInterface = currentNBInterface;
                                 }
                             }
                         }
@@ -5075,7 +5147,7 @@ namespace Center
 
                         if (matchedInterface != null)
                         {
-                            li.TopologyNeighborInterfaceID = matchedInterface.Item2;
+                            li.TopologyNBInterfaceID = matchedInterface.Item2;
                             done = true;
                         }
 
@@ -5113,7 +5185,7 @@ namespace Center
 
                         // insert neighbor interface unspecified
                         string unspecifiedID = Database.ID();
-                        insert = Insert("NeighborInterface");
+                        insert = Insert("NBInterface");
                         insert.Value("NI_ID", unspecifiedID);
                         insert.Value("NI_NN", neighborNodeID);
                         insert.Value("NI_Name", "UNSPECIFIED");
@@ -5138,7 +5210,7 @@ namespace Center
                     if (neighborInterface == null)
                     {
                         // pake unspecified
-                        li.TopologyNeighborInterfaceID = NecrowVirtualization.NNUnspecifiedInterfaces[findNeighborNode];
+                        li.TopologyNBInterfaceID = NecrowVirtualization.NNUnspecifiedInterfaces[findNeighborNode];
                     }
                     else
                     {
@@ -5162,7 +5234,7 @@ namespace Center
                             if (ni.Item1 == neighborInterface)
                             {
                                 exists = true;
-                                li.TopologyNeighborInterfaceID = ni.Item2;
+                                li.TopologyNBInterfaceID = ni.Item2;
                                 break;
                             }
                         }
@@ -5171,13 +5243,13 @@ namespace Center
                         {
                             // new interface under neighborNode
                             string interfaceID = Database.ID();
-                            insert = Insert("NeighborInterface");
+                            insert = Insert("NBInterface");
                             insert.Value("NI_ID", interfaceID);
                             insert.Value("NI_NN", neighborNodeID);
                             insert.Value("NI_Name", neighborInterface);
                             insert.Execute();
 
-                            li.TopologyNeighborInterfaceID = interfaceID;
+                            li.TopologyNBInterfaceID = interfaceID;
                             interfaces.Add(new Tuple<string, string>(neighborInterface, interfaceID));
                             
                             interfaces.Sort((a, b) => b.Item1.Length.CompareTo(a.Item1.Length));

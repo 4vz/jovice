@@ -342,6 +342,56 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
             }
         }
 
+        internal static void RemovePhysicalInterfacesByNode(string nodeName)
+        {
+            bool done = false;
+
+            if (done == false)
+            {
+                lock (PESync)
+                {
+                    Tuple<string, List<Tuple<string, string, string, string, string, string>>> removeThis1 = null;
+
+                    foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> tuple in pePhysicalInterfaces)
+                    {
+                        if (tuple.Item1 == nodeName)
+                        {
+                            removeThis1 = tuple;
+                            break;
+                        }
+                    }
+
+                    if (removeThis1 != null)
+                    {
+                        pePhysicalInterfaces.Remove(removeThis1);
+                        done = true;
+                    }
+                }
+            }
+            if (done == false)
+            {
+                lock (MESync)
+                {
+                    Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> removeThis2 = null;
+
+                    foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> tuple in mePhysicalInterfaces)
+                    {
+                        if (tuple.Item1 == nodeName)
+                        {
+                            removeThis2 = tuple;
+                            break;
+                        }
+                    }
+
+                    if (removeThis2 != null)
+                    {
+                        mePhysicalInterfaces.Remove(removeThis2);
+                        done = true;
+                    }
+                }
+            }
+        }
+
         internal static bool AliasExists(string name)
         {
             string node;
@@ -422,9 +472,9 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID order by NA_Nam
                     else
                     {
                         instance.Event("Duplicated NodeNeighbor " + name + " removed ID " + id);
-                        batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
-                        batch.Execute("update MEInterface set MI_TO_NI = NULL where MI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
-                        batch.Execute("delete from NeighborInterface where NI_NN = {0}", id);
+                        batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NBInterface where NI_NN = {0})", id);
+                        batch.Execute("update MEInterface set MI_TO_NI = NULL where MI_TO_NI in (select NI_ID from NBInterface where NI_NN = {0})", id);
+                        batch.Execute("delete from NBInterface where NI_NN = {0}", id);
                         batch.Execute("delete from NodeNeighbor where NN_ID = {0}", id);
                     }
                 }
@@ -439,7 +489,7 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID order by NA_Nam
                 result = jovice.Query(@"
 select NN_Name, LEN(NN_Name) as NN_LEN, NI_Name, LEN(NI_Name) as NI_LEN, NI_ID from 
 (select NN_Name, NN_ID from NodeNeighbor
-) n left join NeighborInterface on NI_NN = NN_ID and NI_Name <> 'UNSPECIFIED'
+) n left join NBInterface on NI_NN = NN_ID and NI_Name <> 'UNSPECIFIED'
 order by NN_LEN desc, NN_Name, NI_LEN desc, NI_Name
 ");
                 if (!result.OK) throw new Exception("Virtualization failed");
@@ -481,7 +531,7 @@ order by NN_LEN desc, NN_Name, NI_LEN desc, NI_Name
                 #region Neighbor Unspecified Reference
 
                 result = jovice.Query(@"
-select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NeighborInterface on NI_NN = NN_ID and NI_Name = 'UNSPECIFIED'
+select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NBInterface on NI_NN = NN_ID and NI_Name = 'UNSPECIFIED'
 ");
                 if (!result.OK) throw new Exception("Virtualization failed");
 
@@ -501,9 +551,9 @@ select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NeighborInterface on NI
                             nnUnspecifiedInterfaces.Add(node, unid);
                         else
                         {
-                            batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
-                            batch.Execute("update MEInterface set MI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", id);
-                            batch.Execute("delete from NeighborInterface where NI_NN = {0}", id);
+                            batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NBInterface where NI_NN = {0})", id);
+                            batch.Execute("update MEInterface set MI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NBInterface where NI_NN = {0})", id);
+                            batch.Execute("delete from NBInterface where NI_NN = {0}", id);
                             batch.Execute("delete from NodeNeighbor where NN_ID = {0}", id);
                             instance.Event("Removed duplicated neighbor key: " + node);
                         }
@@ -512,7 +562,7 @@ select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NeighborInterface on NI
                     {
                         unid = Database.ID();
 
-                        insert = jovice.Insert("NeighborInterface");
+                        insert = jovice.Insert("NBInterface");
                         insert.Value("NI_ID", unid);
                         insert.Value("NI_NN", id);
                         insert.Value("NI_Name", "UNSPECIFIED");

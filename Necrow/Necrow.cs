@@ -139,6 +139,8 @@ namespace Center
         private Dictionary<string, string[]> interfaceTestPrefixes = null;
         internal Dictionary<string, string[]> InterfaceTestPrefixes { get => interfaceTestPrefixes; }
 
+        private bool testMode = false;
+
         #endregion
 
         #region Constructors 
@@ -154,6 +156,7 @@ namespace Center
         public void Test(string name)
         {
             prioritize.Enqueue(new Tuple<string, ProbeRequestData>(name.ToUpper() + "*", null));
+            testMode = true;
         }
 
         private void CreateNodeQueue(string queueCase)
@@ -165,7 +168,7 @@ namespace Center
 
                 if (queue.Count == 0)
                 {
-                    List<string> newIDs = new List<string>();
+                    List<string> nodeIDs = new List<string>();
                     string dbCase = null;
 
                     if (queueCase == "MAIN")
@@ -188,18 +191,18 @@ order by span asc, a.NO_LastConfiguration asc
 select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_TimeStamp is not null and NO_LastConfiguration is null                        
 ");
 
-                        foreach (Row row in nres) newIDs.Add(row["NO_ID"].ToString());
+                        foreach (Row row in nres) nodeIDs.Add(row["NO_ID"].ToString());
                         foreach (Row row in mres)
                         {
                             string add = row["NO_ID"].ToString();
-                            if (!newIDs.Contains(add))
-                                newIDs.Add(add);
+                            if (!nodeIDs.Contains(add))
+                                nodeIDs.Add(add);
                         }
                         foreach (Row row in sres)
                         {
                             string add = row["NO_ID"].ToString();
-                            if (!newIDs.Contains(add))
-                                newIDs.Add(add);
+                            if (!nodeIDs.Contains(add))
+                                nodeIDs.Add(add);
                         }
 
                         #endregion
@@ -215,8 +218,8 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                         foreach (Row row in sres)
                         {
                             string add = row["NO_ID"].ToString();
-                            if (!newIDs.Contains(add))
-                                newIDs.Add(add);
+                            if (!nodeIDs.Contains(add))
+                                nodeIDs.Add(add);
                         }
 
                         #endregion
@@ -235,13 +238,13 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                     batch.Begin();
 
                     
-                    foreach (string newID in newIDs)
+                    foreach (string nodeID in nodeIDs)
                     {
                         // jika newID ada di pending, skip
                         bool existInPending = false;
                         foreach (KeyValuePair<string, Tuple<string, DateTime>> pair in pending)
                         {
-                            if (pair.Value.Item1 == newID)
+                            if (pair.Value.Item1 == nodeID)
                             {
                                 existInPending = true;
                                 break;
@@ -250,16 +253,16 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
                         if (existInPending) continue;
 
-                        string dbID = Database.ID();
+                        string progressID = Database.ID();
 
                         Insert insert = j.Insert("ProbeProgress");
-                        insert.Value("XP_ID", dbID);
-                        insert.Value("XP_NO", newID);
+                        insert.Value("XP_ID", progressID);
+                        insert.Value("XP_NO", nodeID);
                         insert.Value("XP_Queue", queueIndex++);
                         insert.Value("XP_Case", dbCase);
                         batch.Execute(insert);
 
-                        queue.Enqueue(new Tuple<string, string>(dbID, newID));
+                        queue.Enqueue(new Tuple<string, string>(progressID, nodeID));
                         
                     }
                     result = batch.Commit();
@@ -269,16 +272,48 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
 
         internal void PendingNode(string queueCase, string xpID, string nodeID, TimeSpan duration)
         {
-            if (pendingList.ContainsKey(queueCase))
+            if (xpID != null)
             {
-                lock (pendingList[queueCase])
+                if (pendingList.ContainsKey(queueCase))
                 {
-                    DateTime until = DateTime.UtcNow + duration;
-                    pendingList[queueCase].Add(xpID, new Tuple<string, DateTime>(nodeID, until));
+                    lock (pendingList[queueCase])
+                    {
+                        DateTime until = DateTime.UtcNow + duration;
+                        pendingList[queueCase].Add(xpID, new Tuple<string, DateTime>(nodeID, until));
 
-                    j.Execute("update ProbeProgress set XP_Pending = {0} where XP_ID = {1}", until, xpID);
-                }                
+                        j.Execute("update ProbeProgress set XP_Pending = {0} where XP_ID = {1}", until, xpID);
+                    }
+                }
             }
+        }
+
+        internal void DisableNode(string nodeID)
+        {            
+            Result result = j.Query("select NO_Name from Node where NO_ID = {0}", nodeID);
+
+            if (result.Count == 1)
+            {
+                Row row = result[0];
+
+                string nodeName = row["NO_Name"].ToString();
+
+                Event(nodeName + " is become inactive");
+
+                lock (keeperNode)
+                {
+                    if (keeperNode.ContainsKey(nodeID))
+                    {
+                        Dictionary<string, object> values = keeperNode[nodeID];
+                        values["NO_Active"] = false;
+                    }
+
+                    j.Execute("update Node set NO_Active = 0 where NO_ID = {0}", nodeID);
+                }
+                
+                // remove from node virtualization
+                NecrowVirtualization.RemovePhysicalInterfacesByNode(nodeName);
+            }
+            
         }
         
         private void DatabaseCheck()
@@ -348,9 +383,9 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 foreach (Row row in result)
                 {
                     string nnid = row["NN_ID"].ToString();
-                    batch.Execute("update MEInterface set MI_TO_NI = NULL where MI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", nnid);
-                    batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NeighborInterface where NI_NN = {0})", nnid);
-                    batch.Execute("delete from NeighborInterface where NI_NN = {0}", nnid);
+                    batch.Execute("update MEInterface set MI_TO_NI = NULL where MI_TO_NI in (select NI_ID from NBInterface where NI_NN = {0})", nnid);
+                    batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NBInterface where NI_NN = {0})", nnid);
+                    batch.Execute("delete from NBInterface where NI_NN = {0}", nnid);
                     batch.Execute("delete from NodeNeighbor where NN_ID = {0}", nnid);
                 }
                 result = batch.Commit();
@@ -364,7 +399,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             #region Removing unused interfaces on Node Neighbors
 
             result = jovice.Query(@"
-select NI_ID from NeighborInterface 
+select NI_ID from NBInterface 
 left join MEInterface on MI_TO_NI = NI_ID 
 left join PEInterface on PI_TO_NI = NI_ID
 left join NodeNeighbor on NN_ID = NI_NN
@@ -379,7 +414,7 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
                 {
                     string ni = row["NI_ID"].ToString();
 
-                    batch.Execute("delete from NeighborInterface where NI_ID = {0}", ni);
+                    batch.Execute("delete from NBInterface where NI_ID = {0}", ni);
                 }
                 result = batch.Commit();
 
@@ -784,7 +819,7 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
                     values.Add("NO_Type", row["NO_Type"].ToString());
                     values.Add("NO_Manufacture", row["NO_Manufacture"].ToString());
                     values.Add("NO_IP", row["NO_IP"].ToString());
-                    //values.Add("NO_Active", row["NO_Active"].ToBool());
+                    values.Add("NO_Active", row["NO_Active"].ToBool());
                 }
 
                 #endregion
@@ -804,44 +839,49 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
                     #region Check Regularly
                     if (loops % 10 == 0)
                     {
-                        result = j.Query("select * from Node");
-
-                        batch.Begin();
-                        foreach (Row row in result)
+                        lock (keeperNode)
                         {
-                            string id = row["NO_ID"].ToString();
+                            result = j.Query("select * from Node");
 
-                            if (keeperNode.ContainsKey(id))
+                            batch.Begin();
+                            foreach (Row row in result)
                             {
-                                Dictionary<string, object> keeper = keeperNode[id];
+                                string id = row["NO_ID"].ToString();
 
-                                Update update = j.Update("Node");
-                                update.Where("NO_ID", id);
+                                if (keeperNode.ContainsKey(id))
+                                {
+                                    Dictionary<string, object> keeper = keeperNode[id];
 
-                                if ((string)keeper["NO_Name"] != row["NO_Name"].ToString()) update.Set("NO_Name", (string)keeper["NO_Name"]);
-                                if ((string)keeper["NO_Type"] != row["NO_Type"].ToString()) update.Set("NO_Type", (string)keeper["NO_Type"]);
-                                if ((string)keeper["NO_Manufacture"] != row["NO_Manufacture"].ToString()) update.Set("NO_Manufacture", (string)keeper["NO_Manufacture"]);
-                                if ((string)keeper["NO_IP"] != row["NO_IP"].ToString()) update.Set("NO_IP", (string)keeper["NO_IP"]);
+                                    Update update = j.Update("Node");
+                                    update.Where("NO_ID", id);
 
-                                batch.Execute(update);
+                                    if ((string)keeper["NO_Name"] != row["NO_Name"].ToString()) update.Set("NO_Name", (string)keeper["NO_Name"]);
+                                    if ((string)keeper["NO_Type"] != row["NO_Type"].ToString()) update.Set("NO_Type", (string)keeper["NO_Type"]);
+                                    if ((string)keeper["NO_Manufacture"] != row["NO_Manufacture"].ToString()) update.Set("NO_Manufacture", (string)keeper["NO_Manufacture"]);
+                                    if ((string)keeper["NO_IP"] != row["NO_IP"].ToString()) update.Set("NO_IP", (string)keeper["NO_IP"]);
+                                    if ((bool)keeper["NO_Active"] != row["NO_Active"].ToBool()) update.Set("NO_Active", (bool)keeper["NO_Active"]);
+
+                                    batch.Execute(update);
+                                }
+                                else
+                                {
+                                    Dictionary<string, object> values = new Dictionary<string, object>();
+                                    keeperNode.Add(row["NO_ID"].ToString(), values);
+
+                                    string newNodeName = row["NO_Name"].ToString();
+                                    values.Add("NO_Name", newNodeName);
+                                    values.Add("NO_Type", row["NO_Type"].ToString());
+                                    values.Add("NO_Manufacture", row["NO_Manufacture"].ToString());
+                                    values.Add("NO_IP", row["NO_IP"].ToString());
+                                    values.Add("NO_Active", row["NO_Active"].ToBool());
+
+                                    prioritize.Enqueue(new Tuple<string, ProbeRequestData>(newNodeName, null));
+
+                                    Event("New Node Registered: " + newNodeName);
+                                }
                             }
-                            else
-                            {
-                                Dictionary<string, object> values = new Dictionary<string, object>();
-                                keeperNode.Add(row["NO_ID"].ToString(), values);
-
-                                string newNodeName = row["NO_Name"].ToString();
-                                values.Add("NO_Name", newNodeName);
-                                values.Add("NO_Type", row["NO_Type"].ToString());
-                                values.Add("NO_Manufacture", row["NO_Manufacture"].ToString());
-                                values.Add("NO_IP", row["NO_IP"].ToString());
-
-                                prioritize.Enqueue(new Tuple<string, ProbeRequestData>(newNodeName, null));
-
-                                Event("New Node Registered: " + newNodeName);
-                            }
+                            batch.Commit();
                         }
-                        batch.Commit();
 
                         result = j.Query(@"
 select XA_ID, XA_Days, XA_TimeStart, XA_TimeEnd, XA_Case, XU_ServerUser, XU_ServerPassword, XU_TacacUser, XU_TacacPassword, XS_Address

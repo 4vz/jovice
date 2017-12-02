@@ -3990,12 +3990,12 @@ Last input 00:00:00, output 00:00:00
                         u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
                         UpdateInfo(updateinfo, "neighbor-mi-to-pi", li.NeighborCheckMITOPI, u.ID, true);
                     }
-                    if (db["PI_TO_NI"].ToString() != li.TopologyNeighborInterfaceID)
+                    if (db["PI_TO_NI"].ToString() != li.TopologyNBInterfaceID)
                     {
                         update = true;
-                        u.UpdateTopologyNeighborInterfaceID = true;
-                        u.TopologyNeighborInterfaceID = li.TopologyNeighborInterfaceID;
-                        UpdateInfo(updateinfo, "pi-to-ni", db["PI_TO_NI"].ToString(), li.TopologyNeighborInterfaceID, true);
+                        u.UpdateTopologyNBInterfaceID = true;
+                        u.TopologyNBInterfaceID = li.TopologyNBInterfaceID;
+                        UpdateInfo(updateinfo, "pi-to-ni", db["PI_TO_NI"].ToString(), li.TopologyNBInterfaceID, true);
                     }
                     if (db["PI_Description"].ToString() != li.Description)
                     {
@@ -4359,7 +4359,7 @@ Last input 00:00:00, output 00:00:00
                 insert.Value("PI_SE", s.ServiceID);
                 insert.Value("PI_PI", s.ParentID);
                 insert.Value("PI_TO_MI", s.TopologyMEInterfaceID);
-                insert.Value("PI_TO_NI", s.TopologyNeighborInterfaceID);
+                insert.Value("PI_TO_NI", s.TopologyNBInterfaceID);
                 insert.Value("PI_LastDown", s.LastDown);
                 insert.Value("PI_Percentage_TrafficInput", s.TrafficInput.Nullable(-1));
                 insert.Value("PI_Percentage_TrafficOutput", s.TrafficInput.Nullable(-1));
@@ -4392,7 +4392,7 @@ Last input 00:00:00, output 00:00:00
                 {
                     interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
                 }
-                update.Set("PI_TO_NI", s.TopologyNeighborInterfaceID, s.UpdateTopologyNeighborInterfaceID);
+                update.Set("PI_TO_NI", s.TopologyNBInterfaceID, s.UpdateTopologyNBInterfaceID);
                 update.Set("PI_Description", s.Description, s.UpdateDescription);
                 update.Set("PI_SE", s.ServiceID, updatingNecrow || s.UpdateDescription);
                 update.Set("PI_Status", s.Status, s.UpdateStatus);

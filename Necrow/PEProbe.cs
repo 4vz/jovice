@@ -582,7 +582,7 @@ namespace Center
         }
     }
 
-    class PERouteIPSummaryToDatabase : ToDatabase
+    class DerivedRouteNetworkToDatabase : ToDatabase
     {
         private string ip;
 
@@ -647,7 +647,7 @@ namespace Center
             Batch batch = Batch();            
             Result result;
 
-            Dictionary<string, PERouteIPSummaryToDatabase> routeiplive = new Dictionary<string, PERouteIPSummaryToDatabase>();
+            Dictionary<string, DerivedRouteNetworkToDatabase> routeiplive = new Dictionary<string, DerivedRouteNetworkToDatabase>();
 
             #region VRF
 
@@ -1874,7 +1874,7 @@ Last input 00:00:00, output 00:00:00
                             {
                                 if (routenameroutereference.ContainsKey(currentInterface.RouteNameID))
                                 {
-                                    PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+                                    DerivedRouteNetworkToDatabase pis = new DerivedRouteNetworkToDatabase();
                                     pis.IP = ip;
                                     pis.RouteID = routenameroutereference[currentInterface.RouteNameID];
                                     pis.Type = "W";
@@ -1927,7 +1927,7 @@ Last input 00:00:00, output 00:00:00
                             {
                                 if (routenameroutereference.ContainsKey(currentInterface.RouteNameID))
                                 {
-                                    PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+                                    DerivedRouteNetworkToDatabase pis = new DerivedRouteNetworkToDatabase();
                                     pis.IP = ipnm;
                                     pis.RouteID = routenameroutereference[currentInterface.RouteNameID];
                                     pis.IPv6 = true;
@@ -2547,7 +2547,7 @@ Last input 00:00:00, output 00:00:00
                             {
                                 if (routenameroutereference.ContainsKey(currentInterface.RouteNameID))
                                 {
-                                    PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+                                    DerivedRouteNetworkToDatabase pis = new DerivedRouteNetworkToDatabase();
                                     pis.IP = ip;
                                     pis.RouteID = routenameroutereference[currentInterface.RouteNameID];
                                     pis.Type = "I";
@@ -2981,7 +2981,7 @@ Last input 00:00:00, output 00:00:00
                                                 bool ipv6 = tokens[0] == "1";
                                                 string ipnm = tokens[2];
 
-                                                PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+                                                DerivedRouteNetworkToDatabase pis = new DerivedRouteNetworkToDatabase();
 
                                                 pis.IP = ipnm;
                                                 pis.IPv6 = ipv6;
@@ -3441,7 +3441,7 @@ Last input 00:00:00, output 00:00:00
                                             bool ipv6 = tokens[0] == "1";
                                             string ipnm = tokens[2];
 
-                                            PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+                                            DerivedRouteNetworkToDatabase pis = new DerivedRouteNetworkToDatabase();
 
                                             pis.IP = ipnm;
                                             pis.IPv6 = ipv6;
@@ -4481,7 +4481,7 @@ Last input 00:00:00, output 00:00:00
                     Event("Interface DELETE: " + pair.Key);
                     string id = pair.Value["PI_ID"].ToString();
 
-                    batch.Execute("update PEMac set PA_PI = NULL where PA_PI = {0}", id);
+                    batch.Execute("delete from PEMac where PA_PI = {0}", id);
                     batch.Execute("update MEInterface set MI_TO_PI = NULL where MI_TO_PI = {0}", id);
                     batch.Execute("update PERoute set PR_PI = NULL where PR_PI = {0}", id);
                     batch.Execute("update PEInterface set PI_PI = NULL where PI_PI = {0}", id);
@@ -4807,7 +4807,7 @@ Last input 00:00:00, output 00:00:00
 
                                         if (routenameroutereference.ContainsKey(currentRouteNameID))
                                         {
-                                            PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+                                            DerivedRouteNetworkToDatabase pis = new DerivedRouteNetworkToDatabase();
 
                                             pis.IP = network;
                                             pis.RouteID = routenameroutereference[currentRouteNameID];
@@ -5417,7 +5417,7 @@ Last input 00:00:00, output 00:00:00
 
                                     if (routenameroutereference.ContainsKey(routeNameID))
                                     {
-                                        PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+                                        DerivedRouteNetworkToDatabase pis = new DerivedRouteNetworkToDatabase();
 
                                         pis.IP = network;
                                         pis.RouteID = routenameroutereference[routeNameID];
@@ -5807,7 +5807,7 @@ Last input 00:00:00, output 00:00:00
 
                                                 if (ipn != null && ipn.Cidr > 0 && entry.Access == "P" && routenameroutereference.ContainsKey(currentRouteNameID))
                                                 {
-                                                    PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+                                                    DerivedRouteNetworkToDatabase pis = new DerivedRouteNetworkToDatabase();
 
                                                     pis.IP = entry.Network;
                                                     pis.Type = "R";
@@ -5828,7 +5828,7 @@ Last input 00:00:00, output 00:00:00
 
                                                 if (ipn != null && ipn.Cidr > 0 && entry.Access == "P" && routenameroutereference.ContainsKey(currentRouteNameID))
                                                 {
-                                                    PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+                                                    DerivedRouteNetworkToDatabase pis = new DerivedRouteNetworkToDatabase();
 
                                                     pis.IP = entry.Network;
                                                     pis.Type = "R";
@@ -6004,6 +6004,21 @@ Last input 00:00:00, output 00:00:00
                         //    01234567890123456789
                         //}
 
+                        //route 0.0.0.0/0 {
+                        //    next-hop ams0.1;
+                        //    qualified-next-hop sp-9/0/0.1 {
+                        //        metric 10;
+                        //    }
+                        //    qualified-next-hop sp-9/1/0.1 {
+                        //        metric 10;
+                        //    }
+                        //    qualified-next-hop ams1.1 {
+                        //        metric 10;
+                        //    }
+                        //    preference 0;
+                        //}
+
+
                         if (lineTrim.StartsWith("route ") && lineTrim.IndexOf("next-hop") > -1 && lineTrim.EndsWith(";"))
                         {
                             string network = lineTrim.Substring(6, lineTrim.IndexOf(' ', 6) - 6);
@@ -6022,7 +6037,7 @@ Last input 00:00:00, output 00:00:00
 
                                 if (routenameroutereference.ContainsKey(currentRouteNameID))
                                 {
-                                    PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+                                    DerivedRouteNetworkToDatabase pis = new DerivedRouteNetworkToDatabase();
 
                                     pis.IP = network;
                                     pis.RouteID = routenameroutereference[currentRouteNameID];
@@ -6048,15 +6063,20 @@ Last input 00:00:00, output 00:00:00
 
                             foreach (string nexthop in nexthops)
                             {
-                                PERouteUseToDatabase i = new PERouteUseToDatabase();
-                                i.RouteNameID = currentRouteNameID;
-                                i.Type = "S";
-                                i.Network = currentNetwork;
-                                i.Neighbor = nexthop;
-                                i.InterfaceID = FindInterfaceByNeighbor(i.Neighbor, currentRouteNameID, interfacelive);
+                                if (IPAddress.TryParse(nexthop, out IPAddress tipa))
+                                {
+                                    PERouteUseToDatabase i = new PERouteUseToDatabase();
+                                    i.RouteNameID = currentRouteNameID;
+                                    i.Type = "S";
+                                    i.Network = currentNetwork;
+                                    i.Neighbor = tipa.ToString();
+                                    i.InterfaceID = FindInterfaceByNeighbor(i.Neighbor, currentRouteNameID, interfacelive);
 
-                                string key = currentRouteNameID + "_S_" + currentNetwork + "_" + (i.Neighbor != null ? i.Neighbor : "") + "_" + (i.InterfaceID != null ? i.InterfaceID : "");
-                                routeuselive.Add(key, i);
+                                    string key = currentRouteNameID + "_S_" + currentNetwork + "_" + (i.Neighbor != null ? i.Neighbor : "") + "_" + (i.InterfaceID != null ? i.InterfaceID : "");
+
+                                    if (!routeuselive.ContainsKey(key))
+                                        routeuselive.Add(key, i);
+                                }
                             }
                         }
                         else if (line.EndsWith("{") && lineTrim.StartsWith("bgp "))
@@ -6235,7 +6255,7 @@ Last input 00:00:00, output 00:00:00
 
                                 if (routenameroutereference.ContainsKey(routeNameID))
                                 {
-                                    PERouteIPSummaryToDatabase pis = new PERouteIPSummaryToDatabase();
+                                    DerivedRouteNetworkToDatabase pis = new DerivedRouteNetworkToDatabase();
 
                                     pis.IP = network;
                                     pis.RouteID = routenameroutereference[routeNameID];
@@ -6979,21 +6999,21 @@ Last input 00:00:00, output 00:00:00
             Event("Building Route IP Summary");
 
             List<string> routeipinsertnode = new List<string>();
-            List<PERouteIPSummaryToDatabase> routeipinsert = new List<PERouteIPSummaryToDatabase>();
-            List<PERouteIPSummaryToDatabase> routeipupdate = new List<PERouteIPSummaryToDatabase>();
-            Dictionary<string, Row> routeipdb = QueryDictionary("select PW_ID, PZ_ID, PZ_PR, PZ_IP, PZ_Type, PZ_Private from PERouteIPSummaryNode, PERouteIPSummary where PW_NO = {0} and PW_PZ = PZ_ID", delegate(Row row)
+            List<DerivedRouteNetworkToDatabase> routeipinsert = new List<DerivedRouteNetworkToDatabase>();
+            List<DerivedRouteNetworkToDatabase> routeipupdate = new List<DerivedRouteNetworkToDatabase>();
+            Dictionary<string, Row> routeipdb = QueryDictionary("select DRNO_ID, DRN_ID, DRN_PR, DRN_IP, DRN_Type, DRN_Private from DerivedRouteNetworkNode, DerivedRouteNetwork where DRNO_NO = {0} and DRNO_DRN = DRN_ID", delegate(Row row)
             {
-                return row["PZ_PR"].ToString() + "_" + row["PZ_IP"].ToString();
+                return row["DRN_PR"].ToString() + "_" + row["DRN_IP"].ToString();
             }, nodeID);
 
-            List<PERouteIPSummaryToDatabase> routeipliveadd = new List<PERouteIPSummaryToDatabase>();
+            List<DerivedRouteNetworkToDatabase> routeipliveadd = new List<DerivedRouteNetworkToDatabase>();
             List<string> routeipliveremove = new List<string>();
 
             #region Check
 
-            foreach (KeyValuePair<string, PERouteIPSummaryToDatabase> pair in routeiplive)
+            foreach (KeyValuePair<string, DerivedRouteNetworkToDatabase> pair in routeiplive)
             {
-                PERouteIPSummaryToDatabase li = pair.Value;
+                DerivedRouteNetworkToDatabase li = pair.Value;
 
                 string oip = li.IP;
 
@@ -7016,20 +7036,20 @@ Last input 00:00:00, output 00:00:00
             }
 
             foreach (string routeipliveremovex in routeipliveremove) routeiplive.Remove(routeipliveremovex);
-            foreach (PERouteIPSummaryToDatabase routeipliveaddx in routeipliveadd)
+            foreach (DerivedRouteNetworkToDatabase routeipliveaddx in routeipliveadd)
             {
                 string key = routeipliveaddx.RouteID + "_" + routeipliveaddx.IP;
                 if (!routeiplive.ContainsKey(key)) routeiplive.Add(key, routeipliveaddx);
             }
 
-            foreach (KeyValuePair<string, PERouteIPSummaryToDatabase> pair in routeiplive)
+            foreach (KeyValuePair<string, DerivedRouteNetworkToDatabase> pair in routeiplive)
             {
-                PERouteIPSummaryToDatabase li = pair.Value;
+                DerivedRouteNetworkToDatabase li = pair.Value;
 
                 if (!routeipdb.ContainsKey(pair.Key))
                 {
                     // cek apakah ada routeid_ip di database
-                    result = j.Query("select PZ_ID from PERouteIPSummary where PZ_PR = {0} and PZ_IP = {1}", li.RouteID, li.IP);                    
+                    result = j.Query("select DRN_ID from DerivedRouteNetwork where DRN_PR = {0} and DRN_IP = {1}", li.RouteID, li.IP);                    
 
                     if (result.Count == 0)
                     {
@@ -7040,10 +7060,10 @@ Last input 00:00:00, output 00:00:00
                     }
                     else
                     {
-                        string existingPZID = result[0]["PZ_ID"].ToString();
+                        string existingPZID = result[0]["DRN_ID"].ToString();
 
                         // theres, insert node
-                        result = j.Query("select PW_ID from PERouteIPSummaryNode where PW_NO = {0} and PW_PZ = {1}", nodeID, existingPZID);
+                        result = j.Query("select DRNO_ID from DerivedRouteNetworkNode where DRNO_NO = {0} and DRNO_DRN = {1}", nodeID, existingPZID);
                         if (result.Count == 0) routeipinsertnode.Add(existingPZID);
                     }
                 }
@@ -7051,19 +7071,19 @@ Last input 00:00:00, output 00:00:00
                 {
                     Row db = routeipdb[pair.Key];
 
-                    PERouteIPSummaryToDatabase u = new PERouteIPSummaryToDatabase();
-                    u.ID = db["PZ_ID"].ToString();
+                    DerivedRouteNetworkToDatabase u = new DerivedRouteNetworkToDatabase();
+                    u.ID = db["DRN_ID"].ToString();
                     li.ID = u.ID;
 
                     bool update = false;
 
-                    if (db["PZ_Type"].ToString() != li.Type)
+                    if (db["DRN_Type"].ToString() != li.Type)
                     {
                         update = true;
                         u.UpdateType = true;
                         u.Type = li.Type;
                     }
-                    if (db["PZ_Private"].ToNullableBool() != li.PrivateAddress)
+                    if (db["DRN_Private"].ToNullableBool() != li.PrivateAddress)
                     {
                         update = true;
                         u.UpdatePrivateAddress = true;
@@ -7083,15 +7103,15 @@ Last input 00:00:00, output 00:00:00
 
             // ADD
             batch.Begin();
-            foreach (PERouteIPSummaryToDatabase s in routeipinsert)
+            foreach (DerivedRouteNetworkToDatabase s in routeipinsert)
             {
-                Insert insert = Insert("PERouteIPSummary");
-                insert.Value("PZ_ID", s.ID);
-                insert.Value("PZ_PR", s.RouteID);
-                insert.Value("PZ_IP", s.IP);
-                insert.Value("PZ_IPv6", s.IPv6);
-                insert.Value("PZ_Type", s.Type);
-                insert.Value("PZ_Private", s.PrivateAddress);
+                Insert insert = Insert("DerivedRouteNetwork");
+                insert.Value("DRN_ID", s.ID);
+                insert.Value("DRN_PR", s.RouteID);
+                insert.Value("DRN_IP", s.IP);
+                insert.Value("DRN_IPv6", s.IPv6);
+                insert.Value("DRN_Type", s.Type);
+                insert.Value("DRN_Private", s.PrivateAddress);
                 batch.Execute(insert);
             }
             result = batch.Commit();
@@ -7101,10 +7121,10 @@ Last input 00:00:00, output 00:00:00
             batch.Begin();
             foreach (string s in routeipinsertnode)
             {
-                Insert insert = Insert("PERouteIPSummaryNode");
-                insert.Value("PW_ID", Database.ID());
-                insert.Value("PW_NO", nodeID);
-                insert.Value("PW_PZ", s);
+                Insert insert = Insert("DerivedRouteNetworkNode");
+                insert.Value("DRNO_ID", Database.ID());
+                insert.Value("DRNO_NO", nodeID);
+                insert.Value("DRNO_DRN", s);
 
                 batch.Execute(insert);
             }
@@ -7113,12 +7133,12 @@ Last input 00:00:00, output 00:00:00
 
             // UPDATE
             batch.Begin();
-            foreach (PERouteIPSummaryToDatabase s in routeipupdate)
+            foreach (DerivedRouteNetworkToDatabase s in routeipupdate)
             {
-                Update update = Update("PERouteIPSummary");
-                update.Set("PZ_Type", s.Type, s.UpdateType);
-                update.Set("PZ_Private", s.PrivateAddress, s.UpdatePrivateAddress);
-                update.Where("PZ_ID", s.ID);
+                Update update = Update("DerivedRouteNetwork");
+                update.Set("DRN_Type", s.Type, s.UpdateType);
+                update.Set("DRN_Private", s.PrivateAddress, s.UpdatePrivateAddress);
+                update.Where("DRN_ID", s.ID);
                 batch.Execute(update);
             }
             result = batch.Commit();
@@ -7130,33 +7150,33 @@ Last input 00:00:00, output 00:00:00
             {
                 if (!routeiplive.ContainsKey(pair.Key))
                 {
-                    string id = pair.Value["PZ_ID"].ToString();
+                    string id = pair.Value["DRN_ID"].ToString();
 
-                    result = j.Query("select PW_ID, PW_NO from PERouteIPSummaryNode where PW_PZ = {0}", id);
+                    result = j.Query("select DRNO_ID, DRNO_NO from DerivedRouteNetworkNode where DRNO_DRN = {0}", id);
 
                     if (result.Count == 1)
                     {
-                        string uno = result[0]["PW_NO"].ToString();
+                        string uno = result[0]["DRNO_NO"].ToString();
 
                         if (uno == nodeID)
                         {
                             // im the only one
                             // remove node
-                            batch.Execute("delete from PERouteIPSummaryNode where PW_ID = {0}", result[0]["PW_ID"].ToString());
+                            batch.Execute("delete from DerivedRouteNetworkNode where DRNO_ID = {0}", result[0]["DRNO_ID"].ToString());
                             // remove summary
-                            batch.Execute("delete from PERouteIPSummary where PZ_ID = {0}", id);
+                            batch.Execute("delete from DerivedRouteNetwork where DRN_ID = {0}", id);
                         }
                     }
                     else
                     {
                         foreach (Row row in result)
                         {
-                            string uno = row["PW_NO"].ToString();
+                            string uno = row["DRNO_NO"].ToString();
 
                             if (uno == nodeID)
                             {
                                 // just remove node
-                                batch.Execute("delete from PERouteIPSummaryNode where PW_ID = {0}", row["PW_ID"].ToString());
+                                batch.Execute("delete from DerivedRouteNetworkNode where DRNO_ID = {0}", row["DRNO_ID"].ToString());
                                 break;
                             }
                         }
@@ -7230,13 +7250,34 @@ Last input 00:00:00, output 00:00:00
             if (!result.OK) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.VRFReference, false);
 
-            result = Execute("delete from PERouteTarget where PT_PR in (select PR_ID from PERoute left join PERouteName on PN_PR = PR_ID where PN_ID is null)");
+            result = Query("select PR_ID from PERoute left join PERouteName on PN_PR = PR_ID where PN_ID is null");
             if (!result.OK) return DatabaseFailure(probe);
-            Event(result, EventActions.Delete, EventElements.VRFRouteTarget, false);
 
-            result = Execute("delete from PERoute where PR_ID in (select PR_ID from PERoute left join PERouteName on PN_PR = PR_ID where PN_ID is null)");
-            if (!result.OK) return DatabaseFailure(probe);
-            Event(result, EventActions.Delete, EventElements.VRF, false);
+            List<string> prids = new List<string>();
+            foreach (Row row in result)
+            {
+                prids.Add(row["PR_ID"].ToString());
+            }
+            string prid = null;
+            if (prids.Count > 0) prid = "'" + string.Join("','", prids.ToArray()) + "'";
+
+            if (prid != null)
+            {
+                result = Execute("delete from DerivedRouteNetworkNode where DRNO_DRN in (select DRN_ID from DerivedRouteNetwork where DRN_PR in (" + prid + "))");
+                if (!result.OK) return DatabaseFailure(probe);
+
+                result = Execute("delete from DerivedRouteNetwork where DRN_PR in (" + prid + ")");
+                if (!result.OK) return DatabaseFailure(probe);
+
+                result = Execute("delete from PERouteTarget where PT_PR in (" + prid + ")");
+                if (!result.OK) return DatabaseFailure(probe);
+                Event(result, EventActions.Delete, EventElements.VRFRouteTarget, false);
+
+                result = Execute("delete from PERoute where PR_ID in (" + prid + ")");
+                if (!result.OK) return DatabaseFailure(probe);
+                Event(result, EventActions.Delete, EventElements.VRF, false);
+
+            }
 
             #endregion
 

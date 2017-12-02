@@ -30,6 +30,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Prefer32Bit>false</Prefer32Bit>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>
@@ -42,6 +43,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Prefer32Bit>false</Prefer32Bit>
     <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Antlr3.Runtime, Version=3.5.0.2, Culture=neutral, PublicKeyToken=eb42632606e9261f, processorArchitecture=MSIL">
@@ -84,9 +86,8 @@
       <HintPath>..\..\Axel\packages\System.Runtime.4.3.0\lib\net462\System.Runtime.dll</HintPath>
     </Reference>
     <Reference Include="System.Runtime.Serialization" />
-    <Reference Include="System.Security.Cryptography.Algorithms, Version=4.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Security.Cryptography.Algorithms.4.3.0\lib\net461\System.Security.Cryptography.Algorithms.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="System.Security.Cryptography.Algorithms, Version=4.2.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Security.Cryptography.Algorithms.4.3.1\lib\net463\System.Security.Cryptography.Algorithms.dll</HintPath>
     </Reference>
     <Reference Include="System.Security.Cryptography.Encoding, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Security.Cryptography.Encoding.4.3.0\lib\net46\System.Security.Cryptography.Encoding.dll</HintPath>
@@ -96,8 +97,8 @@
       <HintPath>..\packages\System.Security.Cryptography.Primitives.4.3.0\lib\net46\System.Security.Cryptography.Primitives.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="System.Security.Cryptography.X509Certificates, Version=4.1.1.1, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Security.Cryptography.X509Certificates.4.3.1\lib\net461\System.Security.Cryptography.X509Certificates.dll</HintPath>
+    <Reference Include="System.Security.Cryptography.X509Certificates, Version=4.1.1.2, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Security.Cryptography.X509Certificates.4.3.2\lib\net461\System.Security.Cryptography.X509Certificates.dll</HintPath>
     </Reference>
     <Reference Include="System.Web" />
     <Reference Include="System.Web.ApplicationServices" />
@@ -115,9 +116,6 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
-    <Reference Include="Tamir.SharpSSH, Version=1.1.1.13, Culture=neutral">
-      <HintPath>..\packages\Tamir.SharpSSH.1.1.1.13\lib\Tamir.SharpSSH.dll</HintPath>
-    </Reference>
     <Reference Include="WebGrease, Version=1.6.5135.21930, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\..\Axel\packages\WebGrease.1.6.0\lib\WebGrease.dll</HintPath>
     </Reference>
@@ -144,6 +142,257 @@
     <Compile Include="Application\Settings\Settings.cs" />
     <Compile Include="Application\Settings\UserSettings.cs" />
     <Compile Include="Application\Share.cs" />
+    <Compile Include="Class\EventHandler.cs" />
+    <Compile Include="Communication\Telegram.Bot\Args\ApiRequestEventArgs.cs" />
+    <Compile Include="Communication\Telegram.Bot\Args\ApiResponseEventArgs.cs" />
+    <Compile Include="Communication\Telegram.Bot\Args\CallbackQueryEventArgs.cs" />
+    <Compile Include="Communication\Telegram.Bot\Args\ChosenInlineResultEventArgs.cs" />
+    <Compile Include="Communication\Telegram.Bot\Args\InlineQueryEventArgs.cs" />
+    <Compile Include="Communication\Telegram.Bot\Args\MessageEventArgs.cs" />
+    <Compile Include="Communication\Telegram.Bot\Args\ReceiveErrorEventArgs.cs" />
+    <Compile Include="Communication\Telegram.Bot\Args\ReceiveGeneralErrorEventArgs.cs" />
+    <Compile Include="Communication\Telegram.Bot\Args\UpdateEventArgs.cs" />
+    <Compile Include="Communication\Telegram.Bot\Converters\ChatIdConverter.cs" />
+    <Compile Include="Communication\Telegram.Bot\Converters\FileToSendConverter.cs" />
+    <Compile Include="Communication\Telegram.Bot\Converters\InlineQueryResultTypeConverter.cs" />
+    <Compile Include="Communication\Telegram.Bot\Converters\InputMediaTypeConverter.cs" />
+    <Compile Include="Communication\Telegram.Bot\Converters\ParseModeConverter.cs" />
+    <Compile Include="Communication\Telegram.Bot\Converters\PhotoSizeConverter.cs" />
+    <Compile Include="Communication\Telegram.Bot\Converters\UnixDatetimeConverter.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\ApiException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Helpers\Extensions.cs" />
+    <Compile Include="Communication\Telegram.Bot\ITelegramBotClient.cs" />
+    <Compile Include="Communication\Telegram.Bot\TelegramBotClient.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Animation.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\ApiResponse.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Audio.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\CallbackGame.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\CallbackQuery.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Chat.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\ChatId.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\ChatMember.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\ChatPhoto.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\ChosenInlineResult.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Contact.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Document.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Enums\ChatAction.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Enums\ChatMemberStatus.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Enums\ChatType.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Enums\FileType.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Enums\MaskPositionPoint.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Enums\MessageEntityType.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Enums\MessageType.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Enums\ParseMode.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Enums\UpdateType.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\File.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\FileToSend.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Game.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\GameHighScore.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineKeyboardButtons\InlineKeyboardButton.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineKeyboardButtons\InlineKeyboardCallbackButton.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineKeyboardButtons\InlineKeyboardCallbackGameButton.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineKeyboardButtons\InlineKeyboardPayButton.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineKeyboardButtons\InlineKeyboardSwitchCallbackQueryCurrentChatButton.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineKeyboardButtons\InlineKeyboardSwitchInlineQueryButton.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineKeyboardButtons\InlineKeyboardUrlButton.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQuery.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResult.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultArticle.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultAudio.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultCached.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultCachedAudio.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultCachedDocument.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultCachedGif.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultCachedMpeg4Gif.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultCachedPhoto.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultCachedSticker.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultCachedVideo.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultCachedVoice.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultContact.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultDocument.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultGame.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultGif.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultLocation.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultMpeg4Gif.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultNew.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultPhoto.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultType.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultVenue.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultVideo.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultVoice.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InputFiles\InputFileBase.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InputFiles\InputMediaBase.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InputFiles\InputMediaPhoto.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InputFiles\InputMediaType.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InputFiles\InputMediaVideo.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InputMessageContents\InputContactMessageContent.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InputMessageContents\InputLocationMessageContent.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InputMessageContents\InputMessageContent.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InputMessageContents\InputTextMessageContent.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InputMessageContents\InputVenueMessageContent.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\KeyboardButton.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Location.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\MaskPosition.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Message.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\MessageEntity.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Payments\Invoice.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Payments\LabeledPrice.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Payments\OrderInfo.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Payments\PreCheckoutQuery.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Payments\ShippingAddress.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Payments\ShippingOption.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Payments\ShippingQuery.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Payments\SuccessfulPayment.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\PhotoSize.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\ReplyMarkups\ForceReply.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\ReplyMarkups\InlineKeyboardMarkup.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\ReplyMarkups\IReplyMarkup.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\ReplyMarkups\ReplyKeyboardMarkup.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\ReplyMarkups\ReplyKeyboardRemove.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\ReplyMarkups\ReplyMarkup.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Requests\IRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Requests\RequestBase.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Requests\SendMediaGroupRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\ResponseParameters.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Responses\IResponse.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Responses\JsonArrayResponse.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Responses\SendMediaGroupResponse.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Sticker.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\StickerSet.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Update.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\User.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\UserProfilePhotos.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Venue.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Video.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\VideoNote.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\Voice.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\WebhookInfo.cs" />
+    <Compile Include="Extensions\Byte.cs" />
+    <Compile Include="Network\SharpSSH\ITransferProtocol.cs" />
+    <Compile Include="Network\SharpSSH\java\Exception.cs" />
+    <Compile Include="Network\SharpSSH\java\io\File.cs" />
+    <Compile Include="Network\SharpSSH\java\io\FileInputStream.cs" />
+    <Compile Include="Network\SharpSSH\java\io\FileOutputStream.cs" />
+    <Compile Include="Network\SharpSSH\java\io\InputStream.cs" />
+    <Compile Include="Network\SharpSSH\java\io\InputStreamWrapper.cs" />
+    <Compile Include="Network\SharpSSH\java\io\JStream.cs" />
+    <Compile Include="Network\SharpSSH\java\io\OutputStream.cs" />
+    <Compile Include="Network\SharpSSH\java\lang\Class.cs" />
+    <Compile Include="Network\SharpSSH\java\lang\Integer.cs" />
+    <Compile Include="Network\SharpSSH\java\lang\Runnable.cs" />
+    <Compile Include="Network\SharpSSH\java\lang\StringBuffer.cs" />
+    <Compile Include="Network\SharpSSH\java\lang\Thread.cs" />
+    <Compile Include="Network\SharpSSH\java\net\InetAddress.cs" />
+    <Compile Include="Network\SharpSSH\java\net\ServerSocket.cs" />
+    <Compile Include="Network\SharpSSH\java\net\Socket.cs" />
+    <Compile Include="Network\SharpSSH\java\Platform.cs" />
+    <Compile Include="Network\SharpSSH\java\RuntimeException.cs" />
+    <Compile Include="Network\SharpSSH\java\String.cs" />
+    <Compile Include="Network\SharpSSH\java\System.cs" />
+    <Compile Include="Network\SharpSSH\java\util\Arrays.cs" />
+    <Compile Include="Network\SharpSSH\java\util\Enumeration.cs" />
+    <Compile Include="Network\SharpSSH\java\util\Hashtable.cs" />
+    <Compile Include="Network\SharpSSH\java\util\JavaString.cs" />
+    <Compile Include="Network\SharpSSH\java\util\Vector.cs" />
+    <Compile Include="Network\SharpSSH\jsch\Buffer.cs" />
+    <Compile Include="Network\SharpSSH\jsch\Channel.cs" />
+    <Compile Include="Network\SharpSSH\jsch\Channel.old.cs" />
+    <Compile Include="Network\SharpSSH\jsch\ChannelDirectTCPIP.cs" />
+    <Compile Include="Network\SharpSSH\jsch\ChannelExec.cs" />
+    <Compile Include="Network\SharpSSH\jsch\ChannelForwardedTCPIP.cs" />
+    <Compile Include="Network\SharpSSH\jsch\ChannelSession.cs" />
+    <Compile Include="Network\SharpSSH\jsch\ChannelSftp.cs" />
+    <Compile Include="Network\SharpSSH\jsch\ChannelSftpStreamGet.cs" />
+    <Compile Include="Network\SharpSSH\jsch\ChannelSftpStreamPut.cs" />
+    <Compile Include="Network\SharpSSH\jsch\ChannelShell.cs" />
+    <Compile Include="Network\SharpSSH\jsch\ChannelSubsystem.cs" />
+    <Compile Include="Network\SharpSSH\jsch\ChannelX11.cs" />
+    <Compile Include="Network\SharpSSH\jsch\Cipher.cs" />
+    <Compile Include="Network\SharpSSH\jsch\Compression.cs" />
+    <Compile Include="Network\SharpSSH\jsch\DH.cs" />
+    <Compile Include="Network\SharpSSH\jsch\DHG1.cs" />
+    <Compile Include="Network\SharpSSH\jsch\DHGEX.cs" />
+    <Compile Include="Network\SharpSSH\jsch\ForwardedTCPIPDaemon.cs" />
+    <Compile Include="Network\SharpSSH\jsch\HASH.cs" />
+    <Compile Include="Network\SharpSSH\jsch\HostKey.cs" />
+    <Compile Include="Network\SharpSSH\jsch\HostKeyRepository.cs" />
+    <Compile Include="Network\SharpSSH\jsch\Identity.cs" />
+    <Compile Include="Network\SharpSSH\jsch\IdentityFile.cs" />
+    <Compile Include="Network\SharpSSH\jsch\IO.cs" />
+    <Compile Include="Network\SharpSSH\jsch\jce\AES128CBC.cs" />
+    <Compile Include="Network\SharpSSH\jsch\jce\BlowfishCBC.cs" />
+    <Compile Include="Network\SharpSSH\jsch\jce\DH.cs" />
+    <Compile Include="Network\SharpSSH\jsch\jce\HMACMD5.cs" />
+    <Compile Include="Network\SharpSSH\jsch\jce\HMACMD596.cs" />
+    <Compile Include="Network\SharpSSH\jsch\jce\HMACSHA1.cs" />
+    <Compile Include="Network\SharpSSH\jsch\jce\HMACSHA196.cs" />
+    <Compile Include="Network\SharpSSH\jsch\jce\KeyPairGenDSA.cs" />
+    <Compile Include="Network\SharpSSH\jsch\jce\KeyPairGenRSA.cs" />
+    <Compile Include="Network\SharpSSH\jsch\jce\MD5.cs" />
+    <Compile Include="Network\SharpSSH\jsch\jce\Random.cs" />
+    <Compile Include="Network\SharpSSH\jsch\jce\SHA1.cs" />
+    <Compile Include="Network\SharpSSH\jsch\jce\SignatureDSA.cs" />
+    <Compile Include="Network\SharpSSH\jsch\jce\SignatureRSA.cs" />
+    <Compile Include="Network\SharpSSH\jsch\jce\TripleDESCBC.cs" />
+    <Compile Include="Network\SharpSSH\jsch\JSch.cs" />
+    <Compile Include="Network\SharpSSH\jsch\JSchAuthCancelException.cs" />
+    <Compile Include="Network\SharpSSH\jsch\JSchException.cs" />
+    <Compile Include="Network\SharpSSH\jsch\JSchPartialAuthException.cs" />
+    <Compile Include="Network\SharpSSH\jsch\KeyExchange.cs" />
+    <Compile Include="Network\SharpSSH\jsch\KeyPair.cs" />
+    <Compile Include="Network\SharpSSH\jsch\KeyPairDSA.cs" />
+    <Compile Include="Network\SharpSSH\jsch\KeyPairGenDSA.cs" />
+    <Compile Include="Network\SharpSSH\jsch\KeyPairGenRSA.cs" />
+    <Compile Include="Network\SharpSSH\jsch\KeyPairRSA.cs" />
+    <Compile Include="Network\SharpSSH\jsch\KnownHosts.cs" />
+    <Compile Include="Network\SharpSSH\jsch\MAC.cs" />
+    <Compile Include="Network\SharpSSH\jsch\Packet.cs" />
+    <Compile Include="Network\SharpSSH\jsch\PortWatcher.cs" />
+    <Compile Include="Network\SharpSSH\jsch\Proxy.cs" />
+    <Compile Include="Network\SharpSSH\jsch\ProxyHTTP.cs" />
+    <Compile Include="Network\SharpSSH\jsch\Random.cs" />
+    <Compile Include="Network\SharpSSH\jsch\Request.cs" />
+    <Compile Include="Network\SharpSSH\jsch\RequestExec.cs" />
+    <Compile Include="Network\SharpSSH\jsch\RequestPtyReq.cs" />
+    <Compile Include="Network\SharpSSH\jsch\RequestSftp.cs" />
+    <Compile Include="Network\SharpSSH\jsch\RequestShell.cs" />
+    <Compile Include="Network\SharpSSH\jsch\RequestSignal.cs" />
+    <Compile Include="Network\SharpSSH\jsch\RequestSubsystem.cs" />
+    <Compile Include="Network\SharpSSH\jsch\RequestWindowChange.cs" />
+    <Compile Include="Network\SharpSSH\jsch\RequestX11.cs" />
+    <Compile Include="Network\SharpSSH\jsch\ServerSocketFactory.cs" />
+    <Compile Include="Network\SharpSSH\jsch\Session.cs" />
+    <Compile Include="Network\SharpSSH\jsch\SftpATTRS.cs" />
+    <Compile Include="Network\SharpSSH\jsch\SftpException.cs" />
+    <Compile Include="Network\SharpSSH\jsch\SftpProgressMonitor.cs" />
+    <Compile Include="Network\SharpSSH\jsch\SignatureDSA.cs" />
+    <Compile Include="Network\SharpSSH\jsch\SignatureRSA.cs" />
+    <Compile Include="Network\SharpSSH\jsch\SocketFactory.cs" />
+    <Compile Include="Network\SharpSSH\jsch\UIKeyboardInteractive.cs" />
+    <Compile Include="Network\SharpSSH\jsch\UserAuth.cs" />
+    <Compile Include="Network\SharpSSH\jsch\UserAuthKeyboardInteractive.cs" />
+    <Compile Include="Network\SharpSSH\jsch\UserAuthNone.cs" />
+    <Compile Include="Network\SharpSSH\jsch\UserAuthPassword.cs" />
+    <Compile Include="Network\SharpSSH\jsch\UserAuthPublicKey.cs" />
+    <Compile Include="Network\SharpSSH\jsch\UserInfo.cs" />
+    <Compile Include="Network\SharpSSH\jsch\Util.cs" />
+    <Compile Include="Network\SharpSSH\Scp.cs" />
+    <Compile Include="Network\SharpSSH\SecureShell.cs" />
+    <Compile Include="Network\SharpSSH\Sftp.cs" />
+    <Compile Include="Network\SharpSSH\SshBase.cs" />
+    <Compile Include="Network\SharpSSH\SshExe.cs" />
+    <Compile Include="Network\SharpSSH\SshHelper.cs" />
+    <Compile Include="Network\SharpSSH\SshShell.cs" />
+    <Compile Include="Network\SharpSSH\SshStream.cs" />
+    <Compile Include="Network\SharpSSH\SshTransferException.cs" />
+    <Compile Include="Network\SharpSSH\SshTransferProtocolBase.cs" />
+    <Compile Include="Network\SharpSSH\Streams\CombinedStream.cs" />
+    <Compile Include="Network\SharpSSH\Streams\InputStream.cs" />
+    <Compile Include="Network\SharpSSH\Streams\OutputStream.cs" />
+    <Compile Include="Network\SharpSSH\Streams\PipedInputStream.cs" />
+    <Compile Include="Network\SharpSSH\Streams\PipedOutputStream.cs" />
+    <Compile Include="Network\SharpSSH\Streams\PipedStream.cs" />
+    <Compile Include="Network\SharpSSH\Streams\ProtectedConsoleStream.cs" />
     <Compile Include="Network\SshConnection.cs" />
     <Compile Include="Application\WebFont.cs" />
     <Compile Include="Application\Helpers\Path.cs" />

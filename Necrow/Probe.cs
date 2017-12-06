@@ -990,7 +990,7 @@ namespace Center
 
 
                             Event("Prioritizing Probe: " + prioritizeNode);
-                            Result rnode = Query("select * from Node where upper(NO_Name) = {0}", prioritizeNode);
+                            Result rnode = Query("select * from Node where upper(NO_Name) = {0} and NO_Active = 1", prioritizeNode);
 
                             if (rnode.Count == 1)
                             {
@@ -1005,7 +1005,7 @@ namespace Center
                             }
                             else
                             {
-                                Event("Failed, not exists in the database.");
+                                Event("Failed. Theres no active probe for specified name");
                                 continue;
                             }
                         }
@@ -1351,69 +1351,13 @@ namespace Center
                 list[n] = value;
             }
         }
-        
-        private List<string> MCESendLine(string command, out bool timeout)
-        {
-            timeout = false;
 
-            SendLine(command);
-            SendLine("echo end\\ request");
-
-            StringBuilder lineBuilder = new StringBuilder();
-            List<string> lines = new List<string>();
-
-            StringBuilder lastOutputSB = new StringBuilder();
-
-            int wait = 0;
-            while (true)
-            {
-                if (OutputCount > 0)
-                {
-                    wait = 0;
-                    string output = GetOutput();
-                    if (output == null) continue;
-
-                    lastOutputSB.Append(output);
-
-                    for (int i = 0; i < output.Length; i++)
-                    {
-                        byte b = (byte)output[i];
-                        if (b == 10)
-                        {
-                            string line = lineBuilder.ToString().Trim();
-                            lines.Add(line);
-                            lineBuilder.Clear();
-                        }
-                        else if (b == 9) lineBuilder.Append(' ');
-                        else if (b >= 32) lineBuilder.Append((char)b);
-                    }
-                    if (lastOutputSB.ToString().IndexOf("end request") > -1) break;
-                }
-                else
-                {
-                    wait++;
-                    Thread.Sleep(100);
-                    if (wait == 200)
-                    {
-                        SendControlC();
-                        Thread.Sleep(1000);
-                        timeout = true;
-                        break;
-                    }
-                }
-            }
-            if (lineBuilder.Length > 0) lines.Add(lineBuilder.ToString().Trim());
-
-            if (timeout == true) return null;
-            else return lines;
-        }
-
-        private MCEExpectResult MCEExpect(params string[] args)
+        private ExpectResult Expect(params string[] args)
         {
             Queue<string> lastOutputs = new Queue<string>();
             string expectOutput = null;
 
-            if (args.Length == 0) return new MCEExpectResult(-1, null);
+            if (args.Length == 0) return new ExpectResult(-1, null);
 
             int wait = 0;
             int expectReturn = -1;
@@ -1459,15 +1403,10 @@ namespace Center
                 }
             }
 
-            return new MCEExpectResult(expectReturn, expectOutput);
+            return new ExpectResult(expectReturn, expectOutput);
         }
 
-        private string MCECheckNodeIP(string hostname)
-        {
-            return MCECheckNodeIP(hostname, false);
-        }
-
-        private string MCECheckNodeIP(string hostname, bool reverse)
+        private string ResolveHostName(string hostname, bool reverse)
         {
             string cpeip = null;
             hostname = hostname.ToLower();
@@ -1857,57 +1796,33 @@ namespace Center
             Event("Connecting with Telnet... (" + user + "@" + host + ")");
             SendLine("telnet " + host);
 
-            if (manufacture == alu)
+            ExpectResult expect = Expect("ogin:", "sername:");
+
+            if (manufacture == null)
             {
-                #region alu
-                MCEExpectResult expect = MCEExpect("ogin:", "No route to host");
-                if (expect.Index == 0)
+                if (expect.Index > -1)
                 {
+                    // arrived at login
+                    if (LastOutput.IndexOf("ALCATEL") > -1)
+                    {
+                        manufacture = alu;
+                        nodeManufacture = alu;
+                    }
+
                     Event("Authenticating: User");
                     SendLine(user);
 
-                    expect = MCEExpect("assword:");
-                    if (expect.Index == 0)
+                    expect = Expect("assword:");
+                    if (expect.Index > -1)
                     {
                         Event("Authenticating: Password");
                         SendLine(pass);
 
-                        expect = MCEExpect("#", "ogin:", "closed by foreign");
-                        if (expect.Index == 0) connectSuccess = true;
-                        else SendControlZ();
-                    }
-                    else
-                    {
-                        Event("Cannot find password console prefix");
-                        SendControlZ();
-                    }
-                }
-                else if (expect.Index > 0)
-                {
-                }
-                else
-                {
-                    SendControlC();
-                }
-                #endregion
-            }
-            else if (manufacture == hwe)
-            {
-                #region hwe
-                MCEExpectResult expect = MCEExpect("sername:", "closed by foreign", "No route to host");
-                if (expect.Index == 0)
-                {
-                    Event("Authenticating: User");
-                    SendLine(user);
-
-                    expect = MCEExpect("assword:");
-                    if (expect.Index == 0)
-                    {
-                        Event("Authenticating: Password");
-                        SendLine(pass);
-
-                        expect = MCEExpect(">", "sername:", "Tacacs server reject");
-                        if (expect.Index == 0) connectSuccess = true;
+                        expect = Expect("#", ">");
+                        if (expect.Index > -1)
+                        {
+                            connectSuccess = true;
+                        }
                         else
                         {
                             SendControlRightBracket();
@@ -1921,55 +1836,7 @@ namespace Center
                         SendControlC();
                     }
                 }
-                else if (expect.Index > 0)
-                {
-                }
-                else
-                {
-                    SendControlC();
-                }
-                #endregion
             }
-            else if (manufacture == cso)
-            {
-                #region cso
-                MCEExpectResult expect = MCEExpect("sername:", "No route to host");
-                if (expect.Index == 0)
-                {
-                    Event("Authenticating: User");
-                    SendLine(user);
-
-                    expect = MCEExpect("assword:");
-                    if (expect.Index == 0)
-                    {
-                        Event("Authenticating: Password");
-                        SendLine(pass);
-
-                        expect = MCEExpect("#", "sername:", "closed by foreign", "cation failed");
-                        if (expect.Index == 0) connectSuccess = true;
-                        else
-                        {
-                            SendControlRightBracket();
-                            SendControlC();
-                        }
-                    }
-                    else
-                    {
-                        Event("Cannot find password console prefix");
-                        SendControlRightBracket();
-                        SendControlC();
-                    }
-                }
-                else if (expect.Index > 0)
-                {
-                }
-                else
-                {
-                    SendControlC();
-                }
-                #endregion
-            }
-            else SendControlC();
 
             return connectSuccess;
         }
@@ -1991,23 +1858,21 @@ namespace Center
             {
                 looppass = false;
 
-                MCEExpectResult expect = MCEExpect("assword:", "Connection refused", "No route to host", "Not replacing existing known_hosts", "Host key verification failed", "Permission denied (publickey");
+                ExpectResult expect = Expect("assword:", "Connection refused", "No route to host", "Not replacing existing known_hosts", "Host key verification failed", "Permission denied (publickey");
                 if (expect.Index == 0)
                 {
                     Event("Authenticating: Password");
                     SendLine(pass);
 
-                    if (manufacture == hwe || manufacture == jun)
+                    expect = Expect(">", "#");
+
+                    if (expect.Index > -1)
                     {
-                        expect = MCEExpect(">", "assword:");
-                        if (expect.Index == 0) connectSuccess = true;
-                        else SendControlC();
+                        connectSuccess = true;
                     }
-                    else if (manufacture == cso)
+                    else
                     {
-                        expect = MCEExpect("#", "assword:");
-                        if (expect.Index == 0) connectSuccess = true;
-                        else SendControlC();
+                        SendControlC();
                     }
                 }
                 else if (expect.Index >= 3)
@@ -2046,7 +1911,7 @@ namespace Center
                                 Event("Trying to regenerate new ssh key...");
                                 SendLine("ssh-keygen -R " + host);
 
-                                expect = MCEExpect("Not replacing existing known_hosts", "Host key verification failed", "Permission denied (publickey");
+                                expect = Expect("Not replacing existing known_hosts", "Host key verification failed", "Permission denied (publickey");
                                 if (expect.Index >= 0)
                                 {
                                     // fail to ssh-keygen, just remove the known_hosts
@@ -2068,17 +1933,6 @@ namespace Center
                 }
             }
             while (looppass);
-
-            if (manufacture == hwe)
-            {
-            }
-            else if (manufacture == cso)
-            {
-            }
-            else if (manufacture == jun)
-            {
-            }
-            else SendControlC();
 
             return connectSuccess;
         }
@@ -2264,21 +2118,10 @@ namespace Center
                 Execute("update ProbeProgress set XP_StartTime = {0} where XP_ID = {1}", DateTime.UtcNow, this.probeProgressID);
 
             Event("Begin probing into " + nodeName);
-            Event("Manufacture: " + nodeManufacture + "");
-            if (nodeModel != null) Event("Model: " + nodeModel);
 
             Update(UpdateTypes.Remark, null);
             Update(UpdateTypes.TimeStamp, DateTime.UtcNow);
-
-            // check node manufacture
-            if (nodeManufacture == alu || nodeManufacture == cso || nodeManufacture == hwe || nodeManufacture == jun)
-            {
-            }
-            else
-            {
-                return probe;
-            }
-
+            
             bool checkChassis = false;
             updatingNecrow = false;
             if (nodeNVER < Necrow.Version)
@@ -2299,7 +2142,7 @@ namespace Center
             if (nodeIP != null) Event("Host IP: " + nodeIP);
 
             Event("Checking host IP");
-            string resolvedIP = MCECheckNodeIP(nodeName);
+            string resolvedIP = ResolveHostName(nodeName, false);
 
             if (nodeIP == null)
             {
@@ -2337,7 +2180,7 @@ namespace Center
 
                     // reverse ip?
                     Event("Resolving by reverse host name");
-                    string hostName = MCECheckNodeIP(nodeIP, true);
+                    string hostName = ResolveHostName(nodeIP, true);
 
                     if (hostName != null)
                     {
@@ -2448,6 +2291,9 @@ namespace Center
                     instance.DisableNode(nodeID);
 
                     Save();
+
+                    instance.CreateNode(nodeID);
+
                     return probe;
                 }
             }
@@ -2455,6 +2301,26 @@ namespace Center
             Event("Host identified");
 
             outputIdentifier = nodeName;
+
+            #endregion
+
+            #region MANUFACTURE
+
+            // check node manufacture
+            bool checkNodeManufacture = false;
+
+            if (nodeManufacture == alu || nodeManufacture == cso || nodeManufacture == hwe || nodeManufacture == jun)
+            {
+                Event("Manufacture: " + nodeManufacture + "");
+                if (nodeModel != null) Event("Model: " + nodeModel);
+            }
+            else
+            {
+                nodeManufacture = null;
+                checkNodeManufacture = true;
+
+                Event("Manufacture: Unknown");
+            }
 
             #endregion
 
@@ -2473,6 +2339,7 @@ namespace Center
                 {
                     if (nodeManufacture == alu || nodeManufacture == cso) connectType = "T";
                     else if (nodeManufacture == hwe || nodeManufacture == jun) connectType = "S";
+                    else connectType = "T";
                 }
 
                 bool connectSuccess = false;
@@ -2622,8 +2489,39 @@ namespace Center
             if (nodeConnectType == null || connectBy != connectType)
                 Update(UpdateTypes.ConnectType, connectBy);
 
-            Event("Connected!");
+            if (checkNodeManufacture)
+            {
+                if (nodeManufacture == null)
+                {
+                    SendLine("show clock");
 
+                    WaitUntilEndsWith(new string[] { "#", ">" });
+
+                    if (LastOutput.IndexOf("syntax error, expecting") > -1) nodeManufacture = jun;
+                    else if (LastOutput.IndexOf("Unrecognized command") > -1) nodeManufacture = hwe;
+                    else if (LastOutput.IndexOf("Invalid parameter") > -1)  nodeManufacture = alu;
+
+                    if (nodeManufacture == null)
+                    {
+                        nodeManufacture = cso;
+                    }
+                }
+
+                Event("Discovered Manufacture: " + nodeManufacture);
+                instance.UpdateManufacture(nodeID, nodeManufacture);
+            }
+
+            if (nodeManufacture == null)
+            {
+                Event("Manufacture unknown");
+
+                Save();
+
+                return probe;
+            }
+
+            Event("Connected!");
+            
             probing = true;
 
             string terminal = null;
@@ -3380,14 +3278,9 @@ namespace Center
                 }
                 else if (nodeModel != null && model != nodeModel)
                 {
-                    Event("Node model has changed to: " + model);
-                    Event("Mark this node as inactive");
-
-                    Update(UpdateTypes.Remark, "MODELCHANGED");
-                    instance.DisableNode(nodeID);
-
-                    Save();
-                    return probe;
+                    nodeModel = model;
+                    Update(UpdateTypes.Model, model);
+                    Event("Model changed: " + model);
                 }
                 if (version != nodeVersion)
                 {
@@ -6078,7 +5971,7 @@ namespace Center
         #endregion
     }
 
-    internal class MCEExpectResult
+    internal class ExpectResult
     {
         private int index;
 
@@ -6094,7 +5987,7 @@ namespace Center
             get { return output; }
         }
 
-        public MCEExpectResult(int index, string output)
+        public ExpectResult(int index, string output)
         {
             this.index = index;
             this.output = output;

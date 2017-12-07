@@ -139,8 +139,6 @@ namespace Center
         private Dictionary<string, string[]> interfaceTestPrefixes = null;
         internal Dictionary<string, string[]> InterfaceTestPrefixes { get => interfaceTestPrefixes; }
 
-        private bool testMode = false;
-
         #endregion
 
         #region Constructors 
@@ -156,7 +154,6 @@ namespace Center
         public void Test(string name)
         {
             prioritize.Enqueue(new Tuple<string, ProbeRequestData>(name.ToUpper() + "*", null));
-            testMode = true;
         }
 
         private void CreateNodeQueue(string queueCase)
@@ -313,7 +310,64 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 // remove from node virtualization
                 NecrowVirtualization.RemovePhysicalInterfacesByNode(nodeName);
             }
-            
+        }
+
+        internal void UpdateManufacture(string nodeID, string manufacture)
+        {
+            Result result = j.Query("select NO_Name from Node where NO_ID = {0}", nodeID);
+
+            if (result.Count == 1)
+            {
+                lock (keeperNode)
+                {
+                    if (keeperNode.ContainsKey(nodeID))
+                    {
+                        Dictionary<string, object> values = keeperNode[nodeID];
+                        values["NO_Manufacture"] = manufacture;
+                    }
+
+                    j.Execute("update Node set NO_Manufacture = {1} where NO_ID = {0}", nodeID, manufacture);
+                }
+            }
+        }
+
+        internal void CreateNode(string copyFromNodeID)
+        {
+            Result result = j.Query("select * from Node where NO_ID = {0}", copyFromNodeID);
+
+            if (result.Count == 1)
+            {
+                Row row = result[0];
+                Insert insert = j.Insert("Node");
+
+                string id = Database.ID();
+
+                insert.Value("NO_ID", id);
+                insert.Value("NO_Name", row["NO_Name"].ToString());
+                insert.Value("NO_Type", row["NO_Type"].ToString());
+                insert.Value("NO_Active", true);
+                insert.Value("NO_AR", row["NO_AR"].ToString());
+
+                insert.Execute();
+
+                result = j.Query("select * from Node where NO_ID = {0}", id);
+                row = result[0];
+
+                lock (keeperNode)
+                {
+                    Dictionary<string, object> values = new Dictionary<string, object>();
+                    keeperNode.Add(id, values);
+
+                    string newNodeName = row["NO_Name"].ToString();
+                    values.Add("NO_Name", newNodeName);
+                    values.Add("NO_Type", row["NO_Type"].ToString());
+                    values.Add("NO_Manufacture", row["NO_Manufacture"].ToString());
+                    values.Add("NO_IP", row["NO_IP"].ToString());
+                    values.Add("NO_Active", row["NO_Active"].ToBool());
+
+                    prioritize.Enqueue(new Tuple<string, ProbeRequestData>(newNodeName, null));
+                }
+            }
         }
         
         private void DatabaseCheck()
@@ -349,12 +403,19 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 else if (type.ArgumentIndexOf(nodeTypes) == -1) update.Set("NO_Active", false);
 
                 string man = row["NO_Manufacture"].ToString();
-                if (man == "alu" || man == "ALU") update.Set("NO_Manufacture", "ALCATEL-LUCENT");
-                else if (man == "hwe" || man == "HWE") update.Set("NO_Manufacture", "HUAWEI");
-                else if (man == "cso" || man == "CSO" || man == "csc" || man == "CSC") update.Set("NO_Manufacture", "CISCO");
-                else if (man == "jun" || man == "JUN") update.Set("NO_Manufacture", "JUNIPER");
-                else if (man.ToUpper().ArgumentIndexOf(nodeManufactures) == -1) update.Set("NO_Active", false);
-                else if (man.ToUpper() != man) update.Set("NO_Manufacture", man.ToUpper());
+
+                if (man != null && man.ArgumentIndexOf(nodeManufactures) == -1)
+                {
+                    update.Set("NO_Manufacture", null);
+                    man = null;
+                }                
+
+                if (man == null)
+                {
+                    if (row["NO_Model"].ToString() != null) update.Set("NO_Model", null);
+                    if (row["NO_Version"].ToString() != null) update.Set("NO_Version", null);
+                    if (row["NO_SubVersion"].ToString() != null) update.Set("NO_SubVersion", null);
+                }
 
                 if (!update.IsEmpty) batch.Execute(update);
             }

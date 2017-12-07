@@ -1798,43 +1798,40 @@ namespace Center
 
             ExpectResult expect = Expect("ogin:", "sername:");
 
-            if (manufacture == null)
+            if (expect.Index > -1)
             {
+                // arrived at login
+                if (manufacture == null && LastOutput.IndexOf("ALCATEL") > -1)
+                {
+                    manufacture = alu;
+                    nodeManufacture = alu;
+                }
+
+                Event("Authenticating: User");
+                SendLine(user);
+
+                expect = Expect("assword:");
                 if (expect.Index > -1)
                 {
-                    // arrived at login
-                    if (LastOutput.IndexOf("ALCATEL") > -1)
-                    {
-                        manufacture = alu;
-                        nodeManufacture = alu;
-                    }
+                    Event("Authenticating: Password");
+                    SendLine(pass);
 
-                    Event("Authenticating: User");
-                    SendLine(user);
-
-                    expect = Expect("assword:");
+                    expect = Expect("#", ">");
                     if (expect.Index > -1)
                     {
-                        Event("Authenticating: Password");
-                        SendLine(pass);
-
-                        expect = Expect("#", ">");
-                        if (expect.Index > -1)
-                        {
-                            connectSuccess = true;
-                        }
-                        else
-                        {
-                            SendControlRightBracket();
-                            SendControlC();
-                        }
+                        connectSuccess = true;
                     }
                     else
                     {
-                        Event("Cannot find password console prefix");
                         SendControlRightBracket();
                         SendControlC();
                     }
+                }
+                else
+                {
+                    Event("Cannot find password console prefix");
+                    SendControlRightBracket();
+                    SendControlC();
                 }
             }
 
@@ -3002,7 +2999,7 @@ namespace Center
                     {
                         string lineTrim = line.Trim();
 
-                        if (lineTrim.StartsWith("Type"))
+                        if (line.StartsWith("    Type"))
                         {
                             string[] tokens = lineTrim.Split(new char[] { ':' });
                             if (tokens.Length == 2)

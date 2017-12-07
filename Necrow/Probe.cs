@@ -1723,7 +1723,13 @@ namespace Center
                     }
                     else
                     {
+                        if (listLines.Count > 0)
+                        {
+                            if (listLines[0].StartsWith(command) && listLines[0].Length > command.Length) listLines[0] = listLines[0].Substring(command.Length);
+                        }
+
                         lines = listLines.ToArray();
+
                         requestLoop = false;
 
                         bool completed = true;
@@ -2967,7 +2973,6 @@ namespace Center
                 Dictionary<string, SlotToDatabase> slotlive = new Dictionary<string, SlotToDatabase>();
                 Dictionary<string, Row> slotdb = QueryDictionary("select * from NodeSlot where NC_NO = {0}", delegate (Row slotr)
                 {
-
                     return slotr["NC_ID1"].ToString() + "-" + slotr["NC_ID2"].ToString("");
                 }, nodeID);
                 if (slotdb == null) return DatabaseFailure(probe);
@@ -3285,6 +3290,10 @@ namespace Center
                     Update(UpdateTypes.Version, version);
                     Event("Version updated: " + version);
                 }
+                if (nodeVersion == null)
+                {
+                    throw new Exception("Cant determined node version");
+                }
                 if (subVersion != nodeSubVersion)
                 {
                     nodeSubVersion = subVersion;
@@ -3412,10 +3421,7 @@ namespace Center
                 Summary("CHASSIS_PROCESS_SLOT_COUNT", curSlot);
             }
 
-            if (nodeVersion == null)
-            {
-                throw new Exception("Cant determined node version");
-            }
+
 
             Event("Version: " + nodeVersion + ((nodeSubVersion != null) ? ":" + nodeSubVersion : ""));
 

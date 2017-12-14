@@ -220,6 +220,46 @@ namespace Center
 
         #endregion
 
+        #region Usage
+
+        private char mode = '-';
+
+        public char Mode { get => mode; set => mode = value; }
+
+        private bool updateMode = false;
+
+        public bool UpdateMode { get => updateMode; set => updateMode = value; }
+
+        private char encapsulation = '-';
+
+        public char Encapsulation { get => encapsulation; set => encapsulation = value; }
+
+        private bool updateEncapsulation = false;
+
+        public bool UpdateEncapsulation { get => updateEncapsulation; set => updateEncapsulation = value; }
+
+        #endregion
+
+        #region MTU
+
+        private int admMTU = -1;
+
+        public int AdmMTU { get => admMTU; set => admMTU = value; }
+
+        private bool updateAdmMTU = false;
+
+        public bool UpdateAdmMTU { get => updateAdmMTU; set => updateAdmMTU = value; }
+
+        private int runMTU = -1;
+
+        public int RunMTU { get => runMTU; set => runMTU = value; }
+
+        private bool updateRunMTU = false;
+
+        public bool UpdateRunMTU { get => updateRunMTU; set => updateRunMTU = value; }
+
+        #endregion
+
         #region Topology
 
         private int aggr = -1;
@@ -552,7 +592,7 @@ namespace Center
         public static string NullableInfo(this object value, string format)
         {
             string strtype = value.ToString();
-            return strtype == "-1" ? null : (format != null && strtype != null) ? string.Format(format, strtype) : strtype;
+            return (strtype == "-1" || strtype == "-") ? null : (format != null && strtype != null) ? string.Format(format, strtype) : strtype;
         }
 
         public static string NullableInfo(this object value)

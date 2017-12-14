@@ -125,7 +125,7 @@ namespace Center
     {
         #region Fields
 
-        internal readonly static int Version = 28;
+        internal readonly static int Version = 30;
 
         private Database j = Jovice.Database;
 

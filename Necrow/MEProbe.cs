@@ -992,7 +992,7 @@ namespace Center
                 insert.Value("MS_Status", s.Status);
                 insert.Value("MS_Protocol", s.Protocol);
                 insert.Value("MS_IP", s.FarEnd);
-                insert.Value("MS_MTU", s.AdmMTU.Nullable(0));
+                insert.Value("MS_MTU", s.AdmMTU.Nullable(-1));
                 insert.Value("MS_Type", s.Type);
                 insert.Value("MS_LSP", s.LSP);
                 insert.Value("MS_TO_NO", s.FarEndNodeID);
@@ -1011,7 +1011,7 @@ namespace Center
                 update.Set("MS_Protocol", s.Protocol, s.UpdateProtocol);
                 update.Set("MS_Type", s.Type, s.UpdateType);
                 update.Set("MS_LSP", s.LSP, s.UpdateLSP);
-                update.Set("MS_MTU", s.AdmMTU.Nullable(0), s.UpdateAdmMTU);
+                update.Set("MS_MTU", s.AdmMTU.Nullable(-1), s.UpdateAdmMTU);
                 update.Set("MS_IP", s.FarEnd, s.UpdateFarEnd);
                 update.Set("MS_TO_NO", s.FarEndNodeID, s.UpdateFarEndNodeID);
                 update.Where("MS_ID", s.ID);
@@ -2048,6 +2048,12 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
                 if (Request("show port", out lines, probe)) return probe;
 
+                
+                //4/2/11      Up    Yes  Up      9212 9212    - accs null xcme   GIGE-LX  10KM
+                //0           1     2    3       4    5       6 7    8    9      10       11
+                //4/2/12      Up    Yes  Link Up 9212 9212    2 netw null xcme   GIGE-LX  10KM
+                //0           1     2    3    4  5    6       7 8    9    10     11       12
+
                 List<Tuple<MEInterfaceToDatabase, string, int>> monitorPort = new List<Tuple<MEInterfaceToDatabase, string, int>>();
 
                 foreach (string line in lines)
@@ -2056,27 +2062,46 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                     {
                         if (char.IsDigit(line[0]))
                         {
-                            string[] linex = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                            string[] tokens = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
-                            if (linex.Length >= 4)
+                            if (tokens.Length >= 4)
                             {
-                                string portdet = linex[0].Trim();
+                                string portdet = tokens[0].Trim();
                                 string portex = "Ex" + portdet;
                                 portex = portex.Replace('.', ':');
 
                                 if (interfacelive.ContainsKey(portex))
                                 {
-                                    interfacelive[portex].Enable = linex[1].Trim() == "Up";
-                                    interfacelive[portex].Protocol = linex[2].Trim() == "Yes";
+                                    interfacelive[portex].Enable = tokens[1].Trim() == "Up";
+                                    interfacelive[portex].Protocol = tokens[2].Trim() == "Yes";
 
-                                    string il3 = linex[3].Trim();
-                                    if (il3 == "Link") il3 = "Up";
+                                    string il3 = tokens[3].Trim();
+                                    int tokenShift = 0;
+
+                                    if (il3 == "Link")
+                                    {
+                                        il3 = "Up";
+                                        tokenShift = 1;
+                                    }
 
                                     interfacelive[portex].Status = il3 == "Up";
-                                             
-                                    if (linex.Length >= 7)
+
+                                    if (tokens.Length >= (6 + tokenShift))
                                     {
-                                        string agr = linex[6].Trim();
+                                        // mtu
+                                        string cmtu = tokens[4 + tokenShift];
+                                        string omtu = tokens[5 + tokenShift];
+
+                                        if (int.TryParse(cmtu, out int icmtu)) interfacelive[portex].AdmMTU = icmtu == 0 ? -1 : icmtu;
+                                        else interfacelive[portex].AdmMTU = -1;
+
+                                        if (int.TryParse(omtu, out int iomtu)) interfacelive[portex].RunMTU = iomtu == 0 ? -1 : iomtu;
+                                        else interfacelive[portex].RunMTU = -1;
+                                    }
+
+                                    if (tokens.Length >= (7 + tokenShift))
+                                    {
+                                        string agr = tokens[6 + tokenShift].Trim();
                                         if (agr == "-") interfacelive[portex].Aggr = -1;
                                         else
                                         {
@@ -2095,34 +2120,46 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                                 interfacelive.Add("Ag" + agr, mid);
                                             }
                                         }
+                                    }
 
-                                        if (linex.Length >= 10)
+                                    if (tokens.Length >= (9 + tokenShift))
+                                    {
+                                        // mode and encap
+                                        string mode = tokens[7 + tokenShift].Trim().ToUpper();
+                                        string encp = tokens[8 + tokenShift].Trim().ToUpper();
+
+                                        if (mode.Length > 0) interfacelive[portex].Mode = mode[0];
+                                        if (encp.Length > 0) interfacelive[portex].Encapsulation = encp == "NULL" ? '-' : encp[0];
+                                    }
+
+                                    if (tokens.Length >= (10 + tokenShift))
+                                    {
+                                        string typ = tokens[9 + tokenShift].Trim().ToLower();
+
+                                        string ity = null;
+                                        if (typ == "faste") ity = "Fa";
+                                        else if (typ == "xcme") ity = "Gi";
+                                        else if (typ == "xgige") ity = "Te";
+                                        else if (typ == "cgige") ity = "Hu";
+                                        else if (typ == "tdm") ity = "Se";
+
+                                        if (ity != null)
                                         {
-                                            string typ = linex[9].Trim().ToLower();
+                                            interfacelive[portex].InterfaceType = ity;
+                                        }
+                                        
+                                        //3/1/1       Up    Yes  Up      9212 9212    - accs dotq xcme   GIGE-LX  10KM
+                                        //4/2/12      Up    Yes  Link Up 9212 9212    2 netw null xcme   GIGE-LX  10KM
 
-                                            string ity = null;
-                                            if (typ == "faste") ity = "Fa";
-                                            else if (typ == "xcme") ity = "Gi";
-                                            else if (typ == "xgige") ity = "Te";
-                                            else if (typ == "cgige") ity = "Hu";
-                                            else if (typ == "tdm") ity = "Se";
+                                        //1234567890123456789012345678901234567890123456789012345678901234567890123456789
+                                        //         1         2         3         4         5         6   
 
-                                            if (ity != null)
-                                            {
-                                                interfacelive[portex].InterfaceType = ity;
-                                            }
+                                        if (line.Length >= 64)
+                                        {
+                                            string endinfo = line.Substring(63).Trim();
 
-
-                                            //3/1/1       Up    Yes  Up      9212 9212    - accs dotq xcme   GIGE-LX  10KM
-                                            //1234567890123456789012345678901234567890123456789012345678901234567890123456789
-                                            //         1         2         3         4         5         6   
-                                            if (line.Length >= 64)
-                                            {
-                                                string endinfo = line.Substring(63).Trim();
-
-                                                if (endinfo.Length > 0)
-                                                    interfacelive[portex].Info = endinfo;
-                                            }
+                                            if (endinfo.Length > 0)
+                                                interfacelive[portex].Info = endinfo;
                                         }
                                     }
 
@@ -2300,9 +2337,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                         }
                     }
                 }
-
-
-
+                
                 if (nodeVersion.StartsWith("TiMOS-B")) // sementara TiMOS-B ga bisa dapet deskripsi
                 {
                     if (Request("show service sap-using", out lines, probe)) return probe;
@@ -2801,11 +2836,11 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 //main interface
                 if (nodeVersion == "5.90" || nodeVersion == "5.70")
                 {
-                    if (Request("display interface | in current state|down time|BW|bandwidth utilization", out lines, probe)) return probe;
+                    if (Request("display interface | in current state|down time|BW|bandwidth utilization|Maximum Transmit Unit", out lines, probe)) return probe;
                 }
                 else
                 {
-                    if (Request("display interface main | in current state|down time|BW|bandwidth utilization", out lines, probe)) return probe;
+                    if (Request("display interface main | in current state|down time|BW|bandwidth utilization|Maximum Transmit Unit", out lines, probe)) return probe;
                 }
 
                 MEInterfaceToDatabase currentInterfaceToDatabase = null;
@@ -2909,6 +2944,20 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
                         currentInterfaceToDatabase = null;
                     }
+
+                    if (currentInterfaceToDatabase != null && line.IndexOf("Maximum Transmit Unit") > -1)
+                    {
+                        //,The Maximum Transmit Unit is 1600
+                        //     012345678901234567890123456789
+                        //               1         2
+                        int idx = line.IndexOf("Maximum Transmit");
+                        string cot = line.Substring(idx + 25).Split(new char[] { ' ', ',', '.' })[0].Trim();
+
+                        if (int.TryParse(cot, out int rmtu))
+                        {
+                            currentInterfaceToDatabase.RunMTU = rmtu;
+                        }
+                    }
                 }
 
                 if (Request("display interface brief", out lines, probe)) return probe;
@@ -2920,20 +2969,20 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 {
                     if (begin)
                     {
-                        string poe = line.Trim().Split(StringSplitTypes.Space)[0].Trim();
+                        string lineTrim = line.Trim();
+                        string[] tokens = lineTrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                        string poe = tokens[0].Trim();
+                        NetworkInterface inf = NetworkInterface.Parse(poe);
 
                         if (aggr > -1 && line.StartsWith(" "))
                         {
                             if (!poe.StartsWith("Eth-Trunk"))
-                            {
-                                NetworkInterface inf = NetworkInterface.Parse(poe);
+                            {                                
                                 if (inf != null)
                                 {
-                                    string normal = null;
-                                    // fix missing Hu and Te on huawei devices
-                                    if (inf.Type == "Hu") normal = "Gi" + inf.Interface;
-                                    else if (inf.Type == "Te") normal = "Gi" + inf.Interface;
-                                    else normal = inf.Name;
+                                    string normal = NetworkInterface.HuaweiName(inf);
+
                                     interfacelive[normal].Aggr = aggr;
                                 }
                             }
@@ -2950,16 +2999,12 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         // untuk huawei 5.7 dan 5.9
                         if (nodeVersion == "5.70" || nodeVersion == "5.90")
                         {
-                            string lineTrim = line.Trim();
-                            string[] tokens = lineTrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-
                             // 0 => interface, 1 => status, 2 => protocol
                             if (tokens.Length >= 3)
                             {
-                                NetworkInterface nif = NetworkInterface.Parse(tokens[0]);
-                                if (nif != null)
+                                if (inf != null)
                                 {
-                                    string ifname = nif.Name;
+                                    string ifname = NetworkInterface.HuaweiName(inf);
 
                                     if (interfacelive.ContainsKey(ifname))
                                     {
@@ -2967,6 +3012,22 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                         interfacelive[ifname].Protocol = tokens[2] == "up";
                                         interfacelive[ifname].Enable = tokens[1] != "*down";
                                     }
+                                }
+                            }
+                        }
+
+                        // fix interface type yg ga kebaca klo status protocol down
+                        if (inf != null)
+                        {
+                            string ifname = NetworkInterface.HuaweiName(inf);
+
+                            if (interfacelive.ContainsKey(ifname))
+                            {
+                                MEInterfaceToDatabase ive = interfacelive[ifname];
+                                
+                                if (ive.Status == false && inf.Type != ive.InterfaceType)
+                                {
+                                    ive.InterfaceType = inf.Type;
                                 }
                             }
                         }
@@ -3069,7 +3130,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
 
                 // qos
-                if (Request("display cur int | in interface |qos-profile |qos\\ car\\ cir|user-queue |vlan-type\\ dot1q", out lines, probe)) return probe;
+                if (Request("display cur int | in interface |qos-profile |qos\\ car\\ cir|user-queue |vlan-type\\ dot1q|mtu ", out lines, probe)) return probe;
 
                 string currentInterface = null;
                 string currentParent = null;
@@ -3315,6 +3376,18 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                     {
                                         currentKBPS = kbps;
                                     }
+                                }
+                            }
+                        }
+                        else if (lineTrim.StartsWith("mtu"))
+                        {
+                            //mtu 1600
+                            //01234
+                            if (currentParent == null)
+                            {
+                                if (int.TryParse(lineTrim.Substring(4).Trim(), out int cmtu))
+                                {
+                                    interfacelive[currentInterface].AdmMTU = cmtu;
                                 }
                             }
                         }
@@ -3677,6 +3750,34 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.CircuitID = li.CircuitID;
                         UpdateInfo(updateinfo, "circuit", db["MI_MC"].ToString(), li.CircuitID, true);
                     }
+                    if (db["MI_Mode"].ToChar('-') != li.Mode)
+                    {
+                        update = true;
+                        u.UpdateMode = true;
+                        u.Mode = li.Mode;
+                        UpdateInfo(updateinfo, "mode", db["MI_Mode"].ToChar('-').NullableInfo(), li.Mode.NullableInfo());
+                    }
+                    if (db["MI_Encapsulation"].ToChar('-') != li.Encapsulation)
+                    {
+                        update = true;
+                        u.UpdateEncapsulation = true;
+                        u.Encapsulation = li.Encapsulation;
+                        UpdateInfo(updateinfo, "encapsulation", db["MI_Encapsulation"].ToChar('-').NullableInfo(), li.Mode.NullableInfo());
+                    }
+                    if (db["MI_MTU"].ToIntShort(-1) != li.RunMTU)
+                    {
+                        update = true;
+                        u.UpdateRunMTU = true;
+                        u.RunMTU = li.RunMTU;
+                        UpdateInfo(updateinfo, "operational-mtu", db["MI_MTU"].ToIntShort(-1).NullableInfo(), li.RunMTU.NullableInfo());
+                    }
+                    if (db["MI_MTU_Config"].ToIntShort(-1) != li.AdmMTU)
+                    {
+                        update = true;
+                        u.UpdateAdmMTU = true;
+                        u.AdmMTU = li.AdmMTU;
+                        UpdateInfo(updateinfo, "config-mtu", db["MI_MTU_Config"].ToIntShort(-1).NullableInfo(), li.AdmMTU.NullableInfo());
+                    }
                     if (db["MI_Type"].ToString() != li.InterfaceType)
                     {
                         update = true;
@@ -3848,6 +3949,10 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 insert.Value("MI_MQ_Output", s.EgressID);
                 insert.Value("MI_Rate_Input", s.RateInput.Nullable(-1));
                 insert.Value("MI_Rate_Output", s.RateOutput.Nullable(-1));
+                insert.Value("MI_MTU", s.RunMTU.Nullable(-1));
+                insert.Value("MI_MTU_Config", s.AdmMTU.Nullable(-1));
+                insert.Value("MI_Mode", s.Mode.Nullable('-'));
+                insert.Value("MI_Encapsulation", s.Mode.Nullable('-'));
                 insert.Value("MI_Info", s.Info);
                 insert.Value("MI_SE", s.ServiceID);
                 insert.Value("MI_MI", s.ParentID);
@@ -3910,6 +4015,10 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 update.Set("MI_MQ_Output", s.EgressID, s.UpdateEgressID);
                 update.Set("MI_Rate_Input", s.RateInput.Nullable(-1), s.UpdateRateInput);
                 update.Set("MI_Rate_Output", s.RateOutput.Nullable(-1), s.UpdateRateOutput);
+                update.Set("MI_MTU", s.RunMTU.Nullable(-1), s.UpdateRunMTU);
+                update.Set("MI_MTU_Config", s.AdmMTU.Nullable(-1), s.UpdateAdmMTU);
+                update.Set("MI_Mode", s.Mode.Nullable('-'), s.UpdateMode);
+                update.Set("MI_Encapsulation", s.Encapsulation.Nullable('-'), s.UpdateEncapsulation);
                 update.Set("MI_Info", s.Info, s.UpdateInfo);
                 update.Set("MI_LastDown", s.LastDown, s.UpdateLastDown);
                 update.Set("MI_Percentage_TrafficInput", s.TrafficInput.Nullable(-1), s.UpdateTrafficInput);

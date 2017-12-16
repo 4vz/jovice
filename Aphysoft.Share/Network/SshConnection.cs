@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Net.Sockets;
 using System.Text;
 using System.IO;
+using System.Diagnostics;
 
 namespace Aphysoft.Share
 {
@@ -21,7 +22,13 @@ namespace Aphysoft.Share
 
         private Thread listenerThread;
 
-        private SshShell shell;
+        private SshShell shell = null;
+
+        public string ServerVersion { get => shell == null ? null : shell.ServerVersion; }
+
+        public string ClientVersion { get => shell == null ? null : shell.ClientVersion; }
+
+        public bool IsOpened { get => shell == null ? false : shell.ShellOpened; }
 
         private Queue<string> outputs = new Queue<string>();
 
@@ -214,7 +221,7 @@ namespace Aphysoft.Share
                                                 lastOutputSB.Append(s);
 
                                             lastOutput = lastOutputSB.ToString();
-                                            
+
                                             if (output != null && output != "")
                                             {
                                                 lock (outputs)
@@ -246,7 +253,11 @@ namespace Aphysoft.Share
                             {
                                 terminalPrefix = t2;
 
-                                mainLoop = new Thread(new ThreadStart(OnProcess));
+                                mainLoop = new Thread(new ThreadStart(delegate()
+                                {
+                                    Culture.Default();
+                                    OnProcess();
+                                }));
                                 mainLoop.Start();
                             }
                         }
@@ -371,6 +382,86 @@ namespace Aphysoft.Share
             outputs.Clear();
         }
         
+        protected void Expect(string expect)
+        {
+            this.expect = expect;
+            this.expectRegex = null;
+        }
+
+        protected void Expect(Regex expect)
+        {
+            this.expectRegex = expect;
+            this.expect = string.Empty;
+        }
+
+        protected void Send(string data)
+        {
+            Send(data, false);
+        }
+
+        protected void SendLine(string data)
+        {
+            Send(data, true);
+        }
+
+        protected void Send(string data, bool newLine)
+        {
+            if (IsRunning)
+            {
+                Thread.Sleep(50);
+
+                bool sent = false;
+                try
+                {
+                    if (shell != null && shell.Connected)
+                    {
+                        if (newLine)
+                        {
+                            lastSendLine = data;
+                            shell.WriteLine(data);
+                        }
+                        else
+                        {
+                            lastSend = data;
+                            shell.Write(data);
+                        }
+                        sent = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                }
+
+                if (!sent)
+                    ConnectionFailure();
+            }
+        }
+
+        protected void SendCharacter(char character)
+        {
+            Send(character.ToString());
+        }
+
+        protected void SendSpace()
+        {
+            SendCharacter((char)32);
+        }
+
+        protected void SendControlRightBracket()
+        {
+            SendCharacter((char)29);
+        }
+
+        protected void SendControlC()
+        {
+            SendCharacter((char)3);
+        }
+
+        protected void SendControlZ()
+        {
+            SendCharacter((char)26);
+        }
+
         protected void WaitUntilTerminalReady()
         {
             int loop = 0;
@@ -411,86 +502,193 @@ namespace Aphysoft.Share
 
         }
         
-        protected void Expect(string expect)
+        protected bool WaitUntilEndsWith(string endsWith)
         {
-            this.expect = expect;
-            this.expectRegex = null;
+            return WaitUntilEndsWith(new string[] { endsWith });
         }
-
-        protected void Expect(Regex expect)
+        
+        protected bool WaitUntilEndsWith(string[] endsWith)
         {
-            this.expectRegex = expect;
-            this.expect = string.Empty;
-        }
+            bool requestFailed = false;
+            StringBuilder lineBuilder = new StringBuilder();
 
-        protected void Send(string data)
-        {
-            Send(data, false);
-        }
+            bool ending = false;
+            int wait = 0;
 
-        protected void SendLine(string data)
-        {
-            Send(data, true);
-        }
-
-        protected void Send(string data, bool newLine)
-        {
-            if (IsRunning)
+            while (true)
             {
-                Thread.Sleep(50);
-
-                bool send = false;
-                try
+                if (OutputCount > 0)
                 {
-                    if (shell != null && shell.Connected)
+                    ending = false;
+
+                    wait = 0;
+                    string output = GetOutput();
+
+                    for (int i = 0; i < output.Length; i++)
                     {
-                        if (newLine)
+                        byte b = (byte)output[i];
+
+                        if (b >= 32) lineBuilder.Append((char)b);
+
+                        string line = lineBuilder.ToString();
+
+                        string lineTrim = line.Trim();
+
+                        foreach (string endsWithx in endsWith)
                         {
-                            lastSendLine = data;
-                            shell.WriteLine(data);
+                            string endsWithxTrim = endsWithx.Trim();
+
+                            if (lineTrim.EndsWith(endsWithxTrim))
+                            {
+                                ending = true;
+                                break;
+                            }
                         }
+
+                        if (ending) break;
                         else
                         {
-                            lastSend = data;
-                            shell.Write(data);
+                            if (line.EndsWith(terminalPrefix))
+                            {
+                                ending = true;
+                                requestFailed = true;
+                                break;
+                            }
+                            else if (b == 10)
+                            {
+                                lineBuilder.Clear();
+                            }
                         }
-                        send = true;
                     }
                 }
-                catch
+                else
                 {
+                    if (ending)
+                        break;
+
+                    wait++;
+                    if (wait % 200 == 0 && wait < 1600)
+                    {
+                        Console.WriteLine("Waiting...");
+                        SendLine("");
+                    }
+                    Thread.Sleep(100);
+                    if (wait == 1600)
+                    {
+                        Console.WriteLine("Reading timeout, cancel the reading...");
+                        requestFailed = true;
+                    }
+                    else if (wait >= 1600 && wait % 50 == 0)
+                    {
+                        SendControlC();
+                    }
+                    else if (wait == 2000)
+                    {
+                    }
                 }
-
-                if (!send)
-                    ConnectionFailure();
             }
+
+            if (!requestFailed)
+                return false;
+            else
+                return true;
         }
 
-        protected void SendCharacter(char character)
+        protected bool Request2(string command, out string[] lines)
         {
-            Send(character.ToString());
-        }
+            bool requestFailed = false;
+            lines = null;
 
-        protected void SendSpace()
-        {
-            SendCharacter((char)32);
-        }
+            ClearOutput();
+            SendLine(command);
 
-        protected void SendControlRightBracket()
-        {
-            SendCharacter((char)29);
-        }
+            Stopwatch stopwatch = new Stopwatch();
+            StringBuilder lineBuilder = new StringBuilder();
+            List<string> listLines = new List<string>();
 
-        protected void SendControlC()
-        {
-            SendCharacter((char)3);
-        }
+            bool ending = false;
+            int wait = 0;
 
-        protected void SendControlZ()
-        {
-            SendCharacter((char)26);
-        }
+            stopwatch.Start();
 
+            while (true)
+            {
+                if (OutputCount > 0)
+                {
+                    ending = false;
+
+                    wait = 0;
+                    string output = GetOutput();
+
+                    for (int i = 0; i < output.Length; i++)
+                    {
+                        byte b = (byte)output[i];
+
+                        if (b >= 32) lineBuilder.Append((char)b);
+
+                        string line = lineBuilder.ToString();
+
+                        if (line.EndsWith(terminalPrefix))
+                        {
+                            line = line.Substring(0, line.Length - terminalPrefix.Length);
+
+                            if (line.Length > 0)
+                            {
+                                lineBuilder.Clear();
+                                listLines.Add(line);
+                            }
+
+                            ending = true;
+                            break;
+                        }
+                        else if (b == 10)
+                        {
+                            lineBuilder.Clear();
+                            if (line != command)
+                                listLines.Add(line);
+                        }
+                        else if (b == 9) lineBuilder.Append(' ');
+                    }
+                }
+                else
+                {
+                    if (ending)
+                        break;
+
+                    wait++;
+                    if (wait % 200 == 0 && wait < 1600)
+                    {
+                        Console.WriteLine("Waiting...");
+                        SendLine("");
+                    }
+                    Thread.Sleep(100);
+                    if (wait == 1600)
+                    {
+                        Console.WriteLine("Reading timeout, cancel the reading...");
+                        requestFailed = true;
+                    }
+                    else if (wait >= 1600 && wait % 50 == 0)
+                    {
+                        SendControlC();
+                    }
+                    else if (wait == 2000)
+                    {
+                    }
+                }
+            }
+
+            stopwatch.Stop();
+
+            if (!requestFailed)
+            {
+                lines = listLines.ToArray();
+                return false;
+            }
+            else
+                return true;
+
+        }
+        
         #endregion
     }
 
@@ -506,6 +704,28 @@ namespace Aphysoft.Share
                 sftp.Connect();
 
                 sftp.Put(localFiles, remoteDirectory);
+
+                sftp.Close();
+
+                r = true;
+            }
+            catch (Exception ex)
+            {
+
+            }
+
+            return r;
+        }
+
+        public static bool Get(string host, string user, string pass, string remoteFile, string localFile)
+        {
+            bool r = false;
+            try
+            {
+                Sftp sftp = new Sftp(host, user, pass);
+                sftp.Connect();
+
+                sftp.Get(remoteFile, localFile);
 
                 sftp.Close();
 

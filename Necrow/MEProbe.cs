@@ -2130,6 +2130,20 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
                                         if (mode.Length > 0) interfacelive[portex].Mode = mode[0];
                                         if (encp.Length > 0) interfacelive[portex].Encapsulation = encp == "NULL" ? '-' : encp[0];
+
+                                        if (interfacelive[portex].AdmMTU == interfacelive[portex].RunMTU)
+                                        {
+                                            char enc = interfacelive[portex].Encapsulation;
+                                            int cmtu = interfacelive[portex].AdmMTU;
+
+                                            if ((enc == 'D' && cmtu == 1518) ||
+                                                (enc == 'Q' && cmtu == 1522) ||
+                                                (enc == '-' && cmtu == 1514)
+                                                )
+                                            {
+                                                interfacelive[portex].AdmMTU = -1;
+                                            }
+                                        }
                                     }
 
                                     if (tokens.Length >= (10 + tokenShift))
@@ -2204,70 +2218,6 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                             {
                                                 monitorPort.Add(new Tuple<MEInterfaceToDatabase, string, int>(interfacelive[portex], portdet, typerate));
                                             }
-
-
-                                            /*
-                                            long inputBefore = -1, outputBefore = -1, inputAfter = -1, outputAfter = -1;
-
-
-                                            if (Request("show port " + portdet + " | match \"Octets\"", out string[] portlines1, probe)) return probe;
-                                            DateTime t1 = DateTime.Now;
-
-                                            Thread.Sleep(1000);                                                
-
-                                            if (Request("show port " + portdet + " | match \"Octets\"", out string[] portlines2, probe)) return probe;
-                                            DateTime t2 = DateTime.Now;
-
-                                            foreach (string portline in portlines1)
-                                            {
-                                                string t = portline.Trim();
-                                                if (t.StartsWith("Octets"))
-                                                {
-                                                    string[] tokens = t.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-                                                    if (tokens.Length == 3)
-                                                    {
-                                                        string sin = tokens[1];
-                                                        string sout = tokens[2];
-
-                                                        if (!long.TryParse(sin, out inputBefore)) inputBefore = -1;
-                                                        if (!long.TryParse(sout, out outputBefore)) outputBefore = -1;
-                                                    }
-                                                }
-                                            }
-                                            foreach (string portline in portlines2)
-                                            {
-                                                string t = portline.Trim();
-                                                if (t.StartsWith("Octets"))
-                                                {
-                                                    string[] tokens = t.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-                                                    if (tokens.Length == 3)
-                                                    {
-                                                        string sin = tokens[1];
-                                                        string sout = tokens[2];
-
-                                                        if (!long.TryParse(sin, out inputAfter)) inputAfter = -1;
-                                                        if (!long.TryParse(sout, out outputAfter)) outputAfter = -1;
-                                                    }
-                                                }
-                                            }
-
-                                            TimeSpan span = t2 - t1;
-
-                                            if (inputBefore > -1 && inputAfter > -1)
-                                            {
-                                                long delta = inputAfter - inputBefore;
-                                                double bps = ((double)delta / span.TotalSeconds);
-                                                double kbps = Math.Round(bps / 1024);
-                                                interfacelive[portex].TrafficInput = (float)Math.Round(kbps / (double)typerate * 100, 2);
-                                            }
-                                            if (outputBefore > -1 && outputAfter > -1)
-                                            {
-                                                long delta = outputAfter - outputBefore;
-                                                double bps = ((double)delta / span.TotalSeconds);
-                                                double kbps = Math.Round(bps / 1024);
-                                                interfacelive[portex].TrafficOutput = (float)Math.Round(kbps / (double)typerate * 100, 2);
-                                            }*/
-
                                         }
                                     }
                                 }
@@ -2855,14 +2805,13 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         NetworkInterface nif = NetworkInterface.Parse(splits[0]);
                         if (nif != null && !nif.IsSubInterface)
                         {
-                            string name;
-                            if (nif.Type == "Hu" || nif.Type == "Te") name = "Gi" + nif.PortName;
-                            else name = nif.Name;
+                            string name = NetworkInterface.HuaweiName(nif);
 
                             if (interfacelive.ContainsKey(name))
                             {
                                 currentInterfaceToDatabase = interfacelive[name];
                                 currentInterfaceToDatabase.InterfaceType = nif.Type; // default
+                                currentInterfaceToDatabase.Mode = 'A';
                             }
                         }
                     }
@@ -2958,6 +2907,11 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             currentInterfaceToDatabase.RunMTU = rmtu;
                         }
                     }
+
+                    if (currentInterfaceToDatabase != null && line.StartsWith("Switch Port"))
+                    {
+                        currentInterfaceToDatabase.Mode = 'N';
+                    }
                 }
 
                 if (Request("display interface brief", out lines, probe)) return probe;
@@ -3021,7 +2975,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         {
                             string ifname = NetworkInterface.HuaweiName(inf);
 
-                            if (interfacelive.ContainsKey(ifname))
+                            if (interfacelive.ContainsKey(ifname) && !inf.IsSubInterface)
                             {
                                 MEInterfaceToDatabase ive = interfacelive[ifname];
                                 
@@ -3416,6 +3370,12 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             int count = interfacelive[parent].SubInterfaceCount;
                             if (count == -1) count = 0;
                             interfacelive[parent].SubInterfaceCount = count + 1;
+
+                            if (nodeManufacture == hwe && interfacelive[parent].Encapsulation == '-')
+                            {
+                                interfacelive[parent].Encapsulation = 'D';
+                                interfacelive[parent].Mode = 'A';
+                            }
                         }
                     }
                     else

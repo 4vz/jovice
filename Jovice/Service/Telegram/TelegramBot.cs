@@ -5,11 +5,12 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Telegram.Bot;
-using Telegram.Bot.Types;
 using UAParser;
 using Humanizer;
 using System.Diagnostics;
+using System.Net.Http;
+using Telegram.Bot;
+using Telegram.Bot.Types;
 
 namespace Center
 {
@@ -159,7 +160,6 @@ namespace Center
         private static Dictionary<long, BotGroup> botGroups = new Dictionary<long, BotGroup>();
         private static Dictionary<int, BotUser> botUsers = new Dictionary<int, BotUser>();
         
-
         #endregion
         
         private static List<string> WordCombination(string pattern)
@@ -240,7 +240,7 @@ namespace Center
                 string name = row["BU_Name"].ToString();
             }
 
-            Intent.Init();
+            Intent.Init("center");
 
             telegramBot.StartReceiving();
         }
@@ -664,34 +664,45 @@ dbo.DoubleMetaPhone({0}) and LOWER(SUBSTRING(NO_Name, 0, CHARINDEX('-', NO_Name,
                 string conversationID = fromID + "_" + chatID;
                 Conversation conversation = Conversation.Get(conversationID);
 
-                if (conversation != null)
-                {
+                Service.Debug("fromid: " + fromID + " chatid: " + chatID);
 
+                bool privateMessage = false;
+                if (fromID == chatID)
+                {
+                    privateMessage = true;
+                }
+
+
+                if (privateMessage)
+                {
+                    if (conversation == null)
+                    {
+                        Conversation.Create(conversationID);
+                    }
                 }
                 else
                 {
-                    //if (intent.MentionMe && intent.GroupIs("greet"))
-                    //{
-                    //    Conversation.Create(conversationID);
-                    //    OnMessage(sender, e);
-                    //    return;
-                    //}
-                    //else
-                    //{
-                        // no mention
-                    //}
-                }
-                timeProcess.Stop();
+                    // group
+                    if (conversation != null)
+                    {
 
-                Service.Debug("elapsed: " + timeProcess.ElapsedMilliseconds + "ms");
+                    }
+                    else
+                    {
+
+                    }
+                }
+
                 foreach (IntentEntity ent in intent.Entities)
                 {
                     Service.Debug("intent: " + ent.Intent + "; asking: " + ent.Asking + "; mentionMyName: " + ent.MentionMyName);
 
                 }
             }
-            else
-                Service.Debug("not parsed");
+
+
+            Service.Debug("elapsed: " + timeProcess.ElapsedMilliseconds + "ms");
+            timeProcess.Stop();
         }
 
         // obsoleted

@@ -43,6 +43,8 @@ namespace Aphysoft.Share
 
         private bool isConnecting = false;
 
+        private bool isPreparingToReconnect = false;
+
         private bool reconnectAfterDisconnection = true;
 
         private bool cancelConnect = false;
@@ -418,13 +420,21 @@ namespace Aphysoft.Share
                 }
                 else
                 {
-                    // disconnected non-aps 
-                    ConnectionDisconnected(null);
+                    if (isPreparingToReconnect)
+                    {
+                        Debug("Cancel reconnecting...");
+                        cancelConnect = true;
+                    }
+                    else
+                    {
+                        // disconnected non-aps 
+                        ConnectionDisconnected(null);
 
-                    clientSocket = null;
+                        clientSocket = null;
 
-                    // reconnect?
-                    Reconnect();
+                        // reconnect?
+                        Reconnect();
+                    }
                 }
             }
         }
@@ -451,9 +461,14 @@ namespace Aphysoft.Share
                 {
                     Debug("Preparing to reconnect");
 
+                    isPreparingToReconnect = true;
+
                     Thread.Sleep(reconnectDelay);
 
-                    Connect();
+                    isPreparingToReconnect = false;
+
+                    if (!cancelConnect)
+                        Connect();
                 }));
                 connectionThread.Start();
             }

@@ -26,7 +26,7 @@ namespace Center
             }), null, 0, 1000 * 3600); // hourly
         }
         
-        public static void Check()
+        private static void Check()
         {
             Database s = Share.Database;
             Result r = s.Query("select * from DomainController");

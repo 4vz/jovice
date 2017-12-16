@@ -65,8 +65,14 @@ namespace Aphysoft.Share
         {
             get { return id; }
         }
-        
+
         private Dictionary<string, object> data;
+
+        public static string CookieSessionID { get => cookieSessionID; }
+
+        private static string userIPAddress = null;
+
+        public static string UserIPAddress { get => userIPAddress; }
 
         #endregion
 
@@ -87,8 +93,6 @@ namespace Aphysoft.Share
             int avn = sessionIDCharacters.Length;
             for (int i = 0; i < 24; i++) { sb.Append(sessionIDCharacters[RandomHelper.Next(avn)]); }
             return sb.ToString();
-
-            
         }
         
         internal static void Start(HttpContext context)
@@ -146,25 +150,26 @@ select SS_IPAddress from [Session] where SS_SID = {0}
 
                     if (sessionIPAddress != request.UserHostAddress)
                     {
-                        // what? phising session?
-
+                        share.Execute(@"
+update [Session] set SS_Accessed = GETUTCDATE(), SS_IPAddress = {1} where SS_SID = {0}
+", sessionID, request.UserHostAddress);
                     }
                     else
                     {
                         share.Execute(@"
-update Session set SS_Accessed = GETUTCDATE() where SS_SID = {0}
+update [Session] set SS_Accessed = GETUTCDATE() where SS_SID = {0}
 ", sessionID);
-
-                        context.Items["sessionID"] = sessionID;
-                        sessionStart = true;
                     }
+
+                    context.Items["sessionID"] = sessionID;
+                    sessionStart = true;
                 }
                 else
                 {
                     // maybe, browser masih open after this time, insert to database
                     Result newsession = share.ExecuteIdentity(@"
 insert into 
-Session(SS_SID, SS_Created, SS_Accessed, SS_UserAgent, SS_IPAddress)
+[Session](SS_SID, SS_Created, SS_Accessed, SS_UserAgent, SS_IPAddress)
 values({0}, GETUTCDATE(), GETUTCDATE(), {1}, {2})
 ", sessionID, request.UserAgent, request.UserHostAddress);
 

@@ -5417,7 +5417,7 @@ namespace Center
         #endregion
     }
 
-    public class ServiceMapping
+    internal class ServiceMapping
     {
         #region Constants
 

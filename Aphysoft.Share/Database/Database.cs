@@ -1781,13 +1781,13 @@ namespace Aphysoft.Share
             else
             {
                 if (value.GetType() == typeof(T)) return (T)value;
-                else return default(T);
+                else return default;
             }
         }
 
         private T GetValue<T>()
         {
-            return GetValue<T>(default(T));
+            return GetValue<T>(default);
         }
 
         public object ToObject()
@@ -1810,6 +1810,17 @@ namespace Aphysoft.Share
         {
             if (IsNull) return ifNull;
             else return ToString();
+        }
+
+        public char ToChar()
+        {
+            return GetValue<string>()[0];
+        }
+
+        public char ToChar(char ifNull)
+        {
+            if (IsNull) return ifNull;
+            else return ToChar();
         }
 
         public long ToLong()

@@ -42,6 +42,8 @@ namespace Center
     
     internal class Intent
     {
+        private static string name = null;
+
         private List<IntentEntity> entities = new List<IntentEntity>();
 
         public IntentEntity[] Entities
@@ -68,8 +70,10 @@ namespace Center
 
         private static Dictionary<string, List<Tuple<string, string>>> intentReferences = new Dictionary<string, List<Tuple<string, string>>>();
 
-        public static void Init()
+        public static void Init(string name)
         {
+            Intent.name = name;
+
             Result result;
             Database center = Share.Database;
 
@@ -185,7 +189,7 @@ namespace Center
             int startIndex = 0;
             foreach (string token in messageLower.Split(messageSeparators, StringSplitOptions.RemoveEmptyEntries))
             {                
-                if (token == "center")
+                if (token == name)
                 {
                     tokens.Add("{MENTIONMYNAME}");
                     continue;
@@ -265,6 +269,11 @@ namespace Center
                                     {
                                         if (dmTokens[te] == "{QUESTIONMARK}") ask = true;
                                         else if (dmTokens[te] == "{MENTIONMYNAME}") mentionmyname = true;
+                                    }
+
+                                    if (i > 0)
+                                    {
+                                        if (dmTokens[i - 1] == "{MENTIONMYNAME}") mentionmyname = true;
                                     }
 
 

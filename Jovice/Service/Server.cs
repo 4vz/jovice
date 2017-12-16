@@ -44,6 +44,10 @@ namespace Center
         {
             Settings.ServerInit();
             TelegramBot.Init();
+            //AutoCertRenew.Init();
+
+            
+
 
             // service handler to WEB-CLIENT
             Service.Register(typeof(ClientNecrowServiceMessage), ClientNecrowServiceMessageHandler);
@@ -83,6 +87,9 @@ namespace Center
 
             timer = new Timer(new TimerCallback(delegate (object state)
             {                
+
+
+
                 cpu = cpuCounter.NextValue();
                 cpuCounter.NextValue(); // shift 1 cpu counter cycle
                 cpuUsage = Math.Round(cpu, 2);

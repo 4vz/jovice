@@ -197,17 +197,6 @@ namespace Aphysoft.Share
 
         #endregion
 
-        #region Resolution Group
-
-        private static int[] sizeGroups = new int[] { 640, 960 };
-
-        public static int[] SizeGroups
-        {
-            get { return sizeGroups; }
-        }
-
-        #endregion
-
         #region UI
 
         private static bool enableUI = false;
@@ -347,9 +336,6 @@ namespace Aphysoft.Share
 
             // Live
             ReadBoolean("EnableLive", ref enableLive);
-
-            // Resolution Group
-            ReadArrayInteger("ResolutionGroup", ref sizeGroups);
 
             // API
             ReadBoolean("EnableAPI", ref enableAPI);

@@ -5417,7 +5417,7 @@ namespace Center
         #endregion
     }
 
-    internal class ServiceMapping
+    public class ServiceMapping
     {
         #region Constants
 
@@ -5486,8 +5486,8 @@ namespace Center
             ServiceMapping de = new ServiceMapping();
             de.RawDescription = desc;
 
-            string[] s = desc.Split(new char[] { '_', ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            string d = string.Join(" ", s).ToUpper();
+            string o = string.Join(" ", desc.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)).ToUpper();
+            string d = string.Join(" ", o.Split(new char[] { '-', '_' }));
 
             #region Find SID
 
@@ -5529,7 +5529,11 @@ namespace Center
             //                         12345678901234567890
             else rmv = -1;
 
-            if (rmv > -1) d = d.Remove(rmv, rle);
+            if (rmv > -1)
+            {
+                d = d.Remove(rmv, rle);
+                o = o.Remove(rmv, rle);
+            }
             rmv = -1;
             rle = -1;
 
@@ -5552,7 +5556,11 @@ namespace Center
                 else if ((rmv = d.IndexOf("TRANS ")) > -1 && de.ServiceType == null) { de.ServiceType = "VPNIP"; rle = 5; de.ServiceSubType = "TRANS"; }
                 else rmv = -1;
 
-                if (rmv > -1) d = d.Remove(rmv, rle);
+                if (rmv > -1)
+                {
+                    d = d.Remove(rmv, rle);
+                    o = o.Remove(rmv, rle);
+                }
                 rmv = -1;
                 rle = -1;
             }
@@ -5561,9 +5569,11 @@ namespace Center
             rle = -1;
 
             d = d.Trim();
+            o = o.Trim();
 
             //                         12345678901234567890
-            if ((rmv = d.IndexOf("(EX SID FEAS")) > -1) { rle = 12; }
+                 if ((rmv = d.IndexOf(" BENTROK DENGAN ")) > -1) { rle = 16; }
+            else if ((rmv = d.IndexOf("(EX SID FEAS")) > -1) { rle = 12; }
             else if ((rmv = d.IndexOf("[EX SID FEAS")) > -1) { rle = 12; }
             else if ((rmv = d.IndexOf("EX SID FEAS")) > -1) { rle = 11; }
             else if ((rmv = d.IndexOf("EX SID FEAS")) > -1) { rle = 11; }
@@ -5578,9 +5588,7 @@ namespace Center
             else if ((rmv = d.IndexOf("(EX SID")) > -1) { rle = 7; }
             else if ((rmv = d.IndexOf("[EX SID")) > -1) { rle = 7; }
             else if ((rmv = d.IndexOf("EX FEAS")) > -1) { rle = 7; }
-            else if ((rmv = d.IndexOf("EX-SID")) > -1) { rle = 6; }
             else if ((rmv = d.IndexOf("EX SID")) > -1) { rle = 6; }
-            else if ((rmv = d.IndexOf("X-SID")) > -1) { rle = 5; }
             else if ((rmv = d.IndexOf("X SID")) > -1) { rle = 5; }
             else if ((rmv = d.IndexOf("EXSID")) > -1) { rle = 5; }
             else if ((rmv = d.IndexOf("XSID3")) > -1) { rle = 4; }
@@ -5612,134 +5620,139 @@ namespace Center
                 if (rmvn < d.Length)
                 {
                     int end = d.IndexOfAny(new char[] { ' ', ')', '(', ']', '[', '.', '<', '>' }, rmvn);
-                    if (end > -1) d = d.Remove(rmv, end - rmv);
-                    else d = d.Remove(rmv);
+                    if (end > -1)
+                    {
+                        d = d.Remove(rmv, end - rmv);
+                        o = o.Remove(rmv, end - rmv);
+                    }
+                    else
+                    {
+                        d = d.Remove(rmv);
+                        o = o.Remove(rmv);
+                    }
                 }
             }
             rmv = -1;
             rle = -1;
 
-            //                         12345678901234567890
-            if ((rmv = d.IndexOf("SID-TENOSS-")) > -1) { rle = 11; }
-            else if ((rmv = d.IndexOf("SID-TENOSS:")) > -1) { rle = 11; }
-            else if ((rmv = d.IndexOf("SID-TENOSS=")) > -1) { rle = 11; }
-            else if ((rmv = d.IndexOf("SID-TENOSS ")) > -1) { rle = 11; }
-            else if ((rmv = d.IndexOf("SID TENOSS:")) > -1) { rle = 11; }
-            else if ((rmv = d.IndexOf("SID TENOSS=")) > -1) { rle = 11; }
-            else if ((rmv = d.IndexOf("SID TENOSS ")) > -1) { rle = 11; }
-            else if ((rmv = d.IndexOf("TENOSS-SID-")) > -1) { rle = 11; }
-            else if ((rmv = d.IndexOf("TENOSS-SID:")) > -1) { rle = 11; }
-            else if ((rmv = d.IndexOf("TENOSS-SID=")) > -1) { rle = 11; }
-            else if ((rmv = d.IndexOf("TENOSS-SID ")) > -1) { rle = 11; }
-            else if ((rmv = d.IndexOf("TENOSS SID:")) > -1) { rle = 11; }
-            else if ((rmv = d.IndexOf("TENOSS SID=")) > -1) { rle = 11; }
-            else if ((rmv = d.IndexOf("TENOSS SID ")) > -1) { rle = 11; }
-            else if ((rmv = d.IndexOf("SID SID ")) > -1) { rle = 7; }
-            else if ((rmv = d.IndexOf("-SOID-")) > -1) { rle = 6; }
-            else if ((rmv = d.IndexOf("(SID-")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf("(SID:")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf("(SID=")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf("(SID%")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf("(SID ")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf("<SID-")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf("<SID:")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf("<SID=")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf("<SID%")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf("<SID ")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf("[SID-")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf("[SID:")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf("[SID=")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf("[SID%")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf("[SID ")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf(" SID-")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf(" SID:")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf(" SID=")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf(" SID%")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf(" SID ")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf(" SIDT")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf(" SID0")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf(" SID1")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf(" SID2")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf(" SID3")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf(" SID4")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf(" SID5")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf(" SID6")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf(" SID7")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf(" SID8")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf(" SID9")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf("SID-")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf("SID:")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf("SID=")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf("SID%")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf("SID ")) > -1) { rle = 4; }
-            else rmv = -1;
-
-            if (rmv > -1)
+            if (de.SID == null)
             {
-                int rmvn = rmv + rle;
-                if (rmvn < d.Length)
+                //                         12345678901234567890
+                if ((rmv = d.IndexOf("SID TENOSS ")) > -1) { rle = 11; }
+                else if ((rmv = d.IndexOf("SID TENOSS:")) > -1) { rle = 11; }
+                else if ((rmv = d.IndexOf("SID TENOSS=")) > -1) { rle = 11; }
+                else if ((rmv = d.IndexOf("TENOSS SID ")) > -1) { rle = 11; }
+                else if ((rmv = d.IndexOf("TENOSS SID:")) > -1) { rle = 11; }
+                else if ((rmv = d.IndexOf("TENOSS SID=")) > -1) { rle = 11; }
+                else if ((rmv = d.IndexOf("SID SID ")) > -1) { rle = 7; }
+                else if ((rmv = d.IndexOf("TENOSS:")) > -1) { rle = 7; }
+                else if ((rmv = d.IndexOf(" SOID ")) > -1) { rle = 6; }
+                else if ((rmv = d.IndexOf("(SID ")) > -1) { rle = 5; }
+                else if ((rmv = d.IndexOf("(SID:")) > -1) { rle = 5; }
+                else if ((rmv = d.IndexOf("(SID=")) > -1) { rle = 5; }
+                else if ((rmv = d.IndexOf("(SID%")) > -1) { rle = 5; }
+                else if ((rmv = d.IndexOf("<SID:")) > -1) { rle = 5; }
+                else if ((rmv = d.IndexOf("<SID=")) > -1) { rle = 5; }
+                else if ((rmv = d.IndexOf("<SID%")) > -1) { rle = 5; }
+                else if ((rmv = d.IndexOf("<SID ")) > -1) { rle = 5; }
+                else if ((rmv = d.IndexOf("[SID:")) > -1) { rle = 5; }
+                else if ((rmv = d.IndexOf("[SID=")) > -1) { rle = 5; }
+                else if ((rmv = d.IndexOf("[SID%")) > -1) { rle = 5; }
+                else if ((rmv = d.IndexOf("[SID ")) > -1) { rle = 5; }
+                else if ((rmv = d.IndexOf(" SID:")) > -1) { rle = 5; }
+                else if ((rmv = d.IndexOf(" SID=")) > -1) { rle = 5; }
+                else if ((rmv = d.IndexOf(" SID%")) > -1) { rle = 5; }
+                else if ((rmv = d.IndexOf(" SID ")) > -1) { rle = 5; }
+                else if ((rmv = d.IndexOf(" SIDT")) > -1) { rle = 4; }
+                else if ((rmv = d.IndexOf(" SID0")) > -1) { rle = 4; }
+                else if ((rmv = d.IndexOf(" SID1")) > -1) { rle = 4; }
+                else if ((rmv = d.IndexOf(" SID2")) > -1) { rle = 4; }
+                else if ((rmv = d.IndexOf(" SID3")) > -1) { rle = 4; }
+                else if ((rmv = d.IndexOf(" SID4")) > -1) { rle = 4; }
+                else if ((rmv = d.IndexOf(" SID5")) > -1) { rle = 4; }
+                else if ((rmv = d.IndexOf(" SID6")) > -1) { rle = 4; }
+                else if ((rmv = d.IndexOf(" SID7")) > -1) { rle = 4; }
+                else if ((rmv = d.IndexOf(" SID8")) > -1) { rle = 4; }
+                else if ((rmv = d.IndexOf(" SID9")) > -1) { rle = 4; }
+                else if ((rmv = d.IndexOf("SID.")) > -1) { rle = 4; }
+                else if ((rmv = d.IndexOf("SID:")) > -1) { rle = 4; }
+                else if ((rmv = d.IndexOf("SID=")) > -1) { rle = 4; }
+                else if ((rmv = d.IndexOf("SID%")) > -1) { rle = 4; }
+                else if ((rmv = d.IndexOf("SID ")) > -1) { rle = 4; }
+                else if ((rmv = d.IndexOf(" INTG")) > -1) { rle = 1; }
+                else rmv = -1;
+
+                if (rmv > -1)
                 {
-                    if (d[rmvn] == ' ') rmvn += 1;
-                    else if (d[rmvn] == ':' || d[rmvn] == '-' || d[rmvn] == '=' || d[rmvn] == '(' || d[rmvn] == '[')
+                    int rmvn = rmv + rle;
+                    if (rmvn < d.Length)
                     {
-                        rmvn += 1;
-                        if (rmvn < d.Length && d[rmvn] == ' ') rmvn += 1;
-                    }
-                }
-                if (rmvn < d.Length)
-                {
-                    int end = -1;
-                    int nextend = rmvn;
-
-                    while (true)
-                    {
-
-                        end = d.IndexOfAny(new char[] { ' ', ')', '(', ']', '[', '.', '<', '>' }, nextend);
-                        if (end > -1 && end < d.Length && d[end] == ' ' && end - rmvn <= 8) nextend = end + 1;
-                        else break;
-                    }
-
-                    if (end > -1)
-                    {
-                        int len = end - rmv - rle;
-                        if (len + rmvn > d.Length) de.SID = d.Substring(rmvn).Trim();
-                        else de.SID = d.Substring(rmvn, len).Trim();
-                        d = d.Remove(rmv, end - rmv);
-                    }
-                    else
-                    {
-                        string imx = d.Substring(rmvn).Trim();
-                        imx = imx.Replace(' ', '_');
-
-                        if (imx.Length > 13)
+                        if (d[rmvn] == ' ') rmvn += 1;
+                        else if (d[rmvn] == ':' || d[rmvn] == '-' || d[rmvn] == '=' || d[rmvn] == '(' || d[rmvn] == '[')
                         {
-                            StringBuilder nimx = new StringBuilder();
-                            nimx.Append(imx.Substring(0, 13));
-                            for (int imxi = 13; imxi < imx.Length; imxi++)
-                            {
-                                if (char.IsDigit(imx[imxi])) nimx.Append(imx[imxi]);
-                                else break;
-                            }
+                            rmvn += 1;
+                            if (rmvn < d.Length && d[rmvn] == ' ') rmvn += 1;
+                        }
+                    }
+                    if (rmvn < d.Length)
+                    {
+                        int end = -1;
+                        int nextend = rmvn;
 
-                            imx = nimx.ToString();
+                        while (true)
+                        {
+                            end = o.IndexOfAny(new char[] { ' ', ')', '(', ']', '[', '.', '<', '>' }, nextend);
+                            if (end > -1 && end < d.Length && d[end] == ' ' && end - rmvn <= 8) nextend = end + 1;
+                            else break;
                         }
 
-                        de.SID = imx;
-                        d = d.Remove(rmv);
+                        if (end > -1)
+                        {
+                            int len = end - rmv - rle;
+
+                            if (len + rmvn > d.Length) de.SID = o.Substring(rmvn).Trim();
+                            else de.SID = o.Substring(rmvn, len).Trim();
+
+                            d = d.Remove(rmv, end - rmv);
+                            o = o.Remove(rmv, end - rmv);
+                        }
+                        else
+                        {
+                            string imx = o.Substring(rmvn).Trim();
+                            //imx = imx.Replace(' ', '_');
+
+                            if (imx.Length > 13)
+                            {
+                                StringBuilder nimx = new StringBuilder();
+                                nimx.Append(imx.Substring(0, 13));
+                                for (int imxi = 13; imxi < imx.Length; imxi++)
+                                {
+                                    if (char.IsDigit(imx[imxi])) nimx.Append(imx[imxi]);
+                                    else break;
+                                }
+
+                                imx = nimx.ToString();
+                            }
+
+                            de.SID = imx;
+
+                            d = d.Remove(rmv);
+                            o = o.Remove(rmv);
+                        }
                     }
-                }
 
-                if (de.SID != null)
-                {
-                    int weirdc = de.SID.IndexOfAny(new char[] { ' ' });
+                    if (de.SID != null)
+                    {
+                        ///int weirdc = de.SID.IndexOfAny(new char[] { ' ' });
 
-                    if (weirdc > -1) de.SID = null;
+                        ///if (weirdc > -1) de.SID = null;
+                    }
                 }
             }
 
             if (de.SID == null)
             {
-                string[] ss = d.Split(new char[] { ' ', ':', '=' });
+                string[] ss = o.Split(new char[] { ' ', ':', '=' });
 
                 List<string> sidc = new List<string>();
                 foreach (string si in ss)
@@ -5747,8 +5760,7 @@ namespace Center
                     int dig = 0;
 
                     string fsi = si.Trim(new char[] { '-', ')', '(', '[', ']', '>', '<' });
-
-
+                    
                     // count digit in si
                     foreach (char ci in fsi)
                         if (char.IsDigit(ci))
@@ -5903,7 +5915,10 @@ namespace Center
                     sidc.Sort((a, b) => b.Length.CompareTo(a.Length));
 
                     de.SID = sidc[0];
-                    d = d.Remove(d.IndexOf(de.SID), de.SID.Length);
+                    int idx = o.IndexOf(de.SID);
+
+                    d = d.Remove(idx, de.SID.Length);
+                    o = o.Remove(idx, de.SID.Length);
                 }
             }
 

@@ -323,6 +323,22 @@ namespace Center
             else return null;
         }
 
+        public static string HuaweiName(NetworkInterface networkInterface)
+        {
+            if (networkInterface != null)
+            {
+                string normalName = null;
+
+                if (networkInterface.Type == "Hu") normalName = "Gi" + networkInterface.Interface;
+                else if (networkInterface.Type == "Te") normalName = "Gi" + networkInterface.Interface;
+                else normalName = networkInterface.Name;
+
+                return normalName;
+            }
+            else
+                return null;
+        }
+
         #endregion
     }
 }

@@ -10,14 +10,15 @@ namespace Aphysoft.Share
     public class BaseServiceInstance
     {
         #region Fields
-                
-        private bool outputConsole = false;
-        private static Timer connecting;
 
+        private bool running = false;
+                
+        private static Timer connecting;
         protected Thread instanceThread = null;
         private Thread consoleThread = null;
 
-        public bool IsConsole { get => outputConsole; }
+        public bool IsConsole { get => (consoleThread != null); }
+        public bool IsRunning { get => running; }
 
         #endregion
 
@@ -66,6 +67,8 @@ namespace Aphysoft.Share
         {            
             instanceThread = new Thread(new ThreadStart(delegate ()
             {
+                running = true;
+
                 Culture.Default();                
                 Service.Client();
 
@@ -83,10 +86,10 @@ namespace Aphysoft.Share
             }));
             instanceThread.Start();
 
+            bool quitViaConsole = false;
+
             if (console)
             {
-                outputConsole = true;
-
                 consoleThread = new Thread(new ThreadStart(delegate ()
                 {
                     while (true)
@@ -98,29 +101,33 @@ namespace Aphysoft.Share
 
                         if (cs.IsCommand("exit"))
                         {
-                            Stop();
+                            running = false;
+                            quitViaConsole = true;
                             break;
                         }
                     }
+
+                    Event("Console End");
                 }));
                 consoleThread.Start();
             }
 
             instanceThread.Join();
-            Event("Instance thread end");
-            
-            if (console)
-            {
-                Console.WriteLine("Application terminated, press ENTER to end the program");
-                consoleThread.Join();
-            }
 
             OnStop();
+
+            if (console)
+            {
+                if (!quitViaConsole) 
+                    Console.WriteLine("Application terminated, press ENTER to end the program");
+                if (consoleThread.IsAlive)
+                    consoleThread.Join();
+            }
         }
 
         public void Stop()
         {
-            //OnStop();           
+            running = false;
         }
 
         public void Event(string message)

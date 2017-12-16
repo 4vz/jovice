@@ -196,6 +196,12 @@
     Number.prototype.log = function () {
         return Math.log(this);
     };
+    Number.prototype.gte = function (a) {
+        return a <= this ? true : false;
+    };
+    Number.prototype.between = function (a, b) {
+        return a <= this && this < b ? true : false;
+    };
 
     // jQuery add-on
     $.fn.copyCSS = function (source) {
@@ -1082,87 +1088,6 @@
 
     })(share);
 
-    // .isWebFont .isContainWebFont
-    (function (share) {
-
-        var preloadfonts = [];
-        var webfonts = [];
-
-        $.each(document.styleSheets[0].cssRules, function (i, v) {
-
-            if (v instanceof CSSFontFaceRule) {
-                var t = v.cssText ? v.cssText : v.style.cssText;
-
-                var family, weight;
-                $.each(t.substring(t.indexOf("{") + 1, t.indexOf("}")).split(";"), function (tsi, tsv) {
-                    if (tsv.indexOf(":") > -1) {
-                        var ps = tsv.split(":");
-                        var psk = ps[0].trim();
-                        if (psk == "src") return 1;
-                        var psv = ps[1].trim();
-                        if (psk == "font-family") family = psv;
-                        else if (psk == "font-weight") weight = psv;
-                    }
-                });
-
-                if (family != null) {
-                    var av = $("<div />");
-                    $(document.body).append(av);
-                    av.html("loading");
-                    av.css("visibility", "hidden");
-                    av.css("font-family", family);
-
-                    if (weight != null) av.css("font-weight", weight);
-
-                    preloadfonts.push(av);
-                    webfonts.push({
-                        family: family.substring(1, family.length - 1),
-                        weight: weight != null ? weight : null
-                    });
-                }
-            }
-        });
-
-        var isWebFont = function () {
-            var o = arguments;
-
-            if ($.isString(o[0])) {
-                var iswf = false;
-                $.each(webfonts, function (i, v) {
-                    if (v.family == o[0]) {
-                        iswf = true;
-                        return false;
-                    }
-                });
-                return iswf;
-            }
-            else return false;
-        };
-        var isContainWebFont = function () {
-            var o = arguments;
-
-            if ($.isString(o[0])) {
-                var iswf = false;
-                $.each(webfonts, function (i, v) {
-                    if (o[0].indexOf(v.family) > -1) {
-                        iswf = true;
-                        return false;
-                    }
-                });
-                return iswf;
-            }
-            else return false;
-        };
-
-        share.isWebFont = isWebFont;
-        share.isContainWebFont = isContainWebFont;
-
-        share(function () {
-            $.each(preloadfonts, function (i, v) { v.remove(); });
-        });
-
-    })(share);
-
     // .localization
     (function (share) {
 
@@ -1467,6 +1392,7 @@
                 var n = isNaN(nn) ? null : sss.indexOf('-') > -1 ? -1 * (nn > 100 ? 100 : nn < 0 ? 0 : nn) : (nn > 100 ? 100 : nn < 0 ? 0 : nn);
 
                 if (colors[s] != null) hex = colors[s];
+                else if (s == "transparent") hex = "rgba(0, 0, 0, 0)"
                 else if (s == "accent") hex = colorAccent;
                 else if (s.length == 3 && $.isColor("#" + s)) hex = "#" + s;
                 else if (s.length == 4 && s[0] == "#" && $.isColor(s)) hex = s;
@@ -1608,18 +1534,12 @@
 
         var guid = 0;
         var handlers = {};
+
         var _isFullScreen = false;
         var width = 0;
         var height = 0;
         var lastWidth = 0;
         var lastHeight = 0;
-
-        var sizeGroups;
-
-        var group = -1;
-        var lastGroup = null;
-
-        var _sizing = false;
 
         var resize = function () {
             var o = arguments;
@@ -1642,20 +1562,27 @@
             else if ($.isFunction(o[0])) {
                 guid = share.lookup(guid, handlers);
                 handlers[guid] = o[0];
+                var ww = $.window.width();
+                var wh = $.window.height();
                 o[0]({ width: ww, height: wh, lastWidth: ww, lastHeight: wh, widthChanged: false, heightChanged: false });
+
                 return guid;
             }
         };
-        var doResize = function () {
+        var triggerResize = function () {
             var o = arguments;
 
             if ($.isNumber(o[0]) || $.isString(o[0])) {
                 var id = o[0];
+
+                var ww = $.window.width();
+                var wh = $.window.height();
+
                 if (o.length == 1) {
-                    if (handlers[id] != null) handlers[id]();
+                    if (handlers[id] != null) handlers[id]({ width: ww, height: wh, lastWidth: ww, lastHeight: wh, widthChanged: false, heightChanged: false });
                 }
                 else {
-                    if (handlers[id] != null) handlers[id](o[1]);
+                    if (handlers[id] != null) handlers[id](o[1], { width: ww, height: wh, lastWidth: ww, lastHeight: wh, widthChanged: false, heightChanged: false });
                 }
             }
 
@@ -1685,48 +1612,12 @@
             return height;
         };
 
-        var sizing = function () {
-            return _sizing;
-        };
-        var sizeGroup = function () {
-            if (group == -1) return false;
-            else if (group >= 0) return group;
-        };
-        var minimumSize = function () {
-            return sizeGroups[0];
-        };
-
-        var pendingForSizing = false;
-
         function refresh() {
             lastWidth = width;
             lastHeight = height;
             width = $.window.width();
             height = $.window.height();
             _isFullScreen = width == screen.width && height >= (screen.height - 1/*firefox 1px bug*/);
-
-            group = false;
-            //debug(sizeGroups);
-            //debug(width);
-            $.each(sizeGroups, function (i, v) {
-                //debug(width + " <= " + v + " ?");
-                if (width <= v) {
-                    group = i;
-                    //debug("ok group: " + group);
-                    return false;
-                }
-            });
-
-            //if (group === false)
-            //    debug("ok group: false");
-
-            if (lastGroup !== null && lastGroup !== group) _sizing = true;
-            else _sizing = false;
-
-            //debug("lastgroup: " + lastGroup + ", sizing: " + _sizing);
-
-            lastGroup = group;
-            pendingForSizing = true;
 
             return {
                 width: width,
@@ -1739,15 +1630,11 @@
         };
 
         share.resize = resize;
-        share.doResize = doResize;
+        share.triggerResize = triggerResize;
         share.removeResize = removeResize;
         share.isFullScreen = isFullScreen;
         share.pageWidth = pageWidth;
         share.pageHeight = pageHeight;
-
-        share.sizing = sizing;
-        share.sizeGroup = sizeGroup;
-        share.minimumSize = minimumSize;
 
         $.window.resize(function (a) {
             var obj = refresh();
@@ -1757,8 +1644,6 @@
         });
 
         $(function () {
-            sizeGroups = share.system("sizeGroups");
-            sizeGroups.sort(function (a, b) { return a - b });
             refresh();
         });
 
@@ -2103,7 +1988,7 @@
                     if (o.type == "down" || o.type == "up" || o.type == "move" || o.type == "click" ||
                         o.type == "enter" || o.type == "leave" || o.type == "over" || o.type == "out" ||
                         o.type == "wheel" || o.type == "scroll" ||
-                        o.type == "keydown" || o.type == "keyup" || o.type == "keypress" ||
+                        o.type == "keydown" || o.type == "keyup" || o.type == "keypress" || o.type == "input" ||
                         o.type == "change" || o.type == "resize" ||
                         o.type == "focusin" || o.type == "focusout" ||
                         o.type == "position"
@@ -2278,6 +2163,14 @@
                         else if (o.type == "keypress") {
                             so.on("keypress." + id + ".event.share", function (event) {
                                 var pev = keyboardEvent(event, 3);
+                                if (o.once) removeEvent(id);
+                                var ev = o.callback.call(o.caller, pev);
+                                return ev;
+                            });
+                        }
+                        else if (o.type == "input") {
+                            so.on("input." + id + ".event.share", function (event) {
+                                var pev = keyboardEvent(event, 4);
                                 if (o.once) removeEvent(id);
                                 var ev = o.callback.call(o.caller, pev);
                                 return ev;
@@ -2679,6 +2572,7 @@
                     up(null, o[1], o[2])
                 ];
         };
+        
         var move = function () {
             var o = arguments;
             if ($.isJQuery(o[0]))
@@ -2761,6 +2655,13 @@
                 return event(o[0], "keypress", o[1], o[2], o[3]);
             else
                 return event("keypress", o[0], o[1], o[2]);
+        };
+        var input = function () {
+            var o = arguments;
+            if ($.isJQuery(o[0]))
+                return event(o[0], "input", o[1], o[2], o[3]);
+            else
+                return event("input", o[0], o[1], o[2]);
         };
         var change = function () {
             var o = arguments;
@@ -2853,7 +2754,7 @@
             return o;
         };
 
-        // 1: keydown, 2: keyup, 3: keypress
+        // 1: keydown, 2: keyup, 3: keypress, 4: textinput
         function keyboardEvent(event, type) {
             var o = {
                 key: event.which,
@@ -2952,6 +2853,7 @@
         share.keydown = keydown;
         share.keyup = keyup;
         share.keypress = keypress;
+        share.input = input;
         share.change = change;
         share.scroll = scroll;
         share.focusin = focusin;
@@ -4358,7 +4260,7 @@
 
     })(share);
 
-    // ui .load .marginTop .marginLeft .marginBottom .marginRight
+    // .load .marginTop .marginLeft .marginBottom .marginRight
     (function (share) {
 
         var loaded = false;
@@ -4378,9 +4280,7 @@
         var topContainer = $("#top");
         var bottomContainer = $("#bottom");
         var pagesContainer = $("#pages");
-
-        var tooltipBox;
-
+        
         // set up top and bottom container "page" object
         (function () {
 
@@ -4427,31 +4327,12 @@
                 if (ajaxify && History.enabled == false) { // unfortunately, IE<10 is not supported
                     ajaxify = false;
                 }
-
-                // tooltip
-                tooltipBox = share.box(topContainer)({
-                    z: 1000, hide: true
-                });
-
-                (function () {
-                    var tooltipContents = share.box(tooltipBox)({
-                        color: 15
-                    });
-                    var tooltipArrowTop = share.raphael(tooltipBox)({ size: [16, 16], top: 0, left: 20 });
-                    tooltipArrowTop.paper().path("M0,8L16,8L8,0Z").attr({ fill: share.color(15), stroke: "none" });
-                    var tooltipArrowBot = share.raphael(tooltipBox)({ size: [16, 16], left: 20 });
-                    tooltipArrowBot.paper().path("M0,8L16,8L8,16Z").attr({ fill: share.color(15), stroke: "none" });
-
-                    tooltipBox.data("contents", tooltipContents);
-                    tooltipBox.data("arrowtop", tooltipArrowTop);
-                    tooltipBox.data("arrowbot", tooltipArrowBot);
-                })();
-
+                
                 // set container
                 pagesContainer.css(margin);
 
                 // resize
-                share.resize("ui", function () {
+                share.resize("share", function (re) {
 
                     margin.top = parseInt(pagesContainer.css("top"));
                     margin.left = parseInt(pagesContainer.css("left"));
@@ -4460,10 +4341,7 @@
 
                     var topPage = pages.length > 0 ? pages[pages.length - 1] : null;
                     if (topPage != null) {
-
-                        topPage.sizing = share.sizing();
-                        topPage.group = share.sizeGroup();
-                        topPage.resize(topPage);
+                        topPage.triggerResize(re);
                     }
                 });
 
@@ -4493,7 +4371,7 @@
                     }
                     //debug("adding statechange");
 
-                    History.Adapter.bind(window, "statechange", function () {
+                    History.Adapter.bind(window, "statechange", function () {                       
 
                         var State = History.getState();
                         var ofamily = State.data.family;
@@ -4518,14 +4396,19 @@
                             nocallback = true;
                         }
 
-
                         if (topFamily != null) {
 
                             if (ofamily != topFamily) {  // different family, global link
 
                                 if (!nocallback) {
+
+                                    share.startLoading();
+
                                     $.getJSON(contentProviderUrl, { p: appHref }, function (d) {
-                                        ui(d.f, appHref, d.s, d.u, d.c, d.t, d.y, d.z, d.d, d.x, stateData);
+
+                                        share.endLoading();
+
+                                        share.init(d.f, appHref, d.s, d.u, d.c, d.t, d.y, d.z, d.d, d.x, stateData);
                                     });
                                 }
                             }
@@ -4585,6 +4468,9 @@
             var baseUrl = null;
             var endUrl = null;
             var transferLeave = null;
+
+            var resizeGuid = 0;
+            var resizeHandlers = {};
 
             page.lastPage = last;
             page.family = family;
@@ -4752,6 +4638,11 @@
                     // appHref ==> /urlPrefix/path/to/page?querystrings
 
                     if (ajaxify) {
+
+                        // cancel pending tooltip
+                        share.cancelTooltipTimer();
+                        share.closeTooltip();
+
                         //if (page.location == appHrefClean)
                         var globallink = false;
                         var replaceState = false;
@@ -4815,6 +4706,7 @@
                             else {
                                 // global                                
                                 $.getJSON(contentProviderUrl, { p: appHref, t: 1 }, function (d) {
+
                                     if (d.f == "system_status_404") {
                                         // TODO
                                         var todo = page.error("brokenlink", urlPrefix + appHref);
@@ -4824,7 +4716,7 @@
                                         }
                                         //dataUI.transferring = false;
                                         //return;
-                                    }
+                                    }                                    
 
                                     if (replaceState) {
                                         History.replaceState(
@@ -4920,7 +4812,7 @@
                             page.transfer(e.attr("href"), { transferData: d, transition: transition });
                         });
                     });
-                    share.doResize("ui", page);
+                    share.triggerResize("share", page);
                     _new = false;
 
                     state = 1;
@@ -4998,6 +4890,10 @@
 
                     page.state(4);
 
+                    $.each(resizeHandlers, function (ri, rv) {
+                        page.removeResize(ri);
+                    });
+
                     share.removeEvent(eventHandlers);
                     share.removeStream(streamHandlers);
 
@@ -5073,12 +4969,54 @@
             page.leave = function () { this.done(); };
             page.unload = function () { this.done(); };
             page.local = function () { };
-            page.resize = function () { };
             page.error = function () { };
-            page.group = share.sizeGroup();
-            page.sizing = share.sizing();
             page.debugEvents = function () {
                 debug(eventHandlers);
+            };
+            page.resize = function (c, d) {
+                if ($.isNumber(c) || $.isString(c)) {
+                    if ($.isFunction(d)) {
+                        if ($.isUndefined(resizeHandlers[c])) {
+                            resizeHandlers[c] = d;
+                            return c;
+                        }
+                    }
+                }
+                else if ($.isFunction(c)) {
+                    resizeGuid = share.lookup(resizeGuid, resizeHandlers);
+                    resizeHandlers[resizeGuid] = c;
+                    return resizeGuid;
+                }
+            };
+            page.removeResize = function () {
+                var o = arguments;
+                if ($.isNumber(o[0]) || $.isString(o[0])) {
+                    var id = o[0];
+                    if (!$.isUndefined(resizeHandlers[id])) {
+                        delete resizeHandlers[id];
+                    }
+                }
+                else if (Array.isArray(o[0])) {
+                    $.each(o[0], function (i, v) {
+                        removeUnload(v);
+                    });
+                }
+            };
+            page.triggerResize = function () {
+
+                var o = arguments;
+
+                if ($.isPlainObject(o[0])) {
+                    $.each(resizeHandlers, function (ri, rv) {
+                        rv(o[0]);
+                    });
+                }
+                else if ($.isNumber(o[0]) || $.isString(o[0])) {
+                    var id = o[0];
+                    if (!$.isUndefined(resizeHandlers[id])) {
+                        resizeHandlers[id]({ width: page.width(), height: page.height(), lastWidth: 884, lastHeight: 235, widthChanged: false, heightChanged: false });
+                    }
+                }
             };
 
             page.url(pageUrl);
@@ -5136,19 +5074,17 @@
             else pageload();
         };
         share.page = function (name, object) {
-
-            if (object != null) {
-                if ($.isPlainObject(object)) objects[name] = object;
-                else scripts[name] = object;
-            }
-            else {
-                if ($.isString(name)) {
-                    var object = objects[name];
-                    return $.isUndefined(object) ? null : $.extend(true, {}, object);
-                }
-                else return pages[0];
+            if ($.isPlainObject(object)) objects[name] = object;
+            else if ($.isString(name)) {
+                var object = objects[name];
+                return $.isUndefined(object) ? null : $.extend(true, {}, object);
             }
         };
+        share.script = function (name, object) {
+            if ($.isFunction(object)) scripts[name] = object;
+        }
+
+
         share.load = function (scriptUrl, complete) {
             $.ajax({
                 url: scriptUrl, dataType: "script", cache: true, complete: function () {
@@ -5198,7 +5134,7 @@
                     remove($(vv));
                 });
 
-                var vo = v.data("ui");
+                var vo = v.data("share");
 
                 if (vo != null) {
                     if (vo.type != "page") {
@@ -5209,14 +5145,16 @@
                     v.remove();
             }
         };
-        share.script = function (c, callback) {
-            if ($.isString(c) && $.isFunction(callback)) {
-                var _script = scripts[c];
+
+        share.loadScript = function (name, callback) {
+
+            if ($.isString(name) && $.isFunction(callback)) {
+                var _script = scripts[name];
 
                 if ($.isUndefined(_script)) {
-                    $.getJSON(contentProviderUrl, { vk: c }, function (d) {
+                    $.getJSON(contentProviderUrl, { vk: name }, function (d) {
                         share.load(d.s, function () {
-                            _script = scripts[c];
+                            _script = scripts[name];
                             if (_script != null) {
                                 callback(_script);
                             }
@@ -5239,9 +5177,6 @@
         };
         share.bottomContainer = function () {
             return bottomContainer;
-        };
-        share.tooltipBox = function () {
-            return tooltipBox;
         };
 
         function div(par) {
@@ -5294,7 +5229,7 @@
     // creates share global object that can be accessed through the application
     (function (share) {
         
-        var global = function () {
+        var global = function (onInit) {
             
             var page = null;
             var inited = false;
@@ -5309,23 +5244,14 @@
                     }
                     inited = true;
 
-                    // apply page resize
-                    // page resize
-                    var _resize = page.resize;
-                    page.resize = function () {
-                        //onResize();
-                        _resize.apply(this, [page]);
-                    };
+                    if (onInit != null) onInit(page);
 
                     return page;
                 }
             };
         };
 
-
         share.global = global;
-
-
 
     })(share);
     
@@ -5517,9 +5443,12 @@
     // .box
     (function (share) {
 
-        var box = function (container) {
+        var tooltipBox = null, tooltipContents = null, tooltipArrowTop = null, tooltipArrowBot = null, tooltipTimer = null;
+
+        var box = function (container, type) {
 
             if (container == null) return null;
+            
 
             // CONTAINER ---
             var page = null, parent = null, parentBox = null,
@@ -5586,7 +5515,8 @@
             // ELEMENT ---
             //var identifier = share.identifier(8);
             //var element = $("<div id=\"" + identifier + "\" class=\"_BO\" />");
-            var element = $("<div class=\"_BO\" />");
+            if ($.isUndefined(type)) type = "div";
+            var element = $("<" + type + " class=\"_BO\" />");
             var box = function (a) {
                 if ($.isPlainObject(a)) {
                     $.each(a, function (i, v) {
@@ -5879,8 +5809,10 @@
                         delete centerStyle.right;
                     }
                     else {
-                        if ($.isPlainObject(a))
+                        if ($.isPlainObject(a)) {
+                            a.queue = false;
                             this.$.animate({ left: l }, a);
+                        }
                         else
                             this.$.css({ left: l });
                     }
@@ -5987,7 +5919,7 @@
                     return [this.absoluteLeft(), this.absoluteTop()];
                 }
             };
-            box.right = function (r) {
+            box.right = function (r, a) {
                 if ($.isUndefined(r)) {
                     var cc = this.$.css("right");
                     if (cc == "auto") return 0;
@@ -6001,17 +5933,24 @@
                         centerRight = r;
                         delete centerStyle.left;
                     }
-                    else this.$.css({ left: "", right: r });
+                    else {
+                        if ($.isPlainObject(a)) {
+                            a.queue = false;
+                            this.$.animate({ right: r }, a);
+                        }
+                        else
+                            this.$.css({ left: "", right: r });
+                    }
                 }
             };
-            box.leftRight = function (l, r) {
+            box.leftRight = function (l, r, a) {
                 if (!$.isUndefined(l) && !$.isUndefined(r)) {
-                    this.right(r);
-                    this.left(l);
+                    this.right(r, a);
+                    this.left(l, a);
                 }
                 else if (!$.isUndefined(l)) {
-                    this.right(l);
-                    this.left(l);
+                    this.right(l, a);
+                    this.left(l, a);
                 }
             };
             box.bottom = function (b) {
@@ -6080,9 +6019,14 @@
             box.fadeTo = function (s, o, c) {
                 this.$.fadeTo(s, o, c);
             };
-            box.opacity = function (o) {
+            box.opacity = function (o, a) {
                 if ($.no(arguments)) return this.$.css("opacity");
-                else this.$.css({ opacity: o });
+                else {
+                    if ($.isPlainObject(a))
+                        this.$.animate({ opacity: o }, a);
+                    else
+                        this.$.css({ opacity: o });
+                }
             };
             box.removeChildren = function () {
                 if (box.isScroll()) {
@@ -6280,11 +6224,22 @@
             var border = null, borderLeft = null, borderTop = null, borderRight = null, borderBottom = null;
 
             function borderSet(d, c) {
+                if ($.isUndefined(c.color)) c.color = 0;
                 if (c == null) box.$.css(d, "");
                 else box.$.css(d, c.size + "px solid " + share.color(c.color));
 
                 if (border == null && borderLeft == null && borderTop == null && borderRight == null && borderBottom == null) box.$.css({ boxSizing: "" });
                 else box.$.css({ boxSizing: c.outside == true ? "" : "border-box" });
+            };
+
+            box.noBorder = function (c) {
+                if (c == false) {
+                    box.$.css({ border: "" });
+                }
+                else {
+                    border = null; borderLeft = null; borderTop = null; borderRight = null; borderBottom = null;
+                    box.$.css({ border: 0 });
+                }
             };
 
             box.border = function (c) {
@@ -6308,31 +6263,92 @@
                 borderSet("border-bottom", c);
             };
 
+            box.noOutline = function (c) {
+                if (c == false) box.$.css({ outline: "" });
+                else box.$.css({ outline: 0 });
+            }
+
+            box.margin = function () {
+
+                var o = arguments;
+
+                
+                if (o.length >= 1) {
+
+                    if (o.length == 2) {
+                        box.marginLeft(o[1]);
+                        box.marginRight(o[1]);
+                        box.marginTop(o[0]);
+                        box.marginBottom(o[0]);
+                    }
+                    else if (o.length == 4) {
+                        box.marginLeft(o[0]);
+                        box.marginRight(o[2]);
+                        box.marginTop(o[1]);
+                        box.marginBottom(o[3]);
+                    }
+                }
+                else return [box.marginLeft(), box.marginTop(), box.marginRight(), box.marginBottom()];
+            }
+
+            box.marginTop = function (c) {
+                if (c != undefined) {
+                    if (c == null) c = "";
+                    box.$.css({ marginTop: c });
+                }
+                else return box.$.css("marginTop");
+            };
+            box.marginBottom = function (c) {
+                if (c != undefined) {
+                    if (c == null) c = "";
+                    box.$.css({ marginBottom: c });
+                }
+                else return box.$.css("marginBottom");
+            };
+            box.marginLeft = function (c) {
+                if (c != undefined) {
+                    if (c == null) c = "";
+                    box.$.css({ marginLeft: c });
+                }
+                else return box.$.css("marginLeft");
+            };
+            box.marginRight = function (c) {
+                if (c != undefined) {
+                    if (c == null) c = "";
+                    box.$.css({ marginRight: c });
+                }
+                else return box.$.css("marginRight");
+            };
+
             var tooltipOver = null, tooltipOut = null;
             var tooltipText = null, tooltipColor = null;
 
             box.tooltip = function (t) {
                 if (tooltipOver == null) {
                     tooltipOver = box.over(function () {
-                        var to = share.tooltipBox();
-                        var timer = to.data("timer");
 
-                        if (timer != null) clearTimeout(timer);
-                        timer = setTimeout(function () {
-                            var contents = to.data("contents");
-                            var arrowtop = to.data("arrowtop");
-                            var arrowbot = to.data("arrowbot");
+                        if (tooltipBox == null) {
+                            tooltipBox = share.box(share.topContainer())({ z: 1000, hide: true });
+                            tooltipContents = share.box(tooltipBox)({ color: 15 });
+                            tooltipArrowTop = share.raphael(tooltipBox)({ size: [16, 16], top: 0, left: 20 });
+                            tooltipArrowTop.paper().path("M0,8L16,8L8,0Z").attr({ fill: share.color(15), stroke: "none" });
+                            tooltipArrowBot = share.raphael(tooltipBox)({ size: [16, 16], left: 20 });
+                            tooltipArrowBot.paper().path("M0,8L16,8L8,16Z").attr({ fill: share.color(15), stroke: "none" });
+                        }
 
-                            to.show();
-                            to.opacity(0);
-                            to.size(400, 250);
-                            contents.size(400, 270);
+
+                        if (tooltipTimer != null) clearTimeout(tooltipTimer);
+                        tooltipTimer = setTimeout(function () {
+                            tooltipBox.show();
+                            tooltipBox.opacity(0);
+                            tooltipBox.size(400, 250);
+                            tooltipContents.size(400, 270);
 
                             if ($.isString(t)) {
-                                tooltipText = share.text(contents)({ font: 11, position: [10, 10], color: 90, text: t });
+                                tooltipText = share.text(tooltipContents)({ font: 11, position: [10, 10], color: 90, text: t });
                                 tooltipText.text(t);
-                                contents.width(tooltipText.computedWidth() + 20);
-                                contents.height(tooltipText.computedHeight() + 20);
+                                tooltipContents.width(tooltipText.computedWidth() + 20);
+                                tooltipContents.height(tooltipText.computedHeight() + 20);
                                 if (tooltipColor != null) {
                                     tooltipText.spanColor(tooltipColor[0], tooltipColor[1], tooltipColor[2], tooltipColor[3], tooltipColor[4]);
                                 }
@@ -6341,69 +6357,66 @@
 
                             }
 
-                            var w = contents.width();
-                            var h = contents.height();
-                            to.width(w);
-                            to.height(h + 8);
-                            to.animate({ opacity: 1 }, { duration: 100 });
+                            var w = tooltipContents.width();
+                            var h = tooltipContents.height();
+                            tooltipBox.width(w);
+                            tooltipBox.height(h + 8);
+                            tooltipBox.animate({ opacity: 1 }, { duration: 100 });
 
                             var abstop = box.absoluteTop();
                             var absleft = box.absoluteLeft();
-                            var width = to.width();
-                            var height = to.height();
+                            var width = tooltipBox.width();
+                            var height = tooltipBox.height();
                             var boxWidth = box.width();
                             var boxHeight = box.height();
 
                             if (absleft < 30) {
-                                to.left(10);
+                                tooltipBox.left(10);
                             }
                             else if (absleft > (share.pageWidth() - 30)) {
-                                to.left(share.pageWidth() - width - 10);
+                                tooltipBox.left(share.pageWidth() - width - 10);
                             }
                             else if ((absleft - 20 + width) > (share.pageWidth() - 10)) {
-                                to.left(share.pageWidth() - width - 10);
-                                arrowbot.left(absleft - (share.pageWidth() - width - 10));
-                                arrowtop.left(absleft - (share.pageWidth() - width - 10));
+                                tooltipBox.left(share.pageWidth() - width - 10);
+                                tooltipArrowBot.left(absleft - (share.pageWidth() - width - 10));
+                                tooltipArrowTop.left(absleft - (share.pageWidth() - width - 10));
                             }
                             else {
-                                to.left(absleft - 20);
-                                arrowbot.left(20);
-                                arrowtop.left(20);
+                                tooltipBox.left(absleft - 20);
+                                tooltipArrowBot.left(20);
+                                tooltipArrowTop.left(20);
                             }
 
                             if ((abstop + height + boxHeight + 10) > (share.pageHeight() - 10)) {
-                                arrowtop.hide();
+                                tooltipArrowTop.hide();
 
-                                if (absleft < 30 || absleft > (share.pageWidth() - 30)) arrowbot.hide();
+                                if (absleft < 30 || absleft > (share.pageWidth() - 30)) tooltipArrowBot.hide();
                                 else {
-                                    arrowbot.show();
-                                    arrowbot.top(height - 16);
+                                    tooltipArrowBot.show();
+                                    tooltipArrowBot.top(height - 16);
                                 }
 
-                                contents.top(0);
-                                to.top(abstop - height);
+                                tooltipContents.top(0);
+                                tooltipBox.top(abstop - height);
                             }
                             else {
-                                arrowbot.hide();
+                                tooltipArrowBot.hide();
 
-                                if (absleft < 30 || absleft > (share.pageWidth() - 30)) arrowtop.hide();
+                                if (absleft < 30 || absleft > (share.pageWidth() - 30)) tooltipArrowTop.hide();
                                 else {
-                                    arrowtop.show();
+                                    tooltipArrowTop.show();
                                 }
 
-                                contents.top(8);
-                                to.top(abstop + boxHeight);
+                                tooltipContents.top(8);
+                                tooltipBox.top(abstop + boxHeight);
                             }
 
                         }, 500);
-                        to.data("timer", timer);
                     });
                     tooltipOut = box.out(function () {
-                        var to = share.tooltipBox();
-                        var timer = to.data("timer");
-                        if (timer != null) clearTimeout(timer);
-                        to.hide();
-                        to.data("contents").removeChildren();
+                        if (tooltipTimer != null) clearTimeout(tooltipTimer);
+                        tooltipBox.hide();
+                        tooltipContents.removeChildren();
                         tooltipText = null;
                     });
                 }
@@ -6508,7 +6521,6 @@
                 return button != null;
             };
 
-
             var isCenter = false, centerStyle, centerTop, centerLeft, centerRight, centerBottom, centerResize = null;
             box.center = function (c) {
                 if ($.isUndefined(c)) c = true;
@@ -6525,7 +6537,12 @@
                         (box.type == "text" ||
                             (parentBox.rawHeight() == null && parentBox.rawTop() != null && parentBox.rawBottom() != null)
                         )) {
-                        var reshack = function () { box.$.css({ top: (parentBox.height() - box.height()) / 2, left: (parentBox.width() - box.width()) / 2 }); };
+                        var reshack = function () {
+                            box.$.css({
+                                top: (parentBox.height() - box.height()) / 2,
+                                left: (parentBox.width() - box.width()) / 2
+                            });
+                        };
                         centerResize = [parentBox.resize(reshack), box.resize(reshack)];
                         reshack();
 
@@ -6554,6 +6571,9 @@
             box.isCenter = function () {
                 return isCenter;
             };
+
+
+
             box.cursor = function (p) {
                 if (p == null) p = "";
                 this.$.css({ cursor: p });
@@ -6564,6 +6584,68 @@
             box.autoCursor = function () {
                 this.cursor("auto");
             };
+
+            var boxCurrentOrder = null;
+
+            box.order = function (c) {
+
+                var o = arguments;
+
+                if (o.length > 0) {
+
+                    var goodChild = [];
+                    $.each(o, function (ci, cv) {
+                        if (box.parentOf(cv)) {
+                            goodChild.push(cv);
+                        }
+                    });
+
+                    var same = true;
+
+                    if (boxCurrentOrder != null) {
+                        if (boxCurrentOrder.length != goodChild.length) same = false;
+                        else {
+                            $.each(boxCurrentOrder, function (ci, cv) {
+                                if (goodChild[ci] == null || goodChild[ci] != cv) {
+                                    same = false;
+                                    return false;
+                                }
+                            });
+                        }
+                    }
+                    else same = false;
+
+                    if (same == true) return;
+
+                    var oprev = null;
+                    var oid = 0;
+
+                    $.each(goodChild, function (gi, gv) {
+
+                        if (oid > 0) {
+                            gv.$.insertAfter(oprev.$);                            
+                        }
+                        oprev = gv;
+
+                        oid++;
+                    });
+
+                    boxCurrentOrder = goodChild;
+
+                }
+
+
+
+            };
+
+            box.parentOf = function (c) {
+                if (c.$.parents(box.$).length > 0) {
+                    return true;
+                }
+                else return false;
+            };
+
+
             box.parent = function () {
                 if (containerType == 1)
                     return parentBox;
@@ -6584,7 +6666,11 @@
                 return children;
             };
             box.float = function (f) {
-                this.$.css({ float: f });
+                if ($.isUndefined(f)) return this.$.css("float");
+                else {
+                    if (f == null) f = "";
+                    this.$.css({ float: f });
+                }
             };
             var dragableDefaults = {
                 lockInside: false,
@@ -7347,7 +7433,16 @@
 
             return box;
         };
+
         share.box = box;
+        share.cancelTooltipTimer = function () {
+            if (tooltipTimer != null) clearTimeout(tooltipTimer);
+        };
+        share.closeTooltip = function () {
+            if (tooltipBox != null) {
+                tooltipBox.hide();
+            }
+        };
 
     })(share);
 
@@ -7881,8 +7976,10 @@
             ib.value = function (n) {
                 return d.onValue(n);
             };
+            ib.onChange = function (c) {
+            };
             ib.change = function (c) {
-                return d.event("change", c);
+                return d.onChange(c);
             };
             ib.onFocus = function () { };
             ib.focus = function (f) {
@@ -8020,16 +8117,25 @@
             };
             textinput.onValue = function (v) {
                 if ($.isUndefined(v)) return input.val();
-                else input.val(v);
+                else {
+                    input.val(v);
+                    input.trigger("change");
+                }
+            };
+            textinput.onChange = function (c) {
+                return this.event(input, "change", c);
             };
             textinput.keydown = function (c) {
-                return this.event("keydown", c);
+                return this.event(input, "keydown", c);
             };
             textinput.keyup = function (c) {
-                return this.event("keyup", c);
+                return this.event(input, "keyup", c);
             };
             textinput.keypress = function (c) {
-                return this.event("keypress", c);
+                return this.event(input, "keypress", c);
+            };
+            textinput.input = function (c) {
+                return this.event(input, "input", c);
             };
             textinput.clear = function () {
                 d.value("");
@@ -8056,10 +8162,10 @@
                 input.focusEnd();
             };
             textinput.focusin = function (d) {
-                return textinput.event(input, "focusin", d);
+                return this.event(input, "focusin", d);
             };
             textinput.focusout = function (d) {
-                return textinput.event(input, "focusout", d);
+                return this.event(input, "focusout", d);
             };
             textinput.readonly = function (s) {
                 if (s == false) input.prop("readonly", false);
@@ -8128,8 +8234,10 @@
 
         var button = function (container) {
 
-            var d = share.box(container);
+            var d = share.box(container, "button");
             if (d == null) return null;
+
+            d({ noBorder: true, noOutline: true });
 
             var t = share.text(d);
 
@@ -8149,10 +8257,18 @@
                 if (state != s) {
                     state = s;
                     if (state == 1) {
-                        d({ color: "accent", cursor: "pointer" });
+                        d.cursor("pointer");
+                        if (design == null) {
+                            d.color("accent");
+                        }
+                        else if (design.stateChanged != null) design.stateChanged(d, t);
                     }
                     else {
-                        d({ color: 80, cursor: "default" });
+                        d.cursor("default");
+                        if (design == null) {
+                            d.color(80);
+                        }
+                        else if (design.stateChanged != null) design.stateChanged(d, t);
                     }
                 }
             };
@@ -8176,19 +8292,45 @@
                 click = c;
             };
 
+            var design = null;
+            button.design = function (c) {
+                if ($.isPlainObject(c)) {
+                    design = c;
+                    if (design.normal != null) design.normal(d, t, true);
+                }
+                else if (c == null) {
+                    design = null;
+                    d.color("accent");
+                    t.color(100);
+                }
+            };
+
+            button.textColor = function (c, a) {
+                return t.color(c, a);
+            };
+
             d.resize(onresize);
 
-            t({ color: 100, weight: "600", font: 16 });
+            t({ color: 100, weight: "500", font: 14 });
             d({
                 size: [300, 35], color: "accent", cursor: "pointer", button: {
                     normal: function () {
-                        if (state == 1) d.color("accent");
+                        if (design == null) {
+                            if (state == 1) d.color("accent");
+                        }
+                        else if (design.normal != null) design.normal(d, t);
                     },
                     over: function () {
-                        if (state == 1) d.color("accent+25");
+                        if (design == null) {
+                            if (state == 1) d.color("accent+25");
+                        }
+                        else if(design.over != null) design.over(d, t);
                     },
                     press: function () {
-                        if (state == 1) d.color("accent+40");
+                        if (design == null) {
+                            if (state == 1) d.color("accent+40");
+                        }
+                        else if (design.press != null) design.press(d, t);
                     },
                     click: function () {
                         if (state == 1 && click != null) {
@@ -8203,441 +8345,6 @@
 
         share.button = button;
 
-
-    })(share);
-
-    // .accordion
-    (function (share) {
-
-        var accordion = function (container) {
-
-            var d = share.box(container);
-            if (d == null) return null;
-
-            var windows = [];
-            var orientation = 0, oldOrientation = 0;
-            var focus = -1, oldFocus = -1;
-            var insize = 60, oldInsize = 60;
-            var clickToFocus = null;
-            var windowObjectDefaults = {
-                create: function (c) { },
-                focus: function (a) { },
-                blur: function (a) { },
-                resize: function (c, s) { }
-            };
-
-            var accordion = d;
-            var firsttime = true;
-
-            function sizing(anim) {
-                if ($.isUndefined(anim)) {
-                    anim = { duration: 0 };
-                }
-
-                var an = null, cinsize = false, cfocus = false;
-
-                if (anim != null && firsttime == false) {
-                    an = anim;
-                    cinsize = (an != null) && (insize != oldInsize);
-                    cfocus = (an != null) && (focus != oldFocus);
-                }
-
-                var as;
-                if (orientation == 0)
-                    as = accordion.width();
-                else
-                    as = accordion.height();
-
-                if (firsttime) {
-                    firsttime = false;
-                }
-
-                var ms = as - (insize * windows.length - 1);
-
-
-                var vb = windows[oldFocus];
-                var ow = vb.container.width();
-
-                var bfh = 0, afh = 0;
-                var ofoch = false;
-
-                $.each(windows, function (iw, vw) {
-                    if (iw == focus) {
-                        ofoch = true;
-                    }
-                    //debug(iw + ": shown: " + vw.isShown + ", cd: " + vw.changeDisplay);
-                    if ((vw.isShown == false && !vw.changeDisplay) || (vw.isShown && vw.changeDisplay)) {
-                        if (ofoch == false) bfh++;
-                        else afh++;
-                    }
-                });
-
-                var bch = 0;
-                var ococh = false;
-
-                $.each(windows, function (iw, vw) {
-                    var c = vw.box;
-
-                    var cd = vw.changeDisplay;
-                    var f = vw.functions;
-                    var con = vw.container;
-
-                    if (clickToFocus != null) {
-                        if (focus == iw) vw.button.hide();
-                        else vw.button.show();
-                    }
-
-                    if (iw == focus) {
-                        ococh = true;
-                    }
-                    if (ococh == false && ((vw.isShown == false && !vw.changeDisplay) || (vw.isShown && vw.changeDisplay))) {
-                        bch++;
-                    }
-                    var ach = 0;
-                    if (iw > focus) {
-                        for (var iiw = iw + 1; iiw < windows.length; iiw++) {
-                            var ivw = windows[iiw];
-                            if ((ivw.isShown == false && !ivw.changeDisplay) || (ivw.isShown && ivw.changeDisplay)) {
-                                ach++;
-                            }
-                        }
-                    }
-
-
-                    if (cinsize) {
-
-                        if (orientation == 0) {
-                            c.top(null); c.bottom(null);
-                            c.height("100%");
-
-                            if (iw < focus) {
-                                c.$.css({ width: oldInsize, left: (iw - bch) * oldInsize }).animate({ width: insize, left: (iw - bch) * insize }, an);
-                            }
-                            else if (iw == focus) {
-                                //debug("cinsize!");
-                                var anx = $.extend({}, an, {
-                                    step: function (now, fx) {
-                                        //debug("step!");
-                                        f.resize(con);
-                                    }, complete:
-                                    function () {
-                                        con.width("100%");
-                                    }
-                                });
-
-                                c.width(null);
-                                c.$.css({ left: (iw - bfh) * oldInsize, right: (windows.length - iw - 1 - afh) * oldInsize })
-                                    .animate({ left: (iw - bfh) * insize, right: (windows.length - iw - 1 - afh) * insize }, anx);
-                            }
-                            else if (iw > focus) {
-                                c.$.css({ width: oldInsize, right: (windows.length - iw - 1 - ach) * oldInsize })
-                                    .animate({ width: insize, right: (windows.length - iw - 1 - ach) * insize }, an);
-                            }
-                        }
-                    }
-                    else if (cfocus) {
-
-                        if (orientation == 0) {
-
-                            c.top(null); c.bottom(null);
-                            c.height("100%");
-
-                            if (iw < oldFocus) {
-                                if (iw < focus) {
-                                    // no change
-                                }
-                                else if (iw == focus) {
-                                    con.width(ow);
-                                    var anx = $.extend({}, an, {
-                                        step: function (now, fx) {
-                                            //debug("sii");
-                                            f.resize(con, now == ((windows.length - iw - 1 - afh) * insize));
-                                        }, complete: function () {
-                                            con.width("100%");
-                                        }
-                                    });
-                                    c.width(null);
-                                    c.$.css({ left: (iw - bfh) * insize, right: as - ((iw + 1 - afh) * insize) })
-                                        .animate({ right: (windows.length - iw - 1 - afh) * insize }, anx);
-                                }
-                                else if (iw > focus) {
-                                    c.width(insize);
-                                    c.$.css({ left: "", right: as - ((iw + 1 - ach) * insize) })
-                                        .animate({ right: (windows.length - iw - 1 - ach) * insize }, an);
-                                }
-
-                            }
-                            else if (iw == oldFocus) {
-                                c.width(as - (windows.length - 1) * insize);
-                                if (focus < oldFocus) {
-                                    c.$.css({ left: "", right: (windows.length - iw - 1 - ach) * insize })
-                                        .animate({ width: insize }, an);
-                                }
-                                else if (focus > oldFocus) {
-                                    c.$.css({ left: (iw - bch) * insize, right: "" })
-                                        .animate({ width: insize }, an);
-                                }
-                            }
-                            else if (iw > oldFocus) {
-                                if (iw < focus) {
-                                    c.width(insize);
-                                    c.$.css({ left: as - ((windows.length - iw - bch) * insize), right: "" })
-                                        .animate({ left: (iw - bch) * insize }, an);
-                                }
-                                else if (iw == focus) {
-                                    con.width(ow);
-                                    var anx = $.extend({}, an, { step: function (now, fx) { f.resize(con); }, complete: function () { con.width("100%"); } });
-                                    c.width(null);
-                                    c.$.css({ left: as - ((windows.length - iw - bfh) * insize), right: (windows.length - iw - 1 - afh) * insize })
-                                        .animate({ left: (iw - bfh) * insize }, anx);
-                                }
-                                else if (iw > focus) {
-                                    // no change
-                                }
-
-                            }
-                        }
-                    }
-                    else if (cd) {
-                        vw.changeDisplay = false;
-                        if (vw.isShown) {
-                            c.hide();
-                            vw.isShown = false;
-                        }
-                        else {
-                            c.show();
-                            vw.isShown = true;
-                        }
-                    }
-                    else {
-                        if (iw < focus) {
-                            if (orientation == 0) {
-                                c.top(null); c.bottom(null);
-                                c.height("100%");
-                                c.left((iw - bch) * insize);
-                                c.width(insize);
-                            }
-                        }
-                        else if (iw == focus) {
-                            if (orientation == 0) {
-                                c.top(null); c.bottom(null);
-                                c.height("100%");
-                                c.width(null);
-                                c.leftRight((iw - bfh) * insize, (windows.length - iw - 1 - afh) * insize);
-                                f.resize(con);
-                            }
-                        }
-                        else if (iw > focus) {
-
-                            if (orientation == 0) {
-                                c.top(null); c.bottom(null);
-                                c.height("100%");
-                                c.width(insize);
-                                c.right((windows.length - iw - 1 - ach) * insize);
-                            }
-                        }
-                    }
-
-
-
-                });
-            };
-
-            accordion.isAnimated = function () {
-
-                var isan = false;
-                $.each(windows, function (iw, vw) {
-                    var c = vw.box;
-                    if (c.$.is(":animated")) {
-                        isan = true;
-                        return false;
-                    }
-                });
-
-                return isan;
-            };
-            accordion.clickToFocus = function (b) {
-                if ($.isBoolean(b)) {
-                    if (b) {
-                        clickToFocus = {};
-                        $.each(windows, function (iw, vw) {
-                            if (iw == focus) vw.button.hide();
-                            else vw.button.show();
-                        });
-                    }
-                    else {
-                        clickToFocus = null;
-                        $.each(windows, function (iw, vw) {
-                            vw.button.hide();
-                        });
-                    }
-                }
-                else if ($.isPlainObject(b)) {
-                    clickToFocus = b;
-                    $.each(windows, function (iw, vw) {
-                        if (iw == focus) vw.button.hide();
-                        else vw.button.show();
-                    });
-                }
-            };
-            accordion.inactiveSize = function (n, a) {
-                if ($.no(arguments)) return insize;
-                else if ($.isNumber(n)) {
-                    //debug("sini?");
-                    if (insize != n) {
-                        insize = n;
-                        sizing(a);
-                        oldInsize = n;
-                    }
-                }
-            };
-            accordion.focus = function (n, a) {
-                if ($.no(arguments)) return focus;
-                else if ($.isNumber(n)) {
-                    if (n >= 0 && n < windows.length) {
-                        if (n != focus) {
-                            var win = windows[n];
-                            if (win.isShown) {
-                                var old = windows[oldFocus];
-                                focus = n;
-                                sizing(a);
-                                oldFocus = n;
-                                win.functions.focus(win.container, a);
-                                old.functions.blur(old.container, a);
-                            }
-                        }
-                    }
-                }
-            };
-            accordion.orientation = function (orientation, a) {
-                if (orientation == "horizontal") {
-                    orientation = 0;
-                    sizing(a);
-                    oldOrientation = 0;
-                }
-                else if (orientation == "vertical") {
-                    orientation = 1;
-                    sizing(a);
-                    oldOrientation = 1;
-                }
-                else if (orientation == 0) {
-                    orientation = 0;
-                    sizing(a);
-                    oldOrientation = 0;
-                }
-                else if (orientation == 1) {
-                    orientation = 1;
-                    sizing(a);
-                    oldOrientation = 1;
-                }
-                else if ($.no(arguments)) {
-                    return orientation == 0 ? "horizontal" : "vertical";
-                }
-            };
-            accordion.window = function (a, b) {
-                if ($.isNumber(a)) { // replace or get
-                    var win = windows[index];
-                    if (win != null) {
-                        if (!$.isNullOrUndefined(b)) { // replace
-
-                        }
-                        else { // get container
-                            return win.container;
-                        }
-                    }
-                }
-                else if ($.isPlainObject(a)) { // create
-                    var ni = windows.length
-
-                    if (ni == 0) {
-                        focus = 0;
-                        oldFocus = 0;
-                    }
-
-                    var obj = $.extend({}, windowObjectDefaults, a);
-
-                    var box = share.box(accordion);
-
-                    var outerContainer = share.box(box)({
-                        size: ["100%", "100%"],
-                        z: 0,
-                    });
-                    var container = share.box(outerContainer)({
-                        size: ["100%", "100%"],
-                    });
-                    var button = share.box(box)({
-                        size: ["100%", "100%"],
-                        z: 1,
-                        hide: true,
-                        cursor: "pointer",
-                        button: {
-                            click: function () {
-                                if ($.isPlainObject(clickToFocus))
-                                    accordion.focus(ni, clickToFocus);
-                                else
-                                    accordion.focus(ni);
-                            }
-                        }
-                    });
-
-                    windows[ni] = {
-                        box: box,
-                        container: container,
-                        button: button,
-                        functions: obj,
-                        changeDisplay: false,
-                        isShown: true,
-                    };
-
-                    obj.create(container);
-
-                    if (ni == focus) {
-                        obj.focus(container);
-                    }
-                    else {
-                        obj.blur(container);
-                    }
-
-                    sizing();
-
-                    return ni;
-                }
-            };
-            accordion.disable = function (a) {
-
-            };
-            accordion.hideWindow = function (n, a) {
-                if ($.isNumber(n)) {
-                    if (n >= 0 && n < windows.length) {
-                        if (n != focus) {
-                            var win = windows[n];
-                            if (win.isShown) {
-                                win.changeDisplay = true;
-                                //debug("hiding!");
-                                sizing(a);
-                            }
-                        }
-                    }
-                }
-            };
-            accordion.showWindow = function (n, a) {
-                if ($.isNumber(n)) {
-                    if (n >= 0 && n < windows.length) {
-                        if (n != focus) {
-                            var win = windows[n];
-                            if (!win.isShown) {
-                                win.changeDisplay = true;
-                                sizing(a);
-                            }
-                        }
-                    }
-                }
-            };
-
-            return accordion;
-        };
-
-        share.accordion = accordion;
 
     })(share);
 
@@ -8709,213 +8416,177 @@
         };
         var icon = function (container, type) {
             if (container == null) return;
-            var obj = null;
+            var spath;
 
             switch (type) {
-                case "powercut": obj = {
-                    path: "M71.4,25.5L38.25,58.65l127.5,127.5v94.35h76.5V510l91.8-155.55L438.6,459l33.15-33.15L71.4,25.5z M420.75,204h-102	l102-204h-255v56.1L382.5,272.85L420.75,204z"
-                }; break;
-                case "warning": obj = {
-                    path: "M15.789,13.982l-6.938-13C8.678,0.657,8.339,0.453,7.97,0.453H7.969c-0.369,0-0.707,0.203-0.881,0.528l-6.969,13c-0.166,0.312-0.157,0.686,0.023,0.986C0.323,15.268,0.649,15.453,1,15.453h13.906c0.352,0,0.677-0.184,0.858-0.486C15.945,14.666,15.954,14.292,15.789,13.982z M7.969,13.453c-0.552,0-1-0.448-1-1s0.448-1,1-1c0.551,0,1,0.448,1,1S8.521,13.453,7.969,13.453z M8.97,9.469c0,0.553-0.449,1-1,1c-0.552,0-1-0.447-1-1v-4c0-0.552,0.448-1,1-1 c0.551,0,1,0.448,1,1V9.469z",
-                }; break;
-                case "search": obj = {
-                    path: "M29.772,26.433l-7.126-7.126c0.96-1.583,1.523-3.435,1.524-5.421C24.169,8.093,19.478,3.401,13.688,3.399C7.897,3.401,3.204,8.093,3.204,13.885c0,5.789,4.693,10.481,10.484,10.481c1.987,0,3.839-0.563,5.422-1.523l7.128,7.127L29.772,26.433zM7.203,13.885c0.006-3.582,2.903-6.478,6.484-6.486c3.579,0.008,6.478,2.904,6.484,6.486c-0.007,3.58-2.905,6.476-6.484,6.484C10.106,20.361,7.209,17.465,7.203,13.885z",
-                }; break;
-                case "tiles": obj = {
-                    path: "M41.554,8.551v14.621H26.935V8.551H41.554z M8.446,23.172h14.62V8.551H8.446V23.172z M26.935,41.449h14.619V26.83H26.935	V41.449z M8.446,41.449h14.62V26.83H8.446V41.449z"
-                }; break;
-                case "cross": obj = {
-                    path: "M 19,6.4 17.6,5 12,10.6 6.4,5 5,6.4 10.6,12 5,17.6 6.4,19 12,13.4 17.6,19 19,17.6 13.4,12 z",
-                }; break;
-                case "arrow": obj = {
-                    path: "M 10,6 8.6,7.4 13.2,12 8.6,16.6 10,18 16,12 z",
-                }; break;
-                case "arrow2": obj = {
-                    path: "M16.714,33.301h66.799l-33.4,33.398L16.714,33.301z",
-                }; break;
-                case "statusdown": obj = {
-                    path: "M11.844,5.174L11.838,5.17C11.748,5.065,11.622,5,11.482,5H4.499c-0.143,0-0.27,0.069-0.361,0.176L4.136,5.174 c-0.195,0.217-0.195,0.569,0,0.786l3.499,3.877c0.195,0.218,0.511,0.218,0.706,0l0.012-0.021l3.491-3.856C12.039,5.743,12.039,5.391,11.844,5.174z"
-                }; break;
-                case "refresh": obj = {
-                    path: "M92.07,256.41H50l78.344,78.019l77.536-78.019h-39.825c-0.104-61.079,49.192-111.032,110.329-111.387c61.293-0.358,111.27,49.039,111.626,110.331c0.58,98.964-119.057,148.511-188.892,79.686l-51.929,52.687c116.154,114.483,315.773,32.415,314.809-132.804C461.4,152.769,378.105,70.441,275.952,71.037C173.955,71.632,91.725,154.47,92.07,256.41z"
-                }; break;
-                case "back": obj = {
-                    path: "M13.5,0C6.597,0,1,5.597,1,12.5S6.597,25,13.5,25S26,19.403,26,12.5S20.403,0,13.5,0ZM13.5,23.173C7.615,23.173,2.827,18.384999999999998,2.827,12.499999999999998C2.827,6.614999999999998,7.615,1.8269999999999982,13.5,1.8269999999999982C19.384999999999998,1.8269999999999982,24.173000000000002,6.614999999999998,24.173000000000002,12.499999999999998C24.173,18.385,19.385,23.173,13.5,23.173ZM14.742,18L9.242,12.5L6.383,12.5L11.883,18ZM6.383,12.5L11.883,7L14.742,7L9.242,12.5ZM10.4555,13.7L20,13.7L20,11.3L10.455,11.3L9.242,12.5Z"
-                }; break;
-                case "clipboard": obj = {
-                    path: "M432,64h-32v32h16v256H288v128H96V96h16V64H80c-8.801,0-16,7.2-16,16v416c0,8.8,7.199,16,16,16h252l116-116V80 C448,71.2,440.8,64,432,64z M320,480v-96h96L320,480z M384,64h-64V32c0-17.6-14.4-32-32-32h-64c-17.602,0-32,14.4-32,32v32h-64v64	h256V64z M288,64h-64V32.057c0.017-0.019,0.036-0.039,0.057-0.057h63.884c0.021,0.018,0.041,0.038,0.059,0.057V64z"
-                }; break;
-                case "list": obj = {
-                    path: "M41.166,9.166v5H18.105v-5H41.166L41.166,9.166z M18.105,23.055h23.061v-5H18.105V23.055z M18.105,31.943h23.061v-5H18.105 V31.943z M18.105,40.834h23.061v-5H18.105V40.834z M8.834,14.166h4.65v-5h-4.65V14.166z M8.834,23.055h4.65v-5h-4.65V23.055z M8.834,31.943h4.65v-5h-4.65V31.943z M8.834,40.834h4.65v-5h-4.65V40.834z"
-                }; break;
-                case "forward": obj = {
-                    path: "M31.416,12.568L14.429,0.38c-1.126-0.604-2.416-0.747-2.417,1.579v5.305 L2.417,0.38C1.291-0.225-0.031-0.243,0.001,2.021v23.942c0.032,2.045,1.384,2.341,2.417,1.673l9.595-6.885v5.243 c0.001,1.983,1.385,2.31,2.417,1.642l16.987-12.188C32.127,14.935,32.162,13.08,31.416,12.568z M14.014,25.208 c0-0.469,0-8.4,0-8.4l-12.012,8.4v-22.4l12.012,8.4c0,0,0-6.612,0-8.4l16.016,11.2L14.014,25.208z"
-                }; break;
-                case "backtime": obj = {
-                    path: "M53.131,0C30.902,0,12.832,17.806,12.287,39.976H0l18.393,20.5l18.391-20.5H22.506C23.045,23.468,36.545,10.25,53.131,10.25 c16.93,0,30.652,13.767,30.652,30.75S70.061,71.75,53.131,71.75c-6.789,0-13.059-2.218-18.137-5.966l-7.029,7.521 C34.904,78.751,43.639,82,53.131,82C75.703,82,94,63.645,94,41S75.703,0,53.131,0z M49.498,19v23.45l15.027,15.024l4.949-4.949 L56.5,39.55V19H49.498z"
-                }; break;
-                case "timeline": obj = {
-                    path: "M25.921,18.395c-0.965-1.358-2.853-1.681-4.215-0.713c-1.361,0.966-1.681,2.854-0.714,4.216l5.761,8.111 c-0.063,0.299-0.099,0.61-0.099,0.929c0,2.47,2,4.472,4.469,4.472c1.3,0,2.46-0.563,3.277-1.448h6.481 c1.67,0,3.023-1.354,3.023-3.023c0-1.669-1.353-3.023-3.023-3.023h-6.482c-0.694-0.752-1.638-1.254-2.703-1.392L25.921,18.395z M52.429,21.306c0.795,1.724,1.383,3.561,1.736,5.482c0.113,0.618,0.678,1.043,1.304,0.986l5.632-0.518 c0.336-0.03,0.643-0.199,0.849-0.466c0.207-0.268,0.291-0.608,0.236-0.941c-0.542-3.265-1.589-6.356-3.061-9.196 c-0.166-0.323-0.468-0.553-0.823-0.63c-0.355-0.075-0.725,0.01-1.01,0.236l-4.517,3.588C52.34,20.196,52.195,20.798,52.429,21.306z M48.224,48.299c-0.46-0.315-1.074-0.276-1.491,0.094c-3.634,3.226-8.28,5.334-13.399,5.777v-2.716	c0-1.114-0.902-2.015-2.015-2.015c-1.113,0-2.016,0.902-2.016,2.015v2.714C18.087,53.2,9.132,44.246,8.164,33.029h2.715 c1.113,0,2.015-0.901,2.015-2.015c0-1.114-0.902-2.015-2.015-2.015H8.156C9.066,18.462,17.031,9.93,27.292,8.131 c0.58-0.102,1.004-0.604,1.004-1.193V1.213c0-0.35-0.152-0.685-0.418-0.915c-0.265-0.23-0.617-0.335-0.965-0.285 C11.702,2.153,0,15.215,0,31.014c0,17.297,14.022,31.319,31.319,31.319c8.497,0,16.183-3.403,21.823-8.899 c0.26-0.254,0.393-0.61,0.362-0.972c-0.032-0.362-0.222-0.693-0.522-0.898L48.224,48.299z M35.346,8.129c0.792,0.138,1.57,0.315,2.331,0.531c0.583,0.165,1.194-0.124,1.439-0.677l2.298-5.182 c0.14-0.315,0.138-0.675-0.004-0.99C41.269,1.498,41,1.256,40.671,1.151c-1.597-0.506-3.247-0.894-4.943-1.138 c-0.348-0.049-0.702,0.055-0.967,0.285c-0.266,0.23-0.418,0.565-0.418,0.917v5.718C34.342,7.525,34.765,8.028,35.346,8.129z M47.822,14.677c0.435,0.443,1.132,0.484,1.618,0.099l4.438-3.527c0.267-0.211,0.432-0.526,0.456-0.866 c0.024-0.341-0.097-0.673-0.332-0.921c-1.615-1.697-3.418-3.21-5.377-4.511c-0.297-0.197-0.667-0.254-1.011-0.154 c-0.343,0.1-0.625,0.346-0.769,0.673l-2.32,5.23c-0.231,0.524-0.068,1.138,0.395,1.472C45.956,12.926,46.925,13.766,47.822,14.677z M62.054,33.694c-0.256-0.262-0.615-0.396-0.979-0.362l-5.755,0.529c-0.549,0.049-0.993,0.463-1.085,1.006 c-0.431,2.569-1.285,4.99-2.487,7.198c-0.297,0.545-0.135,1.228,0.378,1.579l4.671,3.206c0.28,0.193,0.628,0.26,0.959,0.183 c0.331-0.077,0.614-0.289,0.782-0.584c2.017-3.549,3.357-7.527,3.852-11.766C62.433,34.318,62.309,33.956,62.054,33.694z"
-                }; break;
-                case "penbox": obj = {
-                    path: "M497.944,14.059c18.75,18.75,18.719,49.141,0,67.891l-22.625,22.625l-67.906-67.891l22.625-22.625C448.787-4.675,479.194-4.691,497.944,14.059z M158.537,285.591l-22.609,90.5l90.5-22.625L452.694,127.2l-67.906-67.891 L158.537,285.591z M384.006,241.153v206.844h-320v-320h206.859l63.984-64H0.006v448h448V177.137L384.006,241.153z"
-                }; break;
-                case "leftarrow": obj = {
-                    path: "M20,11H7.8l5.6-5.6L12,4l-8,8l8,8l1.4-1.4L7.8,13H20V11z"
-                }; break;
-                default:
-                    obj = {
-                        path: type
-                    }; break;
+                case "powercut": spath = "M71.4,25.5L38.25,58.65l127.5,127.5v94.35h76.5V510l91.8-155.55L438.6,459l33.15-33.15L71.4,25.5z M420.75,204h-102l102-204h-255v56.1L382.5,272.85L420.75,204z"; break;
+                case "warning": spath = "M15.789,13.982l-6.938-13C8.678,0.657,8.339,0.453,7.97,0.453H7.969c-0.369,0-0.707,0.203-0.881,0.528l-6.969,13c-0.166,0.312-0.157,0.686,0.023,0.986C0.323,15.268,0.649,15.453,1,15.453h13.906c0.352,0,0.677-0.184,0.858-0.486C15.945,14.666,15.954,14.292,15.789,13.982z M7.969,13.453c-0.552,0-1-0.448-1-1s0.448-1,1-1c0.551,0,1,0.448,1,1S8.521,13.453,7.969,13.453z M8.97,9.469c0,0.553-0.449,1-1,1c-0.552,0-1-0.447-1-1v-4c0-0.552,0.448-1,1-1 c0.551,0,1,0.448,1,1V9.469z"; break;
+                case "search": spath = "M29.772,26.433l-7.126-7.126c0.96-1.583,1.523-3.435,1.524-5.421C24.169,8.093,19.478,3.401,13.688,3.399C7.897,3.401,3.204,8.093,3.204,13.885c0,5.789,4.693,10.481,10.484,10.481c1.987,0,3.839-0.563,5.422-1.523l7.128,7.127L29.772,26.433zM7.203,13.885c0.006-3.582,2.903-6.478,6.484-6.486c3.579,0.008,6.478,2.904,6.484,6.486c-0.007,3.58-2.905,6.476-6.484,6.484C10.106,20.361,7.209,17.465,7.203,13.885z"; break;
+                case "tiles": spath = "M41.554,8.551v14.621H26.935V8.551H41.554z M8.446,23.172h14.62V8.551H8.446V23.172z M26.935,41.449h14.619V26.83H26.935	V41.449z M8.446,41.449h14.62V26.83H8.446V41.449z"; break;
+                case "cross": spath = "M19,6.4 17.6,5 12,10.6 6.4,5 5,6.4 10.6,12 5,17.6 6.4,19 12,13.4 17.6,19 19,17.6 13.4,12 z"; break;
+                case "arrow2": spath = "M16.714,33.301h66.799l-33.4,33.398L16.714,33.301z"; break;
+                case "statusdown": spath = "M11.844,5.174L11.838,5.17C11.748,5.065,11.622,5,11.482,5H4.499c-0.143,0-0.27,0.069-0.361,0.176L4.136,5.174 c-0.195,0.217-0.195,0.569,0,0.786l3.499,3.877c0.195,0.218,0.511,0.218,0.706,0l0.012-0.021l3.491-3.856C12.039,5.743,12.039,5.391,11.844,5.174z"; break;
+                case "refresh": spath = "M92.07,256.41H50l78.344,78.019l77.536-78.019h-39.825c-0.104-61.079,49.192-111.032,110.329-111.387c61.293-0.358,111.27,49.039,111.626,110.331c0.58,98.964-119.057,148.511-188.892,79.686l-51.929,52.687c116.154,114.483,315.773,32.415,314.809-132.804C461.4,152.769,378.105,70.441,275.952,71.037C173.955,71.632,91.725,154.47,92.07,256.41z"; break;
+                case "back": spath = "M13.5,0C6.597,0,1,5.597,1,12.5S6.597,25,13.5,25S26,19.403,26,12.5S20.403,0,13.5,0ZM13.5,23.173C7.615,23.173,2.827,18.384999999999998,2.827,12.499999999999998C2.827,6.614999999999998,7.615,1.8269999999999982,13.5,1.8269999999999982C19.384999999999998,1.8269999999999982,24.173000000000002,6.614999999999998,24.173000000000002,12.499999999999998C24.173,18.385,19.385,23.173,13.5,23.173ZM14.742,18L9.242,12.5L6.383,12.5L11.883,18ZM6.383,12.5L11.883,7L14.742,7L9.242,12.5ZM10.4555,13.7L20,13.7L20,11.3L10.455,11.3L9.242,12.5Z"; break;
+                case "clipboard": spath = "M432,64h-32v32h16v256H288v128H96V96h16V64H80c-8.801,0-16,7.2-16,16v416c0,8.8,7.199,16,16,16h252l116-116V80 C448,71.2,440.8,64,432,64z M320,480v-96h96L320,480z M384,64h-64V32c0-17.6-14.4-32-32-32h-64c-17.602,0-32,14.4-32,32v32h-64v64	h256V64z M288,64h-64V32.057c0.017-0.019,0.036-0.039,0.057-0.057h63.884c0.021,0.018,0.041,0.038,0.059,0.057V64z"; break;
+                case "list": spath = "M41.166,9.166v5H18.105v-5H41.166L41.166,9.166z M18.105,23.055h23.061v-5H18.105V23.055z M18.105,31.943h23.061v-5H18.105 V31.943z M18.105,40.834h23.061v-5H18.105V40.834z M8.834,14.166h4.65v-5h-4.65V14.166z M8.834,23.055h4.65v-5h-4.65V23.055z M8.834,31.943h4.65v-5h-4.65V31.943z M8.834,40.834h4.65v-5h-4.65V40.834z"; break;
+                case "forward": spath = "M31.416,12.568L14.429,0.38c-1.126-0.604-2.416-0.747-2.417,1.579v5.305 L2.417,0.38C1.291-0.225-0.031-0.243,0.001,2.021v23.942c0.032,2.045,1.384,2.341,2.417,1.673l9.595-6.885v5.243 c0.001,1.983,1.385,2.31,2.417,1.642l16.987-12.188C32.127,14.935,32.162,13.08,31.416,12.568z M14.014,25.208 c0-0.469,0-8.4,0-8.4l-12.012,8.4v-22.4l12.012,8.4c0,0,0-6.612,0-8.4l16.016,11.2L14.014,25.208z"; break;
+                case "backtime": spath = "M53.131,0C30.902,0,12.832,17.806,12.287,39.976H0l18.393,20.5l18.391-20.5H22.506C23.045,23.468,36.545,10.25,53.131,10.25 c16.93,0,30.652,13.767,30.652,30.75S70.061,71.75,53.131,71.75c-6.789,0-13.059-2.218-18.137-5.966l-7.029,7.521 C34.904,78.751,43.639,82,53.131,82C75.703,82,94,63.645,94,41S75.703,0,53.131,0z M49.498,19v23.45l15.027,15.024l4.949-4.949 L56.5,39.55V19H49.498z"; break;
+                case "timeline": spath = "M25.921,18.395c-0.965-1.358-2.853-1.681-4.215-0.713c-1.361,0.966-1.681,2.854-0.714,4.216l5.761,8.111 c-0.063,0.299-0.099,0.61-0.099,0.929c0,2.47,2,4.472,4.469,4.472c1.3,0,2.46-0.563,3.277-1.448h6.481 c1.67,0,3.023-1.354,3.023-3.023c0-1.669-1.353-3.023-3.023-3.023h-6.482c-0.694-0.752-1.638-1.254-2.703-1.392L25.921,18.395z M52.429,21.306c0.795,1.724,1.383,3.561,1.736,5.482c0.113,0.618,0.678,1.043,1.304,0.986l5.632-0.518 c0.336-0.03,0.643-0.199,0.849-0.466c0.207-0.268,0.291-0.608,0.236-0.941c-0.542-3.265-1.589-6.356-3.061-9.196 c-0.166-0.323-0.468-0.553-0.823-0.63c-0.355-0.075-0.725,0.01-1.01,0.236l-4.517,3.588C52.34,20.196,52.195,20.798,52.429,21.306z M48.224,48.299c-0.46-0.315-1.074-0.276-1.491,0.094c-3.634,3.226-8.28,5.334-13.399,5.777v-2.716	c0-1.114-0.902-2.015-2.015-2.015c-1.113,0-2.016,0.902-2.016,2.015v2.714C18.087,53.2,9.132,44.246,8.164,33.029h2.715 c1.113,0,2.015-0.901,2.015-2.015c0-1.114-0.902-2.015-2.015-2.015H8.156C9.066,18.462,17.031,9.93,27.292,8.131 c0.58-0.102,1.004-0.604,1.004-1.193V1.213c0-0.35-0.152-0.685-0.418-0.915c-0.265-0.23-0.617-0.335-0.965-0.285 C11.702,2.153,0,15.215,0,31.014c0,17.297,14.022,31.319,31.319,31.319c8.497,0,16.183-3.403,21.823-8.899 c0.26-0.254,0.393-0.61,0.362-0.972c-0.032-0.362-0.222-0.693-0.522-0.898L48.224,48.299z M35.346,8.129c0.792,0.138,1.57,0.315,2.331,0.531c0.583,0.165,1.194-0.124,1.439-0.677l2.298-5.182 c0.14-0.315,0.138-0.675-0.004-0.99C41.269,1.498,41,1.256,40.671,1.151c-1.597-0.506-3.247-0.894-4.943-1.138 c-0.348-0.049-0.702,0.055-0.967,0.285c-0.266,0.23-0.418,0.565-0.418,0.917v5.718C34.342,7.525,34.765,8.028,35.346,8.129z M47.822,14.677c0.435,0.443,1.132,0.484,1.618,0.099l4.438-3.527c0.267-0.211,0.432-0.526,0.456-0.866 c0.024-0.341-0.097-0.673-0.332-0.921c-1.615-1.697-3.418-3.21-5.377-4.511c-0.297-0.197-0.667-0.254-1.011-0.154 c-0.343,0.1-0.625,0.346-0.769,0.673l-2.32,5.23c-0.231,0.524-0.068,1.138,0.395,1.472C45.956,12.926,46.925,13.766,47.822,14.677z M62.054,33.694c-0.256-0.262-0.615-0.396-0.979-0.362l-5.755,0.529c-0.549,0.049-0.993,0.463-1.085,1.006 c-0.431,2.569-1.285,4.99-2.487,7.198c-0.297,0.545-0.135,1.228,0.378,1.579l4.671,3.206c0.28,0.193,0.628,0.26,0.959,0.183 c0.331-0.077,0.614-0.289,0.782-0.584c2.017-3.549,3.357-7.527,3.852-11.766C62.433,34.318,62.309,33.956,62.054,33.694z"; break;
+                case "penbox": spath = "M497.944,14.059c18.75,18.75,18.719,49.141,0,67.891l-22.625,22.625l-67.906-67.891l22.625-22.625C448.787-4.675,479.194-4.691,497.944,14.059z M158.537,285.591l-22.609,90.5l90.5-22.625L452.694,127.2l-67.906-67.891 L158.537,285.591z M384.006,241.153v206.844h-320v-320h206.859l63.984-64H0.006v448h448V177.137L384.006,241.153z"; break;
+                case "leftarrow": spath = "M20,11H7.8l5.6-5.6L12,4l-8,8l8,8l1.4-1.4L7.8,13H20V11z"; break;
+
+                case "hex": spath = "M50.518,188.535h101.038l50.515-87.5l-50.515-87.5H50.518L0,101.035L50.518,188.535z M59.178,28.535h83.718l41.854,72.5l-41.854,72.5H59.178l-41.858-72.5L59.178,28.535z"; break;
+                case "glass": spath = "M480.606,459.394L352.832,331.619c30.306-35.168,48.654-80.918,48.654-130.876C401.485,90.053,311.433,0,200.743,0S0,90.053,0,200.743s90.053,200.743,200.743,200.743c49.958,0,95.708-18.348,130.876-48.654l127.775,127.775L480.606,459.394zM30,200.743C30,106.595,106.595,30,200.743,30s170.743,76.595,170.743,170.743s-76.595,170.743-170.743,170.743S30,294.891,30,200.743z"; break;
+                case "arrow": spath = "M10,6L8.6,7.4L13.2,12L8.6,16.6L10,18L16,12Z"; break;
+                case "close": spath = "m22,0c-12.2,0-22,9.8-22,22s9.8,22 22,22 22-9.8 22-22-9.8-22-22-22zm3.2,22.4l7.5,7.5c0.2,0.2 0.3,0.5 0.3,0.7s-0.1,0.5-0.3,0.7l-1.4,1.4c-0.2,0.2-0.5,0.3-0.7,0.3-0.3,0-0.5-0.1-0.7-0.3l-7.5-7.5c-0.2-0.2-0.5-0.2-0.7,0l-7.5,7.5c-0.2,0.2-0.5,0.3-0.7,0.3-0.3,0-0.5-0.1-0.7-0.3l-1.4-1.4c-0.2-0.2-0.3-0.5-0.3-0.7s0.1-0.5 0.3-0.7l7.5-7.5c0.2-0.2 0.2-0.5 0-0.7l-7.5-7.5c-0.2-0.2-0.3-0.5-0.3-0.7s0.1-0.5 0.3-0.7l1.4-1.4c0.2-0.2 0.5-0.3 0.7-0.3s0.5,0.1 0.7,0.3l7.5,7.5c0.2,0.2 0.5,0.2 0.7,0l7.5-7.5c0.2-0.2 0.5-0.3 0.7-0.3 0.3,0 0.5,0.1 0.7,0.3l1.4,1.4c0.2,0.2 0.3,0.5 0.3,0.7s-0.1,0.5-0.3,0.7l-7.5,7.5c-0.2,0.1-0.2,0.5 3.55271e-15,0.7z"; break;
+
+                default: spath = type;
             };
 
-            if (obj != null) {
+            var d = share.raphael(container);
+            var paper = d.paper();
+            var path = paper.path(spath).attr({ stroke: "none" });
 
-                var d = share.raphael(container);
-                var paper = d.paper();
-                var path = paper.path(obj.path).attr({ stroke: "none" });
+            var rotation = 0;
+            var fliph = false, flipv = false;
+            var scalew = 1, scaleh = 1;
 
-                var rotation = 0;
-                var fliph = false, flipv = false;
-                var scalew = 1, scaleh = 1;
+            var bbox = path.getBBox(true);
 
-                var bbox = path.getBBox(true);
+            var htw = Math.sqrt(Math.pow((bbox.width / 2), 2) + Math.pow((bbox.height / 2), 2));
+            var tw = htw * 2;
 
-                var htw = Math.sqrt(Math.pow((bbox.width / 2), 2) + Math.pow((bbox.height / 2), 2));
-                var tw = htw * 2;
+            var calculate = function () {
 
-                var calculate = function () {
+                path.transform("s" + (fliph ? "-" : "") + scalew + "," + (flipv ? "-" : "") + scaleh);
 
-                    path.transform("s" + (fliph ? "-" : "") + scalew + "," + (flipv ? "-" : "") + scaleh);
+                var sbox = path.getBBox();
+                var tx = ((d.width() - sbox.width) / 2) - sbox.x;
+                var ty = ((d.height() - sbox.height) / 2) - sbox.y;
 
-                    var sbox = path.getBBox();
-                    var tx = ((d.width() - sbox.width) / 2) - sbox.x;
-                    var ty = ((d.height() - sbox.height) / 2) - sbox.y;
+                path.transform("r" + rotation + "," + (d.width() / 2) + "," + (d.height() / 2) + "t" + tx + "," + ty + "...");
+            };
 
-                    path.transform("r" + rotation + "," + (d.width() / 2) + "," + (d.height() / 2) + "t" + tx + "," + ty + "...");
-                };
+            d.size(tw, tw);
+            calculate();
 
-                d.size(tw, tw);
-                calculate();
+            var icon = d;
 
-                var icon = d;
-
-                icon.path = function () {
-                    return path;
-                };
-                icon.onColor = function (s, a) {
-                    if ($.isUndefined(s)) return path.attr("fill");
+            icon.path = function () {
+                return path;
+            };
+            icon.onColor = function (s, a) {
+                if ($.isUndefined(s)) return path.attr("fill");
+                else {
+                    if (!$.isPlainObject(a))
+                        path.attr({ fill: s });
                     else {
-                        if (!$.isPlainObject(a))
-                            path.attr({ fill: s });
-                        else {
-                            var obj = { fill: s };
-                            if (!$.isUndefined(a.duration)) path.animate(obj, a.duration);
-                            else path.animate(obj);
-                        }
+                        var obj = { fill: s };
+                        if (!$.isUndefined(a.duration)) path.animate(obj, a.duration);
+                        else path.animate(obj);
                     }
-                };
-                icon.colorOpacity = function (c, a) {
-                    if ($.isUndefined(c)) return path.attr("fill-opacity");
+                }
+            };
+            icon.colorOpacity = function (c, a) {
+                if ($.isUndefined(c)) return path.attr("fill-opacity");
+                else {
+                    if (!$.isPlainObject(a))
+                        path.attr({ "fill-opacity": c });
                     else {
-                        if (!$.isPlainObject(a))
-                            path.attr({ "fill-opacity": c });
-                        else {
-                            var obj = { "fill-opacity": c };
-                            if (!$.isUndefined(a.duration)) path.animate(obj, a.duration);
-                            else path.animate(obj);
-                        }
+                        var obj = { "fill-opacity": c };
+                        if (!$.isUndefined(a.duration)) path.animate(obj, a.duration);
+                        else path.animate(obj);
                     }
-                };
-                icon.rotation = function (s, b, a) {
-                    if ($.isNumber(s)) {
-                        if ($.isUndefined(b)) {
+                }
+            };
+            icon.rotation = function (s, b, a) {
+                if ($.isNumber(s)) {
+                    if ($.isUndefined(b)) {
+                        rotation = s;
+                        calculate();
+                    }
+                    else {
+                        var anim, to;
+                        if ($.isNumber(b) && $.isPlainObject(a)) {
                             rotation = s;
                             calculate();
+                            anim = a;
+                            to = b;
                         }
                         else {
-                            var anim, to;
-                            if ($.isNumber(b) && $.isPlainObject(a)) {
-                                rotation = s;
+                            anim = b;
+                            to = s;
+                        }
+
+                        var obj = {
+                            step: function (now, fx) {
+                                if (!$.isUndefined(anim.step)) anim.step(now, fx);
+                                rotation = now;
                                 calculate();
-                                anim = a;
-                                to = b;
                             }
-                            else {
-                                anim = b;
-                                to = s;
-                            }
+                        };
+                        if (!$.isUndefined(anim.duration)) obj.duration = anim.duration;
+                        if (!$.isUndefined(anim.complete)) obj.complete = anim.complete;
+                        if (!$.isUndefined(anim.easing)) obj.easing = anim.easing;
 
-                            var obj = {
-                                step: function (now, fx) {
-                                    if (!$.isUndefined(anim.step)) anim.step(now, fx);
-                                    rotation = now;
-                                    calculate();
-                                }
-                            };
-                            if (!$.isUndefined(anim.duration)) obj.duration = anim.duration;
-                            if (!$.isUndefined(anim.complete)) obj.complete = anim.complete;
-                            if (!$.isUndefined(anim.easing)) obj.easing = anim.easing;
+                        $({ n: rotation }).animate({ n: to }, obj);
+                    }
+                }
+            };
+            icon.flip = function (s) {
+                if ($.isString(s)) {
+                    var ss = s.toLowerCase();
+                    if (ss == "horizontal" || ss == "h") {
+                        fliph = true;
+                        flipv = false;
+                    }
+                    else if (ss == "vertical" || ss == "v") {
+                        fliph = false;
+                        flipv = true;
+                    }
+                    else if (ss == "horizontalvertical" || ss == "hv" || ss == "verticalhorizontal" || ss == "vh") {
+                        fliph = true;
+                        flipv = true;
+                    }
+                    else if (ss == "") {
+                        fliph = false;
+                        flipv = false;
+                    }
+                    calculate();
+                }
+            };
+            var dwidth = d.width;
+            var dheight = d.height;
+            icon.width = function (w) {
+                if ($.isUndefined(w)) return dwidth.apply(this, []);
+                else {
+                    dwidth.apply(this, [w]);
+                    scalew = (w / tw);
+                    calculate();
 
-                            $({ n: rotation }).animate({ n: to }, obj);
-                        }
-                    }
-                };
-                icon.flip = function (s) {
-                    if ($.isString(s)) {
-                        var ss = s.toLowerCase();
-                        if (ss == "horizontal" || ss == "h") {
-                            fliph = true;
-                            flipv = false;
-                        }
-                        else if (ss == "vertical" || ss == "v") {
-                            fliph = false;
-                            flipv = true;
-                        }
-                        else if (ss == "horizontalvertical" || ss == "hv" || ss == "verticalhorizontal" || ss == "vh") {
-                            fliph = true;
-                            flipv = true;
-                        }
-                        else if (ss == "") {
-                            fliph = false;
-                            flipv = false;
-                        }
-                        calculate();
-                    }
-                };
-                var dwidth = d.width;
-                var dheight = d.height;
-                icon.width = function (w) {
-                    if ($.isUndefined(w)) return dwidth.apply(this, []);
-                    else {
-                        dwidth.apply(this, [w]);
-                        scalew = (w / tw);
-                        calculate();
+                }
+            };
+            icon.height = function (h) {
+                if ($.isUndefined(h)) return dheight.apply(this, []);
+                else {
+                    dheight.apply(this, [h]);
+                    scaleh = (h / tw);
+                    calculate();
+                }
+            };
+            icon.stroke = function (c) {
+                if ($.isPlainObject(c)) {
+                    path.attr({ stroke: share.color(c.color), "stroke-width": c.size });
+                }
+                else {
+                    return { color: path.attr("stroke"), size: path.attr("stroke-width") };
+                }
+            };
 
-                    }
-                };
-                icon.height = function (h) {
-                    if ($.isUndefined(h)) return dheight.apply(this, []);
-                    else {
-                        dheight.apply(this, [h]);
-                        scaleh = (h / tw);
-                        calculate();
-                    }
-                };
-                icon.stroke = function (c) {
-                    if ($.isPlainObject(c)) {
-                        path.attr({ stroke: share.color(c.color), "stroke-width": c.size });
-                    }
-                    else {
-                        return { color: path.attr("stroke"), size: path.attr("stroke-width") };
-                    }
-                };
+            d.color("accent");
 
-                d.color("accent");
-
-                return d;
-            }
-            else return null;
+            return d;
         };
         share.raphael = function (container) {
             return graphics(container, "raphael");
@@ -8950,47 +8621,613 @@
 
     })(share);
 
-    // .doc
+    // .section
     (function (share) {
 
-        var doc = function (p, props) {
-            var data = p.data("doc");
-            if (data == null) {
-                data = {};
-                p.data("doc", data);
 
-                data.props = props;
+        var _section = function (container) {
 
-                var article = share.box(p)({ width: "100%", height: "100%", scroll: { horizontal: false } });
-                var title = share.text(article)({ text: props.title, top: 30, leftRight: [30, 30], weight: "300", font: 30, color: 40 });
+            var article = null;
+            var first = false;
 
-                var body = share.box(article)({ attach: [title, "bottom", 0, 0], position: "relative", leftRight: [30, 30], class: "_DOC +_FB" });
-                var body$ = body.$;
+            if ($.isJQuery(container.$)) {
 
-                data.content = function (ar) {
+                if (container.data("sectionArticle") == null) {
 
-                    $.each(ar, function (ci, cv) {
-
-                        if ($.isString(cv)) {
-
-                            body$.append($("<p>").html(cv));
-                        }
-
-                    });
-
-                };
-
-
-
-
-                return data;
+                    var articleContainer = share.box(container)({ width: "100%", height: "100%", scroll: { horizontal: false } });
+                    article = share.box(articleContainer);
+                    article.css({ margin: "0 auto" });
+                    article.relative();
+                    container.data("sectionArticle", article);
+                    first = true;
+                }
+                else
+                    article = container.data("sectionArticle");
             }
-            else return data;
+            
+            if (article == null) return;
+
+            var sectionLevel = 0;
+
+            var containerSectionLevel = container.data("sectionLevel");
+            if (containerSectionLevel != null) sectionLevel = containerSectionLevel + 1;
+
+            if (!first) {
+                var separator = $$.box(article)({
+                    height: 1,
+                    marginLeft: 30,
+                    marginRight: 30,
+                    color: $$.color(85),
+                    relative: true,
+                    marginTop: 20
+                });
+            }
+
+            var title = share.text(article)({
+                marginLeft: 30,
+                marginRight: 30,
+                marginTop: 20,
+                relative: true
+            });
+
+            if (sectionLevel == 0) {
+                title({ weight: "300", font: 35, color: 20 });
+            }
+            else if (sectionLevel == 1) {
+                title({ font: 20, color: 30 });
+            }
+
+            var body = share.box(article)({ relative: true });
+
+            var d = body;
+
+            var section = d;
+            section.title = function (c) {
+                title.text(c);
+            };
+            section.content = function (ar) {
+                var previous;
+                $.each(ar, function (ci, cv) {
+
+                    if ($.isString(cv)) {
+                        //var p = $("<p>").html(cv);
+                        //body.$.append(p);
+                        var utext = share.text(body)({ text: cv, relative: true, marginTop: 10 });
+                        previous = utext.$;
+                    }
+                    else if ($.isJQuery(cv.$)) {
+                        cv.relative();
+                        cv.marginTop(20);
+                        cv.$.insertAfter(previous);
+                        //body.$.append(cv.$);
+                    }
+
+                });
+            };
+
+            section.data("sectionLevel", sectionLevel);
+
+            return d;
+
+        };
+        var _articleWidth = function (container, s) {
+            var article = null;
+
+            if ($.isJQuery(container.$) && container.data("sectionArticle") != null) {
+                article = container.data("sectionArticle");
+            }
+
+            if (article == null) return;
+
+            article.width(s);
         };
 
-        share.doc = doc;
+
+        share.section = _section;
+        share.articleWidth = _articleWidth;
+
 
     })(share);
 
+
+    // .startLoading, .endLoading
+    (function (share) {
+
+        var inited = false;
+        var box;
+        var loadingStarted = false;
+        var endLoadingTimer = null;
+
+        function boxExpand() {
+            box.$.css({ width: "0%", left: "0%" }).animate({ width: "100%" }, { duration: 500, queue: false, complete: function () { boxCollapse(); } });
+        };
+        function boxCollapse() {
+            box.$.css({ width: "100%", left: "0%" }).animate({ left: "100%", width: "0%" }, { duration: 500, queue: false, complete: function () { boxExpand(); } });
+        };
+
+        share.startLoading = function () {
+
+            if (!inited) {
+                box = share.box(share.topContainer())({ color: "accent", opacity: 0, height: 2, left: "0%", width: "0%", z: 600 });
+                inited = true;
+            }
+
+            if (!loadingStarted) {
+                loadingStarted = true;
+                box.opacity(0.5);
+                boxExpand();
+            }
+        };
+        share.endLoading = function () {
+            if (loadingStarted) {
+                endLoadingTimer = setTimeout(function () {
+                    box.$.animate({ opacity: 0 }, {
+                        duration: 300, queue: false, complete: function () {
+                            box.$.stop();
+                            loadingStarted = false;
+                        }
+                    });
+                }, 500);
+            }
+        };
+
+    })(share);
+
+    (function (share) {
+
+        share.isVisible = function () {
+            return !document.hidden;
+        };
+        share.isActive = function () {
+            return document.hasFocus();
+        };
+
+    })(share);
+
+
+    // .explore
+    (function (share) {
+
+        var exploreInited = false;
+
+        var topBar, title;
+        var searchBox, searchTextInput;
+
+        var conf;
+
+        var _explore = function (t) {
+
+            if (t == null) t = {};
+            conf = t;
+
+            if (exploreInited) return;
+            exploreInited = true;
+
+            topBar = share.box(share.topContainer())({ color: 98, height: 48, width: "100%", borderBottom: { size: 1, color: 80 } });
+            share.marginTop(48);
+            
+            var logoButton = share.box(topBar)({ left: 15, top: 4, size: 40, cursor: "pointer", click: function () { share.page().transfer("/"); } });
+            var ileft = share.icon(logoButton, "hex")({ size: 18, color: 55, position: [3, 17], rotation: 90 });
+            var iright = share.icon(logoButton, "hex")({ size: 18, color: 55, position: [16.25, 17], rotation: 90 });
+            var itop = share.icon(logoButton, "hex")({ size: 18, color: 55, position: [9.5, 5.5], rotation: 90 });
+
+            logoButton.hover(function () {
+                itop.color(25, { duration: 166 });
+                ileft.color("accent", { duration: 166 });
+                iright.color(35, { duration: 166 });
+            }, function () {
+                itop.color(55, { duration: 166 });
+                ileft.color(55, { duration: 166 });
+                iright.color(55, { duration: 166 });
+            });
+
+            title = $$.text(topBar)({ text: t.title != null ? t.title : "aphysoft.share", position: [60, 12], font: 21, color: 45, weight: "300" });
+            
+            searchBox = share.box(topBar)({ color: 95, height: 34, width: 250, cursor: "text", top: 6, right: 90 });
+            searchTextInput = share.textinput(searchBox)({ font: 14, leftRight: [60, 10], top: 0, height: 34, design: false });
+            var searchGlassIcon = share.icon(searchBox, "glass")({ size: [24, 24], color: 55, position: [20, 5] });
+            var searchPlaceholder = share.text(searchBox)({ noSelect: true, text: "Search", font: ["body", 14], color: 55, position: [60, 8] });
+
+            var searchButton = share.button(topBar)({
+                size: [34, 34], right: 70, top: 6, design: {
+                    normal: function (d) { d.color("transparent"); },
+                    over: function (d) { },
+                    press: function (d) { }
+                }, hide: true,
+                click: function () {                    
+                    if (!searchExpanded) {
+                        searchExpanded = true;
+                        searchButton.hide();
+                        searchBox.show();
+                        searchBox.color(102);
+                        searchBox.width(null);
+                        var wx = topBar.width();
+                        searchBox.opacity(0);
+                        searchBox.leftRight(wx / 2, wx / 2);
+                        searchBox.leftRight(60, 60, { duration: 100 });
+                        searchBox.opacity(1, { duration: 100 });
+                        searchTextInput.focus();
+
+                        accountArea.fadeOut(100);
+                        accountArea.$.css({ x: 0 }).animate({ x: 20 }, { duration: 50 });
+
+                        searchCloseButton.show();
+                        searchCloseButton.$.css({ opacity: 0, x: -20 }).animate({ opacity: 1, x: 0 }, { duration: 100 });
+                    }
+                }
+            });
+            share.icon(searchButton, "glass")({ size: [24, 24], position: [5, 5], color: 55 });
+
+            var searchCloseIcon;
+            var searchCloseButton = share.button(topBar)({
+                size: [34, 34], right: 20, top: 6, design: {
+                    normal: function (d) {
+                        d.color("transparent");
+                        //searchCloseIcon.color(55, { duration: 100 });
+                    },
+                    over: function (d) {
+                        //searchCloseIcon.color(75, { duration: 100 });
+                    },
+                    press: function (d) { }
+                }, hide: true, click: function () {
+                    searchExpanded = false;
+
+                    var wx = topBar.width();
+                    searchBox.opacity(0, { duration: 100 });
+                    searchBox.leftRight(wx / 2, wx / 2, { duration: 100 });
+                    searchButton.fadeIn(100);
+                    accountArea.fadeIn(100);
+                    accountArea.$.css({ x: 20 }).animate({ x: 0 }, { queue: false, duration: 50 });
+
+                    searchCloseButton.$.css({ opacity: 1, x: 0 }).animate({ opacity: 0, x: -20 }, { duration: 100, complete: function () { searchCloseButton.hide(); } });
+                }
+            });
+            searchCloseIcon = share.icon(searchCloseButton, "close")({ size: [28, 28], position: [3, 3], color: 55 });
+
+            var accountArea = share.box(topBar)({
+                width: 70, right: 0, height: 48
+            });
+            var accountSignIn = share.button(accountArea)({
+                size: [60, 34], design: {
+                    normal: function (d, t, init) {
+                        if (init) d.color("transparent");
+                        else {
+                            d.color("transparent", { duration: 166 });
+                        }
+                    },
+                    over: function (d) {
+                        d.color(95, { duration: 166 });
+                    },
+                    press: function (d) {
+
+                    }
+                }, top: 6, right: 10, text: "SIGN IN", textColor: 80, disable: true
+            });
+
+            var close = share.box(share.topContainer())({ color: 95, width: "100%", z: 999 });
+
+            var frontLogoDone = false;
+            var frontLogoElements;
+            var frontLogo = share.box(close)({ size: [200, 160] });
+
+            function hex_corner(x, y, size, i) {
+                var angle_deg = 60 * i + 30
+                var angle_rad = Math.PI / 180 * angle_deg
+                return { x: x + size * Math.cos(angle_rad), y: y + size * Math.sin(angle_rad) };
+            };
+            function hex_pos(center, size, i) {
+                var pos = hex_corner(center.x, center.y, size, i);
+                return pos.x + "," + pos.y;
+            };
+            function frontLogoHexaAnimRec(el, paths, count) {
+
+                if (count >= paths.length) {
+                    frontLogoDone = true;
+                    return;
+                }
+
+                var path;
+                for (var i = 0; i <= count; i++) {
+                    path += paths[i];
+                }
+
+                var last = count == paths.length - 1;
+
+                el.animate({ path: path }, last ? 166 : 33, last ? "easeOut" : "linear", function () {
+                    frontLogoHexaAnimRec(el, paths, count + 1);
+                });
+            };
+            function frontLogoHexaAnim() {
+                var area = share.raphael(frontLogo)({ size: frontLogo.size() });
+                var paper = area.paper();
+
+                var center1 = { x: 100, y: 50 };
+                var center2 = { x: 70.25, y: 102 };
+                var center3 = { x: 129.75, y: 102 };
+                var size = 30;
+
+                var paths1 = ("M" + hex_pos(center1, size, 0) + "L" + hex_pos(center1, size, 1) + "L" + hex_pos(center1, size, 2) + " L" +
+                    hex_pos(center1, size, 3) + " L" + hex_pos(center1, size, 4) + " L" + hex_pos(center1, size, 5) + " Z").split(" ");
+                var paths2 = ("M" + hex_pos(center2, size, 4) + "L" + hex_pos(center2, size, 5) + "L" + hex_pos(center2, size, 0) + " L" +
+                    hex_pos(center2, size, 1) + " L" + hex_pos(center2, size, 2) + " L" + hex_pos(center2, size, 3) + " Z").split(" ");
+                var paths3 = ("M" + hex_pos(center3, size, 0) + "L" + hex_pos(center3, size, 5) + "L" + hex_pos(center3, size, 4) + " L" +
+                    hex_pos(center3, size, 3) + " L" + hex_pos(center3, size, 2) + " L" + hex_pos(center3, size, 1) + " Z").split(" ");
+                var el1 = paper.path(paths1[0]).attr({ stroke: share.color(25), opacity: 0 });
+                var el2 = paper.path(paths2[0]).attr({ stroke: share.color("accent"), opacity: 0 });
+                var el3 = paper.path(paths3[0]).attr({ stroke: share.color(55), opacity: 0 });
+
+                frontLogoElements = [el1, el2, el3];
+
+                frontLogoHexaAnimRec(el1, paths1, 1);
+                frontLogoHexaAnimRec(el2, paths2, 1);
+                frontLogoHexaAnimRec(el3, paths3, 1);
+                el1.animate({ opacity: 1 }, 516);
+                el2.animate({ opacity: 1 }, 516);
+                el3.animate({ opacity: 1 }, 516);
+            };
+
+            frontLogoHexaAnim();
+
+            var frontTitle = share.text(close)({ weight: "400", font: 18, color: 60, hide: true });
+            var frontAdditional = share.text(close)({ font: 13, color: 60, hide: true }); 
+            
+            var searchExpanded = false;
+
+            searchTextInput.focusin(function () {
+                if (!searchExpanded) {
+                    searchExpanded = true;
+                    searchBox.color(102, { duration: 100 });
+                    searchBox.width(topBar.width() - 180, {
+                        duration: 100, complete: function () {
+                            searchBox.width(null);
+                            searchBox.leftRight(90, 90);
+                        }
+                    });
+                    if (showTitle) title.$.delay(100).fadeOut(50);
+                }
+            });
+            searchTextInput.focusout(function () {
+                if (share.isActive()) {                    
+                    if (narrowSearch) {
+                    }
+                    else {
+                        if (searchExpanded) {
+                            searchExpanded = false;
+                            searchBox.color(95, { duration: 100 });
+                            searchBox.left(null);
+                            searchBox.width(topBar.width() - 180);
+                            searchBox.width(250, { duration: 100 });
+                            if (showTitle) title.$.delay(100).fadeIn(50);
+                            if (searchTextInput.value().trim() == "") {
+                                searchTextInput.value(null);
+                                searchPlaceholder.show();
+                            }
+                        }
+                    }
+                }
+
+
+
+            });
+            searchBox.down(function () { searchTextInput.focus(); });
+            function checkPlaceholder() {
+                var s = searchTextInput.value();
+                if (s == "") searchPlaceholder.show();
+                else searchPlaceholder.hide();
+            }
+            searchTextInput.input(checkPlaceholder);
+            searchTextInput.change(checkPlaceholder);
+            searchTextInput.keydown(function (c) {                
+                if (c.key == 13) {
+                    var s = searchTextInput.value();
+                    s = s.replace(/ +(?= )/g, '');
+                    s = s.replaceAll(' ', '+');
+                    s = escape(s);
+                    if (t.search != null) t.search(s);
+                }
+            });                        
+           
+            var resizeInited = false;
+
+            var showTitle, narrowSearch;
+
+            var closeLayoutRatio;
+
+            var resizeID = share.resize(function (d) {
+
+                var init = false;
+                if (!resizeInited) init = true;
+
+                var _showTitle = false;
+                var _narrowSearch = false;
+
+                if (d.width.gte(1000)) {
+                    _showTitle = true;
+                    _narrowSearch = false;
+                }
+                else if (d.width.between(720, 1000)) {
+                    _showTitle = true;
+                    _narrowSearch = false;
+                }
+                else {
+                    _showTitle = false;
+                    _narrowSearch = true;
+                }
+
+                if (showTitle != _showTitle) {
+                    showTitle = _showTitle;
+                                        
+                    if (showTitle) {
+                        if (init) title.show();
+                        else {
+                            if (!searchExpanded) {
+                                title.fadeIn(50);
+                            }
+                        }
+                    }
+                    else {
+                        if (init) title.hide();
+                        else title.fadeOut(50);
+                    }
+                }
+                if (narrowSearch != _narrowSearch) {
+                    narrowSearch = _narrowSearch;
+
+                    if (!narrowSearch) {
+                        if (init) {
+                            searchBox.show();
+                            searchButton.hide();
+                        }
+                        else {
+                            if (searchExpanded) {                                
+                                if (!searchTextInput.isFocus()) {
+                                    searchTextInput.focus();
+                                }
+                                searchBox.leftRight(90, 90, { duration: 100 });
+                                accountArea.fadeIn(50);
+                                accountArea.$.css({ x: 20 }).animate({ x: 0 }, { queue: false, duration: 50 });
+                                searchCloseButton.$.css({ opacity: 1, x: 0 }).animate({ opacity: 0, x: -20 }, { duration: 100, complete: function () { searchCloseButton.hide(); } });
+                            }
+                            else {
+                                searchBox.color(95);
+                                searchBox.width(250);
+                                searchBox.right(90);
+                                searchBox.show();
+                                searchBox.$.css({ opacity: 0 }).animate({ opacity: 1 }, { duration: 100 });                             
+                                searchButton.fadeOut(50);
+                            }
+                        }
+                    }
+                    else {
+                        if (init) {                            
+                            searchBox.hide();
+                            searchButton.show();
+                        }
+                        else {
+                            if (searchExpanded) {
+                                searchBox.leftRight(60, 60, { duration: 100 });
+                                accountArea.fadeOut(50)
+                                accountArea.$.css({ x: 0 }).animate({ x: 15 }, { queue: false, duration: 50 });
+                                searchCloseButton.show();
+                                searchCloseButton.$.css({ opacity: 0, x: -20 }).animate({ opacity: 1, x: 0 }, { duration: 100 });
+                            }
+                            else {
+                                searchBox.fadeOut(50);
+                                searchButton.fadeIn(50);
+                            }
+                        }
+                    }
+                }
+
+                if (!resizeInited) resizeInited = true;
+
+                if (close.isShown()) {
+                    close.size(d.width, d.height);
+
+                    frontLogo.left((close.width() - frontLogo.width()) / 2);
+
+                    closeLayoutRatio = (d.width < 300 ? 0 : d.width > 1000 ? 700 : d.width - 300) / 700;
+                    var oscale = 0.4 + (closeLayoutRatio * 0.6);
+                    var ostrokew = 0.8 + (closeLayoutRatio * 1.2);
+
+                    if (!narrowSearch && frontLogoDone) {
+                        oscale = oscale / 1.8;
+                        ostrokew = ostrokew - 0.4;
+                    }
+
+                    $.each(frontLogoElements, function (eli, el) {
+                        el.transform("s" + oscale + "," + oscale + ",100,20");
+                        el.attr("stroke-width", ostrokew);
+                    });
+                    frontTitle.font(17 + (closeLayoutRatio * 10));
+
+                    if (d.width.gte(720)) {
+                        frontLogo.top((close.height() - frontLogo.height()) / 2);
+                        frontTitle.position((close.width() - frontTitle.width()) / 2, (close.height() - frontTitle.height()) / 2 - 20 + (closeLayoutRatio * 50));                        
+                    }
+                    else {
+                        frontLogo.top(50);
+                        frontTitle.position((close.width() - frontTitle.width()) / 2, 125 + (closeLayoutRatio * 75));                        
+                    }
+                    frontAdditional.position((close.width() - frontAdditional.width()) / 2, frontTitle.topHeight() + 5);
+                }
+
+            });
+
+            var firstTime = true;
+
+            share.stream(function (type, data) {
+
+                if (type == "online" || type == "streamrecovered") {
+                    if (firstTime) {
+                        firstTime = false;
+                        share(function () { }, 100, function () {
+                            if (!frontLogoDone) return -1;
+                            else close.fadeOut(100);
+                        });
+                    }
+                    else
+                        close.fadeOut(100);
+                }
+                else if (type == "offline" || type == "streamerror") {
+                    if (firstTime) {
+                        firstTime = false;
+
+                        if (!narrowSearch) {
+                            var oscale = (0.4 + (closeLayoutRatio * 0.6)) / 1.8;
+                            var ostrokew = 0.8 + (closeLayoutRatio * 1.2) - 0.4;
+
+                            $.each(frontLogoElements, function (eli, el) {
+                                el.animate({
+                                    transform: "s" + oscale + "," + oscale + ",100,20", "stroke-width": ostrokew, stroke: share.color(55) }, 500, "easeInOut");
+                            });
+                        }
+                        else  $.each(frontLogoElements, function (eli, el) { el.animate({ stroke: share.color(55) }, 500, "easeInOut"); });
+
+                        frontTitle({ text: "SERVER&nbsp;OFFLINE", show: true, opacity: 0 });
+
+                        if (!narrowSearch) share(600, function () { frontTitle.opacity(1, { duration: 300 }); });
+                        else  frontTitle.opacity(1, { duration: 300 });
+                    }
+                    else {
+                        frontAdditional.hide();
+                        close.fadeIn(100);
+                        $.each(frontLogoElements, function (eli, el) { el.attr({ stroke: share.color(55) }); });
+                        frontTitle({ text: "SERVER&nbsp;OFFLINE", show: true, opacity: 1 });
+
+                        $(':focus').blur();
+                    }
+
+                    share.triggerResize(resizeID);
+                }
+                else if (type == "update") {
+                    frontAdditional.show();
+                    if (!close.isShown())
+                        close.fadeIn(100);
+                    
+                    $.each(frontLogoElements, function (eli, el) { el.attr({ stroke: share.color(55) }); });
+                    frontAdditional({ text: "Please refresh your browser" });
+                    frontTitle({ text: "NEW&nbsp;UPDATE&nbsp;IS&nbsp;AVAILABLE", show: true, opacity: 1 });
+
+                    $(':focus').blur();
+
+                    share.triggerResize(resizeID);
+                }
+            });
+        };
+        var _setSearchText = function (t) {
+            if (exploreInited) {
+                searchTextInput.value(t);
+            }
+        };
+        var _search = function (s) {
+            conf.search(s);
+        };
+
+        share.explore = _explore;
+        share.setSearchText = _setSearchText;
+        share.search = _search;
+
+    })(share);
 
 })(window, jQuery);

@@ -29,33 +29,15 @@ namespace Aphysoft.Share
         {
             get
             {
+
                 if (share == null)
                 {
-                    string overrideCS = ConfigurationManager.AppSettings["SHARE"];
-
-                    if (overrideCS != null)
-                    {
-                        string overrideCSTablePrefix = ConfigurationManager.AppSettings["SHARE_PREFIX"];
-
-                        if (overrideCSTablePrefix != null)
-                        {
-                            share = new Database(overrideCS, DatabaseType.SqlServer, overrideCSTablePrefix);
-                        }
-                        else
-                        {
-                            share = new Database(overrideCS, DatabaseType.SqlServer);
-                        }
-                    }
-                    else
-                    {
+                    string key = "database";
 #if DEBUG
-                        share = new Database(Aphysoft.Protected.Project.Database("SHARE_DEBUG"), DatabaseType.SqlServer);
-#else
-                        share = new Database(Aphysoft.Protected.Project.Database("SHARE_RELEASE"), DatabaseType.SqlServer);
+                    key = "database_debug";
 #endif
-                    }
+                    share = new Database(ConfigurationManager.AppSettings[key], DatabaseType.SqlServer);
                 }
-
                 return share;
             }
         }
@@ -146,6 +128,12 @@ namespace Aphysoft.Share
         {
             Database db = Database;
 
+            #region Service
+
+            Service.Client();
+
+            #endregion
+
             #region Instance Initialization
 
             if (!inited)
@@ -155,7 +143,10 @@ namespace Aphysoft.Share
                     if (!inited)
                     {
                         // test database
-                        if (db.Test())
+                        if (db.Test(delegate(string message)
+                        {
+                            Service.Debug("Error:" + message);
+                        }))
                         {
                             inited = true;
                             
@@ -163,15 +154,13 @@ namespace Aphysoft.Share
 
                             OnInit();
 
-                            Service.Client();
-
                             UserSettings.Init();
 
                             Resource.Init();
 
                             if (Settings.EnableAPI)
                             {
-                                API.Init();
+                                //API.Init();
                             }
 
                             Provider.Init();
@@ -200,7 +189,9 @@ namespace Aphysoft.Share
 
             if (inited)
             {
-                if (db.Test())
+                if (db.Test(delegate(string message)
+                {
+                }))
                 {
                     // design type here
                     context.Items["designtype"] = DesignType.Full;
@@ -735,8 +726,6 @@ select AA_ID from [ApiSubscription], [Api], [ApiAccess] where AS_AA = AA_ID and 
             scriptData.System("protocol", request.IsSecureConnection ? "https" : "http");
             scriptData.System("titleFormat", Settings.TitleFormat);
             scriptData.System("titleEmpty", Settings.TitleEmpty);
-
-            scriptData.System("sizeGroups", Settings.SizeGroups);
 
             if (Settings.EnableUI)
             {

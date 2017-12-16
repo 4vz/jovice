@@ -11,6 +11,12 @@ namespace Aphysoft.Share
 {
     public sealed class Service : BaseService
     {
+        #region Const
+
+        const int defaultPort = 23474;
+
+        #endregion
+
         #region Fields
 
         private static Database share = Share.Database;
@@ -187,7 +193,7 @@ namespace Aphysoft.Share
                     }
                     
                     Instance.SetTraceType(type);
-                    Instance.Server(IPAddress.Any, 2347);
+                    Instance.Server(IPAddress.Any, defaultPort);
 
                     Provider.ServerInit();
 
@@ -200,7 +206,7 @@ namespace Aphysoft.Share
         {
             if (!IsServer && !IsClient)
             {
-                Client(new IPEndPoint(IPAddress.Loopback, 2347), ServiceTraceLevels.None);
+                Client(new IPEndPoint(IPAddress.Loopback, defaultPort), ServiceTraceLevels.None);
             }
         }
 
@@ -208,7 +214,7 @@ namespace Aphysoft.Share
         {
             if (!IsServer && !IsClient)
             {
-                Client(new IPEndPoint(server, 23474), ServiceTraceLevels.None);
+                Client(new IPEndPoint(server, defaultPort), ServiceTraceLevels.None);
             }
         }
 
@@ -235,6 +241,14 @@ namespace Aphysoft.Share
 
                 Instance.SetTraceType(type);
                 ((BaseService)Instance).Client(server);
+            }
+        }
+
+        public static void Client(ServiceTraceLevels type)
+        {
+            if (!IsServer && !IsClient)
+            {
+                Client(new IPEndPoint(IPAddress.Loopback, defaultPort), type);
             }
         }
 

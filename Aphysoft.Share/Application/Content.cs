@@ -569,7 +569,7 @@ namespace Aphysoft.Share
             sb.Append("share.data({ " + string.Join(", ", scriptData.GetArrayString()) + " });");
 
             sb.Append("$(function() {");
-            sb.Append(string.Format("$$.init(\"{0}\", \"{1}\", \"{2}\", \"{3}\", {4}, \"{5}\", {6}, {7}, {8}, {9});",
+            sb.Append(string.Format("share.init(\"{0}\", \"{1}\", \"{2}\", \"{3}\", {4}, \"{5}\", {6}, {7}, {8}, {9});",
             /*0*/cd.Family,
             /*1*/HttpContext.Current.Request.RawUrl.Substring(Settings.UrlPrefix.Length),
             /*2*/cd.ScriptUrl,

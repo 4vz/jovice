@@ -7,7 +7,7 @@ using System.Globalization;
 using System.IO;
 
 using Aphysoft.Share;
-
+using System.Net;
 
 namespace Center
 {
@@ -125,7 +125,7 @@ namespace Center
     {
         #region Fields
 
-        internal readonly static int Version = 30;
+        internal readonly static int Version = 31;
 
         private Database j = Jovice.Database;
 
@@ -145,6 +145,7 @@ namespace Center
 
         public Necrow()
         {
+            ServiceServerAddress = IPAddress.Loopback;
         }
 
         #endregion
@@ -435,7 +436,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
             #region Neighbor already exists in node
 
             result = jovice.Query("select NO_ID, NN_ID from Node left join NodeNeighbor on NN_Name = NO_Name where NN_ID is not null and NO_Type in ('M', 'P') and NO_Active = 1");
-
+            
             if (result.Count > 0)
             {
                 Event("Removing " + result.Count + " duplicated neighbor nodes...");
@@ -494,6 +495,11 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
 
                 Event("Virtualization reloaded");
             }
+
+            #region Topology
+            //result = jovice.Query("select ")
+
+            #endregion
         }
 
         private bool InTime(ProbeProperties properties)
@@ -984,6 +990,7 @@ from ProbeAccess, ProbeUser, ProbeServer where XA_XU = XU_ID and XU_XS = XS_ID")
                                         {
                                             Event("Connection failed", identifier);
 #if DEBUG
+                                            
                                             Event("DEBUG " + message, identifier);
 #endif
                                         }

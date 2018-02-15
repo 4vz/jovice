@@ -2342,8 +2342,6 @@ namespace Center
 
                     Save();
 
-                    instance.CreateNode(nodeID);
-
                     return probe;
                 }
             }

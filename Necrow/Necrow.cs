@@ -331,46 +331,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M') and NO_Time
                 }
             }
         }
-
-        internal void CreateNode(string copyFromNodeID)
-        {
-            Result result = j.Query("select * from Node where NO_ID = {0}", copyFromNodeID);
-
-            if (result.Count == 1)
-            {
-                Row row = result[0];
-                Insert insert = j.Insert("Node");
-
-                string id = Database.ID();
-
-                insert.Value("NO_ID", id);
-                insert.Value("NO_Name", row["NO_Name"].ToString());
-                insert.Value("NO_Type", row["NO_Type"].ToString());
-                insert.Value("NO_Active", true);
-                insert.Value("NO_AR", row["NO_AR"].ToString());
-
-                insert.Execute();
-
-                result = j.Query("select * from Node where NO_ID = {0}", id);
-                row = result[0];
-
-                lock (keeperNode)
-                {
-                    Dictionary<string, object> values = new Dictionary<string, object>();
-                    keeperNode.Add(id, values);
-
-                    string newNodeName = row["NO_Name"].ToString();
-                    values.Add("NO_Name", newNodeName);
-                    values.Add("NO_Type", row["NO_Type"].ToString());
-                    values.Add("NO_Manufacture", row["NO_Manufacture"].ToString());
-                    values.Add("NO_IP", row["NO_IP"].ToString());
-                    values.Add("NO_Active", row["NO_Active"].ToBool());
-
-                    prioritize.Enqueue(new Tuple<string, ProbeRequestData>(newNodeName, null));
-                }
-            }
-        }
-        
+     
         private void DatabaseCheck()
         {
             Database jovice = j;

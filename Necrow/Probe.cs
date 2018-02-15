@@ -118,6 +118,14 @@ namespace Center
             set { updateName = value; }
         }
 
+        private string equipmentName;
+
+        public string EquipmentName { get => equipmentName; set => equipmentName = value; }
+
+        private bool updateEquipmentName;
+
+        public bool UpdateEquipmentName { get => updateEquipmentName; set => updateEquipmentName = value; }
+
         private string description;
 
         public string Description
@@ -1043,11 +1051,6 @@ namespace Center
                                     probeRequestData.Connection.Reply(probeRequestData.Message);
                                 }
                             }
-                            else
-                            {
-                                Event("Failed. Theres no active probe for specified name");
-                                continue;
-                            }
                         }
                     }
 
@@ -1170,7 +1173,7 @@ namespace Center
                             // RESERVES
                             reserves = QueryDictionary("select * from Reserve where RE_NO = {0}", delegate (Row row)
                             {
-                                return row["RE_By_Name"].ToString() + "-" + row["RE_By_SID"].ToString();
+                                return row["RE_By_Name"].ToString() + "=" + row["RE_By_SID"].ToString();
                             }, delegate (Row row)
                             {
                             // delete duplicated
@@ -1451,7 +1454,7 @@ namespace Center
             string cpeip = null;
             hostname = hostname.ToLower();
 
-            if (Request2("cat /etc/hosts | grep -i " + hostname, out string[] lines)) ConnectionFailure();
+            if (Request("cat /etc/hosts", out string[] lines)) ConnectionFailure();
 
             Dictionary<string, string> greppair = new Dictionary<string, string>();
             foreach (string line in lines)
@@ -1464,8 +1467,7 @@ namespace Center
                     {
                         string gip = linex[0];
                         string ghn = linex[1].ToLower();
-
-
+                        
                         if (!reverse)
                         {
                             if (ghn == hostname)
@@ -1666,22 +1668,24 @@ namespace Center
                             else if (b == 10)
                             {
                                 lineBuilder.Clear();
-                                if (nodeManufacture == hwe && nodeVersion == "5.160" && line.Length > 80)
-                                {
-                                    int looptimes = (int)Math.Ceiling((float)line.Length / 80);
+                                //if (nodeManufacture == hwe && nodeVersion == "5.160" && line.Length > 80)
+                                //{
+                                //    int looptimes = (int)Math.Ceiling((float)line.Length / 80);
 
-                                    for (int loop = 0; loop < looptimes; loop++)
-                                    {
-                                        int sisa = 80;
-                                        if (loop == looptimes - 1) sisa = line.Length - (loop * 80);
-                                        string curline = line.Substring(loop * 80, sisa);
-                                        listLines.Add(curline);
-                                    }
-                                }
-                                else
-                                {
-                                    listLines.Add(line);
-                                }
+                                //    for (int loop = 0; loop < looptimes; loop++)
+                                //    {
+                                //        int sisa = 80;
+                                //        if (loop == looptimes - 1) sisa = line.Length - (loop * 80);
+                                //        string curline = line.Substring(loop * 80, sisa);
+                                //        listLines.Add(curline);
+                                //    }
+                                //}
+                                //else
+                                //{
+                                //    listLines.Add(line);
+                                //}
+
+                                listLines.Add(line);
                             }
 
                             if (pressingMore)
@@ -1706,26 +1710,29 @@ namespace Center
                         }
                         
                         wait++;
-                        if (wait % 200 == 0 && wait < 1600)
+
+                        // 10 = 1 detik, 100 = 10 detik, 600 = 1 menit, 1200 = 2 menit, 3000 = 5 menit, 6000 = 10 menit
+
+                        if (wait % 200 == 0 && wait < 6000) // setiap 20 detik, notifikasi waiting
                         {
                             Event("Waiting...");
                             SendLine("");
 
 #if DEBUG
-                            Event("Last Output: " + LastOutput);
+                            Event("Last Output: " + (LastOutput.Length > 200 ? LastOutput.Substring(LastOutput.Length - 200) : LastOutput));
 #endif
                         }
                         Thread.Sleep(100);
-                        if (wait == 1600)
+                        if (wait == 6000)
                         {
                             Event("Reading timeout, cancel the reading...");
                             requestFailed = true;
                         }
-                        else if (wait >= 1600 && wait % 50 == 0)
+                        else if (wait >= 6000 && wait % 50 == 0)
                         {
                             SendControlC();
                         }
-                        else if (wait == 2000)
+                        else if (wait == 7200) // setelah 12 menit, request failed
                         {
                             if (probe != null)
                             {
@@ -1923,7 +1930,7 @@ namespace Center
                     SendControlC();
                     // fail to ssh-keygen, just remove the known_hosts
                     Event("Removing known_hosts file because an error...");
-                    SendLine("rm ~/.ssh/known_hosts");
+                    SendLine("rm -f ~/.ssh/known_hosts");
 
                     Thread.Sleep(500);
                     SendLine("ssh -o StrictHostKeyChecking=no " + user + "@" + host);
@@ -1959,7 +1966,7 @@ namespace Center
                                 {
                                     // fail to ssh-keygen, just remove the known_hosts
                                     Event("Removing known_hosts file because an error...");
-                                    SendLine("rm ~/.ssh/known_hosts");
+                                    SendLine("rm -f ~/.ssh/known_hosts");
                                 }
 
                                 Thread.Sleep(500);
@@ -3067,13 +3074,25 @@ namespace Center
 
                     if (Request("show mda", out lines, probe)) return probe;
 
+
                     string sid = null;
                     bool capturing = false;
+                    bool combined = false;
+
+                    SlotToDatabase current = null;
 
                     foreach (string line in lines)
                     {
                         if (line.Length > 0)
                         {
+                            string lineTrim = line.Trim();
+
+                            if (lineTrim.StartsWith("Equipped Type (if different)"))
+                            {
+                                combined = true;
+                            }
+
+
                             if (char.IsDigit(line[0]))
                             {
                                 capturing = true;
@@ -3086,37 +3105,124 @@ namespace Center
                                     string[] tokens = line.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
                                     bool secondary = line[0] == ' ';
 
+                                    // combined
+                                    //5     1     m2-10gb-xp-xfp                              up        up
+                                    //      2     m2-10gb-xp-xfp                              up        up
+
+                                    //1     1     m10-1gb-sfp-b                               up        up
+                                    //      2     m20-1gb-xp-sfp                              down      failed
+                                    //                m10-1gb-sfp-b
+                                    //                (not equipped)
+                                    //3     1     m2-10gb-xp-xfp                              up        up
+
+
+
+                                    // seperated
+                                    //===============================================================================
+                                    //MDA Summary
+                                    //===============================================================================
+                                    //Slot  Mda   Provisioned           Equipped              Admin     Operational
+                                    //            Mda-type              Mda-type              State     State
+                                    //-------------------------------------------------------------------------------
+                                    //1     1     a16-chds1             a16-chds1             up        up
+                                    //      5     a8-eth                a8-eth                up        up
+                                    //      6     a8-eth                a8-eth                up        up
+
+
                                     string mda = null;
-                                    string slotinfo = null;
+
+                                    string slotprovision = null;
+                                    string slotequiped = null; 
                                     string slotadmin = null;
                                     string slotprotocol = null;
-
+                                    
+                                    
                                     if (!secondary)
                                     {
                                         sid = tokens[0];
                                         mda = tokens[1];
-                                        slotinfo = tokens[2];
-                                        slotadmin = tokens[3];
-                                        slotprotocol = tokens[4];
+                                        slotprovision = tokens[2];
+
+                                        if (combined)
+                                        {
+                                            slotequiped = slotprovision;
+                                            slotadmin = tokens[3];
+                                            slotprotocol = tokens[4];
+                                        }
+                                        else
+                                        {
+                                            if (tokens.Length == 6)
+                                            {
+                                                slotequiped = tokens[3];
+                                                slotadmin = tokens[4];
+                                                slotprotocol = tokens[5];
+                                            }
+                                            else
+                                            {
+                                                slotequiped = null;
+                                                slotadmin = tokens[3];
+                                                slotprotocol = tokens[4];
+                                            }
+                                        }
 
                                         curSlot++;
                                     }
                                     else
-                                    {
-                                        mda = tokens[0];
-                                        slotinfo = tokens[1];
-                                        slotadmin = tokens[2];
-                                        slotprotocol = tokens[3];
+                                    {    
+                                        if (combined)
+                                        {
+                                            if (tokens.Length == 1)
+                                            {
+                                                // equipment
+                                                current.Info2 = tokens[0];
+                                            }
+                                            else if (tokens.Length == 2 && tokens[0] == "(not")
+                                            {
+                                                current.Info2 = "(not equipped)";
+                                            }
+                                            else
+                                            {
+                                                mda = tokens[0];
+                                                slotprovision = tokens[1];
+                                                slotequiped = slotprovision;
+                                                slotadmin = tokens[2];
+                                                slotprotocol = tokens[3];
+                                            }
+                                        }
+                                        else
+                                        {
+                                            mda = tokens[0];
+                                            slotprovision = tokens[1];
+
+                                            if (tokens.Length == 5)
+                                            {
+                                                slotequiped = tokens[2];
+                                                slotadmin = tokens[3];
+                                                slotprotocol = tokens[4];
+                                            }
+                                            else
+                                            {
+                                                slotequiped = null;
+                                                slotadmin = tokens[2];
+                                                slotprotocol = tokens[3];
+                                            }
+                                        }
                                     }
 
-                                    SlotToDatabase li = new SlotToDatabase();
-                                    li.SlotID1 = sid;
-                                    li.SlotID2 = mda;
-                                    li.Info1 = slotinfo;
-                                    li.Info2 = slotadmin;
-                                    li.Info3 = slotprotocol;
+                                    if (mda != null)
+                                    {
+                                        SlotToDatabase li = new SlotToDatabase();
+                                        li.SlotID1 = sid;
+                                        li.SlotID2 = mda;
+                                        li.Info1 = slotprovision;
+                                        li.Info2 = slotequiped;
+                                        li.Info3 = slotadmin;
+                                        li.Info4 = slotprotocol;
 
-                                    slotlive.Add(sid + "-" + mda, li);
+                                        current = li;
+
+                                        slotlive.Add(sid + "-" + mda, li);
+                                    }
 
                                 }
                             }
@@ -5207,6 +5313,8 @@ namespace Center
         private readonly Regex findInterfaceRegex = new Regex(@"^(?:(?:\/)*(?:(?:F(?:A(?:ST)?)?|(?:(?:TE(?:NGIG(?:ABIT)?)?|HU(?:NDRED)?){0,1}(?:G(?:I(?:GABIT)?)?)?)){0,1}(?:E(?:T(?:HERNET)?)?)?|XE)?(?:\/|-)*(?:[0-9]{1,2})(?:\/[0-9]{1,2}){1,3}|PKT[0-9])$");
         private readonly Regex captureNodeTypeNumberLocation = new Regex(@"^(ME|PE)(\d)-D[1-7]-([A-Z]{3})$");
 
+        //4700146-0029928203
+
         private string CleanDescription(string description, string originNodeName)
         {
             // ends if null or empty
@@ -5371,12 +5479,12 @@ namespace Center
         {
             if (input == null) return null;
 
-            string[] tokens = input.Split(new string[] { "        " }, StringSplitOptions.RemoveEmptyEntries);
+            string[] tokens = input.Split(new string[] { "                                               " }, StringSplitOptions.RemoveEmptyEntries);
 
             StringBuilder sb = new StringBuilder();
             foreach (string token in tokens)
             {
-                sb.Append(token.TrimStart());
+                sb.Append(token);
             }
 
             return sb.ToString();
@@ -5424,6 +5532,7 @@ namespace Center
         private static readonly string[] monthsEnglish = new string[] { "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER" };
         private static readonly string[] monthsBahasa = new string[] { "JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER" };
         private static readonly Regex findSiteID = new Regex(@"([A-Z][A-Z][A-Z][0-9][0-9][0-9])");
+        private static readonly Regex captureSIDFormat1 = new Regex(@"((?:\d+(?:-\d{7,})+)|(?:\d{7,}(?:-\d{5,})+)|(?:(?:47|30|37)\d{15}))");
 
         #endregion
 
@@ -5486,7 +5595,7 @@ namespace Center
             ServiceMapping de = new ServiceMapping();
             de.RawDescription = desc;
 
-            string o = string.Join(" ", desc.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)).ToUpper();
+            string o = string.Join(" ", desc.Split(new char[] { ' ', ';' }, StringSplitOptions.RemoveEmptyEntries)).ToUpper();
             string d = string.Join(" ", o.Split(new char[] { '-', '_' }));
 
             #region Find SID
@@ -5504,14 +5613,14 @@ namespace Center
             else if ((rmv = d.IndexOf("VPNIP VPN IP ")) > -1) { de.ServiceType = "VPNIP"; rle = 12; }
             else if ((rmv = d.IndexOf("VPNIP VPNIP ")) > -1) { de.ServiceType = "VPNIP"; rle = 11; }
             else if ((rmv = d.IndexOf("VPN INSTAN ")) > -1) { de.ServiceType = "VPNINSTAN"; rle = 10; }
-            else if ((rmv = d.IndexOf("MM IPVPN ")) > -1) { de.ServiceType = "VPNIP"; rle = 8; }
-            else if ((rmv = d.IndexOf("MM VPNIP ")) > -1) { de.ServiceType = "VPNIP"; rle = 8; }
-            else if ((rmv = d.IndexOf("MM VPNIP ")) > -1) { de.ServiceType = "VPNIP"; rle = 8; }
-            else if ((rmv = d.IndexOf("MM VPNIP ")) > -1) { de.ServiceType = "VPNIP"; rle = 8; }
+            else if ((rmv = d.IndexOf("MM IPVPN")) > -1) { de.ServiceType = "VPNIP"; rle = 8; }
+            else if ((rmv = d.IndexOf("MM VPNIP")) > -1) { de.ServiceType = "VPNIP"; rle = 8; }
+            else if ((rmv = d.IndexOf("MM VPNIP")) > -1) { de.ServiceType = "VPNIP"; rle = 8; }
+            else if ((rmv = d.IndexOf("MM VPNIP")) > -1) { de.ServiceType = "VPNIP"; rle = 8; }
             else if ((rmv = d.IndexOf("VPN IP ")) > -1) { de.ServiceType = "VPNIP"; rle = 6; }
             else if ((rmv = d.IndexOf("IP VPN ")) > -1) { de.ServiceType = "VPNIP"; rle = 6; }
-            else if ((rmv = d.IndexOf("VPNIP ")) > -1) { de.ServiceType = "VPNIP"; rle = 5; }
-            else if ((rmv = d.IndexOf("IPVPN ")) > -1) { de.ServiceType = "VPNIP"; rle = 5; }
+            else if ((rmv = d.IndexOf("VPNIP")) > -1) { de.ServiceType = "VPNIP"; rle = 5; }
+            else if ((rmv = d.IndexOf("IPVPN")) > -1) { de.ServiceType = "VPNIP"; rle = 5; }
             //                         12345678901234567890
             else if ((rmv = d.IndexOf("MM ASTINET BEDA BW ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 18; }
             else if ((rmv = d.IndexOf("MM ASTINET BEDABW ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 17; }
@@ -5524,15 +5633,43 @@ namespace Center
             else if ((rmv = d.IndexOf("AST BEDABW ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 10; }
             else if ((rmv = d.IndexOf("AST BB ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 7; }
             //                         12345678901234567890
-            else if ((rmv = d.IndexOf("MM ASTINET ")) > -1) { de.ServiceType = "ASTINET"; rle = 10; }
-            else if ((rmv = d.IndexOf("ASTINET ")) > -1) { de.ServiceType = "ASTINET"; rle = 7; }
-            //                         12345678901234567890
+            else if ((rmv = d.IndexOf("MM ASTINET")) > -1) { de.ServiceType = "ASTINET"; rle = 10; }
+            else if ((rmv = d.IndexOf("ASTINET")) > -1) { de.ServiceType = "ASTINET"; rle = 7; }
+            //                         12345678901234567890123
+            else if ((rmv = d.IndexOf("MM METRO ETHERNET MP2MP")) > -1) { rle = 23; }
+            else if ((rmv = d.IndexOf("MM METRO ETHERNET P2MP")) > -1) { rle = 22; }
+            else if ((rmv = d.IndexOf("MM METRO ETHERNET P2P")) > -1) { rle = 21; }
+            else if ((rmv = d.IndexOf("MM METRO ETHERNETMP2MP")) > -1) { rle = 22; }
+            else if ((rmv = d.IndexOf("MM METRO ETHERNETP2MP")) > -1) { rle = 21; }
+            else if ((rmv = d.IndexOf("MM METRO ETHERNETP2P")) > -1) { rle = 20; }
+            else if ((rmv = d.IndexOf("MM METRO ETHERNET")) > -1) { rle = 17; }
+            else if ((rmv = d.IndexOf("MM METROETHERNET")) > -1) { rle = 16; }
+            else if ((rmv = d.IndexOf("MM METRO MP2MP")) > -1) { rle = 14; }
+            else if ((rmv = d.IndexOf("MM METRO P2MP")) > -1) { rle = 13; }
+            else if ((rmv = d.IndexOf("MM METRO P2P")) > -1) { rle = 12; }
+            else if ((rmv = d.IndexOf("MM METRO")) > -1) { rle = 8; }
+            //                         12345678901234567890123
+            else if ((rmv = d.IndexOf("METRO ETHERNET MP2MP")) > -1) { rle = 20; }
+            else if ((rmv = d.IndexOf("METRO ETHERNET P2MP")) > -1) { rle = 19; }
+            else if ((rmv = d.IndexOf("METRO ETHERNET P2P")) > -1) { rle = 18; }
+            else if ((rmv = d.IndexOf("METRO ETHERNETMP2MP")) > -1) { rle = 19; }
+            else if ((rmv = d.IndexOf("METRO ETHERNETP2MP")) > -1) { rle = 18; }
+            else if ((rmv = d.IndexOf("METRO ETHERNETP2P")) > -1) { rle = 17; }
+            else if ((rmv = d.IndexOf("METRO ETHERNET")) > -1) { rle = 14; }
+            else if ((rmv = d.IndexOf("METROETHERNET")) > -1) { rle = 13; }
+            else if ((rmv = d.IndexOf("METRO MP2MP")) > -1) { rle = 11; }
+            else if ((rmv = d.IndexOf("METRO P2MP")) > -1) { rle = 10; }
+            else if ((rmv = d.IndexOf("METRO P2P")) > -1) { rle = 9; }
+            else if ((rmv = d.IndexOf("METRO ")) > -1) { rle = 5; }
             else rmv = -1;
 
             if (rmv > -1)
             {
                 d = d.Remove(rmv, rle);
                 o = o.Remove(rmv, rle);
+
+                d = d.Insert(rmv, " ");
+                o = o.Insert(rmv, " ");
             }
             rmv = -1;
             rle = -1;
@@ -5540,17 +5677,17 @@ namespace Center
             if (de.ServiceType == null || de.ServiceType == "VPNIP")
             {
                 //                         12345678901234567890
-                if ((rmv = d.IndexOf("VPNIP TRANS ACCESS ")) > -1) { de.ServiceType = "VPNIP"; rle = 18; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANSACTIONAL ACCESS ")) > -1) { de.ServiceType = "VPNIP"; rle = 20; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("MM TRANS ACCESS ")) > -1) { de.ServiceType = "VPNIP"; rle = 15; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANSS ACCESS ")) > -1) { de.ServiceType = "VPNIP"; rle = 13; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANS ACCESS ")) > -1) { de.ServiceType = "VPNIP"; rle = 12; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANSACCESS ")) > -1) { de.ServiceType = "VPNIP"; rle = 11; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANS ACCES ")) > -1) { de.ServiceType = "VPNIP"; rle = 11; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANSACC ")) > -1) { de.ServiceType = "VPNIP"; rle = 8; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRAN ACC ")) > -1) { de.ServiceType = "VPNIP"; rle = 8; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANS AC ")) > -1) { de.ServiceType = "VPNIP"; rle = 8; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANSAC ")) > -1) { de.ServiceType = "VPNIP"; rle = 7; de.ServiceSubType = "TRANS"; }
+                if ((rmv = d.IndexOf("VPNIP TRANS ACCESS")) > -1) { de.ServiceType = "VPNIP"; rle = 18; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANSACTIONAL ACCESS")) > -1) { de.ServiceType = "VPNIP"; rle = 20; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("MM TRANS ACCESS")) > -1) { de.ServiceType = "VPNIP"; rle = 15; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANSS ACCESS")) > -1) { de.ServiceType = "VPNIP"; rle = 13; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANS ACCESS")) > -1) { de.ServiceType = "VPNIP"; rle = 12; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANSACCESS")) > -1) { de.ServiceType = "VPNIP"; rle = 11; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANS ACCES")) > -1) { de.ServiceType = "VPNIP"; rle = 11; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANSACC")) > -1) { de.ServiceType = "VPNIP"; rle = 8; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRAN ACC")) > -1) { de.ServiceType = "VPNIP"; rle = 8; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANS AC")) > -1) { de.ServiceType = "VPNIP"; rle = 8; de.ServiceSubType = "TRANS"; }
+                else if ((rmv = d.IndexOf("TRANSAC")) > -1) { de.ServiceType = "VPNIP"; rle = 7; de.ServiceSubType = "TRANS"; }
                 else if ((rmv = d.IndexOf("TRANSC ")) > -1) { de.ServiceType = "VPNIP"; rle = 6; de.ServiceSubType = "TRANS"; }
                 else if ((rmv = d.IndexOf("TRANSS ")) > -1) { de.ServiceType = "VPNIP"; rle = 6; de.ServiceSubType = "TRANS"; }
                 else if ((rmv = d.IndexOf("TRANS ")) > -1 && de.ServiceType == null) { de.ServiceType = "VPNIP"; rle = 5; de.ServiceSubType = "TRANS"; }
@@ -5560,6 +5697,9 @@ namespace Center
                 {
                     d = d.Remove(rmv, rle);
                     o = o.Remove(rmv, rle);
+
+                    d = d.Insert(rmv, " ");
+                    o = o.Insert(rmv, " ");
                 }
                 rmv = -1;
                 rle = -1;
@@ -5568,8 +5708,8 @@ namespace Center
             rmv = -1;
             rle = -1;
 
-            d = d.Trim();
-            o = o.Trim();
+            //d = d.Trim();
+            //o = o.Trim();
 
             //                         12345678901234567890
                  if ((rmv = d.IndexOf(" BENTROK DENGAN ")) > -1) { rle = 16; }
@@ -5595,6 +5735,7 @@ namespace Center
             else if ((rmv = d.IndexOf("XSID4")) > -1) { rle = 4; }
             else if ((rmv = d.IndexOf("XSID ")) > -1) { rle = 4; }
             else if ((rmv = d.IndexOf("FEAS ")) > -1) { rle = 4; }
+            else if ((rmv = d.IndexOf("SSID ")) > -1) { rle = 4; }
             else if ((rmv = d.IndexOf("VLAN ")) > -1) { rle = 4; }
             else if ((rmv = d.IndexOf(" EX3")) > -1) { rle = 3; }
             else if ((rmv = d.IndexOf(" EX4")) > -1) { rle = 3; }
@@ -5604,6 +5745,7 @@ namespace Center
             else if ((rmv = d.IndexOf("[EX4")) > -1) { rle = 3; }
             else if ((rmv = d.IndexOf("<EX3")) > -1) { rle = 3; }
             else if ((rmv = d.IndexOf("<EX4")) > -1) { rle = 3; }
+            
 
             if (rmv > -1)
             {
@@ -5630,11 +5772,15 @@ namespace Center
                         d = d.Remove(rmv);
                         o = o.Remove(rmv);
                     }
+
+                    d = d.Insert(rmv, " ");
+                    o = o.Insert(rmv, " ");
                 }
             }
             rmv = -1;
             rle = -1;
 
+            // DENGAN IDENTIFIKASI "SID"
             if (de.SID == null)
             {
                 //                         12345678901234567890
@@ -5679,7 +5825,9 @@ namespace Center
                 else if ((rmv = d.IndexOf("SID=")) > -1) { rle = 4; }
                 else if ((rmv = d.IndexOf("SID%")) > -1) { rle = 4; }
                 else if ((rmv = d.IndexOf("SID ")) > -1) { rle = 4; }
-                else if ((rmv = d.IndexOf(" INTG")) > -1) { rle = 1; }
+                // ITS A HELL DOWN HERE
+                else if ((rmv = d.IndexOf(" TELKOM FL")) > -1) { rle = 1; }
+                else if ((rmv = d.IndexOf(" INTG")) > -1) { rle = 1; }                
                 else rmv = -1;
 
                 if (rmv > -1)
@@ -5701,8 +5849,9 @@ namespace Center
 
                         while (true)
                         {
-                            end = o.IndexOfAny(new char[] { ' ', ')', '(', ']', '[', '.', '<', '>' }, nextend);
+                            end = o.IndexOfAny(new char[] { ' ', ')', '(', ']', '[', '.', '<', '>', '_' }, nextend);
                             if (end > -1 && end < d.Length && d[end] == ' ' && end - rmvn <= 8) nextend = end + 1;
+                            else if (end > -1 && end < d.Length && d[end] == '_' && end - rmvn <= 8) nextend = end + 1;
                             else break;
                         }
 
@@ -5740,22 +5889,48 @@ namespace Center
                             o = o.Remove(rmv);
                         }
                     }
+                }
+            }
 
-                    if (de.SID != null)
+            // DENGAN SID FORMAT
+            if (de.SID == null)
+            {
+                Match m = captureSIDFormat1.Match(o);
+
+                if (m.Success)
+                {
+                    string sid = m.Groups[0].Value;
+
+                    int idx = o.IndexOf(sid);
+
+                    if (idx > -1)
                     {
-                        ///int weirdc = de.SID.IndexOfAny(new char[] { ' ' });
+                        o = o.Remove(idx, sid.Length);
+                        d = d.Remove(idx, sid.Length);
 
-                        ///if (weirdc > -1) de.SID = null;
+                        o = o.Insert(idx, " ");
+                        d = d.Insert(idx, " ");
+
+                        de.SID = sid;
                     }
                 }
             }
 
+            // HEURISTIC SEARCH
             if (de.SID == null)
             {
-                string[] ss = o.Split(new char[] { ' ', ':', '=' });
-
                 List<string> sidc = new List<string>();
-                foreach (string si in ss)
+
+                List<string> sss = new List<string>();
+
+                foreach (string si in o.Split(new char[] { ' ', ':', '=' }))
+                {
+                    string[] sis = si.Split(new char[] { '_' }, 8);
+
+                    sss.AddRange(sis);
+                }
+
+                foreach (string si in sss)
                 {
                     int dig = 0;
 
@@ -5809,7 +5984,7 @@ namespace Center
                         {
                             if (fsi.Length >= 6 && fsi.Length <= 16)
                             {
-                                bool isDate = true;
+                                bool probablySID = true;
 
                                 string[] fsip = fsi.Split(new char[] { '-' });
                                 if (fsip.Length == 3)
@@ -5818,40 +5993,40 @@ namespace Center
                                     if (char.IsDigit(first[0]))
                                     {
                                         if (first.Length == 1 || first.Length == 2 && char.IsDigit(first[1])) { }
-                                        else isDate = false;
+                                        else probablySID = false;
                                     }
-                                    if (isDate && !char.IsDigit(first[0]))
+                                    if (probablySID && !char.IsDigit(first[0]))
                                     {
                                         if (first.Length >= 3 && (
                                             ListHelper.StartsWith(monthsEnglish, first) > -1 ||
                                             ListHelper.StartsWith(monthsBahasa, first) > -1
                                             ))
                                         { }
-                                        else isDate = false;
+                                        else probablySID = false;
                                     }
                                     string second = fsip[1];
-                                    if (isDate && char.IsDigit(second[0]))
+                                    if (probablySID && char.IsDigit(second[0]))
                                     {
                                         if (second.Length == 1 || second.Length == 2 && char.IsDigit(second[1])) { }
-                                        else isDate = false;
+                                        else probablySID = false;
                                     }
-                                    if (isDate && !char.IsDigit(second[0]))
+                                    if (probablySID && !char.IsDigit(second[0]))
                                     {
                                         if (second.Length >= 3 && (
                                             ListHelper.StartsWith(monthsEnglish, second) > -1 ||
                                             ListHelper.StartsWith(monthsBahasa, second) > -1
                                             ))
                                         { }
-                                        else isDate = false;
+                                        else probablySID = false;
                                     }
                                     string third = fsip[2];
-                                    if (isDate && char.IsDigit(second[0]))
+                                    if (probablySID && char.IsDigit(second[0]))
                                     {
                                         if (third.Length == 2 && char.IsDigit(third[1])) { }
                                         else if (third.Length == 4 && char.IsDigit(third[1]) && char.IsDigit(third[2]) && char.IsDigit(third[3])) { }
-                                        else isDate = false;
+                                        else probablySID = false;
                                     }
-                                    else isDate = false;
+                                    else probablySID = false;
                                 }
                                 else if (fsip.Length == 1)
                                 {
@@ -5859,11 +6034,7 @@ namespace Center
                                     // APR42014
                                     // 4APR2014
                                     // 04042014
-
-                                    if (char.IsDigit(fsi[0]))
-                                    {
-
-                                    }
+                                    if (char.IsDigit(fsi[0])) { }
                                     else
                                     {
                                         int tlen = 1;
@@ -5878,9 +6049,9 @@ namespace Center
                                         if (ListHelper.StartsWith(monthsEnglish, t) > -1 ||
                                             ListHelper.StartsWith(monthsBahasa, t) > -1)
                                         { }
-                                        else isDate = false;
+                                        else probablySID = false;
 
-                                        if (isDate && fsi.Length > tlen)
+                                        if (probablySID && fsi.Length > tlen)
                                         {
                                             int remaining = fsi.Length - tlen;
                                             if (remaining >= 3 && remaining <= 6)
@@ -5890,25 +6061,32 @@ namespace Center
                                                     char cc = fsi[tlen + ooi];
                                                     if (!char.IsDigit(cc))
                                                     {
-                                                        isDate = false;
+                                                        probablySID = false;
                                                         break;
                                                     }
                                                 }
                                             }
-                                            else isDate = false;
+                                            else probablySID = false;
                                         }
                                     }
-                                }
-                                else isDate = false;
 
-                                if (isDate) fsi = null;
+                                }
+                                else probablySID = false;
+
+                                if (probablySID) fsi = null;
+
                             }
                         }
 
                         if (fsi != null)
+                        {
                             sidc.Add(fsi);
+                        }
                     }
                 }
+
+                sss.Clear();
+
 
                 if (sidc.Count > 0)
                 {
@@ -5928,8 +6106,11 @@ namespace Center
                     de.SID = null;
                 else
                 {
-                    string fixsid = de.SID.Trim(new char[] { '-', ')', '(', '[', ']', '>', '<', '\'', '\"' });
-                    fixsid = fixsid.Replace("--", "-");
+                    string fixsid = de.SID.Trim(new char[] { '-', ')', '(', '[', ']', '>', '<', '\'', '\"', '_' });
+
+                    fixsid = string.Join("-", fixsid.Split(new char[] { '-' }, StringSplitOptions.RemoveEmptyEntries));
+                    fixsid = string.Join("_", fixsid.Split(new char[] { '_' }, StringSplitOptions.RemoveEmptyEntries));
+                    fixsid = string.Join(" ", fixsid.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
 
                     string[] sids = fixsid.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
                     if (sids.Length > 0)
@@ -5979,9 +6160,9 @@ namespace Center
 
             if (de.SID == null)
             {
-                if (d.IndexOf("TELKOMSEL") > -1 || d.IndexOf("TSEL") > -1)
+                if (o.IndexOf("TELKOMSEL") > -1 || o.IndexOf("TSEL") > -1)
                 {
-                    Match m = findSiteID.Match(d);
+                    Match m = findSiteID.Match(o);
 
                     if (m.Success)
                     {
@@ -5999,24 +6180,24 @@ namespace Center
 
             if (de.CID != "TELKOMSELSITES")
             {
-                d = d.Trim();
+                o = o.Trim();
 
                 // if double, singlekan
-                if (d.Length >= 2 && d.Length % 2 == 0)
+                if (o.Length >= 2 && o.Length % 2 == 0)
                 {
-                    int halflen = d.Length / 2;
-                    string leftside = d.Substring(0, halflen);
-                    string rightside = d.Substring(halflen, halflen);
+                    int halflen = o.Length / 2;
+                    string leftside = o.Substring(0, halflen);
+                    string rightside = o.Substring(halflen, halflen);
 
                     if (leftside == rightside)
-                        d = leftside;
+                        o = leftside;
                 }
 
-                d = d.Replace("()", "");
-                d = d.Replace("[]", "");
-                d = string.Join(" ", d.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries));
+                o = o.Replace("()", "");
+                o = o.Replace("[]", "");
+                o = string.Join(" ", o.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries));
 
-                de.CleanDescription = d;
+                de.CleanDescription = o;
             }
             else
             {

@@ -2682,9 +2682,9 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                     {
                                         string descarea = null;
                                         if (nodeVersion == "5.70")
-                                            descarea = line.Substring(28).TrimStart();
+                                            descarea = line.Substring(28);
                                         else
-                                            descarea = line.Substring(30).TrimStart();
+                                            descarea = line.Substring(30);
 
                                         description.Append(descarea);
                                     }
@@ -2762,8 +2762,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                         description.Append(descarea);
                                     }
                                 }
-                                else if (port != null)
-                                    description.Append(line.TrimStart());
+                                else if (port != null && line.Length >= 48)
+                                    description.Append(line.Substring(47));
                             }
                             else if (line.StartsWith("Interface")) begin = true;
                         }
@@ -3590,6 +3590,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     }
                 }
 
+                li.EquipmentName = NetworkInterface.EquipmentName(nodeManufacture, li.Name);
 
                 if (!interfacedb.ContainsKey(pair.Key))
                 {
@@ -3688,6 +3689,13 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.UpdateEnable = true;
                         u.Enable = li.Enable;
                         UpdateInfo(updateinfo, "enable", db["MI_Enable"].ToBool().DescribeTrueFalse(), li.Enable.DescribeTrueFalse());
+                    }
+                    if (db["MI_EquipmentName"].ToString() != li.EquipmentName)
+                    {
+                        update = true;
+                        u.UpdateEquipmentName = true;
+                        u.EquipmentName = li.EquipmentName;
+                        UpdateInfo(updateinfo, "equipment-name", db["MI_EquipmentName"].ToString(), li.EquipmentName);
                     }
                     if (db["MI_DOT1Q"].ToIntShort(-1) != li.Dot1Q)
                     {
@@ -3900,6 +3908,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 insert.Value("MI_Status", s.Status);
                 insert.Value("MI_Protocol", s.Protocol);
                 insert.Value("MI_Enable", s.Enable);
+                insert.Value("MI_EquipmentName", s.EquipmentName);
                 insert.Value("MI_DOT1Q", s.Dot1Q.Nullable(-1));
                 insert.Value("MI_Aggregator", s.Aggr.Nullable(-1));
                 insert.Value("MI_Description", s.Description);
@@ -3971,6 +3980,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 update.Set("MI_Aggregator", s.Aggr.Nullable(-1), s.UpdateAggr);
                 update.Set("MI_MC", s.CircuitID, s.UpdateCircuit);
                 update.Set("MI_Type", s.InterfaceType, s.UpdateInterfaceType);
+                update.Set("MI_EquipmentName", s.EquipmentName, s.UpdateEquipmentName);
                 update.Set("MI_MQ_Input", s.IngressID, s.UpdateIngressID);
                 update.Set("MI_MQ_Output", s.EgressID, s.UpdateEgressID);
                 update.Set("MI_Rate_Input", s.RateInput.Nullable(-1), s.UpdateRateInput);
@@ -4197,7 +4207,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 foreach (KeyValuePair<string, Row> pair2 in reserves)
                 {
                     string key2 = pair2.Key;
-                    if (key2.StartsWith(pair.Value.Name + "-") || key2.EndsWith("-" + pair.Value.ServiceSID))
+                    if (key2.StartsWith(pair.Value.Name + "=") || key2.EndsWith("=" + pair.Value.ServiceSID))
                     {
                         batch.Execute("delete from Reserve where RE_ID = {0}", pair2.Value["RE_ID"].ToString());
                     }

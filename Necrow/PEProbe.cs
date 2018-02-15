@@ -1439,6 +1439,8 @@ namespace Center
                 if (!result.OK) return DatabaseFailure(probe);
                 result = Execute("delete from PEInterfaceIP where PP_PI in (" + duplicatedinterfacestr + ")");
                 if (!result.OK) return DatabaseFailure(probe);
+                result = Execute("delete from PEMac where PA_PI in (" + duplicatedinterfacestr + ")");
+
                 result = Execute("delete from PEInterface where PI_ID in (" + duplicatedinterfacestr + ")");
                 if (!result.OK) return DatabaseFailure(probe);
                 Event(result, EventActions.Delete, EventElements.Interface, true);
@@ -2578,7 +2580,7 @@ Last input 00:00:00, output 00:00:00
                     string[] tokens = lineTrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
                     if (tokens.Length >= 3)
                     {
-                        NetworkInterface nif = NetworkInterface.Parse(tokens[0]);
+                        NetworkInterface nif = NetworkInterface.Parse(tokens[0], nodeManufacture);
                         if (nif != null && nif.IsSubInterface)
                         {
                             subifStatProt.Add(nif.Name, new Tuple<bool, bool>(tokens[1] == "up", tokens[2] == "up"));
@@ -2610,7 +2612,7 @@ Last input 00:00:00, output 00:00:00
                         if (splits.Length == 3)
                         {
                             string ifname = splits[0];
-                            NetworkInterface nif = NetworkInterface.Parse(ifname);
+                            NetworkInterface nif = NetworkInterface.Parse(ifname, nodeManufacture);
                             if (nif != null)
                             {
                                 current = new PEInterfaceToDatabase();
@@ -2635,7 +2637,7 @@ Last input 00:00:00, output 00:00:00
                     else if (line.StartsWith("  Logical interface "))
                     {
                         string ifname = line.Substring(20, line.IndexOf(' ', 20) - 20);
-                        NetworkInterface nif = NetworkInterface.Parse(ifname);
+                        NetworkInterface nif = NetworkInterface.Parse(ifname, nodeManufacture);
                         if (nif != null)
                         {
                             current = new PEInterfaceToDatabase();
@@ -2928,7 +2930,7 @@ Last input 00:00:00, output 00:00:00
                         string[] tokens = lineTrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
                         if (tokens.Length >= 1)
                         {
-                            NetworkInterface nif = NetworkInterface.Parse(tokens[0]);
+                            NetworkInterface nif = NetworkInterface.Parse(tokens[0], nodeManufacture);
                             if (nif != null)
                             {
                                 string name = nif.Name;
@@ -2958,7 +2960,7 @@ Last input 00:00:00, output 00:00:00
                         //interface aaa
                         //01234567890
                         string ifname = lineTrim.Substring(10, lineTrim.IndexOf(';') - 10);
-                        NetworkInterface nif = NetworkInterface.Parse(ifname);
+                        NetworkInterface nif = NetworkInterface.Parse(ifname, nodeManufacture);
                         if (nif != null)
                         {
                             string name = nif.Name;
@@ -3657,7 +3659,7 @@ Last input 00:00:00, output 00:00:00
 
                             li.Age = 0;
 
-                            NetworkInterface nif = NetworkInterface.Parse(inter);
+                            NetworkInterface nif = NetworkInterface.Parse(inter, nodeManufacture);
                             MacAddress ma = MacAddress.Parse(mac);
 
                             if (nif != null && ma != null)
@@ -3937,7 +3939,9 @@ Last input 00:00:00, output 00:00:00
                         }
                     }
                 }
-                
+
+                li.EquipmentName = NetworkInterface.EquipmentName(nodeManufacture, li.Name);
+
                 if (!interfacedb.ContainsKey(pair.Key))
                 {
                     Event("Interface ADD: " + pair.Key);
@@ -4031,6 +4035,13 @@ Last input 00:00:00, output 00:00:00
                         u.UpdateEnable = true;
                         u.Enable = li.Enable;
                         UpdateInfo(updateinfo, "enable", db["PI_Enable"].ToBool().DescribeTrueFalse(), li.Enable.DescribeTrueFalse());
+                    }
+                    if (db["PI_EquipmentName"].ToString() != li.EquipmentName)
+                    {
+                        update = true;
+                        u.UpdateEquipmentName = true;
+                        u.EquipmentName = li.EquipmentName;
+                        UpdateInfo(updateinfo, "equipment-name", db["PI_EquipmentName"].ToString(), li.EquipmentName);
                     }
                     if (db["PI_Type"].ToString() != li.InterfaceType)
                     {
@@ -4347,6 +4358,7 @@ Last input 00:00:00, output 00:00:00
                 insert.Value("PI_Status", s.Status);
                 insert.Value("PI_Protocol", s.Protocol);
                 insert.Value("PI_Enable", s.Enable);
+                insert.Value("PI_EquipmentName", s.EquipmentName);
                 insert.Value("PI_Type", s.InterfaceType);
                 insert.Value("PI_DOT1Q", s.Dot1Q.Nullable(-1));
                 insert.Value("PI_Aggregator", s.Aggr.Nullable(-1));
@@ -4399,6 +4411,7 @@ Last input 00:00:00, output 00:00:00
                 update.Set("PI_Protocol", s.Protocol, s.UpdateProtocol);
                 update.Set("PI_Enable", s.Enable, s.UpdateEnable);
                 update.Set("PI_Type", s.InterfaceType, s.UpdateInterfaceType);
+                update.Set("PI_EquipmentName", s.EquipmentName, s.UpdateEquipmentName);
                 update.Set("PI_DOT1Q", s.Dot1Q.Nullable(-1), s.UpdateDot1Q);
                 update.Set("PI_Aggregator", s.Aggr.Nullable(-1), s.UpdateAggr);
                 update.Set("PI_PN", s.RouteNameID, s.UpdateRouteID);
@@ -4536,7 +4549,7 @@ Last input 00:00:00, output 00:00:00
                 foreach (KeyValuePair<string, Row> pair2 in reserves)
                 {
                     string key2 = pair2.Key;
-                    if (key2.StartsWith(pair.Value.Name + "-") || key2.EndsWith("-" + pair.Value.ServiceSID))
+                    if (key2.StartsWith(pair.Value.Name + "=") || key2.EndsWith("=" + pair.Value.ServiceSID))
                     {
                         batch.Execute("delete from Reserve where RE_ID = {0}", pair2.Value["RE_ID"].ToString());
                     }
@@ -6159,7 +6172,9 @@ Last input 00:00:00, output 00:00:00
                                     current.InterfaceID = FindInterfaceByNeighbor(neighbor, currentRouteNameID, interfacelive);
 
                                     string key = currentRouteNameID + "_B_" + neighbor + "_" + currentBGPAS;
-                                    routeuselive.Add(key, current);
+
+                                    if (!routeuselive.ContainsKey(key)) // TODO
+                                        routeuselive.Add(key, current);
 
                                     int ras = -1;
                                     if (currentRemoteAS != null && int.TryParse(currentRemoteAS, out ras)) current.RemoteAS = ras;

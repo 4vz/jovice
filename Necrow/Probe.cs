@@ -1400,10 +1400,12 @@ namespace Center
             Queue<string> lastOutputs = new Queue<string>();
             string expectOutput = null;
 
-            if (args.Length == 0) return new ExpectResult(-1, null);
+            if (args.Length == 0) return new ExpectResult(-1, null, false);
 
             int wait = 0;
             int expectReturn = -1;
+
+            bool timeout = false;
 
             while (true)
             {
@@ -1442,11 +1444,14 @@ namespace Center
                     Thread.Sleep(50);
                     wait += 1;
                     if (wait == 400)
+                    {
+                        timeout = true;
                         break;
+                    }
                 }
             }
 
-            return new ExpectResult(expectReturn, expectOutput);
+            return new ExpectResult(expectReturn, expectOutput, timeout);
         }
 
         private string ResolveHostName(string hostname, bool reverse)
@@ -1887,6 +1892,13 @@ namespace Center
                     SendControlC();
                 }
             }
+            else
+            {
+                if (expect.IsTimeout)
+                {
+                    // timeout
+                }
+            }
 
             return connectSuccess;
         }
@@ -1940,39 +1952,46 @@ namespace Center
                 else
                 {
                     if (expect.Index == -1)
-                    {
+                    {                        
                         SendControlC();
 
-                        if (expect.Output == null)
+                        if (expect.IsTimeout)
                         {
-                            Event("Expect output null");
+                            // timeout
                         }
                         else
-                        {                            
-                            int llength = expect.Output.Length - LastSendLine.Length;
-
-                            if (llength == 2)
+                        {
+                            if (expect.Output == null)
                             {
-                                // connect fail for some reason
+                                Event("Expect output null");
                             }
                             else
                             {
-                                // the other error probaby ssh key expired or failing
-                                Event("Trying to regenerate new ssh key...");
-                                SendLine("ssh-keygen -R " + host);
+                                int llength = expect.Output.Length - LastSendLine.Length;
 
-                                expect = Expect("Not replacing existing known_hosts", "Host key verification failed", "Permission denied (publickey");
-                                if (expect.Index >= 0)
+                                if (llength == 2)
                                 {
-                                    // fail to ssh-keygen, just remove the known_hosts
-                                    Event("Removing known_hosts file because an error...");
-                                    SendLine("rm -f ~/.ssh/known_hosts");
+                                    // connect fail for some reason
                                 }
+                                else
+                                {
+                                    // the other error probaby ssh key expired or failing
+                                    Event("Trying to regenerate new ssh key...");
+                                    SendLine("ssh-keygen -R " + host);
 
-                                Thread.Sleep(500);
-                                SendLine("ssh -o StrictHostKeyChecking=no " + user + "@" + host);
+                                    expect = Expect("Not replacing existing known_hosts", "Host key verification failed", "Permission denied (publickey");
+                                    if (expect.Index >= 0)
+                                    {
+                                        // fail to ssh-keygen, just remove the known_hosts
+                                        Event("Removing known_hosts file because an error...");
+                                        SendLine("rm -f ~/.ssh/known_hosts");
+                                    }
 
-                                looppass = true;
+                                    Thread.Sleep(500);
+                                    SendLine("ssh -o StrictHostKeyChecking=no " + user + "@" + host);
+
+                                    looppass = true;
+                                }
                             }
                         }
                     }
@@ -6224,10 +6243,15 @@ namespace Center
             get { return output; }
         }
 
-        public ExpectResult(int index, string output)
+        private bool timeout = false;
+
+        public bool IsTimeout { get => timeout; }
+
+        public ExpectResult(int index, string output, bool timeout)
         {
             this.index = index;
             this.output = output;
+            this.timeout = timeout;
         }
     }
 }

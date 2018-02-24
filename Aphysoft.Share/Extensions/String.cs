@@ -10,6 +10,57 @@ namespace Aphysoft.Share
     /// </summary>
     public static class StringExtensions
     {
+        public static string[] Split(this string value, string[] separator, int minimumSize)
+        {
+            // AFIS_ICHAICHA_AIMEE_ARVEE
+            // separator: _
+            // minimumSize: 6
+            // AFIS_ICHAICHA, AIMEE_ARVEE
+            // minimumSize: 5
+            // AFIS_ICHAICHA, AIMEE, ARVEE
+
+            List<string> results = new List<string>();
+
+            StringBuilder buffer = new StringBuilder();
+
+            foreach (char c in value)
+            {
+                buffer.Append(c);
+                string currentBuffer = buffer.ToString();
+                foreach (string sep in separator)
+                {
+                    if (currentBuffer.EndsWith(sep))
+                    {
+                        int splitLength = currentBuffer.Length - sep.Length;
+
+                        if (splitLength >= minimumSize)
+                        {
+                            results.Add(currentBuffer.Remove(splitLength));
+                            buffer.Clear();
+                            break;
+                        }
+                    }
+                }            }
+
+            results.Add(buffer.ToString());
+
+            return results.ToArray();
+
+        }
+
+        public static string[] Split(this string value, char[] separator, int minimumSize)
+        {
+            List<string> separators = new List<string>();
+
+            foreach (char sep in separator)
+            {
+                separators.Add(sep.ToString());
+            }
+
+            return value.Split(separators.ToArray(), minimumSize);
+        }
+
+
         /// <summary>
         /// Reports the zero-based index of the first occurrence of the specified string in this instance.
         /// </summary>

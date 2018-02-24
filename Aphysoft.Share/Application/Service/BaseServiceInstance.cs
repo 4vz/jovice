@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,6 +20,13 @@ namespace Aphysoft.Share
 
         public bool IsConsole { get => (consoleThread != null); }
         public bool IsRunning { get => running; }
+
+        private IPAddress serviceServerAddress = null;
+        protected IPAddress ServiceServerAddress { get => serviceServerAddress; set => serviceServerAddress = value; }
+
+        public bool IsServiceClient { get => serviceServerAddress == null; }
+
+        private ConsoleInput consoleInput = null;
 
         #endregion
 
@@ -69,20 +77,27 @@ namespace Aphysoft.Share
             {
                 running = true;
 
-                Culture.Default();                
-                Service.Client();
+                Culture.Default();
 
-                Service.Connected += delegate (Connection connection)
+                if (serviceServerAddress != null)
                 {
-                    connecting = new Timer(new TimerCallback(delegate (object state)
+                    Service.Client(serviceServerAddress);
+
+                    Service.Connected += delegate (Connection connection)
                     {
-                        OnServiceConnected();
-                    }), null, 0, 20000);
-                };
-                
+                        connecting = new Timer(new TimerCallback(delegate (object state)
+                        {
+                            OnServiceConnected();
+                        }), null, 0, 20000);
+                    };
+                }
+                                
                 OnStart();
 
-                Service.End();
+                if (serviceServerAddress != null)
+                {
+                    Service.End();
+                }
             }));
             instanceThread.Start();
 
@@ -97,9 +112,9 @@ namespace Aphysoft.Share
                         string line = Console.ReadLine();
                         if (!instanceThread.IsAlive) break;
 
-                        ConsoleInput cs = new ConsoleInput(line);
+                        consoleInput = new ConsoleInput(line);
 
-                        if (cs.IsCommand("exit"))
+                        if (consoleInput.IsCommand("exit"))
                         {
                             running = false;
                             quitViaConsole = true;
@@ -151,6 +166,42 @@ namespace Aphysoft.Share
                 else
                     OnEvent(DateTime.UtcNow.ToString("HH:mm:ss.fff") + "|" + label + ">" + subLabel + "|" + message);
             }
+        }
+
+        public int ConsoleWait(string[] options, int timeout)
+        {
+            int ret = -1;
+            int c = 0;
+            int secincounter = timeout * 100;
+
+            while (true)
+            {
+                if (consoleInput != null)
+                {
+                    int ci = -1;
+                    foreach (string option in options)
+                    {
+                        ci++;
+                        if (consoleInput.IsCommand(option))
+                        {
+                            ret = ci;
+                            break;
+                        }
+                    }
+
+                    if (ret > -1)
+                    {
+                        break;
+                    }
+
+                }
+                Thread.Sleep(10);
+                c++;
+
+                if (c >= secincounter) break;
+            }
+
+            return ret;
         }
 
         #endregion

@@ -17,12 +17,6 @@ namespace Aphysoft.Share
 
         #endregion
 
-        #region Fields
-
-        private static Database share = Share.Database;
-
-        #endregion
-
         #region Instancing
 
         private static Service instance = null;
@@ -179,7 +173,7 @@ namespace Aphysoft.Share
         {
             if (!IsServer && !IsClient)
             {
-                if (share.Test(delegate(string message)
+                if (Share.Database.Test(delegate(string message)
                 {
                 }))
                 {
@@ -199,14 +193,6 @@ namespace Aphysoft.Share
 
                     Register(typeof(SessionClientServiceMessage), SessionClientServiceMessageHandler);
                 }
-            }
-        }
-
-        public static void Client()
-        {
-            if (!IsServer && !IsClient)
-            {
-                Client(new IPEndPoint(IPAddress.Loopback, defaultPort), ServiceTraceLevels.None);
             }
         }
 

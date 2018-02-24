@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Runtime.Serialization.Json;
 using System.Configuration;
+using System.Net;
 
 namespace Aphysoft.Share
 {
@@ -130,7 +131,7 @@ namespace Aphysoft.Share
 
             #region Service
 
-            Service.Client();
+            Service.Client(IPAddress.Loopback);
 
             #endregion
 

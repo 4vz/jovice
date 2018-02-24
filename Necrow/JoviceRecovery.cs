@@ -149,7 +149,7 @@ namespace Center
 
                             if (nsco.ToInt() > 0)
                             {
-                                batchDelete1.Execute("delete from NodeSummary where NS_NO = {0}", cnoid);
+                                batchDelete1.Execute("delete from NodeSummary where NS_ID in (select NS_ID from NodeSummary where NS_NO = {0})", cnoid);
                             }
                         }
 
@@ -168,7 +168,7 @@ namespace Center
                             string cnoid = row2["NO_ID"].ToString();
                             if (cnoid == noid) continue;
 
-                            batchDelete1.Execute("delete from NodeSlot where NC_NO = {0}", cnoid);
+                            batchDelete1.Execute("delete from NodeSlot where NC_ID in (select NC_ID from NodeSlot where NC_NO = {0})", cnoid);
                         }
 
                         result3 = batchDelete1.Commit();
@@ -182,7 +182,7 @@ namespace Center
                             string cnoid = row2["NO_ID"].ToString();
                             if (cnoid == noid) continue;
 
-                            batchDelete1.Execute("delete from NodeAlias where NA_NO = {0}", cnoid);
+                            batchDelete1.Execute("delete from NodeAlias where NA_ID in (select NA_ID from NodeAlias where NA_NO = {0})", cnoid);
                         }
 
                         result3 = batchDelete1.Commit();
@@ -196,7 +196,7 @@ namespace Center
                             string cnoid = row2["NO_ID"].ToString();
                             if (cnoid == noid) continue;
 
-                            batchDelete1.Execute("delete from NodeAccessRule where NAR_NO = {0}", cnoid);
+                            batchDelete1.Execute("delete from NodeAccessRule where NAR_ID in (select NAR_ID from NodeAccessRule where NAR_NO = {0})", cnoid);
                         }
 
                         result3 = batchDelete1.Commit();
@@ -260,8 +260,8 @@ namespace Center
                             string cnoid = row2["NO_ID"].ToString();
                             if (cnoid == noid) continue;
 
-                            batchDelete1.Execute("delete from PEMac where PA_NO = {0}", cnoid);
-                            batchDelete1.Execute("delete from MEMac where MA_NO = {0}", cnoid);
+                            batchDelete1.Execute("delete from PEMac where PA_ID in (select PA_ID from PEMac where PA_NO = {0})", cnoid);
+                            batchDelete1.Execute("delete from MEMac where MA_ID in (select MA_ID from MEMac where MA_NO = {0})", cnoid);
                         }
 
                         result3 = batchDelete1.Commit();
@@ -279,7 +279,7 @@ namespace Center
                             string cnoid = row2["NO_ID"].ToString();
                             if (cnoid == noid) continue;
 
-                            batchDelete1.Execute("delete from Reserve where RE_NO = {0}", cnoid);
+                            batchDelete1.Execute("delete from Reserve where RE_ID in (select RE_ID from Reserve where RE_NO = {0})", cnoid);
                         }
 
                         result3 = batchDelete1.Commit();
@@ -298,8 +298,8 @@ namespace Center
                             string cnoid = row2["NO_ID"].ToString();
                             if (cnoid == noid) continue;
 
-                            batchUpdate1.Execute("update PEInterface set PI_PN = NULL, PI_PQ_Input = NULL, PI_PQ_Output = NULL, PI_SE = NULL, PI_PI = NULL, PI_TO_MI = NULL, PI_TO_NI = NULL where PI_NO = {0}", cnoid);
-                            batchUpdate2.Execute("update MEInterface set MI_MC = NULL, MI_MQ_Input = NULL, MI_MQ_Output = NULL, MI_SE = NULL, MI_MI = NULL, MI_TO_PI = NULL, MI_TO_MI = NULL, MI_TO_NI = NULL where MI_NO = {0}", cnoid);
+                            batchUpdate1.Execute("update PEInterface set PI_PN = NULL, PI_PQ_Input = NULL, PI_PQ_Output = NULL, PI_SE = NULL, PI_PI = NULL, PI_TO_MI = NULL, PI_TO_NI = NULL where PI_ID in (select PI_ID from PEInterface where PI_NO = {0})", cnoid);
+                            batchUpdate2.Execute("update MEInterface set MI_MC = NULL, MI_MQ_Input = NULL, MI_MQ_Output = NULL, MI_SE = NULL, MI_MI = NULL, MI_TO_PI = NULL, MI_TO_MI = NULL, MI_TO_NI = NULL where MI_ID in (select MI_ID from MEInterface where MI_NO = {0})", cnoid);
                         }
 
                         result3 = batchUpdate1.Commit();
@@ -337,7 +337,7 @@ namespace Center
                             if (cnoid == noid) continue;
 
                             batchDelete2.Execute("delete from PERouteUse where PU_PN in (select PN_ID from PERouteName where PN_NO = {0})", cnoid);
-                            batchDelete1.Execute("delete from PERouteName where PN_NO = {0}", cnoid);
+                            batchDelete1.Execute("delete from PERouteName where PN_ID in (select PN_ID from PERouteName where PN_NO = {0})", cnoid);
                         }
 
                         Event("Deleting PERouteUse...");
@@ -362,8 +362,8 @@ namespace Center
                             string cnoid = row2["NO_ID"].ToString();
                             if (cnoid == noid) continue;
 
-                            batchDelete1.Execute("delete from PEQOS where PQ_NO = {0}", cnoid);
-                            batchDelete1.Execute("delete from MEQOS where MQ_NO = {0}", cnoid);
+                            batchDelete1.Execute("delete from PEQOS where PQ_ID in (select PQ_ID from PEQOS where PQ_NO = {0})", cnoid);
+                            batchDelete1.Execute("delete from MEQOS where MQ_ID in (select MQ_ID from MEQOS where MQ_NO = {0})", cnoid);
                         }
 
                         result3 = batchDelete1.Commit();
@@ -383,7 +383,7 @@ namespace Center
                             if (cnoid == noid) continue;
 
                             batchDelete1.Execute("delete from PEPrefixEntry where PY_PX in (select PX_ID from PEPrefixList where PX_NO = {0})", cnoid);
-                            batchDelete2.Execute("delete from PEPrefixList where PX_NO = {0}", cnoid);
+                            batchDelete2.Execute("delete from PEPrefixList where PX_ID in (select PX_ID from PEPrefixList where PX_NO = {0})", cnoid);
                         }
 
                         result3 = batchDelete1.Commit();
@@ -404,7 +404,7 @@ namespace Center
                             string cnoid = row2["NO_ID"].ToString();
                             if (cnoid == noid) continue;
 
-                            batchDelete1.Execute("delete from PEInterfaceIP where PP_PI in (select PI_ID from PEInterface where PI_NO = {0})", cnoid);
+                            batchDelete1.Execute("delete from PEInterfaceIP where PP_ID in (select PP_ID from PEInterfaceIP where PP_PI in (select PI_ID from PEInterface where PI_NO = {0}))", cnoid);
                         }
 
                         result3 = batchDelete1.Commit();
@@ -422,7 +422,7 @@ namespace Center
                             string cnoid = row2["NO_ID"].ToString();
                             if (cnoid == noid) continue;
 
-                            batchDelete1.Execute("delete from MEPeer where MP_MC in (select MC_ID from MECircuit where MC_NO = {0})", cnoid);
+                            batchDelete1.Execute("delete from MEPeer where MP_ID in (select MP_ID from MEPeer where MP_MC in (select MC_ID from MECircuit where MC_NO = {0}))", cnoid);
                         }
 
                         result3 = batchDelete1.Commit();
@@ -440,7 +440,7 @@ namespace Center
                             string cnoid = row2["NO_ID"].ToString();
                             if (cnoid == noid) continue;
 
-                            batchDelete1.Execute("delete from MESDP where MS_NO = {0}", cnoid);
+                            batchDelete1.Execute("delete from MESDP where MS_ID in (select MS_ID from MESDP where MS_NO = {0})", cnoid);
                         }
 
                         result3 = batchDelete1.Commit();
@@ -476,7 +476,7 @@ namespace Center
                             if (cnoid == noid) continue;
 
                             batchUpdate1.Execute("update MEPeer set MP_TO_MC = NULL where MP_TO_MC in (select MC_ID from MECircuit where MC_NO = {0})", cnoid);
-                            batchDelete1.Execute("delete from MECircuit where MC_NO = {0}", cnoid);
+                            batchDelete1.Execute("delete from MECircuit where MC_ID in (select MC_ID from MECircuit where MC_NO = {0})", cnoid);
                         }
 
                         result3 = batchUpdate1.Commit();
@@ -497,7 +497,7 @@ namespace Center
                             string cnoid = row2["NO_ID"].ToString();
                             if (cnoid == noid) continue;
 
-                            batchDelete1.Execute("delete from MECustomer where MU_NO = {0}", cnoid);
+                            batchDelete1.Execute("delete from MECustomer where MU_ID in (select MU_ID from MECustomer where MU_NO = {0})", cnoid);
                         }
 
                         result3 = batchDelete1.Commit();
@@ -519,8 +519,8 @@ namespace Center
                             batchDelete1.Execute("delete from DerivedAreaConnection where DAC_MI_1 in (select MI_ID from MEInterface where MI_NO = {0})", cnoid);
                             batchDelete1.Execute("delete from DerivedAreaConnection where DAC_MI_2 in (select MI_ID from MEInterface where MI_NO = {0})", cnoid);
 
-                            batchDelete2.Execute("delete from MEInterface where MI_NO = {0}", cnoid);
-                            batchDelete2.Execute("delete from PEInterface where PI_NO = {0}", cnoid);
+                            batchDelete2.Execute("delete from MEInterface where MI_ID in (select MI_ID from MEInterface where MI_NO = {0})", cnoid);
+                            batchDelete2.Execute("delete from PEInterface where PI_ID in (select PI_ID from PEInterface where PI_NO = {0})", cnoid);
                         }
 
                         result3 = batchDelete1.Commit();

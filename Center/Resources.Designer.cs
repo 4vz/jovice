@@ -19,7 +19,7 @@ namespace Center {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "4.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "15.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class Resources {
@@ -66,35 +66,46 @@ namespace Center {
         ////*! Center Main */
         ///(function () {
         ///
-        ///    var center;
+        ///    var center = $$.global(function (page) {
         ///
-        ///    // center
-        ///    (function (window) {
+        ///        // install explore
+        ///        $$.explore({
+        ///            title: &quot;telkom.center&quot;,
+        ///            search: function (s) {
+        ///                page.transfer(&quot;/search/&quot; + escape(s));
+        ///            }
+        ///        });
         ///
-        ///        var inited = false;
-        ///        var page = null;
-        ///        var onmain = false;
+        ///    });
         ///
-        ///        var shade, close, closeThings, offline, update, frontLogo, frontLogoElements, frontLogoDone = false;
-        ///        var ctop;
-        ///        var nbox;
-        ///        var asea;
-        ///
-        ///        var tbox;
-        ///        var ttitle;
-        ///
-        ///        var loadingStarted = false;
-        ///        var lbox;
-        ///
-        ///        var ogbox;
-        ///
-        ///
-        ///        // sign in
-        ///        v [rest of string was truncated]&quot;;.
+        ///    center.icon = function (name) {
+        ///        if (name == &quot;hex&quot;) return &quot;M50.518,188.535h101.038l50.515-87.5l-50.515-87.5H50.518L0,101.035L50.518,188.535z M59.178,28.535h83.718l41.854,72.5l-41.854,72.5H5 [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string center {
             get {
                 return ResourceManager.GetString("center", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 
+        ///
+        ///
+        ///$$.page({
+        ///
+        ///    init: function (d) {
+        ///
+        ///
+        ///
+        ///    }
+        ///
+        ///});
+        ///
+        ///.
+        /// </summary>
+        internal static string coba {
+            get {
+                return ResourceManager.GetString("coba", resourceCulture);
             }
         }
         
@@ -120,7 +131,7 @@ namespace Center {
         ///   Looks up a localized string similar to 
         ///(function () {
         ///
-        ///    ui(&quot;search_jovice_interface&quot;, function (b, r, f, p, t) {
+        ///    $$.script(&quot;search_jovice_interface&quot;, function (b, r, f, p, t) {
         ///        f.setSize(100);
         ///
         ///        //--- entry values
@@ -130,7 +141,7 @@ namespace Center {
         ///        var interfaceDesc = f.column(&quot;I_Desc&quot;);
         ///        
         ///        if (f.create) {
-        ///            r.nodeName = ui.text(b)({ font: [&quot;body&quot;, 15], color: 25, weight: &quot;600&quot;, top: 13, left: 20, noBreak: true, clickToSelect: true, cursor: &quot; [rest of string was truncated]&quot;;.
+        ///            r.nodeName = $$.text(b)({ font: [&quot;body&quot;, 15], color: 25, weight: &quot;600&quot;, top: 13, left: 20, noBreak: true, clickToSelect: true, cu [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string jovice_search_interface {
             get {
@@ -144,7 +155,7 @@ namespace Center {
         ///
         ///
         ///
-        ///    ui(&quot;search_jovice_service&quot;, function (b, r, f, p, t) {
+        ///    $$.script(&quot;search_jovice_service&quot;, function (b, r, f, p, t) {
         ///                
         ///        //--- match properties
         ///        /*
@@ -156,7 +167,7 @@ namespace Center {
         ///                    serviceType: r.serviceType.text(),
         ///                    entries: t.entries
         ///                },
-        ///              [rest of string was truncated]&quot;;.
+        ///       [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string jovice_search_service {
             get {
@@ -173,7 +184,7 @@ namespace Center {
         ///    var topbox, serviceID, customerName, serviceType;
         ///
         ///
-        ///    ui(&quot;jovice_service&quot;, {
+        ///    $$(&quot;jovice_service&quot;, {
         ///        init: function (p) {
         ///            page = center.init(p);
         ///            transfer = p.transfer();
@@ -196,14 +207,16 @@ namespace Center {
         ///   Looks up a localized string similar to (function () {
         ///
         ///    var page;
-        ///    ui(&quot;main&quot;, {
+        ///    $$.page(&quot;main&quot;, {
         ///        init: function (p) {
         ///            page = center.init(p);
-        ///
-        ///            (function() {
-        ///                //var paper = logo.paper();
-        ///                /*
-        ///                Raphael.registerFont({ &quot;w&quot;: 113, &quot;face&quot;: { &quot;font-family&quot;: &quot;Keep Calm Cufonized&quot;, &quot;font-weight&quot;: 500, &quot;font-stretch&quot;: &quot;normal&quot;, &quot;units-per-em&quot;: &quot;360&quot;, &quot;panose-1&quot;: &quot;2 0 0 0 0 0 0 0 0 0&quot;, &quot;ascent&quot;: &quot;288&quot;, &quot;descent&quot;: &quot;-72&quot;, &quot;x-height&quot;: &quot;5&quot;, &quot;bbox&quot;: &quot;-18 -316 413 101.626&quot;, &quot;underline-thick [rest of string was truncated]&quot;;.
+        ///            p.done();
+        ///        },
+        ///        start: function (p) {
+        ///            p.done();
+        ///        }
+        ///    });
+        ///})();.
         /// </summary>
         internal static string main {
             get {

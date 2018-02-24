@@ -87,6 +87,8 @@
         var localaccesses = f.column("LocalAccess");       
         var routeTypes = f.column("RouteType");
 
+        var ipd = f.column("IPD");
+
         var streamSeID = f.column("StreamServiceID");
         
         if (f.create) {                        
@@ -161,6 +163,12 @@
                 $$.icon(ref.ipArea, center.icon("IP"))({ top: 2, left: 0, color: 45, size: [16, 16] });
                 ref.ipText = $$.text(ref.ipArea)({ font: ["body", 13], color: 0, top: 2, left: 22, noBreak: true, clickToSelect: true, cursor: "copy" });
 
+                ref.ceArea = $$.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
+                ref.ceIcon = $$.icon(ref.ceArea, center.icon("fire"))({ top: 2, left: 0, color: 45, size: [16, 16] });
+                ref.ceIPText = $$.text(ref.ceArea)({ font: ["body", 13], color: 0, top: 2, left: 22, noBreak: true, clickToSelect: true, cursor: "copy" });
+                ref.ceToIcon = $$.icon(ref.ceArea, center.icon("skipright"))({ top: 3, left: 0, color: 45, size: [14, 14] });
+                ref.ceMACText = $$.text(ref.ceArea)({ font: ["body", 13], weight: "500", color: 0, top: 2, left: 22, noBreak: true, clickToSelect: true, cursor: "copy" });
+                
                 ref.vcidArea = $$.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
                 $$.text(ref.vcidArea)({ top: 3, left: 4, font: ["body", 6], text: "VC", color: 10 });
                 $$.text(ref.vcidArea)({ top: 9, left: 5, font: ["body", 6], text: "ID", color: 10 });
@@ -178,7 +186,7 @@
             }
 
             ref.area.show();
-            ref.area.top(topologyIndex * 60);            
+            ref.area.top(topologyIndex * 60);
             ref.purpose.button({
                 click: function () {
                     $.each(topologies, function (index) {
@@ -201,7 +209,7 @@
             ref.purpose({ text: purposes[topologyIndex], color: topologyIndex == 0 ? "accent" : 25 });
             if (topologyIndex == 0) ref.purpose.disableButton();
             else ref.purpose.enableButton();
-                        
+
             var vrf = vrfnames[topologyIndex];
             var rateinput = rateinputs[topologyIndex];
             var inputlimit = inputlimits[topologyIndex];
@@ -212,6 +220,7 @@
             var nodeinfo = nodeinfos[topologyIndex];
             var localaccess = localaccesses[topologyIndex];
             var routetype = routeTypes[topologyIndex];
+            var arp = ipd[topologyIndex];
 
             var lanc = 0;
 
@@ -246,6 +255,73 @@
                 lanc = ref.ipArea.leftWidth() + 20;
             }
             else ref.ipArea.hide();
+
+            if (arp != null && ip != null) {
+
+                var completed = false;
+
+                if (arp.length > 0) {
+                    var arps = arp.split(",");
+                    var sip = null;
+                    var smac = null;
+
+                    var iplocal = "";
+                    var iplx = ip.split("/");
+                    if (iplx.length == 2) iplocal = iplx[0];
+
+                    $.each(arps, function (ai, av) {
+
+                        var avs = av.split("-");
+
+                        if (avs[0] != iplocal) {
+                            completed = true;
+                            sip = avs[0];
+                            smac = avs[1].toUpperCase();
+                            return false;
+                        }
+
+                    });
+                }
+
+                var clw = 0;
+
+                if (completed == false) {
+                    ref.ceArea.show();
+                    ref.ceIPText.text("ARP INCOMPLETED");
+                    ref.ceIPText.color(50);
+                    ref.ceIcon.color(75);
+
+                    ref.ceToIcon.hide();
+                    ref.ceMACText.hide();
+
+                    clw = ref.ceIPText.leftWidth();
+                }
+                else if (sip != null && smac != null)
+                {
+                    ref.ceArea.show();
+                    ref.ceIPText.text(sip);
+                    ref.ceIPText.color(0);
+                    ref.ceIcon.color(45);
+
+                    ref.ceToIcon.show();
+                    ref.ceToIcon.left(ref.ceIPText.leftWidth() + 10);
+
+                    ref.ceMACText.show();
+                    ref.ceMACText.text(smac);
+                    ref.ceMACText.left(ref.ceToIcon.leftWidth() + 8);
+
+                    clw = ref.ceMACText.leftWidth();
+                }
+                else {
+                    ref.ceArea.hide();
+                }
+
+                if (clw > 0) {
+                    ref.ceArea({ left: lanc, width: clw + 10 });
+                    lanc = ref.ceArea.leftWidth() + 20;
+                }
+            }
+            else ref.ceArea.hide();
 
             if (vcid != null) {
                 ref.vcidArea.show();

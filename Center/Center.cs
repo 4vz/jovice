@@ -61,6 +61,15 @@ namespace Center
             Content.Register("developers", DevelopersResources.ResourceManager, "developers", "~/View/Developers/developers.js", "/developers::Center Developers");
 
             #endregion
+
+            Resource.Register("satellite_png_dish", ResourceTypes.PNG, SatelliteResources.ResourceManager, "png_dish", "~/View/Satellite/PNG/dish.png");
+            Resource.Register("satellite_png_sine1", ResourceTypes.PNG, SatelliteResources.ResourceManager, "png_sine1", "~/View/Satellite/PNG/sine1.png");
+
+            Content.Register("satellite", SatelliteResources.ResourceManager, "satellite", "~/View/Satellite/satellite.js", "/satellite::Satellite Operation");
+
+
+            Content.Register("coba", Resources.ResourceManager, "coba", "~/View/coba.js", "/afis::Afis Coba Framework");
+
         }
 
         protected override void OnScriptDataBinding(HttpContext context, ScriptData data)

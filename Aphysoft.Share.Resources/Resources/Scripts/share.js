@@ -293,6 +293,18 @@
             return "Aphysoft Share 2.0";
         };
 
+        var locks = {};
+        share.lock = function (id) {
+            if ($.isUndefined(locks[id])) {
+                locks[id] = true;
+                return true;
+            }
+            else return false;
+        };
+        share.unlock = function (id) {
+            delete locks[id];
+        };
+
         function chainingFunctions(iteration, functions) {
             if (iteration < 0 || functions == null) return;
 
@@ -332,6 +344,8 @@
                 chainingFunctions(0, v);
             });
         });
+
+
 
     })(window);
     
@@ -781,6 +795,12 @@
             yy: "{0} years"
         };
 
+
+        var dateOptionsDefaults = {
+            timeZone: null,
+            locale: "en-us"
+        };
+
         var date = function () {
             var o = arguments;
 
@@ -796,21 +816,30 @@
                         return new Date(parseInt(o[0].substr(6)));
                     }
                     else {
-                        var dateObject, locale;
+                        var dateObject = null;
+                        var optionsArg = {};
+
                         if ($.isDate(o[1])) {
-                            if (!isNaN(o[1].getTime())) {
-                                dateObject = o[1];
-                                locale = "en-us";
-                            }
-                            else return "INVALID DATE";
+                            if (!isNaN(o[1].getTime())) dateObject = o[1];
+                            if ($.isPlainObject(o[2])) optionsArg = o[2];
                         }
-                        else if ($.isString(o[1])) {
-                            locale = o[1];
-                            if ($.isDate(o[2])) dateObject = o[2];
+                        else if ($.isPlainObject(o[1])) {
+                            optionsArg = o[1];
                         }
-                        else dateObject = date();
+
+                        if (dateObject == null) dateObject = date();
+                        var options = $.extend({}, dateOptionsDefaults, optionsArg);
 
                         var oyear, omonth, odate, oday, ohour, oday, omin, osec, omil, otzdiff, otzdiffz, otzdiffh, otzdiffhm, otzdiffd;
+
+                        if ($.isNumeric(options.timeZone)) {
+                            var utc = dateObject.getTime() + (dateObject.getTimezoneOffset() * 60000) + (3600000 * options.timeZone);
+                            dateObject = new Date(utc);
+                            otzdiff = -options.timeZone * 60;
+                        }
+                        else {
+                            otzdiff = dateObject.getTimezoneOffset();
+                        } 
 
                         oyear = dateObject.getFullYear();
                         omonth = dateObject.getMonth();
@@ -820,8 +849,7 @@
                         omin = dateObject.getMinutes();
                         osec = dateObject.getSeconds();
                         omil = dateObject.getMilliseconds();
-                        otzdiff = dateObject.getTimezoneOffset();
-
+                        
                         otzdiffz = Math.abs(otzdiff);
                         otzdiffh = Math.floor(otzdiffz) / 60;
                         otzdiffhm = otzdiffz - otzdiffh * 60;
@@ -830,15 +858,15 @@
                         var res = o[0];
 
                         res = res.replace("{YYYY}", oyear);
-                        res = res.replace("{MMMM}", share.localization("monthLong", locale)[omonth]);
-                        res = res.replace("{MMM}", share.localization("monthShort", locale)[omonth]);
+                        res = res.replace("{MMMM}", share.localization("monthLong", options.locale)[omonth]);
+                        res = res.replace("{MMM}", share.localization("monthShort", options.locale)[omonth]);
                         res = res.replace("{MM}", zeroPadding((omonth + 1), 2));
                         res = res.replace("{M}", (omonth + 1));
                         res = res.replace("{DD}", zeroPadding(odate, 2));
                         res = res.replace("{D}", odate);
-                        res = res.replace("{dddd}", share.localization("dayLong", locale)[oday]);
-                        res = res.replace("{ddd}", share.localization("dayShort", locale)[oday]);
-                        res = res.replace("{d}", share.localization("dayShort", locale)[oday].charAt(0));
+                        res = res.replace("{dddd}", share.localization("dayLong", options.locale)[oday]);
+                        res = res.replace("{ddd}", share.localization("dayShort", options.locale)[oday]);
+                        res = res.replace("{d}", share.localization("dayShort", options.locale)[oday].charAt(0));
                         res = res.replace("{HH}", zeroPadding(ohour, 2));
                         res = res.replace("{hh}", zeroPadding(ohour == 0 ? 12 : ohour <= 12 ? ohour : (ohour - 12), 2));
                         res = res.replace("{H}", ohour);
@@ -1040,6 +1068,10 @@
 
         share.get = get;
         share.post = post;
+
+        share.providerPath = function () {
+            return providerPath;
+        };
 
         $(function () {
             providerPath = share.system("providerPath");
@@ -2819,7 +2851,16 @@
         // focus 1: in 2: out
         function focusEvent(event, type) {
             var o = {
-                type: type == 1 ? "in" : "out"
+                type: type == 1 ? "in" : "out",
+                preventDefault: function () {
+                    event.preventDefault();
+                },
+                stopPropagation: function () {
+                    event.stopPropagation();
+                },
+                stopImmediatePropagation: function () {
+                    event.stopImmediatePropagation();
+                },
             };
             return o;
         };
@@ -4316,762 +4357,766 @@
         })();
 
         share.init = function (family, pageUrl, scriptUrl, cssUrl, content, title, titles, urls, data, pageData, stateData) {
+            share.initialFontLoaded(function () {
 
-            // init functions
-            if (title == "") title = null;
 
-            if (loaded == false) {
-                loaded = true;
+                // init functions
+                if (title == "") title = null;
 
-                // ajaxify                                     
-                if (ajaxify && History.enabled == false) { // unfortunately, IE<10 is not supported
-                    ajaxify = false;
-                }
-                
-                // set container
-                pagesContainer.css(margin);
+                if (loaded == false) {
+                    loaded = true;
 
-                // resize
-                share.resize("share", function (re) {
-
-                    margin.top = parseInt(pagesContainer.css("top"));
-                    margin.left = parseInt(pagesContainer.css("left"));
-                    margin.right = parseInt(pagesContainer.css("right"));
-                    margin.bottom = parseInt(pagesContainer.css("bottom"));
-
-                    var topPage = pages.length > 0 ? pages[pages.length - 1] : null;
-                    if (topPage != null) {
-                        topPage.triggerResize(re);
-                    }
-                });
-
-                // create page skeleton
-                var main = $("#main");
-                main.removeAttr("style");
-                $("#nojs").remove();
-
-                // ajaxify                                        
-                if (ajaxify) {
-
-                    var State = History.getState();
-
-                    if (State.data.family == undefined) {
-                        // new page?, no state data?
-                        //debug("no family data, replace state, reload page");
-
-                        History.replaceState({ family: family, data: null }, share.title(title), urlPrefix + pageUrl);
-                        State = History.getState();
-
-                        //debug("new: " + urlPrefix + pageUrl);
-                        //debug(State.data);
+                    // ajaxify                                     
+                    if (ajaxify && History.enabled == false) { // unfortunately, IE<10 is not supported
+                        ajaxify = false;
                     }
 
-                    if (State.data.data != null) {
-                        stateData = State.data.data;
-                    }
-                    //debug("adding statechange");
+                    // set container
+                    pagesContainer.css(margin);
 
-                    History.Adapter.bind(window, "statechange", function () {                       
+                    // resize
+                    share.resize("share", function (re) {
 
-                        var State = History.getState();
-                        var ofamily = State.data.family;
-
-                        if (ofamily == undefined) return; // kita cuma replace ofamily undefined menjadi not undefined
-
-                        var rawUrl = State.url
-                        var appHref = share.url(rawUrl, "{path}{?search}").substr(urlPrefix.length);
-
-                        var topFamily = null;
+                        margin.top = parseInt(pagesContainer.css("top"));
+                        margin.left = parseInt(pagesContainer.css("left"));
+                        margin.right = parseInt(pagesContainer.css("right"));
+                        margin.bottom = parseInt(pagesContainer.css("bottom"));
 
                         var topPage = pages.length > 0 ? pages[pages.length - 1] : null;
-                        if (topPage != null)
-                            topFamily = topPage.family;
-
-                        var stateData = State.data.data;
-
-                        var nocallback = false;
-
-                        if (share.__nocallback == true) {
-                            delete share.__nocallback;
-                            nocallback = true;
-                        }
-
-                        if (topFamily != null) {
-
-                            if (ofamily != topFamily) {  // different family, global link
-
-                                if (!nocallback) {
-
-                                    share.startLoading();
-
-                                    $.getJSON(contentProviderUrl, { p: appHref }, function (d) {
-
-                                        share.endLoading();
-
-                                        share.init(d.f, appHref, d.s, d.u, d.c, d.t, d.y, d.z, d.d, d.x, stateData);
-                                    });
-                                }
-                            }
-                            else { // same family, local link
-                                topPage.data(stateData);
-                                topPage.url(appHref);
-
-                                transferring = false;
-
-                                if (!nocallback)
-                                    topPage.local(topPage);
-                            }
-                        }
-                    });
-                }
-                else {
-                    // no ajaxify
-                }
-
-                // unload
-                share.unload(function () {
-                    $.each(pages, function (pi, pv) {
-                        pv.unload(page);
-                    });
-                });
-            }
-
-            // update share.data
-            if (data != null) {
-                var key = null;
-                $.each(data, function (i, v) { if (i % 2 == 0) key = v; else share.data(key, v); });
-            }
-
-            // create page object
-            var data = {};
-            if ($.isPlainObject(stateData)) {
-                data = stateData;
-            }
-            var eventHandlers = [];
-            var streamHandlers = [];
-            var title = title;
-            var state = 0;
-            var id = (++count);
-            var last = pages.length > 0 ? pages[pages.length - 1] : null;
-            var next = null;
-            var transitioning = false;
-            var noTransition = false;
-
-            var page = function () {
-                var o = arguments;
-                if ($.isString(o[0])) {
-                    return $(o[0], page.$);
-                }
-            };
-
-            var url = null;
-            var baseUrl = null;
-            var endUrl = null;
-            var transferLeave = null;
-
-            var resizeGuid = 0;
-            var resizeHandlers = {};
-
-            page.lastPage = last;
-            page.family = family;
-            page.titles = titles;
-            page.urls = urls;
-
-            page.url = function (arg1) {
-
-                if ($.isString(arg1)) {
-                    var purl = share.url(arg1);
-                    var burl = null;
-                    var eurl = null;
-
-                    $.each(urls, function (i, v) {
-                        if (v.length > 1 && v.endsWith("?") && purl.path.startsWith(v.substr(0, v.length - 1))) {
-                            burl = v.substr(0, v.length - 1);
-                            eurl = arg1.substr(burl.length);
-                            return false;
-                        }
-                        else if (purl.path == v) {
-                            burl = v;
-                            eurl = "";
-                            return false;
+                        if (topPage != null) {
+                            topPage.triggerResize(re);
                         }
                     });
 
-                    if (burl != null) {
-                        baseUrl = burl;
-                        endUrl = eurl;
-                        url = arg1;
-                    }
-                }
-                else if ($.isBoolean(arg1) && arg1 == true) return share.url(url);
-                else return url;
-            };
-            page.baseUrl = function () {
-                return baseUrl;
-            };
-            page.endUrl = function () {
-                return endUrl;
-            };
-            page.$ = null;
-            page.type = "page";
-            page.height = function () {
-                return share.pageHeight() - margin.top - margin.bottom;
-            };
-            page.width = function () {
-                return share.pageWidth() - margin.left - margin.right;
-            };
-            page.event = function () {
-                var o = arguments;
+                    // create page skeleton
+                    var main = $("#main");
+                    main.removeAttr("style");
+                    $("#nojs").remove();
 
-                if (Array.isArray(o[0])) {
-                    $.each(o[0], function (i, v) {
-                        if ($.isNumber(v) || Array.isArray(v))
-                            page.event(v);
-                    });
-                }
-                else if ($.isNumber(o[0])) {
-                    eventHandlers.push(o[0]);
-                }
-                else {
-                    var ei = share.event(o[0], o[1], o[2], o[3], o[4], o[5]);
-                    eventHandlers.push(ei);
-                    return ei;
-                }
-            };
-            page.removeEvent = function (arg1) {
-                if ($.isNumber(arg1) || $.isString(arg1)) {
-                    share.removeEvent(arg1);
-                    var ix = eventHandlers.indexOf(arg1);
-                    if (ix > -1) {
-                        eventHandlers.splice(ix, 1);
-                    }
-                }
-                else if (Array.isArray(arg1)) {
-                    $.each(arg1, function (i, v) {
-                        page.removeEvent(v);
-                    });
-                }
-            };
-            page.stream = function (c) {
-                var si = share.stream(c);
-                streamHandlers.push(si);
-                return si;
-            };
-            page.removeStream = function (d) {
-                if ($.isNumber(d)) {
-                    share.removeStream(d);
-                    var ix = streamHandlers.indexOf(d);
-                    if (ix > -1) {
-                        streamHandlers.splice(ix, 1);
-                    }
-                }
-                else if (Array.isArray(d)) {
-                    $.each(d, function (i, v) {
-                        page.removeStream(v);
-                    });
-                }
-            };
-            page.data = function () {
-                var o = arguments;
-                if ($.isPlainObject(o[0])) {
-                    $.each(o[0], function (i, v) { data[i] = v; });
-                }
-                else if ($.isString(o[0])) {
-                    if ($.isUndefined(o[1])) {
-                        var d = data[o[0]];
-                        return $.isUndefined(d) ? null : d;
-                    }
-                    else if ($.isNull(o[1])) {
-                        var d = data[o[0]];
-                        if (!$.isUndefined(d)) delete data[o[0]];
-                    }
-                    else data[o[0]] = o[1];
-                }
-                else return data;
-            };
-            page.state = function () {
-                var o = arguments;
-                if ($.isNumber(o[0])) state = o[0];
-                else return state;
-            };
-            page.last = function () {
-                var o = arguments;
-                if (o[0] != null) last = o[0];
-                else return last;
-            };
-            page.next = function () {
-                var o = arguments;
-                if (o[0] != null) next = o[0];
-                else return next;
-            };
-            page.back = function () {
-                History.back();
-            };
-            page.forward = function () {
-                History.forward();
-            };
-            page.transitioning = function () {
-                var o = arguments;
-                if ($.isBoolean(o[0])) transitioning = o[0];
-                else return transitioning;
-            };
-            page.isNoTransition = function () {
-                return noTransition;
-            };
-            page.cancelTransition = function () {
-                noTransition = true;
-            };
-            page.transfer = function (arg1, arg2) {
-                if ($.isString(arg1)) {
-
-                    if (transferring) return;// transfer busy
-
-                    if (arg1 == "") arg1 = "/";
-                    if (!arg1.startsWith(urlPrefix)) return; // not began with url prefix, cannot transfer
-
-                    var appHref = arg1.substr(urlPrefix.length); // trim url prefix
-                    var appHrefClean = share.url(appHref, "{path}");
-
-                    if (escape(appHref) == escape(page.url())) {
-                        return; // already on target page;
-                    }
-                    // appHref ==> /urlPrefix/path/to/page?querystrings
-
+                    // ajaxify                                        
                     if (ajaxify) {
 
-                        // cancel pending tooltip
-                        share.cancelTooltipTimer();
-                        share.closeTooltip();
+                        var State = History.getState();
 
-                        //if (page.location == appHrefClean)
-                        var globallink = false;
-                        var replaceState = false;
-                        var stateData = null;
-                        var noCallback = false;
+                        if (State.data.family == undefined) {
+                            // new page?, no state data?
+                            //debug("no family data, replace state, reload page");
 
-                        transferData = {
-                            data: null,
-                            transition: null
-                        };
+                            History.replaceState({ family: family, data: null }, share.title(title), urlPrefix + pageUrl);
+                            State = History.getState();
 
+                            //debug("new: " + urlPrefix + pageUrl);
+                            //debug(State.data);
+                        }
 
-                        if (globallink == false) {
-                            // cek for local link first
-                            globallink = true;
-                            $.each(page.urls, function (i, v) {
-                                if (v.length > 1 && v.endsWith("?")) {
-                                    var vs = v.substr(0, v.length - 1);
-                                    if (appHrefClean.startsWith(vs)) {
-                                        globallink = false;
-                                        return false;
+                        if (State.data.data != null) {
+                            stateData = State.data.data;
+                        }
+                        //debug("adding statechange");
+
+                        History.Adapter.bind(window, "statechange", function () {
+
+                            var State = History.getState();
+                            var ofamily = State.data.family;
+
+                            if (ofamily == undefined) return; // kita cuma replace ofamily undefined menjadi not undefined
+
+                            var rawUrl = State.url
+                            var appHref = share.url(rawUrl, "{path}{?search}").substr(urlPrefix.length);
+
+                            var topFamily = null;
+
+                            var topPage = pages.length > 0 ? pages[pages.length - 1] : null;
+                            if (topPage != null)
+                                topFamily = topPage.family;
+
+                            var stateData = State.data.data;
+
+                            var nocallback = false;
+
+                            if (share.__nocallback == true) {
+                                delete share.__nocallback;
+                                nocallback = true;
+                            }
+
+                            if (topFamily != null) {
+
+                                if (ofamily != topFamily) {  // different family, global link
+
+                                    if (!nocallback) {
+
+                                        share.startLoading();
+
+                                        $.getJSON(contentProviderUrl, { p: appHref }, function (d) {
+
+                                            share.endLoading();
+
+                                            share.init(d.f, appHref, d.s, d.u, d.c, d.t, d.y, d.z, d.d, d.x, stateData);
+                                        });
                                     }
                                 }
-                                else {
-                                    if (appHrefClean == v) {
-                                        globallink = false;
-                                        return false;
-                                    }
+                                else { // same family, local link
+                                    topPage.data(stateData);
+                                    topPage.url(appHref);
+
+                                    transferring = false;
+
+                                    if (!nocallback)
+                                        topPage.local(topPage);
                                 }
-                            });
-                        }
+                            }
+                        });
+                    }
+                    else {
+                        // no ajaxify
+                    }
 
-                        if ($.isPlainObject(arg2)) {
-                            if ($.isBoolean(arg2.replace) && arg2.replace) replaceState = true;
-                            if ($.isBoolean(arg2.nocallback) && arg2.nocallback) noCallback = true;
-                            if ($.isPlainObject(arg2.transferData)) transferData.data = arg2.transferData;
-                            if ($.isPlainObject(arg2.data)) stateData = arg2.data;
-                            if ($.isString(arg2.transition)) transferData.transition = arg2.transition;
-                            if ($.isFunction(arg2.leave)) transferLeave = arg2.leave;
-                        }
+                    // unload
+                    share.unload(function () {
+                        $.each(pages, function (pi, pv) {
+                            pv.unload(page);
+                        });
+                    });
+                }
 
-                        if (replaceState && noCallback) {
-                            share.__nocallback = true;
-                            History.replaceState(
-                                { family: page.family, data: stateData, nocallback: true },
-                                share.title(createTitle(appHref, page)),
-                                urlPrefix + appHref);
+                // update share.data
+                if (data != null) {
+                    var key = null;
+                    $.each(data, function (i, v) { if (i % 2 == 0) key = v; else share.data(key, v); });
+                }
+
+                // create page object
+                var data = {};
+                if ($.isPlainObject(stateData)) {
+                    data = stateData;
+                }
+                var eventHandlers = [];
+                var streamHandlers = [];
+                var title = title;
+                var state = 0;
+                var id = (++count);
+                var last = pages.length > 0 ? pages[pages.length - 1] : null;
+                var next = null;
+                var transitioning = false;
+                var noTransition = false;
+
+                var page = function () {
+                    var o = arguments;
+                    if ($.isString(o[0])) {
+                        return $(o[0], page.$);
+                    }
+                };
+
+                var url = null;
+                var baseUrl = null;
+                var endUrl = null;
+                var transferLeave = null;
+
+                var resizeGuid = 0;
+                var resizeHandlers = {};
+
+                page.lastPage = last;
+                page.family = family;
+                page.titles = titles;
+                page.urls = urls;
+
+                page.url = function (arg1) {
+
+                    if ($.isString(arg1)) {
+                        var purl = share.url(arg1);
+                        var burl = null;
+                        var eurl = null;
+
+                        $.each(urls, function (i, v) {
+                            if (v.length > 1 && v.endsWith("?") && purl.path.startsWith(v.substr(0, v.length - 1))) {
+                                burl = v.substr(0, v.length - 1);
+                                eurl = arg1.substr(burl.length);
+                                return false;
+                            }
+                            else if (purl.path == v) {
+                                burl = v;
+                                eurl = "";
+                                return false;
+                            }
+                        });
+
+                        if (burl != null) {
+                            baseUrl = burl;
+                            endUrl = eurl;
+                            url = arg1;
                         }
-                        else {
-                            if (replaceState)
+                    }
+                    else if ($.isBoolean(arg1) && arg1 == true) return share.url(url);
+                    else return url;
+                };
+                page.baseUrl = function () {
+                    return baseUrl;
+                };
+                page.endUrl = function () {
+                    return endUrl;
+                };
+                page.$ = null;
+                page.type = "page";
+                page.height = function () {
+                    return share.pageHeight() - margin.top - margin.bottom;
+                };
+                page.width = function () {
+                    return share.pageWidth() - margin.left - margin.right;
+                };
+                page.event = function () {
+                    var o = arguments;
+
+                    if (Array.isArray(o[0])) {
+                        $.each(o[0], function (i, v) {
+                            if ($.isNumber(v) || Array.isArray(v))
+                                page.event(v);
+                        });
+                    }
+                    else if ($.isNumber(o[0])) {
+                        eventHandlers.push(o[0]);
+                    }
+                    else {
+                        var ei = share.event(o[0], o[1], o[2], o[3], o[4], o[5]);
+                        eventHandlers.push(ei);
+                        return ei;
+                    }
+                };
+                page.removeEvent = function (arg1) {
+                    if ($.isNumber(arg1) || $.isString(arg1)) {
+                        share.removeEvent(arg1);
+                        var ix = eventHandlers.indexOf(arg1);
+                        if (ix > -1) {
+                            eventHandlers.splice(ix, 1);
+                        }
+                    }
+                    else if (Array.isArray(arg1)) {
+                        $.each(arg1, function (i, v) {
+                            page.removeEvent(v);
+                        });
+                    }
+                };
+                page.stream = function (c) {
+                    var si = share.stream(c);
+                    streamHandlers.push(si);
+                    return si;
+                };
+                page.removeStream = function (d) {
+                    if ($.isNumber(d)) {
+                        share.removeStream(d);
+                        var ix = streamHandlers.indexOf(d);
+                        if (ix > -1) {
+                            streamHandlers.splice(ix, 1);
+                        }
+                    }
+                    else if (Array.isArray(d)) {
+                        $.each(d, function (i, v) {
+                            page.removeStream(v);
+                        });
+                    }
+                };
+                page.data = function () {
+                    var o = arguments;
+                    if ($.isPlainObject(o[0])) {
+                        $.each(o[0], function (i, v) { data[i] = v; });
+                    }
+                    else if ($.isString(o[0])) {
+                        if ($.isUndefined(o[1])) {
+                            var d = data[o[0]];
+                            return $.isUndefined(d) ? null : d;
+                        }
+                        else if ($.isNull(o[1])) {
+                            var d = data[o[0]];
+                            if (!$.isUndefined(d)) delete data[o[0]];
+                        }
+                        else data[o[0]] = o[1];
+                    }
+                    else return data;
+                };
+                page.state = function () {
+                    var o = arguments;
+                    if ($.isNumber(o[0])) state = o[0];
+                    else return state;
+                };
+                page.last = function () {
+                    var o = arguments;
+                    if (o[0] != null) last = o[0];
+                    else return last;
+                };
+                page.next = function () {
+                    var o = arguments;
+                    if (o[0] != null) next = o[0];
+                    else return next;
+                };
+                page.back = function () {
+                    History.back();
+                };
+                page.forward = function () {
+                    History.forward();
+                };
+                page.transitioning = function () {
+                    var o = arguments;
+                    if ($.isBoolean(o[0])) transitioning = o[0];
+                    else return transitioning;
+                };
+                page.isNoTransition = function () {
+                    return noTransition;
+                };
+                page.cancelTransition = function () {
+                    noTransition = true;
+                };
+                page.transfer = function (arg1, arg2) {
+                    if ($.isString(arg1)) {
+
+                        if (transferring) return;// transfer busy
+
+                        if (arg1 == "") arg1 = "/";
+                        if (!arg1.startsWith(urlPrefix)) return; // not began with url prefix, cannot transfer
+
+                        var appHref = arg1.substr(urlPrefix.length); // trim url prefix
+                        var appHrefClean = share.url(appHref, "{path}");
+
+                        if (escape(appHref) == escape(page.url())) {
+                            return; // already on target page;
+                        }
+                        // appHref ==> /urlPrefix/path/to/page?querystrings
+
+                        if (ajaxify) {
+
+                            // cancel pending tooltip
+                            share.cancelTooltipTimer();
+                            share.closeTooltip();
+
+                            //if (page.location == appHrefClean)
+                            var globallink = false;
+                            var replaceState = false;
+                            var stateData = null;
+                            var noCallback = false;
+
+                            transferData = {
+                                data: null,
+                                transition: null
+                            };
+
+
+                            if (globallink == false) {
+                                // cek for local link first
                                 globallink = true;
+                                $.each(page.urls, function (i, v) {
+                                    if (v.length > 1 && v.endsWith("?")) {
+                                        var vs = v.substr(0, v.length - 1);
+                                        if (appHrefClean.startsWith(vs)) {
+                                            globallink = false;
+                                            return false;
+                                        }
+                                    }
+                                    else {
+                                        if (appHrefClean == v) {
+                                            globallink = false;
+                                            return false;
+                                        }
+                                    }
+                                });
+                            }
 
-                            transferring = true;
+                            if ($.isPlainObject(arg2)) {
+                                if ($.isBoolean(arg2.replace) && arg2.replace) replaceState = true;
+                                if ($.isBoolean(arg2.nocallback) && arg2.nocallback) noCallback = true;
+                                if ($.isPlainObject(arg2.transferData)) transferData.data = arg2.transferData;
+                                if ($.isPlainObject(arg2.data)) stateData = arg2.data;
+                                if ($.isString(arg2.transition)) transferData.transition = arg2.transition;
+                                if ($.isFunction(arg2.leave)) transferLeave = arg2.leave;
+                            }
 
-                            if (!globallink) {
-                                History.pushState(
-                                    { family: page.family, data: stateData },
+                            if (replaceState && noCallback) {
+                                share.__nocallback = true;
+                                History.replaceState(
+                                    { family: page.family, data: stateData, nocallback: true },
                                     share.title(createTitle(appHref, page)),
                                     urlPrefix + appHref);
                             }
                             else {
-                                // global                                
-                                $.getJSON(contentProviderUrl, { p: appHref, t: 1 }, function (d) {
+                                if (replaceState)
+                                    globallink = true;
 
-                                    if (d.f == "system_status_404") {
-                                        // TODO
-                                        var todo = page.error("brokenlink", urlPrefix + appHref);
-                                        if (todo == undefined || todo == true) {
-                                            // bring to 404
-                                            alert("404");
+                                transferring = true;
+
+                                if (!globallink) {
+                                    History.pushState(
+                                        { family: page.family, data: stateData },
+                                        share.title(createTitle(appHref, page)),
+                                        urlPrefix + appHref);
+                                }
+                                else {
+                                    // global                                
+                                    $.getJSON(contentProviderUrl, { p: appHref, t: 1 }, function (d) {
+
+                                        if (d.f == "system_status_404") {
+                                            // TODO
+                                            var todo = page.error("brokenlink", urlPrefix + appHref);
+                                            if (todo == undefined || todo == true) {
+                                                // bring to 404
+                                                alert("404");
+                                            }
+                                            //dataUI.transferring = false;
+                                            //return;
                                         }
-                                        //dataUI.transferring = false;
-                                        //return;
-                                    }                                    
 
-                                    if (replaceState) {
-                                        History.replaceState(
-                                            { family: d.f, data: stateData },
-                                            share.title(d.t),
-                                            urlPrefix + appHref);
-                                    }
-                                    else {
-                                        History.pushState(
-                                            { family: d.f, data: stateData },
-                                            share.title(d.t),
-                                            urlPrefix + appHref);
-                                    }
-                                });
-                            }
-                        }
-                    }
-                    else {
-                        document.location = urlPrefix + appHref;
-                    }
-                }
-                else if (arg1 == null) {
-                    if (page.prototype.transfer == null) return null;
-                    else return page.prototype.transfer.data;
-                }
-            }; // arg1: <string: url>, arg2: <plainObject: { data: <object: data>, transferData: <object: data>, transition: <string: transition> }
-            page.css = function (arg1) {
-
-                if ($.isString(arg1)) {
-                    if (css[arg1] == null && arg1 != null && arg1 != "") {
-                        var pcss = { obj: null, users: [] };
-                        var obj = $("<link />");
-
-                        pcss.obj = obj;
-                        obj.attr({ href: arg1, rel: "stylesheet", type: "text/css" });
-
-                        $("head").append(obj);
-
-                        pcss.users.push(page);
-                        css[arg1] = pcss;
-                    }
-                    else if (arg1 != null && arg1 != "") {
-                        var pcss = css[arg1];
-                        var add = true;
-
-                        $.each(pcss.users, function (i, v) {
-                            if (v == page) {
-                                add = false;
-                                return false;
-                            }
-                        });
-
-                        if (add)
-                            pcss.users.push(page);
-                    }
-                }
-            };
-            page.title = function (arg1) {
-
-                if ($.isString(arg1)) {
-                    var old = title;
-                    if (arg1.length == 0)
-                        title = "";
-                    else
-                        title = arg1;
-                    if (old != title)
-                        document.title = share.title(title);
-                }
-                else
-                    return title;
-
-            };
-            page.done = function () {
-
-                //debug("done by " + page.prototype.id + " state " + page.state());
-
-                if (state == 0) { // done by init
-
-                    $("a[href]", this.$).each(function (i) {
-                        var e = $(this);
-                        var hrefstr = e.attr("href");
-                        var d = e.attr("data-transfer");
-                        var transition = e.attr("data-transition");
-
-                        e.attr("data-transfer", null);
-                        e.attr("data-transition", null);
-
-                        if (!hrefstr.startsWith(urlPrefix))
-                            e.attr("href", urlPrefix + hrefstr);
-
-                        e.click(function (event) {
-                            event.preventDefault();
-                            page.transfer(e.attr("href"), { transferData: d, transition: transition });
-                        });
-                    });
-                    share.triggerResize("share", page);
-                    _new = false;
-
-                    state = 1;
-
-                    // call exit for last page if available, exit is leave
-                    if (last != null) {
-
-                        last.state(3);
-                        last.leave(last);
-
-                        // if last page available, check for page transition
-                        var transition = null;
-
-                        if (page.prototype.transfer == null) {
-                            if (last.lastPage != null) {
-                                if (last.lastPage.family == page.family && last.prototype.transfer != null) {
-                                    var lastTransition = last.prototype.transfer.transition;
-                                    if (lastTransition == "slideleft") transition = "slideright";
-                                    else if (lastTransition == "slideright") transition = "slideleft";
+                                        if (replaceState) {
+                                            History.replaceState(
+                                                { family: d.f, data: stateData },
+                                                share.title(d.t),
+                                                urlPrefix + appHref);
+                                        }
+                                        else {
+                                            History.pushState(
+                                                { family: d.f, data: stateData },
+                                                share.title(d.t),
+                                                urlPrefix + appHref);
+                                        }
+                                    });
                                 }
                             }
                         }
-                        else
-                            transition = page.prototype.transfer.transition;
-
-                        if (transition != null && page.isNoTransition() == false) {
-                            last.transitioning(true);
-
-                            var jqThisPage = page.$;
-                            var jqLastPage = last.$;
-                            var onCompleted = function () {
-                                last.transitioning(false);
-                                last.done();
-                            }
-
-                            var ndur = 250;
-
-                            transition.is("slideright", function () {
-                                var width = jqThisPage.width();
-
-                                jqLastPage.css({ left: 0 }).animate({ left: width }, { duration: ndur, complete: onCompleted });
-                                jqThisPage.css({ left: -width }).animate({ left: 0 }, { duration: ndur });
-                            });
-                            transition.is("slideleft", function () {
-                                var width = jqThisPage.width();
-
-                                jqLastPage.css({ left: 0 }).animate({ left: -width }, { duration: ndur, complete: onCompleted });
-                                jqThisPage.css({ left: width }).animate({ left: 0 }, { duration: ndur });
-                            });
-                            transition.is("fadein", function () {
-                                jqLastPage.css({ opacity: 1 }).animate({ opacity: 0 }, { duration: ndur, complete: onCompleted });
-                                jqThisPage.css({ opacity: 0 }).animate({ opacity: 1 }, { duration: ndur });
-                            });
+                        else {
+                            document.location = urlPrefix + appHref;
                         }
                     }
+                    else if (arg1 == null) {
+                        if (page.prototype.transfer == null) return null;
+                        else return page.prototype.transfer.data;
+                    }
+                }; // arg1: <string: url>, arg2: <plainObject: { data: <object: data>, transferData: <object: data>, transition: <string: transition> }
+                page.css = function (arg1) {
 
-                    page.start(page);
-                }
-                else if (page.state() == 1) { // done by start
+                    if ($.isString(arg1)) {
+                        if (css[arg1] == null && arg1 != null && arg1 != "") {
+                            var pcss = { obj: null, users: [] };
+                            var obj = $("<link />");
 
-                    page.state(2);
+                            pcss.obj = obj;
+                            obj.attr({ href: arg1, rel: "stylesheet", type: "text/css" });
 
-                    if (last != null) {
-                        if (last.state() == 4) {
-                            last.unload(last);
+                            $("head").append(obj);
+
+                            pcss.users.push(page);
+                            css[arg1] = pcss;
                         }
-                    }
-                }
-                else if (page.state() == 3) { // done by leave
+                        else if (arg1 != null && arg1 != "") {
+                            var pcss = css[arg1];
+                            var add = true;
 
-                    if (transferLeave != null) {
-                        transferLeave();
-                        transferLeave = null;
-                    }
-
-                    page.state(4);
-
-                    $.each(resizeHandlers, function (ri, rv) {
-                        page.removeResize(ri);
-                    });
-
-                    share.removeEvent(eventHandlers);
-                    share.removeStream(streamHandlers);
-
-                    if (next.state() == 2) {
-                        page.unload(page);
-                    }
-                }
-                else if (page.state() == 4) { // done by unload
-
-                    if (page.transitioning()) {
-                        // hold
-                        //debug("cancel unload... transition in progress");
-                    }
-                    else {
-                        transferring = false;
-
-                        // stop all animation
-                        $("*", page.$).stop();
-
-                        $.each(css, function (ci, cv) {
-
-                            var ri = -1;
-                            $.each(cv.users, function (xui, xuv) {
-                                if (xuv == page) {
-                                    ri = xui;
+                            $.each(pcss.users, function (i, v) {
+                                if (v == page) {
+                                    add = false;
                                     return false;
                                 }
                             });
-                            if (ri > -1) {
-                                cv.users.splice(ri, 1);
-                            }
-                        });
 
-                        var removeThisCss = [];
-
-                        $.each(css, function (ci, cv) {
-                            if (cv.users.length == 0) {
-                                cv.obj.remove();
-                                cv.obj = null;
-                                removeThisCss.push(ci);
-                            }
-                        });
-
-                        $.each(removeThisCss, function (ri, rv) {
-                            delete css[rv];
-                        });
-
-                        page.$.remove();
-
-                        var removeFromPages = -1;
-                        $.each(pages, function (pi, pv) {
-                            if (pv == this) {
-                                removeFromPages = pi;
-                                return false;
-                            }
-                        });
-
-                        if (removeFromPages > -1)
-                            pages.splice(removeFromPages, 1);
-
-                        if (next != null)
-                            next.last(null);
-                        next = null;
-                    }
-                }
-            };
-            page.isReady = function () {
-                if (state >= 2) return true;
-                else return false;
-            };
-            page.init = function () { this.done(); };
-            page.start = function () { this.done(); };
-            page.leave = function () { this.done(); };
-            page.unload = function () { this.done(); };
-            page.local = function () { };
-            page.error = function () { };
-            page.debugEvents = function () {
-                debug(eventHandlers);
-            };
-            page.resize = function (c, d) {
-                if ($.isNumber(c) || $.isString(c)) {
-                    if ($.isFunction(d)) {
-                        if ($.isUndefined(resizeHandlers[c])) {
-                            resizeHandlers[c] = d;
-                            return c;
+                            if (add)
+                                pcss.users.push(page);
                         }
                     }
-                }
-                else if ($.isFunction(c)) {
-                    resizeGuid = share.lookup(resizeGuid, resizeHandlers);
-                    resizeHandlers[resizeGuid] = c;
-                    return resizeGuid;
-                }
-            };
-            page.removeResize = function () {
-                var o = arguments;
-                if ($.isNumber(o[0]) || $.isString(o[0])) {
-                    var id = o[0];
-                    if (!$.isUndefined(resizeHandlers[id])) {
-                        delete resizeHandlers[id];
+                };
+                page.title = function (arg1) {
+
+                    if ($.isString(arg1)) {
+                        var old = title;
+                        if (arg1.length == 0)
+                            title = "";
+                        else
+                            title = arg1;
+                        if (old != title)
+                            document.title = share.title(title);
                     }
-                }
-                else if (Array.isArray(o[0])) {
-                    $.each(o[0], function (i, v) {
-                        removeUnload(v);
-                    });
-                }
-            };
-            page.triggerResize = function () {
+                    else
+                        return title;
 
-                var o = arguments;
+                };
+                page.done = function () {
 
-                if ($.isPlainObject(o[0])) {
-                    $.each(resizeHandlers, function (ri, rv) {
-                        rv(o[0]);
-                    });
-                }
-                else if ($.isNumber(o[0]) || $.isString(o[0])) {
-                    var id = o[0];
-                    if (!$.isUndefined(resizeHandlers[id])) {
-                        resizeHandlers[id]({ width: page.width(), height: page.height(), lastWidth: 884, lastHeight: 235, widthChanged: false, heightChanged: false });
-                    }
-                }
-            };
+                    //debug("done by " + page.prototype.id + " state " + page.state());
 
-            page.url(pageUrl);
+                    if (state == 0) { // done by init
 
-            if (last != null) { last.next(page); }
-            pages.push(page);
-            page.css(cssUrl);
+                        $("a[href]", this.$).each(function (i) {
+                            var e = $(this);
+                            var hrefstr = e.attr("href");
+                            var d = e.attr("data-transfer");
+                            var transition = e.attr("data-transition");
 
-            var pageload = function () {
-                var oscript = share.page(family);
+                            e.attr("data-transfer", null);
+                            e.attr("data-transition", null);
 
-                if (oscript != null) {
-                    page = $.extend(true, page, oscript);
-                }
+                            if (!hrefstr.startsWith(urlPrefix))
+                                e.attr("href", urlPrefix + hrefstr);
 
-                if (transferData != null) page.prototype.transfer = transferData;
-                else page.prototype.transfer = null;
-                transferData = null;
-
-                var pageDataKey;
-                $.each(pageData, function (pdi, pdv) {
-                    if (pdi % 2 == 0) pageDataKey = pdv;
-                    else data[pageDataKey] = pdv;
-                });
-
-                /*if (transferData.data != null) {
-                    if ($.isPlainObject(transferData.data)) {
-                        $.each(transferData.data, function (tdi, tdv) {
-                            data[tdi] = tdv;
+                            e.click(function (event) {
+                                event.preventDefault();
+                                page.transfer(e.attr("href"), { transferData: d, transition: transition });
+                            });
                         });
-                    }    
-                }*/
+                        share.triggerResize("share", page);
+                        _new = false;
 
-                var dpage = div(pagesContainer).addClass("_PG");
-                var dcontent = div(dpage).addClass("_CO").html(content);
+                        state = 1;
 
-                //div.css({ zIndex: 100 });   
-                dpage.data("page", page);
-                page.$ = dpage;
+                        // call exit for last page if available, exit is leave
+                        if (last != null) {
 
-                //page.content = dcontent;
+                            last.state(3);
+                            last.leave(last);
 
-                // INIT
-                //debug("page " + page.pageID + " init");
-                share(function () { page.init(page); });
-                page.title(title);
-                //window.page = page;
-            }
+                            // if last page available, check for page transition
+                            var transition = null;
 
-            if (share.page(family) == null) {
-                share.load(scriptUrl, function () {
-                    pageload();
-                });
-            }
-            else pageload();
+                            if (page.prototype.transfer == null) {
+                                if (last.lastPage != null) {
+                                    if (last.lastPage.family == page.family && last.prototype.transfer != null) {
+                                        var lastTransition = last.prototype.transfer.transition;
+                                        if (lastTransition == "slideleft") transition = "slideright";
+                                        else if (lastTransition == "slideright") transition = "slideleft";
+                                    }
+                                }
+                            }
+                            else
+                                transition = page.prototype.transfer.transition;
+
+                            if (transition != null && page.isNoTransition() == false) {
+                                last.transitioning(true);
+
+                                var jqThisPage = page.$;
+                                var jqLastPage = last.$;
+                                var onCompleted = function () {
+                                    last.transitioning(false);
+                                    last.done();
+                                }
+
+                                var ndur = 250;
+
+                                transition.is("slideright", function () {
+                                    var width = jqThisPage.width();
+
+                                    jqLastPage.css({ left: 0 }).animate({ left: width }, { duration: ndur, complete: onCompleted });
+                                    jqThisPage.css({ left: -width }).animate({ left: 0 }, { duration: ndur });
+                                });
+                                transition.is("slideleft", function () {
+                                    var width = jqThisPage.width();
+
+                                    jqLastPage.css({ left: 0 }).animate({ left: -width }, { duration: ndur, complete: onCompleted });
+                                    jqThisPage.css({ left: width }).animate({ left: 0 }, { duration: ndur });
+                                });
+                                transition.is("fadein", function () {
+                                    jqLastPage.css({ opacity: 1 }).animate({ opacity: 0 }, { duration: ndur, complete: onCompleted });
+                                    jqThisPage.css({ opacity: 0 }).animate({ opacity: 1 }, { duration: ndur });
+                                });
+                            }
+                        }
+
+                        page.start(page);
+                    }
+                    else if (page.state() == 1) { // done by start
+
+                        page.state(2);
+
+                        if (last != null) {
+                            if (last.state() == 4) {
+                                last.unload(last);
+                            }
+                        }
+                    }
+                    else if (page.state() == 3) { // done by leave
+
+                        if (transferLeave != null) {
+                            transferLeave();
+                            transferLeave = null;
+                        }
+
+                        page.state(4);
+
+                        $.each(resizeHandlers, function (ri, rv) {
+                            page.removeResize(ri);
+                        });
+
+                        share.removeEvent(eventHandlers);
+                        share.removeStream(streamHandlers);
+
+                        if (next.state() == 2) {
+                            page.unload(page);
+                        }
+                    }
+                    else if (page.state() == 4) { // done by unload
+
+                        if (page.transitioning()) {
+                            // hold
+                            //debug("cancel unload... transition in progress");
+                        }
+                        else {
+                            transferring = false;
+
+                            // stop all animation
+                            $("*", page.$).stop();
+
+                            $.each(css, function (ci, cv) {
+
+                                var ri = -1;
+                                $.each(cv.users, function (xui, xuv) {
+                                    if (xuv == page) {
+                                        ri = xui;
+                                        return false;
+                                    }
+                                });
+                                if (ri > -1) {
+                                    cv.users.splice(ri, 1);
+                                }
+                            });
+
+                            var removeThisCss = [];
+
+                            $.each(css, function (ci, cv) {
+                                if (cv.users.length == 0) {
+                                    cv.obj.remove();
+                                    cv.obj = null;
+                                    removeThisCss.push(ci);
+                                }
+                            });
+
+                            $.each(removeThisCss, function (ri, rv) {
+                                delete css[rv];
+                            });
+
+                            page.$.remove();
+
+                            var removeFromPages = -1;
+                            $.each(pages, function (pi, pv) {
+                                if (pv == this) {
+                                    removeFromPages = pi;
+                                    return false;
+                                }
+                            });
+
+                            if (removeFromPages > -1)
+                                pages.splice(removeFromPages, 1);
+
+                            if (next != null)
+                                next.last(null);
+                            next = null;
+                        }
+                    }
+                };
+                page.isReady = function () {
+                    if (state >= 2) return true;
+                    else return false;
+                };
+                page.init = function () { this.done(); };
+                page.start = function () { this.done(); };
+                page.leave = function () { this.done(); };
+                page.unload = function () { this.done(); };
+                page.local = function () { };
+                page.error = function () { };
+                page.debugEvents = function () {
+                    debug(eventHandlers);
+                };
+                page.resize = function (c, d) {
+                    if ($.isNumber(c) || $.isString(c)) {
+                        if ($.isFunction(d)) {
+                            if ($.isUndefined(resizeHandlers[c])) {
+                                resizeHandlers[c] = d;
+                                return c;
+                            }
+                        }
+                    }
+                    else if ($.isFunction(c)) {
+                        resizeGuid = share.lookup(resizeGuid, resizeHandlers);
+                        resizeHandlers[resizeGuid] = c;
+                        return resizeGuid;
+                    }
+                };
+                page.removeResize = function () {
+                    var o = arguments;
+                    if ($.isNumber(o[0]) || $.isString(o[0])) {
+                        var id = o[0];
+                        if (!$.isUndefined(resizeHandlers[id])) {
+                            delete resizeHandlers[id];
+                        }
+                    }
+                    else if (Array.isArray(o[0])) {
+                        $.each(o[0], function (i, v) {
+                            removeUnload(v);
+                        });
+                    }
+                };
+                page.triggerResize = function () {
+
+                    var o = arguments;
+
+                    if ($.isPlainObject(o[0])) {
+                        $.each(resizeHandlers, function (ri, rv) {
+                            rv(o[0]);
+                        });
+                    }
+                    else if ($.isNumber(o[0]) || $.isString(o[0])) {
+                        var id = o[0];
+                        if (!$.isUndefined(resizeHandlers[id])) {
+                            resizeHandlers[id]({ width: page.width(), height: page.height(), lastWidth: 884, lastHeight: 235, widthChanged: false, heightChanged: false });
+                        }
+                    }
+                };
+
+                page.url(pageUrl);
+
+                if (last != null) { last.next(page); }
+                pages.push(page);
+                page.css(cssUrl);
+
+                function pageload() {
+                    var oscript = share.page(family);
+
+                    if (oscript != null) {
+                        page = $.extend(true, page, oscript);
+                    }
+
+                    if (transferData != null) page.prototype.transfer = transferData;
+                    else page.prototype.transfer = null;
+                    transferData = null;
+
+                    var pageDataKey;
+                    $.each(pageData, function (pdi, pdv) {
+                        if (pdi % 2 == 0) pageDataKey = pdv;
+                        else data[pageDataKey] = pdv;
+                    });
+
+                    /*if (transferData.data != null) {
+                        if ($.isPlainObject(transferData.data)) {
+                            $.each(transferData.data, function (tdi, tdv) {
+                                data[tdi] = tdv;
+                            });
+                        }    
+                    }*/
+
+                    var dpage = div(pagesContainer).addClass("_PG");
+                    var dcontent = div(dpage).addClass("_CO").html(content);
+
+                    //div.css({ zIndex: 100 });   
+                    dpage.data("page", page);
+                    page.$ = dpage;
+
+                    //page.content = dcontent;
+
+                    // INIT
+                    //debug("page " + page.pageID + " init");
+                    share(function () { page.init(page); });
+                    page.title(title);
+                    //window.page = page;
+                }
+
+                if (share.page(family) == null) {
+                    share.load(scriptUrl, function () {
+                        pageload();
+                    });
+                }
+                else pageload();
+
+            });
         };
         share.page = function (name, object) {
             if ($.isPlainObject(object)) objects[name] = object;
@@ -5079,12 +5124,14 @@
                 var object = objects[name];
                 return $.isUndefined(object) ? null : $.extend(true, {}, object);
             }
+            else if ($.isUndefined(name)) {
+                return pages.length > 0 ? pages[pages.length - 1] : null;
+            }
         };
         share.script = function (name, object) {
             if ($.isFunction(object)) scripts[name] = object;
         }
-
-
+        
         share.load = function (scriptUrl, complete) {
             $.ajax({
                 url: scriptUrl, dataType: "script", cache: true, complete: function () {
@@ -5433,9 +5480,39 @@
         share.measureText = measureText;
         share.parseFontFamily = parseFontFamily;
 
+        var fontCount = -1;
+        var fontLoadedCount = 0;
+        var initialFontHasBeenLoaded = false;
+
+        var callbacks = [];
+        var _initialFontLoaded = function (callback) {
+            if (initialFontHasBeenLoaded) callback();
+            else callbacks.push(callback);
+        }
+
+        share.initialFontLoaded = _initialFontLoaded;
+
         share(function () {
             //headings = share.system("fontHeadings");
             body = share.system("fontBody");
+
+            fontCount = 12;
+
+            WebFont.load({
+                google: {
+                    families: [body + ":100,100i,300,300i,400,400i,500,500i,700,700i,900,900i"]
+                },
+                fontactive: function (familyName, fvd) {
+                    fontLoadedCount++;
+
+                    if (fontCount == fontLoadedCount) {
+                        initialFontHasBeenLoaded = true;
+                        $.each(callbacks, function (ci, cv) {
+                            cv();
+                        });
+                    }
+                },
+            });
         });
 
     })(share);
@@ -5563,7 +5640,7 @@
                 return this.$.animate(a, b, c, d);
             };
             box.stop = function () {
-                return box.$.stop();
+                return box.$.stop(true);
             };
             box.getPage = function () {
                 return page;
@@ -8000,8 +8077,12 @@
             return ib;
 
         };
+        var _focusBlur = function () {
+            $(':focus').blur();
+        };
 
         share.inputbase = inputbase;
+        share.focusBlur = _focusBlur;
 
     })(share);
 
@@ -8596,6 +8677,42 @@
 
     })(share);
 
+    // .img
+    (function (share) {
+
+        var _img = function (container, source) {
+            var d = share.box(container);
+            if (d == null) return null;
+
+            var img = d;
+            img.source = function (s) {
+                d.css({ backgroundImage: "url(/resources/" + s + "/res.png)", backgroundSize: "cover" });
+            };
+            img.backgroundScroll = function (x, y) {
+
+
+                var ix = 0;
+                var iy = 0;
+
+                setInterval(function () {
+                    //debug("yes");
+                    ix += x;
+                    iy += y;
+                    d.css({ backgroundPosition: ix + "px " + iy + "px" });
+
+                }, 50);
+            };
+
+            if ($.isString(source))
+                img.source(source);
+
+            return img;
+        };
+
+        share.img = _img;
+
+    })(share);
+
     // .performance
     (function (share) {
 
@@ -8728,8 +8845,7 @@
 
 
     })(share);
-
-
+    
     // .startLoading, .endLoading
     (function (share) {
 
@@ -8773,6 +8889,7 @@
 
     })(share);
 
+    // .isVisible, .isActive
     (function (share) {
 
         share.isVisible = function () {
@@ -8783,17 +8900,20 @@
         };
 
     })(share);
-
-
+    
     // .explore
     (function (share) {
 
         var exploreInited = false;
 
         var topBar, title;
+        var domainBox, domain;
         var searchBox, searchTextInput;
 
         var conf;
+
+
+        var titleLeftWidth;
 
         var _explore = function (t) {
 
@@ -8806,7 +8926,12 @@
             topBar = share.box(share.topContainer())({ color: 98, height: 48, width: "100%", borderBottom: { size: 1, color: 80 } });
             share.marginTop(48);
             
-            var logoButton = share.box(topBar)({ left: 15, top: 4, size: 40, cursor: "pointer", click: function () { share.page().transfer("/"); } });
+            var logoButton = share.box(topBar)({
+                left: 15, top: 4, size: 40, cursor: "pointer", click: function () {
+                    share.page().transfer("/");
+                    searchTextInput.value(null);
+                }
+            });
             var ileft = share.icon(logoButton, "hex")({ size: 18, color: 55, position: [3, 17], rotation: 90 });
             var iright = share.icon(logoButton, "hex")({ size: 18, color: 55, position: [16.25, 17], rotation: 90 });
             var itop = share.icon(logoButton, "hex")({ size: 18, color: 55, position: [9.5, 5.5], rotation: 90 });
@@ -8821,20 +8946,26 @@
                 iright.color(55, { duration: 166 });
             });
 
-            title = $$.text(topBar)({ text: t.title != null ? t.title : "aphysoft.share", position: [60, 12], font: 21, color: 45, weight: "300" });
-            
+            title = share.text(topBar)({ text: t.title != null ? t.title : "aphysoft.share", position: [60, 12], font: 21, color: 45, weight: "300" });
+            titleLeftWidth = title.leftWidth() + 10;
+
+            domainBox = share.box(topBar)({ left: titleLeftWidth, height: 48, hide: true });
+            domain = share.text(domainBox)({ position: [13, 16], font: 16, color: 45, weight: "400", noBreak: true });
+            var domainSeparator = share.box(domainBox)({ top: 12, height: 24, width: 1, color: 65 });
+
             searchBox = share.box(topBar)({ color: 95, height: 34, width: 250, cursor: "text", top: 6, right: 90 });
             searchTextInput = share.textinput(searchBox)({ font: 14, leftRight: [60, 10], top: 0, height: 34, design: false });
             var searchGlassIcon = share.icon(searchBox, "glass")({ size: [24, 24], color: 55, position: [20, 5] });
             var searchPlaceholder = share.text(searchBox)({ noSelect: true, text: "Search", font: ["body", 14], color: 55, position: [60, 8] });
-
+                      
             var searchButton = share.button(topBar)({
                 size: [34, 34], right: 70, top: 6, design: {
                     normal: function (d) { d.color("transparent"); },
                     over: function (d) { },
                     press: function (d) { }
                 }, hide: true,
-                click: function () {                    
+                click: function () {
+                    debug("search expanded: " + searchExpanded);
                     if (!searchExpanded) {
                         searchExpanded = true;
                         searchButton.hide();
@@ -8853,6 +8984,8 @@
 
                         searchCloseButton.show();
                         searchCloseButton.$.css({ opacity: 0, x: -20 }).animate({ opacity: 1, x: 0 }, { duration: 100 });
+
+                        domainBox.hide();
                     }
                 }
             });
@@ -8880,6 +9013,8 @@
                     accountArea.$.css({ x: 20 }).animate({ x: 0 }, { queue: false, duration: 50 });
 
                     searchCloseButton.$.css({ opacity: 1, x: 0 }).animate({ opacity: 0, x: -20 }, { duration: 100, complete: function () { searchCloseButton.hide(); } });
+
+                    domainBox.show();
                 }
             });
             searchCloseIcon = share.icon(searchCloseButton, "close")({ size: [28, 28], position: [3, 3], color: 55 });
@@ -8973,45 +9108,81 @@
             
             var searchExpanded = false;
 
-            searchTextInput.focusin(function () {
-                if (!searchExpanded) {
-                    searchExpanded = true;
-                    searchBox.color(102, { duration: 100 });
-                    searchBox.width(topBar.width() - 180, {
-                        duration: 100, complete: function () {
-                            searchBox.width(null);
-                            searchBox.leftRight(90, 90);
+            function wideContract() {
+
+                if (searchExpanded) {   
+
+                    if (share.lock("searchBoxAnimation")) {
+
+                        searchBox.color(95, { duration: 100 });
+                        searchBox.left(null);
+                        searchBox.width(topBar.width() - 180);
+                        searchBox.width(250, {
+                            duration: 100, complete: function () {
+                                searchExpanded = false;
+                                share.unlock("searchBoxAnimation");
+                            }
+                        });
+                        if (showTitle) {
+                            title.$.delay(100).fadeIn(50);
+                            domainBox.$.delay(150).fadeIn(50);
                         }
-                    });
-                    if (showTitle) title.$.delay(100).fadeOut(50);
+
+                        if (searchTextInput.value().trim() == "") {
+                            searchTextInput.value(null);
+                            searchPlaceholder.show();
+                        }
+                    }
                 }
+            };
+            function wideExpand() {
+                if (!searchExpanded) {  
+
+                    if (share.lock("searchBoxAnimation")) {
+
+                        searchBox.color(102, { duration: 100 });
+                        searchBox.width(topBar.width() - 180, {
+                            duration: 100, complete: function () {
+                                searchBox.width(null);
+                                searchBox.leftRight(90, 90);
+                                searchExpanded = true;
+                                share.unlock("searchBoxAnimation");
+                            }
+                        });
+                        if (showTitle) {
+                            title.$.delay(100).fadeOut(50);
+                            domainBox.$.delay(50).fadeOut(50);
+                        }
+                    }
+                }
+            };
+
+            searchTextInput.focusin(function (e) {              
+                wideExpand();
             });
             searchTextInput.focusout(function () {
-                if (share.isActive()) {                    
+                if (share.isActive()) {    
+                    var val = searchTextInput.value().trim();
+
                     if (narrowSearch) {
                     }
-                    else {
-                        if (searchExpanded) {
-                            searchExpanded = false;
-                            searchBox.color(95, { duration: 100 });
-                            searchBox.left(null);
-                            searchBox.width(topBar.width() - 180);
-                            searchBox.width(250, { duration: 100 });
-                            if (showTitle) title.$.delay(100).fadeIn(50);
-                            if (searchTextInput.value().trim() == "") {
-                                searchTextInput.value(null);
-                                searchPlaceholder.show();
-                            }
+                    else {     
+                        if (val != "") {
+                        }
+                        else {
+                            wideContract();
                         }
                     }
                 }
-
-
-
             });
-            searchBox.down(function () { searchTextInput.focus(); });
+            searchBox.down(function (e) {
+                searchTextInput.focus();
+                e.stopPropagation();
+            });
+
             function checkPlaceholder() {
                 var s = searchTextInput.value();
+
                 if (s == "") searchPlaceholder.show();
                 else searchPlaceholder.hide();
             }
@@ -9024,16 +9195,30 @@
                     s = s.replaceAll(' ', '+');
                     s = escape(s);
                     if (t.search != null) t.search(s);
+
+                    share.focusBlur();
                 }
-            });                        
+            });                 
+
+            topBar.down(function () {
+                if (share.isActive()) {
+                    var val = searchTextInput.value().trim();
+
+                    if (narrowSearch) {
+                    }
+                    else {
+                        wideContract();
+                    }
+                }
+            });
            
             var resizeInited = false;
 
             var showTitle, narrowSearch;
-
             var closeLayoutRatio;
-
-            var resizeID = share.resize(function (d) {
+            var resizeID;
+            
+            resizeID = share.resize(function (d) {
 
                 var init = false;
                 if (!resizeInited) init = true;
@@ -9064,10 +9249,21 @@
                                 title.fadeIn(50);
                             }
                         }
+
+                        domainBox.left(titleLeftWidth, { duration: 150 });
+                        domain.left(13, { duration: 150 });
+                        domainSeparator.show();
                     }
                     else {
                         if (init) title.hide();
                         else title.fadeOut(50);
+
+                        domainBox.left(title.left(), { duration: 150 });
+                        if (init) domain.left(0);
+                        else {
+                            domain.left(0, { duration: 150 });
+                        }
+                        domainSeparator.hide();
                     }
                 }
                 if (narrowSearch != _narrowSearch) {
@@ -9195,7 +9391,7 @@
                         $.each(frontLogoElements, function (eli, el) { el.attr({ stroke: share.color(55) }); });
                         frontTitle({ text: "SERVER&nbsp;OFFLINE", show: true, opacity: 1 });
 
-                        $(':focus').blur();
+                        share.focusBlur();
                     }
 
                     share.triggerResize(resizeID);
@@ -9209,24 +9405,41 @@
                     frontAdditional({ text: "Please refresh your browser" });
                     frontTitle({ text: "NEW&nbsp;UPDATE&nbsp;IS&nbsp;AVAILABLE", show: true, opacity: 1 });
 
-                    $(':focus').blur();
+                    $$(20000, function () {
+                        location.reload();
+                    });
+
+                    share.focusBlur();
 
                     share.triggerResize(resizeID);
                 }
             });
         };
         var _setSearchText = function (t) {
-            if (exploreInited) {
-                searchTextInput.value(t);
-            }
+            if (!exploreInited) return;
+            searchTextInput.value(t);
         };
         var _search = function (s) {
+            if (!exploreInited) return;
             conf.search(s);
+        };
+        var _setDomain = function (t) {
+            if (!exploreInited) return;
+
+            if (t == null) {
+                domainBox.hide();
+            }
+            else {
+                domainBox.show();
+                domain.text(t);
+                domainBox.width(domain.leftWidth() + 20);               
+            }
         };
 
         share.explore = _explore;
         share.setSearchText = _setSearchText;
         share.search = _search;
+        share.setDomain = _setDomain;
 
     })(share);
 

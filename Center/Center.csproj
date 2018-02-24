@@ -93,6 +93,11 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>DevelopersResources.resx</DependentUpon>
     </Compile>
+    <Compile Include="View\Satellite\SatelliteResources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>SatelliteResources.resx</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Aphysoft.Share.Resources\Aphysoft.Share.Resources.csproj">
@@ -109,6 +114,10 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="App.source.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="Properties\PublishProfiles\FolderProfile.pubxml" />
     <None Include="View\center.js" />
     <None Include="View\main.js" />
     <None Include="View\search.js" />
@@ -119,13 +128,13 @@
     <None Include="View\User\signin.js" />
     <None Include="View\Jovice\network.js" />
     <None Include="View\Developers\developers.js" />
+    <None Include="View\Satellite\satellite.js" />
+    <None Include="View\Satellite\PNG\dish.png" />
+    <None Include="View\Satellite\PNG\sine1.png" />
+    <Content Include="View\coba.js" />
     <Content Include="Web.config">
       <SubType>Designer</SubType>
     </Content>
-    <None Include="Web.Release.config">
-      <DependentUpon>Web.config</DependentUpon>
-      <SubType>Designer</SubType>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources.resx">
@@ -137,10 +146,12 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>DevelopersResources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+    <EmbeddedResource Include="View\Satellite\SatelliteResources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>SatelliteResources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="View\Satellite\" />
-  </ItemGroup>
+  <ItemGroup />
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>

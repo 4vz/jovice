@@ -46,6 +46,9 @@ namespace Aphysoft.Share
                     Resource.Group(Resource.CommonResourceScript, "script_fabric", 6);
                 }
 
+                Resource.Register("script_webfont", ResourceTypes.JavaScript, Resources.Resources.Scripts.ResourceManager, "webfont").NoMinify();
+                Resource.Group(Resource.CommonResourceScript, "script_webfont", 7);
+
 #if !DEBUG
                 Resource.Register("script_share", ResourceTypes.JavaScript, Resources.Resources.Scripts.ResourceManager, "share");
                 Resource.Group(Resource.CommonResourceScript, "script_share", 10);
@@ -55,7 +58,7 @@ namespace Aphysoft.Share
                 // Images
                 Resource.Register("image_shortcuticon", ResourceTypes.PNG, Resources.Resources.Images.ResourceManager, "shortcuticon");
 
-                WebFont.Register("roboto", "https://fonts.googleapis.com/css?family=Roboto:100,100i,300,300i,400,400i,500,500i,700,700i,900,900i");
+                //WebFont.Register("roboto", "https://fonts.googleapis.com/css?family=Roboto:100,100i,300,300i,400,400i,500,500i,700,700i,900,900i");
             }
         }
 

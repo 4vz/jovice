@@ -1,11 +1,11 @@
 ﻿(function () {
 
     var page, doc;
-    ui("developers", {
+    $$("developers", {
         init: function (p) {
             page = center.init(p);
 
-            doc = ui.doc(p, {
+            doc = $$.doc(p, {
                 title: "We're Just Getting Started",
 
 

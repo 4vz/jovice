@@ -76,6 +76,7 @@
     <Content Include="Resources\Scripts\raphael.js" />
     <Content Include="Resources\Scripts\share.js" />
     <Content Include="Resources\Scripts\three.js" />
+    <Content Include="Resources\Scripts\webfont.js" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources\Css.resx">

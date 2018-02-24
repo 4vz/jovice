@@ -19,7 +19,7 @@ namespace Aphysoft.Share.Resources.Resources {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "4.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "15.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class Scripts {
@@ -195,6 +195,27 @@ namespace Aphysoft.Share.Resources.Resources {
         internal static string three {
             get {
                 return ResourceManager.GetString("three", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to /*
+        /// * Copyright 2016 Small Batch, Inc.
+        /// *
+        /// * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;); you may not
+        /// * use this file except in compliance with the License. You may obtain a copy of
+        /// * the License at
+        /// *
+        /// * http://www.apache.org/licenses/LICENSE-2.0
+        /// *
+        /// * Unless required by applicable law or agreed to in writing, software
+        /// * distributed under the License is distributed on an &quot;AS IS&quot; BASIS, WITHOUT
+        /// * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+        /// * L [rest of string was truncated]&quot;;.
+        /// </summary>
+        internal static string webfont {
+            get {
+                return ResourceManager.GetString("webfont", resourceCulture);
             }
         }
     }

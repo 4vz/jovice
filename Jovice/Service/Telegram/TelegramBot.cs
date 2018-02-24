@@ -18,10 +18,16 @@ namespace Center
     {
         #region Fields
 
+        private static Database share = Share.Database;
+
         private static Dictionary<string, Conversation> conversations = new Dictionary<string, Conversation>();
-        
+
+        private string id;
+
+        public string ID { get => id; }
+
         #endregion
-        
+
         #region Constructors
 
         public Conversation()
@@ -39,25 +45,61 @@ namespace Center
             return null;
         }
 
-        public static void Create(string id)
+        public static Conversation Create(string id)
         {
             if (!conversations.ContainsKey(id))
                 conversations.Add(id, new Conversation());
+
+            return null;
         }
 
         #endregion
     }
 
+    
+
     internal class BotGroup
     {
         #region Fields
 
+        private static Database share = Share.Database;
+
+        private static Dictionary<long, BotGroup> groups = new Dictionary<long, BotGroup>();
+
+        public static List<BotGroup> Groups
+        {
+            get
+            {
+                if (groups.Count == 0)
+                {
+                    Result result = share.Query("select * from BotGroup");
+
+                    if (result.Count > 0)
+                    {
+                        lock (groups)
+                        {
+                            foreach (Row row in result)
+                            {
+                                long id = row["BG_TelegramID"].ToLong();
+                                BotGroup group = new BotGroup(row["BG_ID"].ToString(), id, row["BG_Name"].ToString());
+                                groups.Add(id, group);
+                            }
+                        }                        
+                    }
+                }
+
+                List<BotGroup> lg = new List<BotGroup>();
+                foreach (KeyValuePair<long, BotGroup> pair in groups)
+                {
+                    lg.Add(pair.Value);
+                }
+                return lg;
+            }
+        }
+
         private string id;
 
-        public string ID
-        {
-            get { return id; }
-        }
+        public string ID { get => id; }
 
         private long telegramID;
 
@@ -74,19 +116,7 @@ namespace Center
             set
             {
                 name = value;
-                Share.Database.Execute("update BotGroup set BG_Name = {0} where BG_ID = {1}", name, id);
-            }
-        }
-
-        private bool administrative;
-
-        public bool Administrative
-        {
-            get { return administrative; }
-            set
-            {
-                administrative = value;
-                Share.Database.Execute("update BotGroup set BG_Administrative = {0} where BG_ID = {1}", administrative.ToInt(), id);
+                share.Execute("update BotGroup set BG_Name = {0} where BG_ID = {1}", name, id);
             }
         }
 
@@ -94,11 +124,70 @@ namespace Center
 
         #region Constructors
 
-        public BotGroup(string id, long telegramID, bool administrative)
+        public BotGroup(string id, long telegramID, string name)
         {
             this.id = id;
             this.telegramID = telegramID;
-            this.administrative = administrative;
+            this.name = name;
+        }
+
+        #endregion
+
+        #region Methods
+
+        public static BotGroup Get(long telegramID)
+        {
+            if (groups.ContainsKey(telegramID)) return groups[telegramID];
+            else
+            {
+                Result result = share.Query("select * from BotGroup where BG_TelegramID = {0}", telegramID);
+
+                if (result.Count == 1)
+                {
+                    Row row = result[0];
+                    BotGroup group = new BotGroup(row["BG_ID"].ToString(), telegramID, row["BG_Name"].ToString());
+                    lock (groups)
+                    {
+                        groups.Add(telegramID, group);
+                    }
+
+                    return group;
+                }
+                else
+                    return null;
+            }
+        }
+
+        public static BotGroup Create(long telegramID, string name)
+        {
+            if (!groups.ContainsKey(telegramID))
+            {
+                Insert insert = share.Insert("BotGroup");
+                string id = Database.ID();
+
+                insert.Value("BG_ID", id);
+                insert.Value("BG_Name", name);
+                insert.Value("BG_TelegramID", telegramID);
+                insert.Execute();
+
+                BotGroup group = new BotGroup(id, telegramID, name);
+                lock (groups)
+                {
+                    groups.Add(telegramID, group);
+                }
+
+                return group;
+            }
+            else return groups[telegramID];
+        }
+
+        public void Remove()
+        {
+            share.Execute("delete from BotGroup where BG_ID = {0}", id);
+            lock (groups)
+            {
+                groups.Remove(telegramID);
+            }
         }
 
         #endregion
@@ -107,6 +196,10 @@ namespace Center
     internal class BotUser
     {
         #region Fields
+
+        private static Database share = Share.Database;
+
+        private static Dictionary<int, BotUser> users = new Dictionary<int, BotUser>();
 
         private string id;
 
@@ -130,7 +223,7 @@ namespace Center
             set
             {
                 name = value;
-                Share.Database.Execute("update BotUser set BU_Name = {0} where BU_ID = {1}", name, id);               
+                Share.Database.Execute("update BotUser set BU_TelegramName = {0} where BU_ID = {1}", name, id);
             }
         }
 
@@ -147,6 +240,56 @@ namespace Center
 
         #endregion
 
+        #region Methods
+
+        public static BotUser Get(int telegramID)
+        {
+            if (users.ContainsKey(telegramID)) return users[telegramID];
+            else
+            {
+                Result result = share.Query("select * from BotUser where BU_TelegramID = {0}", telegramID);
+
+                if (result.Count == 1)
+                {
+                    Row row = result[0];
+                    BotUser user = new BotUser(row["BU_ID"].ToString(), telegramID, row["BU_TelegramName"].ToString());
+                    lock (users)
+                    {
+                        users.Add(telegramID, user);
+                    }
+
+                    return user;
+                }
+                else
+                    return null;
+            }
+        }
+
+        public static BotUser Create(int telegramID, string name)
+        {
+            if (!users.ContainsKey(telegramID))
+            {
+                Insert insert = share.Insert("BotUser");
+                string id = Database.ID();
+
+                insert.Value("BU_ID", id);
+                insert.Value("BU_TelegramName", name);
+                insert.Value("BU_TelegramID", telegramID);
+                insert.Execute();
+
+                BotUser user = new BotUser(id, telegramID, name);
+                lock (users)
+                {
+                    users.Add(telegramID, user);
+                }
+
+                return user;
+            }
+            else return users[telegramID];
+        }
+
+        #endregion
+
     }
     
     internal static class TelegramBot
@@ -157,7 +300,6 @@ namespace Center
         private static string userName = null;
         private static DateTime startDate;
 
-        private static Dictionary<long, BotGroup> botGroups = new Dictionary<long, BotGroup>();
         private static Dictionary<int, BotUser> botUsers = new Dictionary<int, BotUser>();
         
         #endregion
@@ -210,35 +352,25 @@ namespace Center
         {
 #if DEBUG
             telegramBot = new TelegramBotClient("353770204:AAEs0Snc9Zc9crw-8_zQS8QGHyI0A4QBE6E");
-            userName = "@TelkomCenterDevBot";
+            userName = "TelkomCenterDevBot";
 #else
             telegramBot = new TelegramBotClient("302702777:AAEvFgWiSnqM6DZb9dq-uAnnOmJMLGNiDbw");
-            userName = "@TelkomCenterBot";
+            userName = "TelkomCenterBot";
 #endif
-            Database center = Share.Database;
-            Result result;
+            //Database center = Share.Database;
+            //Result result;
 
             telegramBot.OnMessage += OnMessage;
             telegramBot.MessageOffset = -1; // get only last 1 message before this bot even start
             startDate = DateTime.UtcNow;
 
-            result = center.Query("select * from BotGroup");
-            foreach (Row row in result)
-            {
-                long tid = row["BG_TelegramID"].ToLong();
-                string id = row["BG_ID"].ToString();
-                bool admin = row["BG_Administrative"].ToBool();
-
-                botGroups.Add(tid, new BotGroup(id, tid, admin));
-            }
-
-            result = center.Query("select * from BotUser");
-            foreach (Row row in result)
-            {
-                int tid = row["BU_TelegramID"].ToInt();
-                string id = row["BU_ID"].ToString();
-                string name = row["BU_Name"].ToString();
-            }
+            //result = center.Query("select * from BotUser");
+            //foreach (Row row in result)
+            //{
+            //    int tid = row["BU_TelegramID"].ToInt();
+            //    string id = row["BU_ID"].ToString();
+            //    string name = row["BU_Name"].ToString();
+            //}
 
             Intent.Init("center");
 
@@ -639,70 +771,109 @@ dbo.DoubleMetaPhone({0}) and LOWER(SUBSTRING(NO_Name, 0, CHARINDEX('-', NO_Name,
 
         private static void OnMessage(object sender, Telegram.Bot.Args.MessageEventArgs e)
         {
-            Stopwatch timeProcess = new Stopwatch();
-
-            timeProcess.Start();
-
-            #region Start
-
-            Database share = Share.Database;
-            if (e.Message.Date < startDate) return;
-            string message = e.Message.Text;
-            if (message == null) return;
+            long chatID = e.Message.Chat.Id;
+            int fromID = e.Message.From.Id;            
 
             bool isPrivateMessage = (e.Message.Chat.Id == e.Message.From.Id);
 
-            long chatID = e.Message.Chat.Id;
-            int fromID = e.Message.From.Id;
+            BotGroup group = null;
+            BotUser user = null;
 
-            #endregion
-
-            Intent intent = Intent.Parse(message);
-
-            if (intent != null)
+            if (!isPrivateMessage)
             {
-                string conversationID = fromID + "_" + chatID;
-                Conversation conversation = Conversation.Get(conversationID);
+                group = BotGroup.Get(chatID);
+                if (group == null)
+                    group = BotGroup.Create(chatID, e.Message.Chat.Title);
+            }
 
-                Service.Debug("fromid: " + fromID + " chatid: " + chatID);
+            user = BotUser.Get(fromID);
 
-                bool privateMessage = false;
-                if (fromID == chatID)
+            string userNameData = e.Message.From.Username + ":" + e.Message.From.FirstName + ":" + e.Message.From.LastName;
+
+            if (user == null)
+                user = BotUser.Create(fromID, userNameData);
+            else if (user.Name != userNameData)
+                user.Name = userNameData;
+
+           
+            if (e.Message.NewChatTitle != null)
+            {
+                // group new name
+                group.Name = e.Message.NewChatTitle;
+            }
+            else if (e.Message.NewChatMember != null)
+            {
+                if (e.Message.NewChatMember.Username == userName)
                 {
-                    privateMessage = true;
                 }
-
-
-                if (privateMessage)
+            }
+            else if (e.Message.LeftChatMember != null)
+            {
+                // someone has been left
+                if (e.Message.LeftChatMember.Username == userName)
                 {
-                    if (conversation == null)
-                    {
-                        Conversation.Create(conversationID);
-                    }
+                    // bot has been booted from group
+                    group.Remove();
                 }
-                else
-                {
-                    // group
-                    if (conversation != null)
-                    {
+            }
+            else if (e.Message.Text != null)
+            {
+                string message = e.Message.Text;
 
+                Stopwatch intentProcess = new Stopwatch();
+                intentProcess.Start();
+
+                if (e.Message.Date < startDate) return;
+
+                Intent intent = Intent.Parse(message);
+
+                if (intent != null)
+                {
+                    Conversation conversation = Conversation.Get(fromID + "_" + chatID);
+
+
+
+                    if (isPrivateMessage)
+                    {
+                        Service.Debug("PM from: " + user.Name);
+
+
+                        // pm
+                        if (conversation == null)
+                        {
+                            //conversation = Conversation.Create(conversationID);
+                        }
                     }
                     else
                     {
+                        Service.Debug("group: " + group.Name + ", from: " + user.Name);
+
+                        // group
+                        if (conversation != null)
+                        {
+
+                        }
+                        else
+                        {
+
+                        }
+                    }
+
+                    foreach (Assumption ent in intent.Assumptions)
+                    {
+                        Service.Debug("intent: " + ent.Intent + "; asking: " + ent.Asking + "; mentionMyName: " + ent.MentionMyName);
 
                     }
                 }
 
-                foreach (IntentEntity ent in intent.Entities)
-                {
-                    Service.Debug("intent: " + ent.Intent + "; asking: " + ent.Asking + "; mentionMyName: " + ent.MentionMyName);
-
-                }
+                Service.Debug("elapsed: " + intentProcess.ElapsedMilliseconds + "ms");
+                intentProcess.Stop();
             }
+        }
 
+        private static void GroupChat()
+        {
 
-            Service.Debug("elapsed: " + timeProcess.ElapsedMilliseconds + "ms");
-            timeProcess.Stop();
         }
 
         // obsoleted

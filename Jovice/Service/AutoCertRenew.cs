@@ -504,7 +504,7 @@ namespace Center
 
                     string[] lines;
 
-                    if (Request2("acme/acme.sh --issue --dns -d " + domain, out lines)) ConnectionFailure();
+                    if (Request("acme/acme.sh --issue --dns -d " + domain, out lines)) ConnectionFailure();
 
                     Console.WriteLine("----------" + domain + "---------");
                     foreach (string line in lines)
@@ -514,7 +514,7 @@ namespace Center
                             notChanged = true;
                             break;
                         }
-                        else if (line.IndexOf("Too many failed authorizations recently") > -1)
+                        else if (line.IndexOf("many failed authorizations recently") > -1)
                         {
                             suspended = true;
                             break;
@@ -563,10 +563,10 @@ namespace Center
 
                                 Console.WriteLine("RESPONSE: " + response.StatusCode);
 
-                                Console.WriteLine("Waiting for 10 seconds");
-                                Thread.Sleep(10000);
+                                Console.WriteLine("Waiting for 60 seconds");
+                                Thread.Sleep(60000);
 
-                                if (Request2("acme/acme.sh --renew -d " + domain, out lines)) ConnectionFailure();
+                                if (Request("acme/acme.sh --renew --dns -d " + domain, out lines)) ConnectionFailure();
 
                                 bool success = false;
                                 bool notCorrect = false;
@@ -629,7 +629,7 @@ namespace Center
                                 {
                                     Console.WriteLine("SUCCESS");
 
-                                    if (Request2("openssl pkcs12 -export -out acme/" + domain + "/" + domain + ".pfx -inkey acme/" + domain + "/" + domain + ".key -in acme/" + domain + "/" + domain + ".cer -password pass:" + certPass, out lines)) ConnectionFailure();
+                                    if (Request("openssl pkcs12 -export -out acme/" + domain + "/" + domain + ".pfx -inkey acme/" + domain + "/" + domain + ".key -in acme/" + domain + "/" + domain + ".cer -password pass:" + certPass, out lines)) ConnectionFailure();
                                 }
                             }
                         }

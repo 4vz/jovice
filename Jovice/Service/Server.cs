@@ -43,19 +43,19 @@ namespace Center
         public static void Init()
         {
             Settings.ServerInit();
-            TelegramBot.Init();
-            //AutoCertRenew.Init();
+            //TelegramBot.Init();
+            AutoCertRenew.Init();
 
             
 
 
             // service handler to WEB-CLIENT
-            Service.Register(typeof(ClientNecrowServiceMessage), ClientNecrowServiceMessageHandler);
+            //Service.Register(typeof(ClientNecrowServiceMessage), ClientNecrowServiceMessageHandler);
 
             // service handler to NECROW
-            Service.Register(typeof(ServerNecrowServiceMessage), ServerNecrowServiceMessageHandler);     
+            //Service.Register(typeof(ServerNecrowServiceMessage), ServerNecrowServiceMessageHandler);     
             
-            Service.Disconnected += NecrowConnectionDisconnected;
+            //Service.Disconnected += NecrowConnectionDisconnected;
 
             // Callback if register necrowa being registered to the server
             Provider.RegisterCallback("necrow", NecrowRegistered);

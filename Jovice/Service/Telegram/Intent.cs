@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Center
 {
-    internal class IntentEntity
+    internal class Assumption
     {
         private string intent;
 
@@ -32,7 +32,7 @@ namespace Center
             set { mentionMyName = value; }
         }
 
-        public IntentEntity(string intent, bool asking, bool mentionMyName)
+        public Assumption(string intent, bool asking, bool mentionMyName)
         {
             this.intent = intent;
             this.asking = asking;
@@ -44,11 +44,11 @@ namespace Center
     {
         private static string name = null;
 
-        private List<IntentEntity> entities = new List<IntentEntity>();
+        private List<Assumption> assumptions = new List<Assumption>();
 
-        public IntentEntity[] Entities
+        public Assumption[] Assumptions
         {
-            get { return entities.ToArray(); }
+            get { return assumptions.ToArray(); }
         }
 
         public Intent()
@@ -56,9 +56,9 @@ namespace Center
 
         }
         
-        private void Add(IntentEntity entity)
+        private void Add(Assumption entity)
         {
-            entities.Add(entity);
+            assumptions.Add(entity);
         }
 
         private static Regex urlRegex = new Regex(@"(((http|ftp|https):\/\/)*[\w\-_]+(\.(com|net|org|edu|ac|co|go|id|us|tk|sg|au|center|tv|info|xyz|gov))+([\w\-\.,@?^=%&amp;:/~\+#]*[\w\-\@?^=%&amp;/~\+#])?)");
@@ -75,47 +75,47 @@ namespace Center
             Intent.name = name;
 
             Result result;
-            Database center = Share.Database;
+            Database share = Share.Database;
 
             intentReferences.Clear();
 
             // update nlw yg blum ada double metaphonenya
-            result = center.Query("select * from NaturalLanguageWord where NLW_Word is not null and NLW_DM is null");
+            result = share.Query("select * from LanguageIntent where LI_Word is not null and LI_DM is null");
 
             if (result.Count > 0)
             {
-                Batch batch = center.Batch();
+                Batch batch = share.Batch();
                 batch.Begin();
                 foreach (Row row in result)
                 {
-                    string word = row["NLW_Word"].ToString();
+                    string word = row["LI_Word"].ToString();
                     DoubleMetaphone dm = new DoubleMetaphone(word);
                     string dmw = string.Format("{0}-{1}", dm.PrimaryKey, dm.AlternateKey);
 
-                    Update update = center.Update("NaturalLanguageWord");
-                    update.Set("NLW_DM", dmw);
-                    update.Where("NLW_ID", row["NLW_ID"].ToLong());
+                    Update update = share.Update("LanguageIntent");
+                    update.Set("LI_DM", dmw);
+                    update.Where("LI_ID", row["LI_ID"].ToLong());
                     batch.Execute(update);
                 }
                 batch.Commit();
             }
 
-            List<string> intents = center.QueryList("select distinct NLW_Intent from NaturalLanguageWord", "NLW_Intent");
+            List<string> intents = share.QueryList("select distinct LI_Intent from LanguageIntent", "LI_Intent");
 
             foreach (string intent in intents)
             {
-                Column cmax = center.Scalar("select max(NLW_Position) from NaturalLanguageWord where NLW_Intent = {0}", intent);
+                Column cmax = share.Scalar("select max(LI_Position) from LanguageIntent where LI_Intent = {0}", intent);
                 int max = cmax.ToInt() + 1;
 
                 List<Tuple<string, string>>[] lists = new List<Tuple<string, string>>[max];
                 for (int i = 0; i < max; i++) lists[i] = new List<Tuple<string, string>>();
 
-                result = center.Query("select NLW_Position, NLW_Constraint, NLW_DM from NaturalLanguageWord where NLW_Intent = {0}", intent);
+                result = share.Query("select LI_Position, LI_Constraint, LI_DM from LanguageIntent where LI_Intent = {0}", intent);
 
                 foreach (Row row in result)
                 {
-                    int pos = row["NLW_Position"].ToInt();
-                    lists[pos].Add(new Tuple<string, string>(row["NLW_DM"].ToString(), row["NLW_Constraint"].ToString()));
+                    int pos = row["LI_Position"].ToInt();
+                    lists[pos].Add(new Tuple<string, string>(row["LI_DM"].ToString(), row["LI_Constraint"].ToString()));
                 }
 
                 IntentWordCombination(lists, intent, null, new StringBuilder(), 0);
@@ -278,7 +278,7 @@ namespace Center
 
 
                                     bool exists = false;
-                                    foreach (IntentEntity ent in intent.entities)
+                                    foreach (Assumption ent in intent.assumptions)
                                     {
                                         if (ent.Intent == name)
                                         {
@@ -288,7 +288,7 @@ namespace Center
                                     }
                                     if (!exists)
                                     {
-                                        intent.entities.Add(new IntentEntity(name, ask, mentionmyname));
+                                        intent.assumptions.Add(new Assumption(name, ask, mentionmyname));
                                     }
                                 }
                             }

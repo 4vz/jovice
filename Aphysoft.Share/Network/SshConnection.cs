@@ -16,6 +16,8 @@ namespace Aphysoft.Share
 
     public delegate void SshConnectionReceivedEventHandler(object sender, string message);
 
+    public delegate void RequestOutputEventHandler(string line);
+
     public abstract class SshConnection
     {
         #region Fields
@@ -158,7 +160,7 @@ namespace Aphysoft.Share
                     if (!connected)
                     {
                         shell = new SshShell(host, user, pass);
-                        shell.RemoveTerminalEmulationCharacters = true;
+                        shell.RemoveTerminalEmulationCharacters = true;                        
 
                         try
                         {
@@ -256,6 +258,11 @@ namespace Aphysoft.Share
                                 mainLoop = new Thread(new ThreadStart(delegate()
                                 {
                                     Culture.Default();
+
+                                    SendLine("bash");
+                                    Thread.Sleep(500);
+                                    terminalPrefix = CheckLastLine();
+
                                     OnProcess();
                                 }));
                                 mainLoop.Start();
@@ -509,98 +516,38 @@ namespace Aphysoft.Share
         
         protected bool WaitUntilEndsWith(string[] endsWith)
         {
-            bool requestFailed = false;
-            StringBuilder lineBuilder = new StringBuilder();
-
-            bool ending = false;
-            int wait = 0;
-
-            while (true)
-            {
-                if (OutputCount > 0)
-                {
-                    ending = false;
-
-                    wait = 0;
-                    string output = GetOutput();
-
-                    for (int i = 0; i < output.Length; i++)
-                    {
-                        byte b = (byte)output[i];
-
-                        if (b >= 32) lineBuilder.Append((char)b);
-
-                        string line = lineBuilder.ToString();
-
-                        string lineTrim = line.Trim();
-
-                        foreach (string endsWithx in endsWith)
-                        {
-                            string endsWithxTrim = endsWithx.Trim();
-
-                            if (lineTrim.EndsWith(endsWithxTrim))
-                            {
-                                ending = true;
-                                break;
-                            }
-                        }
-
-                        if (ending) break;
-                        else
-                        {
-                            if (line.EndsWith(terminalPrefix))
-                            {
-                                ending = true;
-                                requestFailed = true;
-                                break;
-                            }
-                            else if (b == 10)
-                            {
-                                lineBuilder.Clear();
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    if (ending)
-                        break;
-
-                    wait++;
-                    if (wait % 200 == 0 && wait < 1600)
-                    {
-                        Console.WriteLine("Waiting...");
-                        SendLine("");
-                    }
-                    Thread.Sleep(100);
-                    if (wait == 1600)
-                    {
-                        Console.WriteLine("Reading timeout, cancel the reading...");
-                        requestFailed = true;
-                    }
-                    else if (wait >= 1600 && wait % 50 == 0)
-                    {
-                        SendControlC();
-                    }
-                    else if (wait == 2000)
-                    {
-                    }
-                }
-            }
-
-            if (!requestFailed)
-                return false;
-            else
-                return true;
+            return Request(null, out string[] lines, endsWith);
         }
 
-        protected bool Request2(string command, out string[] lines)
+        protected bool Request(string command, RequestOutputEventHandler lineCallback, VoidEventHandler timeOut)
+        {
+            return Request(command, out string[] lines, new string[] { terminalPrefix }, lineCallback, timeOut);
+        }
+
+        protected bool Request(string command, out string[] lines)
+        {
+            return Request(command, out lines, new string[] { terminalPrefix });
+        }
+
+        protected bool Request(string command, out string[] lines, string[] endsWith)
+        {
+            return Request(command, out lines, endsWith, null, null);
+        }
+        
+        protected bool Request(string command, out string[] lines, string[] endsWith, RequestOutputEventHandler lineCallback, VoidEventHandler timeOut)
         {
             bool requestFailed = false;
             lines = null;
 
-            ClearOutput();
-            SendLine(command);
+            if (command != null)
+            {
+                ClearOutput();
+                SendLine(command);
+            }
+            else if (endsWith == null)
+            {
+                return false;
+            }
 
             Stopwatch stopwatch = new Stopwatch();
             StringBuilder lineBuilder = new StringBuilder();
@@ -624,16 +571,46 @@ namespace Aphysoft.Share
                     {
                         byte b = (byte)output[i];
 
-                        if (b >= 32) lineBuilder.Append((char)b);
+                        if (b == 8)
+                        {
+                            if (lineBuilder.Length > 0)
+                                lineBuilder.Remove(lineBuilder.Length - 1, 1);
+                        }
+                        else if (b == 13)
+                        {
+                            if (lineBuilder.Length > 0 && lineBuilder[lineBuilder.Length - 1] == ' ')
+                            {
+                                lineBuilder.Remove(lineBuilder.Length - 1, 1);
+                            }
+                        }
+                        else if (b >= 32) lineBuilder.Append((char)b);
 
                         string line = lineBuilder.ToString();
+                        string lineTrim = line.Trim();
+                        string endsWithEncountered = null;
 
-                        if (line.EndsWith(terminalPrefix))
+                        foreach (string endsWithx in endsWith)
                         {
-                            line = line.Substring(0, line.Length - terminalPrefix.Length);
+                            string endsWithxTrim = endsWithx.Trim();
 
-                            if (line.Length > 0)
+                            if (lineTrim.EndsWith(endsWithxTrim))
                             {
+                                endsWithEncountered = endsWithx;
+                                break;
+                            }
+                        }
+
+                        if (endsWithEncountered != null)
+                        {
+                            int co = line.Length - endsWithEncountered.Length;
+                            if (co < 0) co = 0;
+
+                            line = line.Substring(0, co);
+
+                            if (line.Trim().Length > 0)
+                            {
+                                lineCallback?.Invoke(line);
+
                                 lineBuilder.Clear();
                                 listLines.Add(line);
                             }
@@ -644,8 +621,11 @@ namespace Aphysoft.Share
                         else if (b == 10)
                         {
                             lineBuilder.Clear();
-                            if (line != command)
+                            if (line != command && line.Trim().Length > 0)
+                            {
                                 listLines.Add(line);
+                                lineCallback?.Invoke(line);
+                            }
                         }
                         else if (b == 9) lineBuilder.Append(' ');
                     }
@@ -658,13 +638,15 @@ namespace Aphysoft.Share
                     wait++;
                     if (wait % 200 == 0 && wait < 1600)
                     {
-                        Console.WriteLine("Waiting...");
                         SendLine("");
                     }
                     Thread.Sleep(100);
                     if (wait == 1600)
                     {
                         Console.WriteLine("Reading timeout, cancel the reading...");
+
+                        timeOut?.Invoke();
+
                         requestFailed = true;
                     }
                     else if (wait >= 1600 && wait % 50 == 0)
@@ -688,7 +670,7 @@ namespace Aphysoft.Share
                 return true;
 
         }
-        
+                
         #endregion
     }
 

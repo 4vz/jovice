@@ -75,7 +75,7 @@ namespace Tamir.SharpSsh
 			}
 			else
 			{
-				m_sshIO = GetStream();
+                m_sshIO = GetStream();
 			}
 		}
 

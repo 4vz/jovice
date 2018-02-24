@@ -12,7 +12,7 @@ namespace Center.Providers
     {
         public static ProviderPacket ProviderRequest(ResourceAsyncResult result, int id)
         {
-            Database center = Jovice.CenterDatabase;
+            Database center = Share.Database;
             Database jovice = Jovice.Database;
 
             ClientNecrowServiceMessage m = new ClientNecrowServiceMessage();

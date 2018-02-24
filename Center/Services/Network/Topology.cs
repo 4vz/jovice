@@ -49,6 +49,7 @@ namespace Center
             List<object> rateOutput = new List<object>();
             List<object> outputLimiter = new List<object>();
             List<object> ip = new List<object>();
+            List<object> arp = new List<object>();
             List<object> vcid = new List<object>();
             List<object> nodeInfo = new List<object>();
             List<object> localacc = new List<object>();
@@ -80,7 +81,7 @@ left join PEInterface b on a.PI_PI = b.PI_ID
 left join MEInterface c on b.PI_TO_MI = c.MI_ID
 left join Node d on c.MI_NO = d.NO_ID
 left join PEInterfaceIP e on a.PI_ID = e.PP_PI and e.PP_Order = 1
-left join NeighborInterface ni on b.PI_TO_NI = ni.NI_ID
+left join NBInterface ni on b.PI_TO_NI = ni.NI_ID
 left join NodeNeighbor nn on ni.NI_NN = nn.NN_ID
 where a." + piMatch + @" and a.PI_NO = n.NO_ID
 order by n.NO_Active desc, a.PI_Status desc, a.PI_Protocol desc");
@@ -121,7 +122,7 @@ left join MEInterface mc on c.MI_MI = mc.MI_ID
 left join PEInterface xpi on xpi.PI_ID = mc.MI_TO_PI
 left join Node xpino on xpino.NO_ID = xpi.PI_NO
 left join MECircuit cmc on c.MI_MC = cmc.MC_ID
-left join NeighborInterface ni on mc.MI_TO_NI = ni.NI_ID
+left join NBInterface ni on mc.MI_TO_NI = ni.NI_ID
 left join NodeNeighbor nn on ni.NI_NN = nn.NN_ID
 where c." + miMatch + @" and c.MI_NO = d.NO_ID
 order by d.NO_Active desc, XPI_Name desc, c.MI_Status desc, c.MI_Protocol desc
@@ -157,7 +158,7 @@ left join PEInterfaceIP e on a.PI_ID = e.PP_PI and e.PP_Order = 1
 left join MEInterface mc on c.MI_MI = mc.MI_ID
 left join PEInterface xpi on xpi.PI_ID = mc.MI_TO_PI
 left join Node xpino on xpino.NO_ID = xpi.PI_NO
-left join NeighborInterface ni on mc.MI_TO_NI = ni.NI_ID
+left join NBInterface ni on mc.MI_TO_NI = ni.NI_ID
 left join NodeNeighbor nn on ni.NI_NN = nn.NN_ID
 where cmc." + mcMatch + @" and cmc.MC_NO = d.NO_ID
 order by d.NO_Active desc, XPI_Name desc, cmc.MC_Status desc, cmc.MC_Protocol desc
@@ -201,6 +202,7 @@ order by d.NO_Active desc, XPI_Name desc, cmc.MC_Status desc, cmc.MC_Protocol de
                         List<object> topologyElementCurrent;
                         List<object> nodeInfoNodeCurrent;
 
+                        string piid = null;
                         string piname = null;
                         string piToMi = null;
                         string miMC = null;
@@ -218,7 +220,7 @@ order by d.NO_Active desc, XPI_Name desc, cmc.MC_Status desc, cmc.MC_Protocol de
                         #region PI
 
                         piname = row["PI_Name"].ToString();
-
+                        
                         if (piname != null)
                         {
                             topologyLocalAccess = row["NO_AR"].ToString();
@@ -298,7 +300,7 @@ order by d.NO_Active desc, XPI_Name desc, cmc.MC_Status desc, cmc.MC_Protocol de
                             topologyElementCurrent.Add(row["QInputPackage"].ToString());//25
                             topologyElementCurrent.Add(row["QOutputPackage"].ToString());//26
 
-                            string piid = row["PI_ID"].ToString();
+                            piid = row["PI_ID"].ToString();
                             topologyElementCurrent.Add(piid == null ? null : Base64.Encode(piid)); //27
 
 
@@ -626,7 +628,7 @@ left join Node n on n.NO_ID = a.MI_NO
 left join MEQOS qosa on a.MI_MQ_Input = qosa.MQ_ID
 left join MEQOS qosb on a.MI_MQ_Output = qosb.MQ_ID
 left join MEInterface b on a.MI_MI = b.MI_ID
-left join NeighborInterface c on b.MI_TO_NI = c.NI_ID
+left join NBInterface c on b.MI_TO_NI = c.NI_ID
 left join NodeNeighbor d on c.NI_NN = d.NN_ID
 where a.MI_MC = {0} and a.MI_ID <> {1}
 ", miMC, miID);
@@ -661,7 +663,7 @@ from Node n, MEInterface a
 left join MEQOS qosa on a.MI_MQ_Input = qosa.MQ_ID
 left join MEQOS qosb on a.MI_MQ_Output = qosb.MQ_ID
 left join MEInterface b on a.MI_MI = b.MI_ID
-left join NeighborInterface c on b.MI_TO_NI = c.NI_ID
+left join NBInterface c on b.MI_TO_NI = c.NI_ID
 left join NodeNeighbor d on c.NI_NN = d.NN_ID
 where a.MI_MC = {0} and a.MI_NO = n.NO_ID
 ", remoteMC);
@@ -711,7 +713,7 @@ where a.MI_MC = {0} and a.MI_NO = n.NO_ID
 select m.MI_Name, m.MI_Description, m.MI_Status, m.MI_Protocol,
 a.NI_Name, b.NN_Name
 from MEInterface m
-left join NeighborInterface a on m.MI_TO_NI = a.NI_ID
+left join NBInterface a on m.MI_TO_NI = a.NI_ID
 left join NodeNeighbor b on a.NI_NN = b.NN_ID
 where m.MI_MI = {0} and m.MI_Aggregator is not null", row2["MI2_ID"].ToString());
 
@@ -825,9 +827,25 @@ where m.MI_MI = {0} and m.MI_Aggregator is not null", row2["MI2_ID"].ToString())
 
                         if (topologyCurrentIP != null)
                         {
+                            r2 = jovice.Query(@"
+select PA_IP, PA_MAC
+from PEMac
+where PA_PI = {0}
+", piid);
+                            Dictionary<string, string> ipmac = new Dictionary<string, string>();
+
+                            foreach (Row row2 in r2)
+                            {
+                                string mip = row2["PA_IP"].ToString();
+                                string mac = row2["PA_MAC"].ToString();
+
+                                if (!ipmac.ContainsKey(mip)) ipmac.Add(mip, mac);
+                            }
 
                             string iplocal = topologyCurrentIP.Split(new char[] { '/' })[0];
                             IPNetwork ipnetwork = IPNetwork.Parse(topologyCurrentIP);
+
+                            List<string> ipdd = new List<string>();
 
                             if (ipnetwork.Usable >= 2) // using usable address
                             {
@@ -843,19 +861,31 @@ where m.MI_MI = {0} and m.MI_Aggregator is not null", row2["MI2_ID"].ToString())
                                     {
                                         if (addressx != iplocal)
                                         {
-                                            ipd.Add(address.ToString());
-                                            break;
+                                            string ipaddress = address.ToString();
+
+                                            if (ipmac.ContainsKey(ipaddress))
+                                            {
+                                                ipdd.Add(ipaddress + "-" + ipmac[ipaddress]);
+                                            }                                            
+                                            //break;
                                         }
                                     }
                                 }
+
+                                if (ipmac.ContainsKey(iplocal))
+                                {
+                                    ipdd.Add(iplocal + "-" + ipmac[iplocal]);
+                                }
+
+                                
                             }
                             else // 31 or // 32
                             {
                                 if (ipnetwork.Cidr == 32)
                                 {
-                                    ipd.Add(iplocal);
+                                    ipdd.Add(iplocal);
                                 }
-                                else
+                                else // 31
                                 {
                                     IPAddressCollection addresses = IPNetwork.ListIPAddress(ipnetwork);
 
@@ -864,12 +894,24 @@ where m.MI_MI = {0} and m.MI_Aggregator is not null", row2["MI2_ID"].ToString())
                                         string addressx = address.ToString();
                                         if (addressx != iplocal)
                                         {
-                                            ipd.Add(address.ToString());
+                                            string ipaddress = address.ToString();
+
+                                            if (ipmac.ContainsKey(ipaddress))
+                                            {
+                                                ipdd.Add(ipaddress + "-" + ipmac[ipaddress]);
+                                            }
                                             break;
                                         }
                                     }
+
+                                    if (ipmac.ContainsKey(iplocal))
+                                    {
+                                        ipdd.Add(iplocal + "-" + ipmac[iplocal]);
+                                    }
                                 }
                             }
+
+                            ipd.Add(string.Join(",", ipdd.ToArray()));
                         }
 
 
@@ -933,7 +975,7 @@ left join MEQOS qosb on i.MI_MQ_Output = qosb.MQ_ID
 left join MEInterface i2 on i.MI_MI = i2.MI_ID
 left join MEInterface ci on ci.MI_MC = c.MC_ID
 left join MEPeer cp on cp.MP_MC = c.MC_ID
-left join NeighborInterface ni on i2.MI_TO_NI = ni.NI_ID
+left join NBInterface ni on i2.MI_TO_NI = ni.NI_ID
 left join NodeNeighbor nn on ni.NI_NN = nn.NN_ID
 where
 i." + miMatch + @" and i.MI_TO_PI is null and i.MI_NO = n.NO_ID and
@@ -965,7 +1007,7 @@ left join MEInterface i on i.MI_MC = c.MC_ID
 left join MEQOS qosa on i.MI_MQ_Input = qosa.MQ_ID
 left join MEQOS qosb on i.MI_MQ_Output = qosb.MQ_ID
 left join MEInterface i2 on i.MI_MI = i2.MI_ID
-left join NeighborInterface ni on i2.MI_TO_NI = ni.NI_ID
+left join NBInterface ni on i2.MI_TO_NI = ni.NI_ID
 left join NodeNeighbor nn on ni.NI_NN = nn.NN_ID
 where 
 c." + mcMatch + @" and c.MC_NO = n.NO_ID and
@@ -1032,7 +1074,7 @@ n.NO_AR = ar.AR_ID and ar.AR_AW = aw.AW_ID
 select m.MI_Name, m.MI_Description, m.MI_Status, m.MI_Protocol,
 a.NI_Name, b.NN_Name 
 from MEInterface m
-left join NeighborInterface a on m.MI_TO_NI = a.NI_ID
+left join NBInterface a on m.MI_TO_NI = a.NI_ID
 left join NodeNeighbor b on a.NI_NN = b.NN_ID
 where 
 m.MI_MI = {0} and m.MI_Aggregator is not null", row["MI2_ID"].ToString());
@@ -1276,7 +1318,7 @@ from MEInterface a
 left join MEQOS qosa on a.MI_MQ_Input = qosa.MQ_ID
 left join MEQOS qosb on a.MI_MQ_Output = qosb.MQ_ID
 left join MEInterface b on a.MI_MI = b.MI_ID
-left join NeighborInterface ni on b.MI_TO_NI = ni.NI_ID
+left join NBInterface ni on b.MI_TO_NI = ni.NI_ID
 left join NodeNeighbor nn on ni.NI_NN = nn.NN_ID
 where a.MI_MC = {0}
 ", remoteMC);
@@ -1326,7 +1368,7 @@ where a.MI_MC = {0}
 select m.MI_Name, m.MI_Description, m.MI_Status, m.MI_Protocol,
 a.NI_Name, b.NN_Name 
 from MEInterface m
-left join NeighborInterface a on m.MI_TO_NI = a.NI_ID
+left join NBInterface a on m.MI_TO_NI = a.NI_ID
 left join NodeNeighbor b on a.NI_NN = b.NN_ID
 where m.MI_MI = {0} and m.MI_Aggregator is not null", row2["MI2_ID"].ToString());
 
@@ -1431,7 +1473,7 @@ left join MEQOS qosa on a.MI_MQ_Input = qosa.MQ_ID
 left join MEQOS qosb on a.MI_MQ_Output = qosb.MQ_ID
 left join MEInterface b on a.MI_MI = b.MI_ID
 left join Service se on a.MI_SE = se.SE_ID
-left join NeighborInterface c on b.MI_TO_NI = c.NI_ID
+left join NBInterface c on b.MI_TO_NI = c.NI_ID
 left join NodeNeighbor d on c.NI_NN = d.NN_ID
 where a.MI_MC = {0} and a.MI_ID <> {1}
 ", mcID, row["MI_ID"].ToString());
@@ -1482,7 +1524,7 @@ where a.MI_MC = {0} and a.MI_ID <> {1}
 select m.MI_Name, m.MI_Description, m.MI_Status, m.MI_Protocol,
 a.NI_Name, b.NN_Name
 from MEInterface m
-left join NeighborInterface a on m.MI_TO_NI = a.NI_ID
+left join NBInterface a on m.MI_TO_NI = a.NI_ID
 left join NodeNeighbor b on a.NI_NN = b.NN_ID
 where m.MI_MI = {0} and m.MI_Aggregator is not null", row2["MI2_ID"].ToString());
 
@@ -1643,6 +1685,7 @@ where AR_ID = {0}
             objects.Add(nodeInfo.ToArray()); // 18
             objects.Add(localacc.ToArray()); // 19
             objects.Add(routeType.ToArray()); // 20
+            objects.Add(ipd.ToArray()); // 21
         }
         
         public static void Prepare(SearchMatchResult matchResult)
@@ -1659,6 +1702,7 @@ where AR_ID = {0}
             matchResult.AddColumn("NodeInfo"); // 18
             matchResult.AddColumn("LocalAccess"); // 19
             matchResult.AddColumn("RouteType"); // 20
+            matchResult.AddColumn("IPD"); // 21
         }
 
         private static DateTime? ProcessDateTime(DateTime fromdb)

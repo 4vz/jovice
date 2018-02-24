@@ -150,7 +150,7 @@ namespace Center.Providers
                 Result r;
 
                 Database jovice = Jovice.Database;
-                Database center = Jovice.CenterDatabase;
+                Database center = Share.Database;
 
                 if (root != null)
                 {
@@ -926,7 +926,7 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
         }
 
         protected Database jovice = Jovice.Database;
-        protected Database center = Jovice.CenterDatabase;
+        protected Database center = Share.Database;
 
         #endregion
 

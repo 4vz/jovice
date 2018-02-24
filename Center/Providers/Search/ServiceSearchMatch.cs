@@ -212,7 +212,7 @@ from Service left join ServiceCustomer on SC_ID = SE_SC" + whereService.Format("
 
             Topology.Prepare(matchResult);
 
-            matchResult.AddColumn("StreamServiceID"); // 21
+            matchResult.AddColumn("StreamServiceID"); // 22
         }
 
         public override void RowProcess(SearchMatchResult matchResult, List<object> objects)

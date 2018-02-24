@@ -63,9 +63,6 @@
     <Reference Include="System.EnterpriseServices" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Properties\PublishProfiles\Profile.pubxml" />
-  </ItemGroup>
-  <ItemGroup>
     <Content Include="Web.config" />
   </ItemGroup>
   <ItemGroup>
@@ -74,10 +71,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Aphysoft.Protected\Aphysoft.Protected.csproj">
-      <Project>{dbeb5569-93e8-457a-84f1-535d5b128af2}</Project>
-      <Name>Aphysoft.Protected</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Aphysoft.Share\Aphysoft.Share.csproj">
       <Project>{be59c0c5-8b77-445f-88ed-d88a4eb7709e}</Project>
       <Name>Aphysoft.Share</Name>
@@ -86,6 +79,11 @@
       <Project>{123e8a09-3f7a-4a85-8e3a-da92b55ce6cc}</Project>
       <Name>Jovice</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Web.Release.config">
+      <DependentUpon>Web.config</DependentUpon>
+    </None>
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

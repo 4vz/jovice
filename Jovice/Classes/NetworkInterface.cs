@@ -169,6 +169,11 @@ namespace Center
 
         public static NetworkInterface Parse(string input)
         {
+            return Parse(input, null);
+        }
+
+        public static NetworkInterface Parse(string input, string nodeManufacture)
+        {
             if (input == null) return null;
 
             input = input.Trim();
@@ -273,7 +278,7 @@ namespace Center
                             ci.fullType = "FastEthernet";
                             ci.type = "Fa";
                         }
-                        else if (interfaceType == "e" || interfaceType == "et" || interfaceType == "ethernet")
+                        else if (interfaceType == "e" || (interfaceType == "et" && nodeManufacture != "JUNIPER") || interfaceType == "ethernet")
                         {
                             ci.fullType = "Ethernet";
                             ci.type = "Et";
@@ -288,7 +293,7 @@ namespace Center
                             ci.fullType = "TenGigE";
                             ci.type = "Te";
                         }
-                        else if (interfaceType == "h" || interfaceType == "hu" || interfaceType == "hundredgige")
+                        else if (interfaceType == "h" || interfaceType == "hu" || interfaceType == "et" || interfaceType == "hundredgige")
                         {
                             ci.fullType = "HundredGigE";
                             ci.type = "Hu";
@@ -337,6 +342,94 @@ namespace Center
             }
             else
                 return null;
+        }
+
+        public static string EquipmentName(string nodeManufacture, string joviceName)
+        {
+            string equipmentName = null;
+
+            if (joviceName != null && joviceName.Length > 2)
+            {
+                string depan = joviceName.Substring(0, 2);
+                string belakang = joviceName.Substring(2);
+
+                string[] tokens = belakang.Split('.');
+
+                string logical = null;
+
+                if (tokens.Length > 1) // vlan or qinq
+                {
+                    logical = tokens[1];
+                    if (tokens.Length > 2)
+                    {
+                        logical += "." + tokens[2];
+                    }
+                }
+
+                tokens = tokens[0].Split(':');
+
+                string port = null;
+                string channel = null;
+
+                if (tokens.Length > 1)
+                {
+                    channel = tokens[1];
+                }
+
+                port = tokens[0];
+
+                string type = null;
+                string last = null;
+
+                if (nodeManufacture == "CISCO")
+                {
+                    if (depan == "Ag") type = "Port-channel";
+                    else if (depan == "Et") type = "Ethernet";
+                    else if (depan == "Fa") type = "FastEthernet";
+                    else if (depan == "Gi") type = "GigabitEthernet";
+                    else if (depan == "Te") type = "TenGigE";
+                    else if (depan == "Hu") type = "HundredGigE";
+                    else if (depan == "Se") type = "Serial";
+
+                    last = port + (channel != null ? ":" + channel : "") + (logical != null ? "." + logical : "");
+                }
+                else if (nodeManufacture == "HUAWEI")
+                {
+                    if (depan == "Ag") type = "Eth-Trunk";
+                    else if (depan == "Et") type = "Ethernet";
+                    else if (depan == "Fa") type = "FastEthernet";
+                    else if (depan == "Gi") type = "GigabitEthernet";
+                    else if (depan == "Te") type = "GigabitEthernet";
+                    else if (depan == "Hu") type = "100GE";
+                    else if (depan == "Se") type = "Serial";
+
+                    last = port + (channel != null ? ":" + channel : "") + (logical != null ? "." + logical : "");
+                }
+                else if (nodeManufacture == "ALCATEL-LUCENT")
+                {
+                    if (depan == "Ag") type = "lag-";
+                    else if (depan == "Ex") type = "";
+
+                    last = port + (channel != null ? "." + channel : "") + (logical != null ? ":" + logical : "");
+                }
+                if (nodeManufacture == "JUNIPER")
+                {
+                    if (depan == "Ag") type = "ae";
+                    else if (depan == "Et") type = "et-";
+                    else if (depan == "Fa") type = "fe-";
+                    else if (depan == "Gi") type = "ge-";
+                    else if (depan == "Te") type = "xe-";
+
+                    last = port + (channel != null ? ":" + channel : "") + (logical != null ? "." + logical : "");
+                }
+
+                if (type != null && last != null)
+                {
+                    equipmentName = type + last;
+                }
+            }
+
+            return equipmentName;
         }
 
         #endregion

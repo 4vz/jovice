@@ -616,7 +616,8 @@ namespace Center
         Database,
         Request,
         ProbeStopped,
-        ALURequest
+        ALURequest,
+        ManufactureCorrected,
     }
 
     internal class ProbeProcessResult
@@ -1103,6 +1104,11 @@ namespace Center
                                 instance.PendingNode(properties.Case, xpID, nodeID, TimeSpan.FromHours(4));
                             }
 
+                            continueProcess = false;
+                        }
+                        else if (probe.FailureType == FailureTypes.ManufactureCorrected)
+                        {
+                            restartCurrentNode = Query("select * from Node where NO_ID = {0}", node["NO_ID"].ToString())[0];
                             continueProcess = false;
                         }
                         else if (probe.FailureType != FailureTypes.None)
@@ -2140,6 +2146,28 @@ namespace Center
             }
         }
 
+        private void CheckNodeManufacture()
+        {
+            if (nodeManufacture == null)
+            {
+                SendLine("show clock");
+
+                WaitUntilEndsWith(new string[] { "#", ">" });
+
+                if (LastOutput.IndexOf("syntax error, expecting") > -1) nodeManufacture = jun;
+                else if (LastOutput.IndexOf("Unrecognized command") > -1) nodeManufacture = hwe;
+                else if (LastOutput.IndexOf("Invalid parameter") > -1) nodeManufacture = alu;
+
+                if (nodeManufacture == null)
+                {
+                    nodeManufacture = cso;
+                }
+            }
+
+            Event("Discovered Manufacture: " + nodeManufacture);
+            instance.UpdateManufacture(nodeID, nodeManufacture);
+        }
+
         private ProbeProcessResult Enter(Row row, string probeProgressID, out bool continueProcess, bool prioritizeProcess, bool prioritizeAsk)
         {
             ProbeProcessResult probe = new ProbeProcessResult();
@@ -2558,32 +2586,13 @@ namespace Center
 
             if (checkNodeManufacture)
             {
-                if (nodeManufacture == null)
-                {
-                    SendLine("show clock");
-
-                    WaitUntilEndsWith(new string[] { "#", ">" });
-
-                    if (LastOutput.IndexOf("syntax error, expecting") > -1) nodeManufacture = jun;
-                    else if (LastOutput.IndexOf("Unrecognized command") > -1) nodeManufacture = hwe;
-                    else if (LastOutput.IndexOf("Invalid parameter") > -1)  nodeManufacture = alu;
-
-                    if (nodeManufacture == null)
-                    {
-                        nodeManufacture = cso;
-                    }
-                }
-
-                Event("Discovered Manufacture: " + nodeManufacture);
-                instance.UpdateManufacture(nodeID, nodeManufacture);
+                CheckNodeManufacture();
             }
 
             if (nodeManufacture == null)
             {
-                Event("Manufacture unknown");
-
+                Event("Unknown manufacture");
                 Save();
-
                 return probe;
             }
 
@@ -2615,7 +2624,22 @@ namespace Center
 
                 if (terminal.EndsWith(">"))
                 {
-                    throw new Exception("This CISCO node is not in previledge mode");
+                    Event("This CISCO node is not in previledge mode. Clearing node manufacture...");
+
+                    nodeManufacture = null;
+                    CheckNodeManufacture();
+
+                    if (nodeManufacture == null)
+                    {
+                        Event("Unknown manufacture");
+                        Save();                        
+                    }
+                    else
+                    {
+                        probe.FailureType = FailureTypes.ManufactureCorrected;
+                    }
+
+                    return probe;
                 }
             }
             else if (nodeManufacture == jun)

@@ -1052,6 +1052,11 @@ namespace Center
                                     probeRequestData.Connection.Reply(probeRequestData.Message);
                                 }
                             }
+                            else
+                            {
+                                // notfound
+                                Event(prioritizeNode + " is not found in the database");
+                            }
                         }
                     }
 
@@ -2168,6 +2173,34 @@ namespace Center
             instance.UpdateManufacture(nodeID, nodeManufacture);
         }
 
+        private bool ParseHuaweiUptime(string uptimeString, out TimeSpan uptime)
+        {
+            string[] tokens = uptimeString.Split(StringSplitTypes.Comma, StringSplitOptions.RemoveEmptyEntries);
+
+            int day = 0;
+            int hour = 0;
+            int minute = 0;
+
+            foreach (string token in tokens)
+            {
+                string otoken = token.Trim().ToLower();
+                string[] tokens2 = otoken.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                if (tokens2.Length == 2)
+                {
+                    int dal = int.Parse(tokens2[0]);
+
+                    if (tokens2[1].StartsWith("day")) day = dal;
+                    else if (tokens2[1].StartsWith("hour")) hour = dal;
+                    else if (tokens2[1].StartsWith("minute")) minute = dal;
+                }
+            }
+
+            uptime = new TimeSpan(day, hour, minute, 0);
+
+            return true;
+        }
+
         private ProbeProcessResult Enter(Row row, string probeProgressID, out bool continueProcess, bool prioritizeProcess, bool prioritizeAsk)
         {
             ProbeProcessResult probe = new ProbeProcessResult();
@@ -2893,35 +2926,37 @@ namespace Center
                     int uptimeIs = line.IndexOf("uptime is");
                     if (uptimeIs > -1 && line.IndexOf("Master") > -1)
                     {
-                        string[] tokens = line.Substring(uptimeIs + 9).Trim().Split(StringSplitTypes.Comma, StringSplitOptions.RemoveEmptyEntries);
-
-                        int day = 0;
-                        int hour = 0;
-                        int minute = 0;
-
-                        foreach (string token in tokens)
+                        if (ParseHuaweiUptime(line.Substring(uptimeIs + 9).Trim(), out uptime))
                         {
-                            string otoken = token.Trim().ToLower();
-                            string[] tokens2 = otoken.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-
-                            if (tokens2.Length == 2)
-                            {
-                                int dal = int.Parse(tokens2[0]);
-
-                                if (tokens2[1].StartsWith("day")) day = dal;
-                                else if (tokens2[1].StartsWith("hour")) hour = dal;
-                                else if (tokens2[1].StartsWith("minute")) minute = dal;
-                            }                            
+                            nodeStartTimeRetrieved = true;
+                            ignoreSecond = true;
                         }
-
-                        uptime = new TimeSpan(day, hour, minute, 0);
-                        nodeStartTimeRetrieved = true;
-                        ignoreSecond = true;
 
                         break;
                     }
                 }
 
+                if (!nodeStartTimeRetrieved)
+                {
+                    if (Request("display version", out lines, probe)) return probe;
+
+                    // old device cant "display version | in Master"
+                    //Quidway CX300A uptime is 1476 days, 5 hours, 33 minutes
+                    foreach (string line in lines)
+                    {
+                        int uptimeIs = line.IndexOf("uptime is");
+                        if (uptimeIs > -1)
+                        {
+                            if (ParseHuaweiUptime(line.Substring(uptimeIs + 9).Trim(), out uptime))
+                            {
+                                nodeStartTimeRetrieved = true;
+                                ignoreSecond = true;
+                            }
+
+                            break;
+                        }
+                    }
+                }
 
                 #endregion
             }
@@ -3279,7 +3314,7 @@ namespace Center
 
                     foreach (string line in lines)
                     {
-                        if (line.StartsWith("VRP (R) software"))
+                        if (line.ToLower().StartsWith("vrp (r) software"))
                             version = line.Substring(26, line.IndexOf(' ', 26) - 26).Trim();
                         if (line.StartsWith("HUAWEI "))
                             model = line.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries)[1];
@@ -3356,16 +3391,20 @@ namespace Center
                         }
                     }
 
+                    if (version == null)
+                    {
+                        // yes probably, those nodes that cant pipe display version :( -> QUIDWAY?
+                        if (Request("display version", out lines, probe)) return probe;
 
-
-
-                    // additional setup for huawei >5.90 for screen-width tweak (help problem with 5.160 auto text-wrap)
-                    //if (version == "5.160")
-                    //{
-                    //    if (Send("screen-width 80" + (char)13 + "Y")) { NodeStop(); return true; }
-                    //    NodeRead(out timeout);
-                    //    if (timeout) { NodeStop(); return true; }
-                    //}
+                        foreach (string line in lines)
+                        {
+                            if (line.ToLower().StartsWith("vrp (r) software"))
+                                version = line.Substring(26, line.IndexOf(' ', 26) - 26).Trim();
+                            if (line.StartsWith("Quidway "))
+                                model = "QUIDWAY " + line.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries)[1];
+                            if (version != null && model != null) break;
+                        }
+                    }
 
                     #endregion
                 }

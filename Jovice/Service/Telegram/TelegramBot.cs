@@ -775,6 +775,7 @@ dbo.DoubleMetaPhone({0}) and LOWER(SUBSTRING(NO_Name, 0, CHARINDEX('-', NO_Name,
             long chatID = e.Message.Chat.Id;
             int fromID = e.Message.From.Id;            
 
+
             bool isPrivateMessage = (e.Message.Chat.Id == e.Message.From.Id);
 
             BotGroup group = null;

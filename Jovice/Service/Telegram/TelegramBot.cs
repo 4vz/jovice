@@ -11,6 +11,7 @@ using System.Diagnostics;
 using System.Net.Http;
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using System.Configuration;
 
 namespace Center
 {
@@ -351,10 +352,10 @@ namespace Center
         internal static void Init()
         {
 #if DEBUG
-            telegramBot = new TelegramBotClient("353770204:AAEs0Snc9Zc9crw-8_zQS8QGHyI0A4QBE6E");
+            telegramBot = new TelegramBotClient(ConfigurationManager.AppSettings["telegram_debug"]);
             userName = "TelkomCenterDevBot";
 #else
-            telegramBot = new TelegramBotClient("302702777:AAEvFgWiSnqM6DZb9dq-uAnnOmJMLGNiDbw");
+            telegramBot = new TelegramBotClient(ConfigurationManager.AppSettings["telegram"]);
             userName = "TelkomCenterBot";
 #endif
             //Database center = Share.Database;

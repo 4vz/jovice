@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Aphysoft")]
 [assembly: AssemblyProduct("Center.API")]
-[assembly: AssemblyCopyright("Copyright © Afis Herman Reza Devara 2017")]
+[assembly: AssemblyCopyright("Copyright © Afis Herman Reza Devara")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

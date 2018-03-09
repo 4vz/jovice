@@ -121,7 +121,7 @@ namespace Center
         #endregion
     }
 
-    public class Necrow : BaseServiceInstance
+    public class Necrow : ServiceClient
     {
         #region Fields
 

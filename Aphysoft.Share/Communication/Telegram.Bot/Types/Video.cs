@@ -1,12 +1,13 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 
 namespace Telegram.Bot.Types
 {
     /// <summary>
     /// This object represents a video file.
     /// </summary>
-    [JsonObject(MemberSerialization.OptIn)]
-    public class Video : File
+    [JsonObject(MemberSerialization.OptIn, NamingStrategyType = typeof(SnakeCaseNamingStrategy))]
+    public class Video : FileBase
     {
         /// <summary>
         /// Video width as defined by sender
@@ -29,13 +30,13 @@ namespace Telegram.Bot.Types
         /// <summary>
         /// Video thumbnail
         /// </summary>
-        [JsonProperty]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public PhotoSize Thumb { get; set; }
 
         /// <summary>
         /// Optional. Mime type of a file as defined by sender
         /// </summary>
-        [JsonProperty]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public string MimeType { get; set; }
     }
 }

@@ -1,28 +1,19 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 
 namespace Telegram.Bot.Types
 {
     /// <summary>
     /// This object represents a video message (available in Telegram apps as of v.4.0).
     /// </summary>
-    [JsonObject(MemberSerialization.OptIn)]
-    public class VideoNote : File
+    [JsonObject(MemberSerialization.OptIn, NamingStrategyType = typeof(SnakeCaseNamingStrategy))]
+    public class VideoNote : FileBase
     {
         /// <summary>
         /// Video width and height as defined by sender
         /// </summary>
         [JsonProperty(Required = Required.Always)]
         public int Length { get; set; }
-
-        /// <summary>
-        /// Video width as defined by sender
-        /// </summary>
-        public int Width => Length;
-
-        /// <summary>
-        /// Video height as defined by sender
-        /// </summary>
-        public int Height => Length;
 
         /// <summary>
         /// Duration of the video in seconds as defined by sender
@@ -33,7 +24,7 @@ namespace Telegram.Bot.Types
         /// <summary>
         /// Optional. Video thumbnail
         /// </summary>
-        [JsonProperty]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public PhotoSize Thumb { get; set; }
     }
 }

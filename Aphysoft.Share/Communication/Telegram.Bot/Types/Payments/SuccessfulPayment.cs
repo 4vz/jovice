@@ -1,11 +1,12 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 
 namespace Telegram.Bot.Types.Payments
 {
     /// <summary>
     /// This object contains basic information about a successful payment.
     /// </summary>
-    [JsonObject(MemberSerialization.OptIn)]
+    [JsonObject(MemberSerialization.OptIn, NamingStrategyType = typeof(SnakeCaseNamingStrategy))]
     public class SuccessfulPayment
     {
         /// <summary>
@@ -29,13 +30,13 @@ namespace Telegram.Bot.Types.Payments
         /// <summary>
         /// Optional. Identifier of the shipping option chosen by the user
         /// </summary>
-        [JsonProperty]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public string ShippingOptionId { get; set; }
 
         /// <summary>
         /// Optional. Order info provided by the user
         /// </summary>
-        [JsonProperty]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public OrderInfo OrderInfo { get; set; }
 
         /// <summary>

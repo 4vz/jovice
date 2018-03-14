@@ -1,11 +1,12 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 
 namespace Telegram.Bot.Types.Payments
 {
     /// <summary>
     /// This object represents a shipping address.
     /// </summary>
-    [JsonObject(MemberSerialization.OptIn)]
+    [JsonObject(MemberSerialization.OptIn, NamingStrategyType = typeof(SnakeCaseNamingStrategy))]
     public class ShippingAddress
     {
         /// <summary>
@@ -17,7 +18,7 @@ namespace Telegram.Bot.Types.Payments
         /// <summary>
         /// State, if applicable
         /// </summary>
-        [JsonProperty]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public string State { get; set; }
 
         /// <summary>

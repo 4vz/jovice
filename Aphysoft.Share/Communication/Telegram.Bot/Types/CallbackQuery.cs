@@ -1,12 +1,13 @@
 using Newtonsoft.Json;
-using Telegram.Bot.Types.InlineKeyboardButtons;
+using Newtonsoft.Json.Serialization;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Telegram.Bot.Types
 {
     /// <summary>
     /// This object represents an incoming callback query from a <see cref="InlineKeyboardButton"/>. If the button that originated the query was attached to a <see cref="Message"/> sent by the bot, the field message will be presented. If the button was attached to a message sent via the bot (in inline mode), the field <see cref="InlineMessageId"/> will be presented.
     /// </summary>
-    [JsonObject(MemberSerialization.OptIn)]
+    [JsonObject(MemberSerialization.OptIn, NamingStrategyType = typeof(SnakeCaseNamingStrategy))]
     public class CallbackQuery
     {
         /// <summary>
@@ -22,15 +23,15 @@ namespace Telegram.Bot.Types
         public User From { get; set; }
 
         /// <summary>
-        /// Optional. Message with the callback button that originated the query. Note that message content and message date will not be available if the message is too old
+        /// Optional. Description with the callback button that originated the query. Note that message content and message date will not be available if the message is too old
         /// </summary>
-        [JsonProperty]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public Message Message { get; set; }
 
         /// <summary>
         /// Optional. Identifier of the message sent via the bot in inline mode, that originated the query
         /// </summary>
-        [JsonProperty]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public string InlineMessageId { get; set; }
 
         /// <summary>
@@ -45,18 +46,18 @@ namespace Telegram.Bot.Types
         /// <remarks>
         /// Be aware that a bad client can send arbitrary data in this field.
         /// </remarks>
-        [JsonProperty]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public string Data { get; set; }
 
         /// <summary>
         /// Optional. Short name of a <see cref="Game"/> to be returned, serves as the unique identifier for the game.
         /// </summary>
-        [JsonProperty]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public string GameShortName { get; set; }
 
         /// <summary>
         /// Indicates if the User requests a Game
         /// </summary>
-        public bool IsGameQuery => GameShortName != null;
+        public bool IsGameQuery => GameShortName != default;
     }
 }

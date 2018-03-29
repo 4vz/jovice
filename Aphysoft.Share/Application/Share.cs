@@ -131,7 +131,7 @@ namespace Aphysoft.Share
 
             #region Service
 
-            Service.Client(IPAddress.Loopback);
+            Service.Client(IPAddress.Loopback, false);
 
             #endregion
 

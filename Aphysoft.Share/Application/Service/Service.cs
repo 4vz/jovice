@@ -37,9 +37,9 @@ namespace Aphysoft.Share
                     {
                         Disconnected?.Invoke(c);
                     };
-                    ((BaseService)instance).Traced += delegate (string message)
+                    ((BaseService)instance).EventOutput += delegate (string message)
                     {
-                        Traced?.Invoke(message);
+                        EventOutput?.Invoke(message);
                     };
                 }
                 return instance;
@@ -97,7 +97,7 @@ namespace Aphysoft.Share
         {
             BaseService instance = Service.Instance;
 
-            instance.Trace(message);
+            instance.Event(message);
         }
 
         public static void Debug(object message)
@@ -166,10 +166,10 @@ namespace Aphysoft.Share
 
         public static void Server()
         {
-            Server(ServiceTraceLevels.None);
+            Server(false);
         }
 
-        public static void Server(ServiceTraceLevels type)
+        public static void Server(bool console)
         {
             if (!IsServer && !IsClient)
             {
@@ -177,16 +177,14 @@ namespace Aphysoft.Share
                 {
                 }))
                 {
-                    if (type < ServiceTraceLevels.None)
+                    if (console)
                     {
-                        Console.WriteLine("ServiceTraceLevels: " + type);
-                        Traced += delegate (string message)
+                        EventOutput += delegate (string message)
                         {
                             Console.WriteLine(message);
                         };
                     }
                     
-                    Instance.SetTraceType(type);
                     Instance.Server(IPAddress.Any, defaultPort);
 
                     Provider.ServerInit();
@@ -196,45 +194,27 @@ namespace Aphysoft.Share
             }
         }
 
-        public static void Client(IPAddress server)
+        public static void Client(IPAddress server, bool console)
         {
             if (!IsServer && !IsClient)
             {
-                Client(new IPEndPoint(server, defaultPort), ServiceTraceLevels.None);
+                Client(new IPEndPoint(server, defaultPort), false);
             }
         }
 
-        public static new void Client(IPEndPoint server)
+        public static void Client(IPEndPoint server, bool console)
         {
             if (!IsServer && !IsClient)
             {
-                Client(server, ServiceTraceLevels.None);
-            }
-        }
-
-        public static void Client(IPEndPoint server, ServiceTraceLevels type)
-        {
-            if (!IsServer && !IsClient)
-            {
-                if (type < ServiceTraceLevels.None)
+                if (console)
                 {
-                    Console.WriteLine("ServiceTraceLevels: " + type);
-                    Traced += delegate (string message)
+                    EventOutput += delegate (string message)
                     {
                         Console.WriteLine(message);
                     };
                 }
 
-                Instance.SetTraceType(type);
                 ((BaseService)Instance).Client(server);
-            }
-        }
-
-        public static void Client(ServiceTraceLevels type)
-        {
-            if (!IsServer && !IsClient)
-            {
-                Client(new IPEndPoint(IPAddress.Loopback, defaultPort), type);
             }
         }
 
@@ -272,7 +252,7 @@ namespace Aphysoft.Share
 
         public static new event DisconnectedEventHandler Disconnected;
 
-        public static new event TracedEventHandler Traced;
+        public static new event EventOutputEventHandler EventOutput;
 
         #endregion
     }

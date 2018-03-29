@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Aphysoft.Share
 {
-    public class BaseServiceInstance
+    public abstract class ServiceClient
     {
         #region Fields
 
@@ -30,20 +30,11 @@ namespace Aphysoft.Share
 
         #endregion
 
-        #region Constructors
-
-        public BaseServiceInstance()
-        {
-
-        }
-
-        #endregion
-
         #region Methods
 
         protected virtual void OnStart()
         {
-
+            
         }
 
         protected virtual void OnStop()
@@ -61,6 +52,16 @@ namespace Aphysoft.Share
 
         }
 
+        protected virtual void OnUpdating()
+        {
+
+        }
+
+        protected virtual void OnUpdated()
+        {
+
+        }
+
         protected void EndConnect()
         {
             connecting.Dispose();
@@ -72,7 +73,7 @@ namespace Aphysoft.Share
         }
 
         public void Start(bool console)
-        {            
+        {
             instanceThread = new Thread(new ThreadStart(delegate ()
             {
                 running = true;
@@ -81,7 +82,7 @@ namespace Aphysoft.Share
 
                 if (serviceServerAddress != null)
                 {
-                    Service.Client(serviceServerAddress);
+                    Service.Client(serviceServerAddress, console);
 
                     Service.Connected += delegate (Connection connection)
                     {

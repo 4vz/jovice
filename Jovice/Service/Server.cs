@@ -43,8 +43,10 @@ namespace Center
         public static void Init()
         {
             Settings.ServerInit();
+
+
             //TelegramBot.Init();
-            AutoCertRenew.Init();
+            //AutoCertRenew.Init();
 
             
 

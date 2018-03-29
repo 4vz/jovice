@@ -12,7 +12,7 @@ namespace ServiceConsole
     {
         static void Main(string[] args)
         {        
-            Service.Server(ServiceTraceLevels.Default);
+            Service.Server(true);
             Server.Init();
         }
     }

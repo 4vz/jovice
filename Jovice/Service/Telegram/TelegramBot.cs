@@ -803,12 +803,12 @@ dbo.DoubleMetaPhone({0}) and LOWER(SUBSTRING(NO_Name, 0, CHARINDEX('-', NO_Name,
                 // group new name
                 group.Name = e.Message.NewChatTitle;
             }
-            else if (e.Message.NewChatMember != null)
-            {
-                if (e.Message.NewChatMember.Username == userName)
-                {
-                }
-            }
+            //else if (e.Message.NewChatMember != null)
+            //{
+            //    if (e.Message.NewChatMember.Username == userName)
+            //    {
+            //    }
+            //}
             else if (e.Message.LeftChatMember != null)
             {
                 // someone has been left

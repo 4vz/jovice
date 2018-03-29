@@ -122,6 +122,10 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Aphysoft.Apps.Console\Aphysoft.Apps.Console.csproj">
+      <Project>{bd09ee9f-09ce-45da-8cf3-9ee66afe605c}</Project>
+      <Name>Aphysoft.Apps.Console</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Aphysoft.Share\Aphysoft.Share.csproj">
       <Project>{be59c0c5-8b77-445f-88ed-d88a4eb7709e}</Project>
       <Name>Aphysoft.Share</Name>

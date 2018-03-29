@@ -28,8 +28,6 @@ namespace Aphysoft.Test
 
         protected override void OnStart()
         {
-            Event("Test Starting");
-
             while (IsRunning)
             {
                 Thread.Sleep(1000);

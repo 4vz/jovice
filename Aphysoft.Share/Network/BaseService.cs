@@ -9,13 +9,6 @@ using System.Threading;
 
 namespace Aphysoft.Share
 {
-    public enum ServiceTraceLevels : int
-    {
-        Debug = 0,
-        Default = 1,
-        None = int.MaxValue
-    }
-
     public abstract class BaseService
     {
         #region Const
@@ -24,10 +17,12 @@ namespace Aphysoft.Share
         internal static readonly byte[] HelloPacket = new byte[16] { (byte)'H', (byte)'L', (byte)'L', (byte)'O', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         internal static readonly byte[] MessageHeadPacket = new byte[4] { (byte)'M', (byte)'E', (byte)'S', (byte)'G' };
         internal static readonly byte[] FileHeadPacket = new byte[4] { (byte)'F', (byte)'I', (byte)'L', (byte)'E' };
-        
+
         #endregion
 
         #region Fields
+
+        private bool debug = false;
 
         private ManualResetEvent allDone = new ManualResetEvent(false);
 
@@ -181,7 +176,7 @@ namespace Aphysoft.Share
 
         public event ReceivedEventHandler Received;
 
-        public event TracedEventHandler Traced;
+        public event EventOutputEventHandler EventOutput;
 
         internal void OnConnected(ConnectionEventArgs e)
         {
@@ -206,51 +201,38 @@ namespace Aphysoft.Share
             Received?.Invoke(e);
         }
 
-        internal void OnTraced(string debug)
+        internal void OnEventOutput(string output)
         {
-            Traced?.Invoke(debug);
+            EventOutput?.Invoke(output);
         }
 
         #endregion
 
         #region Debuging
 
-        private int traceLevel = Int16.MaxValue;
-
-        internal void Trace(ServiceTraceLevels type, string output)
+        internal void Output(string output)
         {
-            if ((int)type >= traceLevel)
-                OnTraced(output);
+            OnEventOutput(output);
         }
 
         internal void Debug(string output)
         {
-            Trace(ServiceTraceLevels.Debug, output);
-        }
-
-        public void SetTraceType(ServiceTraceLevels type)
-        {
-            traceLevel = (int)type;
+            if (debug) Output(output);
         }
 
         #endregion
 
         #region Methods
 
-        /// <summary>
-        /// Set current instance as server instance.
-        /// </summary>
-        /// <param name="bindingInterface"></param>
-        /// <param name="bindingPort"></param>
         public void Server(IPAddress bindingInterface, int bindingPort)
         {
             if (serverSocket == null && isClient == false)
             {
                 serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
-                Debug("Starting server");
+                Event("Starting server");
 
-                Debug("Prefered Binding Interface: " +
+                Event("Prefered Binding Interface: " +
                     (bindingInterface == IPAddress.Any ? "Any Interface" : bindingInterface.ToString()) +
                     ":" +
                     (bindingPort == 0 ? "Any Port" : bindingPort.ToString()));
@@ -263,7 +245,7 @@ namespace Aphysoft.Share
                     serverSocket.Bind(bindEndPoint);
 
                     EndPoint ep = serverSocket.LocalEndPoint;
-                    Debug("Binding interface: " + serverSocket.LocalEndPoint.ToString());
+                    Event("Binding interface: " + serverSocket.LocalEndPoint.ToString());
 
                     endPoint = bindEndPoint;
 
@@ -271,7 +253,7 @@ namespace Aphysoft.Share
                 }
                 catch (Exception ex)
                 {
-                    Debug("Binding failure: " + ex.Message);
+                    Event("Binding failure: " + ex.Message);
                     
                     serverSocket.Close();
                     serverSocket = null;
@@ -287,10 +269,6 @@ namespace Aphysoft.Share
             }
         }
 
-        /// <summary>
-        /// Set current instance as client instance.
-        /// </summary>
-        /// <param name="serverAddress"></param>
         public void Client(IPEndPoint serverAddress)
         {
             if (serverSocket == null && isClient == false)
@@ -307,10 +285,6 @@ namespace Aphysoft.Share
             }
         }
 
-        /// <summary>
-        /// Client: Set server address.
-        /// </summary>
-        /// <param name="serverAddress"></param>
         public void SetServerAddress(IPEndPoint serverAddress)
         {
             if (!IsClient)
@@ -322,9 +296,6 @@ namespace Aphysoft.Share
             endPoint = serverAddress;
         }
  
-        /// <summary>
-        /// Client: Connect to server.
-        /// </summary>
         public void Connect()
         {
             if (!IsClient || IsConnecting || IsConnected)
@@ -394,9 +365,6 @@ namespace Aphysoft.Share
             }
         }
 
-        /// <summary>
-        /// Client: Disconnect current connection to server.
-        /// </summary>
         public void Disconnect()
         {
             if (!IsClient)
@@ -504,7 +472,7 @@ namespace Aphysoft.Share
             {
                 connection.connectionID = clientCounter++;
 
-                Debug("New client connected: " + socket.RemoteEndPoint.ToString() + " connection ID: " + connection.connectionID);
+                Event("New client connected: " + socket.RemoteEndPoint.ToString() + " connection ID: " + connection.connectionID);
 
                 connections.Add(connection.connectionID, connection);                
             }
@@ -566,7 +534,7 @@ namespace Aphysoft.Share
                     string eventTimeStamp = string.Format("{0,2}:{1,2}:{2,2}:{3,3}", timeStamp.Hour, timeStamp.Minute, timeStamp.Second, timeStamp.Millisecond);
                     string connectionInfo = string.Format("{0, 5}", connection.ConnectionID);
 
-                    Trace(ServiceTraceLevels.Default, "EVENT [" + eventTimeStamp + "] [" + connectionInfo + "] " + eventServiceMessage.Message);
+                    Output("EVENT [" + eventTimeStamp + "] [" + connectionInfo + "] " + eventServiceMessage.Message);
                 }
                 else
                 {
@@ -878,10 +846,7 @@ namespace Aphysoft.Share
                 return null;
         }
 
-        /// <summary>
-        /// Client: Output message to connected server OnTraced
-        /// </summary>
-        public void Trace(string message)
+        public void Event(string message)
         {
             if (IsClient)
             {
@@ -890,7 +855,7 @@ namespace Aphysoft.Share
             }
             else if (IsServer)
             {
-                Trace(ServiceTraceLevels.Default, message);
+                Output(message);
             }
         }
 
@@ -982,7 +947,7 @@ namespace Aphysoft.Share
 
     public delegate bool MessageWaitCallback(object o);
 
-    public delegate void TracedEventHandler(string debug);
+    public delegate void EventOutputEventHandler(string debug);
 
     public sealed class Connection
     {
@@ -1055,11 +1020,6 @@ namespace Aphysoft.Share
             Receive();
         }
 
-        private void Output(ServiceTraceLevels outputType, string output)
-        {
-            service.Trace(outputType, output);
-        }
-
         private void Debug(string output)
         {
             service.Debug(output);
@@ -1078,8 +1038,6 @@ namespace Aphysoft.Share
                 Disconnect();
             }
         }
-
-        ///private void 
 
         public static bool ByteArrayCompare(byte[] a, byte[] b)
         {
@@ -1308,7 +1266,7 @@ namespace Aphysoft.Share
             try
             {
                 socket.BeginSend(data, 0, data.Length, 0, new AsyncCallback(EndSend), this);
-            }
+            } 
             catch (Exception ex)
             {
                 Disconnect();

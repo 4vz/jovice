@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Aphysoft.Test
@@ -27,25 +28,16 @@ namespace Aphysoft.Test
 
         protected override void OnStart()
         {
-            Event("Test");
-
-            BeginEdge(IPAddress.Loopback);
+            Event("Test Starting");
 
             while (IsRunning)
             {
-                if (!IsRunning)
-                {
-                    Event("Byte");
-                    break;
-                }
+                Thread.Sleep(1000);
             }
         }
 
         protected override void OnStop()
         {
-            Console.WriteLine("Stop is called");
-
-
         }
 
 

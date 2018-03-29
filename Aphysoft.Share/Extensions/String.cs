@@ -69,6 +69,8 @@ namespace Aphysoft.Share
         /// <returns>The zero-based index position of value if that string is found, or -1 if it is not. If value is System.String.Empty, the return value is 0.</returns>
         public static int IndexOf(this string value, params string[] values)
         {
+            if (string.IsNullOrEmpty(value)) return -1;
+
             int rv = -1;
             foreach (string v in values)
             {

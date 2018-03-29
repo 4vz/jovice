@@ -8946,7 +8946,7 @@
                 iright.color(55, { duration: 166 });
             });
 
-            title = share.text(topBar)({ text: t.title != null ? t.title : "aphysoft.share", position: [60, 12], font: 21, color: 45, weight: "300" });
+            title = share.text(topBar)({ text: t.title != null ? t.title : "aphysoft.share", position: [60, 12], font: 21, color: 45, weight: "400" });
             titleLeftWidth = title.leftWidth() + 10;
 
             domainBox = share.box(topBar)({ left: titleLeftWidth, height: 48, hide: true });
@@ -8956,7 +8956,7 @@
             searchBox = share.box(topBar)({ color: 95, height: 34, width: 250, cursor: "text", top: 6, right: 90 });
             searchTextInput = share.textinput(searchBox)({ font: 14, leftRight: [60, 10], top: 0, height: 34, design: false });
             var searchGlassIcon = share.icon(searchBox, "glass")({ size: [24, 24], color: 55, position: [20, 5] });
-            var searchPlaceholder = share.text(searchBox)({ noSelect: true, text: "Search", font: ["body", 14], color: 55, position: [60, 8] });
+            var searchPlaceholder = share.text(searchBox)({ noSelect: true, text: "Search", font: ["body", 14], color: 55, position: [60, 8.5] });
                       
             var searchButton = share.button(topBar)({
                 size: [34, 34], right: 70, top: 6, design: {
@@ -9356,8 +9356,10 @@
 
                 if (type == "online" || type == "streamrecovered") {
                     if (firstTime) {
+                        //debug()
                         firstTime = false;
-                        share(function () { }, 100, function () {
+                        share(function () { }, 10, function () {
+                            debug(frontLogoDone);
                             if (!frontLogoDone) return -1;
                             else close.fadeOut(100);
                         });

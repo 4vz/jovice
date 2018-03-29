@@ -9,7 +9,7 @@
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Aphysoft.Share</RootNamespace>
-    <AssemblyName>Aphysoft.Share</AssemblyName>
+    <AssemblyName>aphysoft.share</AssemblyName>
     <TargetFrameworkVersion>v4.7</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SccProjectName>SAK</SccProjectName>
@@ -123,13 +123,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Application\API\API.cs" />
+    <Compile Include="Application\Apps.cs" />
     <Compile Include="Application\Page\DesignType.cs" />
     <Compile Include="Application\Helpers\WebUtilities.cs" />
     <Compile Include="Application\Page\BaseMaster.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="Application\Page\QueryString.cs" />
-    <Compile Include="Application\Service\BaseServiceInstance.cs" />
+    <Compile Include="Application\Service\ServiceClient.cs" />
     <Compile Include="Application\Session.cs" />
     <Compile Include="Application\Content.cs" />
     <Compile Include="Application\Service\Service.cs" />
@@ -142,6 +143,7 @@
     <Compile Include="Application\Settings\Settings.cs" />
     <Compile Include="Application\Settings\UserSettings.cs" />
     <Compile Include="Application\Share.cs" />
+    <Compile Include="Bridger\Bridger.cs" />
     <Compile Include="Class\EventHandler.cs" />
     <Compile Include="Communication\Telegram.Bot\Args\ApiRequestEventArgs.cs" />
     <Compile Include="Communication\Telegram.Bot\Args\ApiResponseEventArgs.cs" />
@@ -153,15 +155,110 @@
     <Compile Include="Communication\Telegram.Bot\Args\ReceiveGeneralErrorEventArgs.cs" />
     <Compile Include="Communication\Telegram.Bot\Args\UpdateEventArgs.cs" />
     <Compile Include="Communication\Telegram.Bot\Converters\ChatIdConverter.cs" />
-    <Compile Include="Communication\Telegram.Bot\Converters\FileToSendConverter.cs" />
-    <Compile Include="Communication\Telegram.Bot\Converters\InlineQueryResultTypeConverter.cs" />
-    <Compile Include="Communication\Telegram.Bot\Converters\InputMediaTypeConverter.cs" />
-    <Compile Include="Communication\Telegram.Bot\Converters\ParseModeConverter.cs" />
+    <Compile Include="Communication\Telegram.Bot\Converters\InputFileConverter.cs" />
+    <Compile Include="Communication\Telegram.Bot\Converters\InputMediaConverter.cs" />
     <Compile Include="Communication\Telegram.Bot\Converters\PhotoSizeConverter.cs" />
     <Compile Include="Communication\Telegram.Bot\Converters\UnixDatetimeConverter.cs" />
     <Compile Include="Communication\Telegram.Bot\Exceptions\ApiException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\ApiExceptionInfo.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\ApiExceptionParser.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\BadRequestException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\BadRequestExceptions\ChatNotFoundException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\BadRequestExceptions\ContactRequestException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\BadRequestExceptions\Invalid Parameter\InvalidParameterException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\BadRequestExceptions\Invalid Parameter\InvalidStickerDimensionsException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\BadRequestExceptions\Invalid Parameter\InvalidStickerEmojisException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\BadRequestExceptions\Invalid Parameter\InvalidStickerSetNameException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\BadRequestExceptions\Invalid Parameter\InvalidUserIdException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\BadRequestExceptions\MessageIsNotModifiedException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\BadRequestExceptions\StickerSetNameExistsException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\BadRequestExceptions\StickerSetNotModifiedException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\BadRequestExceptions\UserNotFoundException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\BotBlockedException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\BotRestrictedException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\ForbiddenException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\ForbiddenExceptions\ChatNotInitiatedException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\MissingParameterException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\NotEnoughRightsException.cs" />
+    <Compile Include="Communication\Telegram.Bot\Exceptions\WrongChatTypeException.cs" />
     <Compile Include="Communication\Telegram.Bot\Helpers\Extensions.cs" />
     <Compile Include="Communication\Telegram.Bot\ITelegramBotClient.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Abstractions\IFormattableMessage.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Abstractions\IInlineMessage.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Abstractions\IInlineReplyMarkupMessage.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Abstractions\INotifiableMessage.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Abstractions\IReplyMarkupMessage.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Abstractions\IReplyMessage.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Abstractions\IRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Admin Bot\DeleteChatPhotoRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Admin Bot\DeleteChatStickerSetRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Admin Bot\ExportChatInviteLinkRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Admin Bot\KickChatMemberRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Admin Bot\PinChatMessageRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Admin Bot\PromoteChatMemberRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Admin Bot\RestrictChatMemberRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Admin Bot\SetChatDescriptionRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Admin Bot\SetChatPhotoRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Admin Bot\SetChatStickerSetRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Admin Bot\SetChatTitleRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Admin Bot\UnbanChatMemberRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Admin Bot\UnpinChatMessageRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\AnswerCallbackQueryRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\GetChatRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\GetMeRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Location\EditInlineMessageLiveLocationRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Location\EditMessageLiveLocationRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Location\SendLocationRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Location\StopInlineMessageLiveLocationRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Location\StopMessageLiveLocationRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Sending Messages\SendDocumentRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Sending Messages\SendMediaGroupRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Sending Messages\SendMessageRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Sending Messages\SendPhotoRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Sending Messages\SendVideoNoteRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Available Methods\Sending Messages\SendVideoRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\FileRequestBase.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Getting Updates\DeleteWebhookRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Getting Updates\GetUpdatesRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Getting Updates\GetWebhookInfoRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Getting Updates\SetWebhookRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Inline Mode\AnswerInlineQueryRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\ParameterlessRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Payments\AnswerPreCheckoutQueryRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Payments\AnswerShippingQueryRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Payments\SendInvoiceRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\RequestBase.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Stickers\AddStickerToSetRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Stickers\CreateNewStickerSetRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Stickers\DeleteStickerFromSetRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Stickers\GetStickerSetRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Stickers\SendStickerRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Stickers\SetStickerPositionInSetRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Stickers\UploadStickerFileRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Update Messages\EditInlineMessageReplyMarkupRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\Update Messages\EditMessageReplyMarkupRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\DeleteMessageRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\EditInlineMessageCaptionRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\EditInlineMessageTextRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\EditMessageCaptionRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\EditMessageTextRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\ForwardMessageRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\GetChatAdministratorsRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\GetChatMemberRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\GetChatMembersCountRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\GetFileRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\GetGameHighScoresRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\GetInlineGameHighScoresRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\GetUserProfilePhotosRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\LeaveChatRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\SendAudioRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\SendChatActionRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\SendContactRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\SendGameRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\SendVenueRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\SendVoiceRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\SetGameScoreRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Requests\_\SetInlineGameScoreRequest.cs" />
     <Compile Include="Communication\Telegram.Bot\TelegramBotClient.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\Animation.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\ApiResponse.cs" />
@@ -185,21 +282,19 @@
     <Compile Include="Communication\Telegram.Bot\Types\Enums\ParseMode.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\Enums\UpdateType.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\File.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\FileToSend.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\FileBase.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\Game.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\GameHighScore.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\InlineKeyboardButtons\InlineKeyboardButton.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\InlineKeyboardButtons\InlineKeyboardCallbackButton.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\InlineKeyboardButtons\InlineKeyboardCallbackGameButton.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\InlineKeyboardButtons\InlineKeyboardPayButton.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\InlineKeyboardButtons\InlineKeyboardSwitchCallbackQueryCurrentChatButton.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\InlineKeyboardButtons\InlineKeyboardSwitchInlineQueryButton.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\InlineKeyboardButtons\InlineKeyboardUrlButton.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\InlineQuery.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResult.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\Abstractions\ICaptionInlineQueryResult.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\Abstractions\IInputMessageContentResult.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\Abstractions\ILocationInlineQueryResult.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\Abstractions\IThumbnailInlineQueryResult.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\Abstractions\IThumbnailUrlInlineQueryResult.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\Abstractions\ITitleInlineQueryResult.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultArticle.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultAudio.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultCached.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultBase.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultCachedAudio.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultCachedDocument.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultCachedGif.cs" />
@@ -214,23 +309,24 @@
     <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultGif.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultLocation.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultMpeg4Gif.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultNew.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultPhoto.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultType.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultVenue.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultVideo.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InlineQueryResultVoice.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\InputFiles\InputFileBase.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InputContactMessageContent.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InputLocationMessageContent.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InputMessageContentBase.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InputTextMessageContent.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InlineQueryResults\InputVenueMessageContent.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InputFiles\IInputFile.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InputFiles\InputFileStream.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InputFiles\InputMedia.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\InputFiles\InputMediaBase.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\InputFiles\InputMediaPhoto.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\InputFiles\InputMediaType.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\InputFiles\InputMediaVideo.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\InputMessageContents\InputContactMessageContent.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\InputMessageContents\InputLocationMessageContent.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\InputMessageContents\InputMessageContent.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\InputMessageContents\InputTextMessageContent.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\InputMessageContents\InputVenueMessageContent.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\KeyboardButton.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InputFiles\InputOnlineFile.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\InputFiles\InputTelegramFile.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\Location.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\MaskPosition.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\Message.cs" />
@@ -244,19 +340,16 @@
     <Compile Include="Communication\Telegram.Bot\Types\Payments\ShippingQuery.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\Payments\SuccessfulPayment.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\PhotoSize.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\ReplyMarkups\ForceReply.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\ReplyMarkups\ForceReplyMarkup.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\ReplyMarkups\IKeyboardButton.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\ReplyMarkups\InlineKeyboardButton.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\ReplyMarkups\InlineKeyboardMarkup.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\ReplyMarkups\IReplyMarkup.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\ReplyMarkups\KeyboardButton.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\ReplyMarkups\ReplyKeyboardMarkup.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\ReplyMarkups\ReplyKeyboardRemove.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\ReplyMarkups\ReplyMarkup.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\Requests\IRequest.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\Requests\RequestBase.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\Requests\SendMediaGroupRequest.cs" />
+    <Compile Include="Communication\Telegram.Bot\Types\ReplyMarkups\ReplyMarkupBase.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\ResponseParameters.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\Responses\IResponse.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\Responses\JsonArrayResponse.cs" />
-    <Compile Include="Communication\Telegram.Bot\Types\Responses\SendMediaGroupResponse.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\Sticker.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\StickerSet.cs" />
     <Compile Include="Communication\Telegram.Bot\Types\Update.cs" />
@@ -458,6 +551,8 @@
     <Compile Include="Helpers\XmlHelper.cs" />
     <Compile Include="Network\BaseService.cs" />
     <Compile Include="Network\ConsoleInput.cs" />
+    <Compile Include="Node\Edge.cs" />
+    <Compile Include="Node\Node.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Storage\Storage.cs" />
     <Compile Include="WPF\BaseViewModel.cs" />
@@ -466,6 +561,7 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

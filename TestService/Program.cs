@@ -1,9 +1,11 @@
-﻿using System;
+﻿using Aphysoft.Share;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.ServiceProcess;
 using System.Text;
 using System.Threading.Tasks;
+using Aphysoft.Test;
 
 namespace TestService
 {
@@ -14,12 +16,16 @@ namespace TestService
         /// </summary>
         static void Main()
         {
-            ServiceBase[] ServicesToRun;
-            ServicesToRun = new ServiceBase[]
+            Test test = new Test();
+
+            Apps.Service("TestService", delegate ()
             {
-                new Service1()
-            };
-            ServiceBase.Run(ServicesToRun);
+                test.Start();
+            }, 
+            delegate ()
+            {
+                test.Stop();
+            });
         }
     }
 }

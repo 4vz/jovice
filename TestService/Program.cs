@@ -1,31 +1,33 @@
-﻿using Aphysoft.Share;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.ServiceProcess;
 using System.Text;
 using System.Threading.Tasks;
+using System.Security.Cryptography;
+using System.IO;
+using System.Xml.Serialization;
+using System.Diagnostics;
+using Aphysoft.Share;
+using System.Net;
 using Aphysoft.Test;
+using System.ComponentModel;
+using Aphysoft.Apps;
 
 namespace TestService
 {
-    static class Program
+    class Program
     {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
-        static void Main()
+        static void Main(string[] args)
         {
-            Test test = new Test();
-
-            Apps.Service("TestService", delegate ()
-            {
-                test.Start();
-            }, 
-            delegate ()
-            {
-                test.Stop();
-            });
+            Apps.Service(new Test());
         }
     }
+
+    [RunInstaller(true)]
+    public class Installer : AppsInstaller
+    {
+        public Installer() : base("Test Service", "Test Service") { }
+    }
+
+
 }

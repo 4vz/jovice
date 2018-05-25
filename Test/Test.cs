@@ -1,6 +1,8 @@
 ﻿using Aphysoft.Share;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Pipes;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -15,21 +17,25 @@ namespace Aphysoft.Test
 
         public Test() : base("TEST")
         {
-
         }
 
         #endregion
 
         protected override void OnEvent(string message)
         {
-            if (IsConsole)
+            if (Apps.IsConsole)
                 Console.WriteLine(message);
+
         }
 
         protected override void OnStart()
         {
+            int c = 0;
             while (IsRunning)
             {
+                c++;
+
+                Event("Tick " + c);
                 Thread.Sleep(1000);
             }
         }

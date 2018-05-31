@@ -9,7 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Aphysoft.Test
+namespace Test
 {
     public class Test : Node
     {
@@ -25,20 +25,15 @@ namespace Aphysoft.Test
         {
             if (Apps.IsConsole)
                 Console.WriteLine(message);
-
         }
 
         protected override void OnStart()
         {
-            int c = 0;
             while (IsRunning)
             {
-                c++;
-
-                Event("Tick " + c);
                 Thread.Sleep(1000);
             }
-        }
+        }        
 
         protected override void OnStop()
         {

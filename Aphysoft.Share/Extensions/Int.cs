@@ -33,5 +33,21 @@ namespace Aphysoft.Share
             if (value == 0 || value == 1) return singular;
             else return plural;
         }
+
+        /// <summary>
+        /// s or not s
+        /// </summary>
+        public static string PluralCase(this int value)
+        {
+            return value.PluralCase("", "s");
+        }
+
+        /// <summary>
+        /// es or not es
+        /// </summary>
+        public static string PluralCase2(this int value)
+        {
+            return value.PluralCase("", "es");
+        }
     }
 }

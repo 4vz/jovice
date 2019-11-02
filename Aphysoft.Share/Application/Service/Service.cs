@@ -9,7 +9,7 @@ using System.Web;
 
 namespace Aphysoft.Share
 {
-    public sealed class Service : BaseService
+    public sealed class OldService : BaseService
     {
         #region Const
 
@@ -19,15 +19,15 @@ namespace Aphysoft.Share
 
         #region Instancing
 
-        private static Service instance = null;
+        private static OldService instance = null;
 
-        private static Service Instance
+        private static OldService Instance
         {
             get
             {
                 if (instance == null)
                 {
-                    instance = new Service();
+                    instance = new OldService();
 
                     ((BaseService)instance).Connected += delegate (Connection c)
                     {
@@ -88,14 +88,14 @@ namespace Aphysoft.Share
 
         public static new void Register(Type messageType, OnReceivedCallback method)
         {
-            BaseService instance = Service.Instance;
+            BaseService instance = OldService.Instance;
 
             instance.Register(messageType, method);
         }
 
         public static new void Debug(string message)
         {
-            BaseService instance = Service.Instance;
+            BaseService instance = OldService.Instance;
 
             instance.Event(message);
         }
@@ -120,14 +120,14 @@ namespace Aphysoft.Share
 
         public static new bool Send(BaseServiceMessage message)
         {
-            BaseService instance = Service.Instance;
+            BaseService instance = OldService.Instance;
 
             return instance.Send(message);
         }
 
         public static new T Wait<T>(T originalMessage) where T : BaseServiceMessage, new()
         {
-            BaseService instance = Service.Instance;
+            BaseService instance = OldService.Instance;
 
             if (HttpContext.Current != null)
                 return instance.Wait<T>(originalMessage, new MessageWaitCallback(ClientConnectedCallback), HttpContext.Current);
@@ -150,7 +150,7 @@ namespace Aphysoft.Share
 
         #region Constructors
 
-        private Service() : base()
+        private OldService() : base()
         {
         }
 
@@ -173,10 +173,8 @@ namespace Aphysoft.Share
         {
             if (!IsServer && !IsClient)
             {
-                if (Share.Database.Test(delegate(string message)
-                {
-                }))
-                {
+                //if (Web.Database.Test())
+                //{
                     if (console)
                     {
                         EventOutput += delegate (string message)
@@ -187,10 +185,10 @@ namespace Aphysoft.Share
                     
                     Instance.Server(IPAddress.Any, defaultPort);
 
-                    Provider.ServerInit();
+                    //Provider.ServerInit();
 
-                    Register(typeof(SessionClientServiceMessage), SessionClientServiceMessageHandler);
-                }
+                    //Register(typeof(SessionClientMessage), SessionClientServiceMessageHandler);
+                //}
             }
         }
 
@@ -228,23 +226,23 @@ namespace Aphysoft.Share
 
         private static void SessionClientServiceMessageHandler(MessageEventArgs e)
         {
-            SessionClientServiceMessage m = (SessionClientServiceMessage)e.Message;
+            //SessionClientMessage m = (SessionClientMessage)e.Message;
 
-            if (IsServer)
-            {
-                string sessionID = m.SessionID;
-                StreamSessionInstance sessionInstance = Provider.GetSessionInstance(sessionID);
+            //if (IsServer)
+            //{
+            //    string sessionId = m.SessionID;
+            //    //StreamSessionInstance sessionInstance = Provider.GetSessionInstance(sessionId);
 
-                if (sessionInstance == null) m.StreamSubDomainIndex = 0;
-                else
-                {
-                    // we have this session before, maybe this a new window (client),
-                    int index = sessionInstance.GetAvailableIndex();
-                    m.StreamSubDomainIndex = index % m.StreamSubDomainLength;               
-                }
+            //    if (sessionInstance == null) m.Index = 0;
+            //    else
+            //    {
+            //        // we have this session before, maybe this a new window (client),
+            //        int index = sessionInstance.GetAvailableIndex();
+            //        m.Index = index % m.Length;               
+            //    }
 
-                e.Connection.Reply(m);
-            }
+            //    e.Connection.Reply(m);
+            //}
 
         }
 

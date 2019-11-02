@@ -1,4 +1,5 @@
 ﻿using Aphysoft.Share;
+using Jovice;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -6,7 +7,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Center
+using Aveezo;
+
+
+namespace Necrow
 {
     #region To Database
     
@@ -48,14 +52,14 @@ namespace Center
     
     #endregion
 
-    internal sealed partial class Probe
+    public sealed partial class Probe
     {
         private ProbeProcessResult MEMacProcess()
         {
             ProbeProcessResult probe = new ProbeProcessResult();
 
             string[] lines = null;
-            Batch batch = Batch();
+            Batch batch = j.Batch();
             Result result;
 
             #region MAC
@@ -63,7 +67,7 @@ namespace Center
             Event("Checking Mac");
 
             Dictionary<string, MEMacToDatabase> maclive = new Dictionary<string, MEMacToDatabase>();
-            Dictionary<string, Row> macdb = QueryDictionary("select * from MEMac where MA_NO = {0}", delegate (Row row) {
+            Dictionary<string, Row> macdb = j.QueryDictionary("select * from MEMac where MA_NO = {0}", delegate (Row row) {
                 string peerID = row["MA_MP"].ToString();
                 string interfaceID = row["MA_MI"].ToString();
                 if (peerID != null) return row["MA_MAC"].ToString() + "_" + peerID;
@@ -74,13 +78,13 @@ namespace Center
             
             // circuits
             Dictionary<string, Row> circuitdb = null;
-            if (nodeManufacture == alu) circuitdb = QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_VCID", nodeID);
-            else if (nodeManufacture == hwe) circuitdb = QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_Description", nodeID);
+            if (nodeManufacture == alu) circuitdb = j.QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_VCID", nodeID);
+            else if (nodeManufacture == hwe) circuitdb = j.QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_Description", nodeID);
             if (circuitdb == null) return DatabaseFailure(probe);
 
             // peers
             List<string> duplicatedpeers = new List<string>();
-            Dictionary<string, Row> peerdb = QueryDictionary("select * from MEPeer, MECircuit, MESDP where MP_MC = MC_ID and MP_MS = MS_ID and MC_NO = {0}", delegate (Row row) {
+            Dictionary<string, Row> peerdb = j.QueryDictionary("select * from MEPeer, MECircuit, MESDP where MP_MC = MC_ID and MP_MS = MS_ID and MC_NO = {0}", delegate (Row row) {
                 return row["MS_SDP"].ToString() + ":" + row["MP_VCID"].ToString();
             }, delegate (Row row) { duplicatedpeers.Add(row["MP_ID"].ToString()); }, nodeID);
             if (peerdb == null) return DatabaseFailure(probe);
@@ -88,25 +92,25 @@ namespace Center
             {
                 Event(duplicatedpeers.Count + " peer-per-circuit(s) are found duplicated, began deleting...");
                 string duplicatedpeerstr = "'" + string.Join("', '", duplicatedpeers.ToArray()) + "'";
-                result = Execute("delete from MEPeer where MP_ID in (" + duplicatedpeerstr + ")");
-                if (!result.OK) return DatabaseFailure(probe);
+                result = j.Execute("delete from MEPeer where MP_ID in (" + duplicatedpeerstr + ")");
+                if (!result) return DatabaseFailure(probe);
                 Event(result, EventActions.Delete, EventElements.Peer, true);
             }
 
             // interfaces
             List<string> duplicatedinterfaces = new List<string>();
-            Dictionary<string, Row> interfacedb = QueryDictionary("select * from MEInterface where MI_NO = {0}", "MI_Name", delegate (Row row) { duplicatedinterfaces.Add(row["MI_ID"].ToString()); }, nodeID);
+            Dictionary<string, Row> interfacedb = j.QueryDictionary("select * from MEInterface where MI_NO = {0}", "MI_Name", delegate (Row row) { duplicatedinterfaces.Add(row["MI_ID"].ToString()); }, nodeID);
             if (interfacedb == null) return DatabaseFailure(probe);
             if (duplicatedinterfaces.Count > 0)
             {
                 Event(duplicatedinterfaces.Count + " interface(s) are found duplicated, began deleting...");
                 string duplicatedinterfacestr = "'" + string.Join("', '", duplicatedinterfaces.ToArray()) + "'";
-                result = Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI in (" + duplicatedinterfacestr + ")");
-                if (!result.OK) return DatabaseFailure(probe);
-                result = Execute("update MEInterface set MI_MI = NULL where MI_MI in (" + duplicatedinterfacestr + ")");
-                if (!result.OK) return DatabaseFailure(probe);
-                result = Execute("delete from MEInterface where MI_ID in (" + duplicatedinterfacestr + ")");
-                if (!result.OK) return DatabaseFailure(probe);
+                result = j.Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI in (" + duplicatedinterfacestr + ")");
+                if (!result) return DatabaseFailure(probe);
+                result = j.Execute("update MEInterface set MI_MI = NULL where MI_MI in (" + duplicatedinterfacestr + ")");
+                if (!result) return DatabaseFailure(probe);
+                result = j.Execute("delete from MEInterface where MI_ID in (" + duplicatedinterfacestr + ")");
+                if (!result) return DatabaseFailure(probe);
                 Event(result, EventActions.Delete, EventElements.Interface, true);
             }
 
@@ -296,7 +300,7 @@ namespace Center
 
                 if (!macdb.ContainsKey(pair.Key))
                 {
-                    li.ID = Database.ID();
+                    li.Id = Database.ID();
                     macinsert.Add(li);
                 }
                 else
@@ -304,8 +308,8 @@ namespace Center
                     Row db = macdb[pair.Key];
 
                     MEMacToDatabase u = new MEMacToDatabase();
-                    u.ID = db["MA_ID"].ToString();
-                    li.ID = u.ID;
+                    u.Id = db["MA_ID"].ToString();
+                    li.Id = u.Id;
 
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
@@ -338,8 +342,8 @@ namespace Center
             batch.Begin();
             foreach (MEMacToDatabase s in macinsert)
             {
-                Insert insert = Insert("MEMac");
-                insert.Value("MA_ID", s.ID);
+                Insert insert = j.Insert("MEMac");
+                insert.Value("MA_ID", s.Id);
                 insert.Value("MA_NO", nodeID);
                 insert.Value("MA_MI", s.InterfaceID);
                 insert.Value("MA_MP", s.PeerID);
@@ -347,24 +351,24 @@ namespace Center
                 insert.Value("MA_MAC", s.MacAddress);
                 insert.Value("MA_Age", s.Age);
                 insert.Value("MA_LastChange", s.LastChange);
-                batch.Execute(insert);
+                batch.Add(insert);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.Mac, false);
 
             // UPDATE
             batch.Begin();
             foreach (MEMacToDatabase s in macupdate)
             {
-                Update update = Update("MEMac");
+                Update update = j.Update("MEMac");
                 update.Set("MA_Age", s.Age, s.UpdateAge);
                 update.Set("MA_LastChange", s.LastChange, s.UpdateLastChange);
-                update.Where("MA_ID", s.ID);
-                batch.Execute(update);
+                update.Where("MA_ID", s.Id);
+                batch.Add(update);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.Mac, false);
 
             // DELETE
@@ -373,18 +377,17 @@ namespace Center
             {
                 if (!maclive.ContainsKey(pair.Key))
                 {
-                    batch.Execute("delete from MEMac where MA_ID = {0}", pair.Value["MA_ID"].ToString());
+                    batch.Add("delete from MEMac where MA_ID = {0}", pair.Value["MA_ID"].ToString());
                 }
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.Mac, false);
 
             #endregion
 
             #endregion
-
-
+            
             return probe;
         }
     }

@@ -653,8 +653,8 @@
         share.title = title;
 
         $(function () {
-            titleFormat = share.system("titleFormat");
-            titleEmpty = share.system("titleEmpty");
+            titleFormat = "{TITLE}";
+            titleEmpty = share.system("defaultTitle");;
         });
 
     })(share);
@@ -758,8 +758,8 @@
         share.protocol = protocol;
 
         $(function () {
-            baseDomain = share.system("baseDomain");
-            pageDomain = share.system("pageDomain");
+            baseDomain = share.system("domain");
+            pageDomain = share.system("domain");
             protocol = share.system("protocol");
         });
 
@@ -6349,7 +6349,6 @@
 
                 var o = arguments;
 
-                
                 if (o.length >= 1) {
 
                     if (o.length == 2) {
@@ -6901,7 +6900,7 @@
                     if (sleft > 0) {
                         if (buttonShow) {
                             outer.css({ left: 30 });
-                            inner.css({ marginLeft: -30 });
+                            inner.css({ marginLeft: -31 });
                             scrollLeftButton.show();
                         }
                     }
@@ -6912,14 +6911,17 @@
                     }
                 }
                 if (scrollRightButton != null) {
-                    //debug(sleft, swidth, wwidth, outerRight, innerLeft);
-                    if (sleft < swidth - wwidth - outerRight + innerLeft) {
+                    //debug(sleft, (swidth - wwidth - outerRight + innerLeft), swidth, wwidth, outerRight, innerLeft);
+
+                    if (sleft < swidth - wwidth - outerRight + innerLeft - 5) {
                         if (buttonShow) {
+                            //debug("A");
                             outer.css({ right: 30 });
                             scrollRightButton.show();
                         }
                     }
                     else {
+                        //debug("B");
                         //debug("we called");
                         outer.css({ right: 0 });
                         scrollRightButton.fadeOut(100);
@@ -7632,7 +7634,8 @@
             var text_ = "", typeCase = 0, textSize;
             var clickToSelect = false;
             var clickToSelectEvents = [];
-            var span_ = [];
+            var spancolor_ = [];
+            var spanclicktoselect_ = [];
             var color_ = [];
             var shadow = null;
 
@@ -7641,7 +7644,8 @@
                 var rt;
 
                 rt = text_;
-                span_ = [];
+                spancolor_ = [];
+                spanclicktoselect_ = [];
 
                 if (rt.indexOf("{") > -1 || rt.indexOf("}") > -1) {
 
@@ -7661,18 +7665,49 @@
                                 crt += rt.substring(vopi, vop);
                                 var ne = rt.indexOf("|", vop + 1);
                                 if (ne > -1) {
-                                    var neid = parseInt(rt.substring(vop + 1, ne));
+
                                     var seid = "s_" + (spanid++);
-                                    if (span_[neid] == null) span_[neid] = [];
-                                    span_[neid].push(seid);
+                                    var neprop = rt.substring(vop + 1, ne);
+
+                                    var nebold = false, neitalic = false, necolor = null, nenobreak = false, clickToSelect = false;
+
+                                    if (neprop.indexOf("B") > -1) nebold = true;
+                                    if (neprop.indexOf("I") > -1) neitalic = true;
+                                    if (neprop.indexOf("K") > -1) nenobreak = true;
+                                    if (neprop.indexOf("X") > -1) {
+                                        spanclicktoselect_.push(seid);
+                                        clickToSelect = true;
+                                    }
+
+                                    var neid = parseInt(neprop);
+                                    if (neid != null) {
+                                        if (spancolor_[neid] == null) spancolor_[neid] = [];
+                                        spancolor_[neid].push(seid);
+                                        if (color_[neid] != null) necolor = color_[neid];
+                                    }
+
                                     crt += "<span id=\"" + seid + "\"";
-                                    if (color_[neid] != null) {
+
+                                    if (nebold || neitalic || necolor != null) {
                                         crt += " style=\"";
-                                        crt += "color:" + color_[neid];
+                                        if (necolor != null)
+                                            crt += "color:" + necolor + ";";
+                                        if (nebold)
+                                            crt += "font-weight: 600;";
+                                        if (neitalic)
+                                            crt += "font-style: italic;";
+                                        if (nenobreak)
+                                            crt += "white-space: nowrap;"
+                                        if (clickToSelect) {
+                                            crt += "cursor: copy;"
+                                        }
                                         crt += "\"";
                                     }
 
+
+
                                     crt += ">";
+
                                     vopi = ne + 1;
                                 }
                                 else {
@@ -7702,6 +7737,29 @@
                 textSize = text.measureText(rt);
 
                 d.$.html(rt);
+
+                
+                $.each(spanclicktoselect_, function (ctsi, ctsv) {
+                    var el = $("span#" + ctsv, d.$);
+
+                    el.click(function (e) {
+                        if (document.selection) {
+                            var range = document.body.createTextRange();
+                            range.moveToElementText($(this).get(0));
+                            range.select();
+                        } else if (window.getSelection) {
+                            var range = document.createRange();
+                            range.selectNode($(this).get(0));
+                            var selection = window.getSelection();
+                            selection.removeAllRanges();
+                            selection.addRange(range);
+                        }
+                        e.stopPropagation();
+                    });
+                    el.mousedown(function(e) {
+                        e.stopPropagation();
+                    });
+                });
             };
             text.spanColor = function (a, b, c, d, e) {
                 if ($.isNumber(a)) {
@@ -7731,7 +7789,7 @@
                     }
                     color_[a] = ca;
                     if (span[a] != null) {
-                        $.each(span_[a], function (i, v) {
+                        $.each(spancolor_[a], function (i, v) {
                             var sel = $("span#" + v, text.$);
                             if (cb == null) {
                                 sel.css({ color: ca });
@@ -7760,8 +7818,8 @@
                             }
                             color_[ai] = ca;
 
-                            if (span_[ai] != null) {
-                                $.each(span_[ai], function (i, v) {
+                            if (spancolor_[ai] != null) {
+                                $.each(spancolor_[ai], function (i, v) {
                                     var sel = $("span#" + v, text.$);
                                     sel.css({ color: ca });
                                 });
@@ -8925,7 +8983,8 @@
 
             topBar = share.box(share.topContainer())({ color: 98, height: 48, width: "100%", borderBottom: { size: 1, color: 80 } });
             share.marginTop(48);
-            
+
+           
             var logoButton = share.box(topBar)({
                 left: 15, top: 4, size: 40, cursor: "pointer", click: function () {
                     share.page().transfer("/");
@@ -9109,11 +9168,8 @@
             var searchExpanded = false;
 
             function wideContract() {
-
-                if (searchExpanded) {   
-
+                if (searchExpanded) {
                     if (share.lock("searchBoxAnimation")) {
-
                         searchBox.color(95, { duration: 100 });
                         searchBox.left(null);
                         searchBox.width(topBar.width() - 180);
@@ -9127,7 +9183,6 @@
                             title.$.delay(100).fadeIn(50);
                             domainBox.$.delay(150).fadeIn(50);
                         }
-
                         if (searchTextInput.value().trim() == "") {
                             searchTextInput.value(null);
                             searchPlaceholder.show();
@@ -9351,6 +9406,12 @@
             });
 
             var firstTime = true;
+
+            share(function () { }, 10, function () {
+                if (!frontLogoDone) return -1;
+                else close.fadeOut(100);
+            });
+            return;
 
             share.stream(function (type, data) {
 

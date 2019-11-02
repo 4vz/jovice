@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace Center
+namespace Jovice
 {
     public class NetworkInterface
     {
@@ -211,12 +211,12 @@ namespace Center
                         // cek huawei weirdness to define TenGigE, it used GE and ends with (10G).
                         if (rest.EndsWith("(10G)"))
                         {
-                            rest = rest.Remove(rest.Length - 4);
+                            rest = rest.Remove(rest.Length - 5);
                             interfaceType = "te";
                         }
                         else if (rest.EndsWith("(100G)"))
                         {
-                            rest = rest.Remove(rest.Length - 5);
+                            rest = rest.Remove(rest.Length - 6);
                             interfaceType = "hu";
                         }
 
@@ -298,7 +298,7 @@ namespace Center
                             ci.fullType = "HundredGigE";
                             ci.type = "Hu";
                         }
-                        else if (interfaceType == "ag" || interfaceType == "ethtrunk" || interfaceType == "ae" || interfaceType == "po" || interfaceType == "portchannel")
+                        else if (interfaceType == "ag" || interfaceType == "be" || interfaceType == "ethtrunk" || interfaceType == "ae" || interfaceType == "po" || interfaceType == "portchannel" || interfaceType == "bundleether")
                         {
                             ci.fullType = "AggregatedInterface";
                             ci.type = "Ag";
@@ -384,6 +384,18 @@ namespace Center
                 if (nodeManufacture == "CISCO")
                 {
                     if (depan == "Ag") type = "Port-channel";
+                    else if (depan == "Et") type = "Ethernet";
+                    else if (depan == "Fa") type = "FastEthernet";
+                    else if (depan == "Gi") type = "GigabitEthernet";
+                    else if (depan == "Te") type = "TenGigE";
+                    else if (depan == "Hu") type = "HundredGigE";
+                    else if (depan == "Se") type = "Serial";
+
+                    last = port + (channel != null ? ":" + channel : "") + (logical != null ? "." + logical : "");
+                }
+                if (nodeManufacture == "CISCOXR")
+                {
+                    if (depan == "Ag") type = "Bundle-Ether";
                     else if (depan == "Et") type = "Ethernet";
                     else if (depan == "Fa") type = "FastEthernet";
                     else if (depan == "Gi") type = "GigabitEthernet";

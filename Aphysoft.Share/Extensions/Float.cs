@@ -13,5 +13,10 @@ namespace Aphysoft.Share
             if (value == returnNullIf) return (float?)null;
             else return new float?(value);
         }
+
+        public static int Round(this float value, MidpointRounding mode = MidpointRounding.AwayFromZero)
+        {
+            return (int)Math.Round(value, mode);
+        }
     }
 }

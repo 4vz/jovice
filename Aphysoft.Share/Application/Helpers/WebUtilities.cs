@@ -9,19 +9,9 @@ namespace Aphysoft.Share
 {
     public class WebUtilities
     {
-        private static Microsoft.Ajax.Utilities.Minifier minifier = new Microsoft.Ajax.Utilities.Minifier();
+        public static Microsoft.Ajax.Utilities.Minifier Minifier { get; } = new Microsoft.Ajax.Utilities.Minifier();
 
-        public static Microsoft.Ajax.Utilities.Minifier Minifier
-        {
-            get { return WebUtilities.minifier; }
-        }
-        
-        private static JavaScriptSerializer serializer = new JavaScriptSerializer();
-
-        public static JavaScriptSerializer Serializer
-        {
-            get { return WebUtilities.serializer; }
-        }
+        public static JavaScriptSerializer Serializer { get; } = new JavaScriptSerializer();
     }
 
     public class BindingParameters

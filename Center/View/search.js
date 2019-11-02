@@ -373,10 +373,10 @@
                 var nebox = $$.box(c)({
                     color: 96, size: [69, 22], left: (left - 69) / 2, top: 2, cursor: "default", button: {
                         normal: function () {
-                            nebox.animate({ opacity: 1 }, { duration: 50 });
+                            this.animate({ opacity: 1 }, { duration: 50 });
                         },
                         over: function () {
-                            nebox.opacity(0);
+                            this.opacity(0);
                         }
                     }
                 });
@@ -512,10 +512,10 @@
                     var nebox = $$.box(c)({
                         color: 96, size: [69, 22], left: (left - xle - 69) / 2 + xle, top: 2, cursor: "default", button: {
                             normal: function () {
-                                nebox.animate({ opacity: 1 }, { duration: 50 });
+                                this.animate({ opacity: 1 }, { duration: 50 });
                             },
                             over: function () {
-                                nebox.opacity(0);
+                                this.opacity(0);
                             }
                         }
                     });
@@ -572,10 +572,10 @@
                     var nebox = $$.box(c)({
                         color: 96, size: [69, 22], left: (left - 69) / 2 + 20, top: 2, cursor: "default", button: {
                             normal: function () {
-                                nebox.animate({ opacity: 1 }, { duration: 50 });
+                                this.animate({ opacity: 1 }, { duration: 50 });
                             },
                             over: function () {
-                                nebox.opacity(0);
+                                this.opacity(0);
                             }
                         }
                     });
@@ -677,10 +677,10 @@
                 var nebox = $$.box(c)({
                     color: 96, size: [69, 22], left: (left + xleft - 69) / 2, top: 2, cursor: "default", button: {
                         normal: function () {
-                            nebox.animate({ opacity: 1 }, { duration: 50 });
+                            this.animate({ opacity: 1 }, { duration: 50 });
                         },
                         over: function () {
-                            nebox.opacity(0);
+                            this.opacity(0);
                         }
                     }
                 });
@@ -801,7 +801,7 @@
 
             uipage = center.init(p);
 
-            var titlearea = $$.box(p)({ size: ["100%", 40], top: 40 });
+            var titlearea = $$.box(p)({ size: ["100%", 40], top: 0 });
 
             var titleBoxFocus = 0;
             var titleBox1 = $$.box(titlearea)({
@@ -871,8 +871,8 @@
                 }
             });
             var title2 = $$.text(titleBox2)({ font: ["body", 12], weight: "600", color: 35, left: 20, bottom: 13, noBreak: true });
-                
-            var filter = $$.box(p)({ width: "100%", top: 80, height: 40, color: 85, hide: true});                
+
+            var filter = $$.box(p)({ width: "100%", top: 40, height: 40, color: 85, hide: true});                
             var searchresult = $$.box(p)({ width: "100%", topBottom: [120, 0], scroll: { horizontal: false }, hide: true });
             var related = $$.box(p)({ width: "100%", topBottom: [120, 0], scroll: { horizontal: false }, hide: true, color: 90 });
             var nomatch = $$.box(p)({ width: "100%", topBottom: [120, 0], hide: true, color: 90 });

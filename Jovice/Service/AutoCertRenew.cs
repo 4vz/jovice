@@ -6,13 +6,14 @@ using System.Configuration;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Center
+using Aveezo;
+
+namespace Jovice
 {
     public static class AutoCertRenew
     {
@@ -28,7 +29,7 @@ namespace Center
         
         private static void Check()
         {
-            Database s = Share.Database;
+            Database s = Web.Database;
             Result r = s.Query("select * from DomainController");
 
             string probeHost = null;
@@ -189,9 +190,11 @@ namespace Center
                                         break;
                                     }
                                 }
-                                
+
                                 if (certificate != null)
+                                { 
                                     site.Bindings.Add("*:443:" + domain, certificate.GetCertHash(), storeCheck.Name, SslFlags.Sni);
+                                }
                                 else
                                 {
                                     // tapi certificate ga ada. Ok check aja
@@ -504,7 +507,7 @@ namespace Center
 
                     string[] lines;
 
-                    if (Request("acme/acme.sh --issue --dns -d " + domain, out lines)) ConnectionFailure();
+                    if (Request("acme/acme.sh --issue --dns -d " + domain, out lines)) SessionFailure();
 
                     Console.WriteLine("----------" + domain + "---------");
                     foreach (string line in lines)
@@ -548,7 +551,7 @@ namespace Center
 
                                 HttpClient client = new HttpClient();
 
-                                string content = "[{\"data\": \"" + txtValue + "\", \"ttl\": " + RandomHelper.Next(600, 650) + "}]";
+                                string content = "[{\"data\": \"" + txtValue + "\", \"ttl\": " + Aphysoft.Share.Rnd.Int(600, 650) + "}]";
 
                                 var request = new HttpRequestMessage()
                                 {
@@ -566,7 +569,7 @@ namespace Center
                                 Console.WriteLine("Waiting for 60 seconds");
                                 Thread.Sleep(60000);
 
-                                if (Request("acme/acme.sh --renew --dns -d " + domain, out lines)) ConnectionFailure();
+                                if (Request("acme/acme.sh --renew --dns -d " + domain, out lines)) SessionFailure();
 
                                 bool success = false;
                                 bool notCorrect = false;
@@ -629,7 +632,7 @@ namespace Center
                                 {
                                     Console.WriteLine("SUCCESS");
 
-                                    if (Request("openssl pkcs12 -export -out acme/" + domain + "/" + domain + ".pfx -inkey acme/" + domain + "/" + domain + ".key -in acme/" + domain + "/" + domain + ".cer -password pass:" + certPass, out lines)) ConnectionFailure();
+                                    if (Request("openssl pkcs12 -export -out acme/" + domain + "/" + domain + ".pfx -inkey acme/" + domain + "/" + domain + ".key -in acme/" + domain + "/" + domain + ".cer -password pass:" + certPass, out lines)) SessionFailure();
                                 }
                             }
                         }

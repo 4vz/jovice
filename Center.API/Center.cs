@@ -6,11 +6,11 @@ using Aphysoft.Share;
 
 namespace Center
 {
-    public class Center : Share
+    public class Center : Web
     {
         protected override void OnInit()
         {
-            Client.Init();
+            //Client.Init();
         }
 
         protected override void OnResourceLoad()

@@ -38,39 +38,23 @@ namespace Aphysoft.Share
 
         private Queue<string> lastOutputs = new Queue<string>();
 
-        private string lastOutput;
+        public string LastOutput { get; private set; }
 
-        public string LastOutput
-        {
-            get { return lastOutput; }
-        }
-
-        private bool connected = false;
-
-        public bool IsConnected
-        {
-            get { return connected; }
-        }
+        public bool IsConnected { get; private set; } = false;
 
         private string expect = string.Empty;
 
         private Regex expectRegex = null;
 
-        private bool started = false;
-
-        public bool IsStarted { get => started; }
+        public bool IsStarted { get; private set; } = false;
 
         private Thread mainLoop = null;
         
         public bool IsRunning { get => mainLoop != null; }
 
-        private string lastSendLine = null;
+        public string LastSendLine { get; private set; } = null;
 
-        public string LastSendLine { get => lastSendLine; }
-
-        private string lastSend = null;
-
-        public string LastSend { get => lastSend; }
+        public string LastSend { get; private set; } = null;
 
         protected string terminalPrefix = null;
 
@@ -114,7 +98,7 @@ namespace Aphysoft.Share
 
         }
 
-        protected virtual void OnConnectionFailure()
+        protected virtual void OnSessionFailure()
         {
 
         }
@@ -134,13 +118,13 @@ namespace Aphysoft.Share
             }
         }
 
-        protected void ConnectionFailure()
+        protected void SessionFailure()
         {
-            OnConnectionFailure();
+            OnSessionFailure();
 
             Stop();
 
-            started = false;
+            IsStarted = false;
         }
 
         #endregion
@@ -151,13 +135,13 @@ namespace Aphysoft.Share
         {
             if (!IsStarted)
             {
-                started = true;
+                IsStarted = true;
 
                 new Thread(new ThreadStart(delegate ()
                 {
                     OnStarting();
 
-                    if (!connected)
+                    if (!IsConnected)
                     {
                         shell = new SshShell(host, user, pass);
                         shell.RemoveTerminalEmulationCharacters = true;                        
@@ -165,7 +149,7 @@ namespace Aphysoft.Share
                         try
                         {
                             shell.Connect();
-                            connected = true;
+                            IsConnected = true;
 
                             if (mainLoop != null)
                             {
@@ -177,7 +161,7 @@ namespace Aphysoft.Share
                             OnConnected();
 
                             lastOutputs.Clear();
-                            lastOutput = null;
+                            LastOutput = null;
 
                             listenerThread = new Thread(new ThreadStart(delegate ()
                             {
@@ -222,7 +206,7 @@ namespace Aphysoft.Share
                                             foreach (string s in lastOutputs)
                                                 lastOutputSB.Append(s);
 
-                                            lastOutput = lastOutputSB.ToString();
+                                            LastOutput = lastOutputSB.ToString();
 
                                             if (output != null && output != "")
                                             {
@@ -275,7 +259,7 @@ namespace Aphysoft.Share
 
                             ConnectionFailed?.Invoke(this, ex);
 
-                            started = false;
+                            IsStarted = false;
                         }
                     }
 
@@ -320,7 +304,7 @@ namespace Aphysoft.Share
         {
             OnBeforeStop();
 
-            if (connected)
+            if (IsConnected)
             {
                 listenerThread.Abort();
                 Disconnected();
@@ -334,7 +318,7 @@ namespace Aphysoft.Share
 
             terminalPrefix = null;
 
-            connected = false;
+            IsConnected = false;
 
             OnBeforeTerminate();
 
@@ -356,7 +340,7 @@ namespace Aphysoft.Share
                 }
                 while (true);
                 
-                started = false;
+                IsStarted = false;
 
                 OnTerminated();
             })).Start();
@@ -377,7 +361,10 @@ namespace Aphysoft.Share
             {
                 lock (outputs)
                 {
-                    output = outputs.Dequeue();
+                    if (OutputCount > 0)
+                    {
+                        output = outputs.Dequeue();
+                    }
                 }
             }
 
@@ -424,12 +411,12 @@ namespace Aphysoft.Share
                     {
                         if (newLine)
                         {
-                            lastSendLine = data;
+                            LastSendLine = data;
                             shell.WriteLine(data);
                         }
                         else
                         {
-                            lastSend = data;
+                            LastSend = data;
                             shell.Write(data);
                         }
                         sent = true;
@@ -440,7 +427,7 @@ namespace Aphysoft.Share
                 }
 
                 if (!sent)
-                    ConnectionFailure();
+                    SessionFailure();
             }
         }
 
@@ -482,6 +469,11 @@ namespace Aphysoft.Share
                 {
                     while (OutputCount > 0) GetOutput();
 
+                    if (terminalPrefix == null)
+                    {
+                        break;
+                    }
+
                     if (LastOutput != null)
                     {
                         if (LastOutput.EndsWith(terminalPrefix))
@@ -493,11 +485,21 @@ namespace Aphysoft.Share
                     Thread.Sleep(100);
                     wait++;
                 }
+
+                if (terminalPrefix == null)
+                {
+                    SessionFailure();
+                    break;
+                }
+
                 if (continueWait == false) break;
 
                 // else continue wait...
                 loop++;
-                if (loop == 3) ConnectionFailure(); // loop 3 times, its a failure
+                if (loop == 3)
+                {
+                    SessionFailure(); // loop 3 times, its a failure
+                }
 
                 // try sending exit characters
                 SendCharacter((char)13);
@@ -522,6 +524,11 @@ namespace Aphysoft.Share
         protected bool Request(string command, RequestOutputEventHandler lineCallback, VoidEventHandler timeOut)
         {
             return Request(command, out string[] lines, new string[] { terminalPrefix }, lineCallback, timeOut);
+        }
+
+        protected bool Request(string command, RequestOutputEventHandler lineCallback)
+        {
+            return Request(command, lineCallback, delegate () { });
         }
 
         protected bool Request(string command, out string[] lines)

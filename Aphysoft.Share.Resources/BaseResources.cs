@@ -28,23 +28,23 @@ namespace Aphysoft.Share
                 Resource.Register("script_libs", ResourceTypes.JavaScript, Resources.Resources.Scripts.ResourceManager, "libs");
                 Resource.Group(Resource.CommonResourceScript, "script_libs", 3);
 
-                if (Settings.THREE)
-                {
-                    Resource.Register("script_three", ResourceTypes.JavaScript, Resources.Resources.Scripts.ResourceManager, "three").NoMinify();
-                    Resource.Group(Resource.CommonResourceScript, "script_three", 4);
-                }
+                //if (Settings.THREE)
+                //{
+                Resource.Register("script_three", ResourceTypes.JavaScript, Resources.Resources.Scripts.ResourceManager, "three").NoMinify();
+                Resource.Group(Resource.CommonResourceScript, "script_three", 4);
+                //}
 
-                if (Settings.Raphael)
-                {
-                    Resource.Register("script_raphael", ResourceTypes.JavaScript, Resources.Resources.Scripts.ResourceManager, "raphael").NoMinify();
-                    Resource.Group(Resource.CommonResourceScript, "script_raphael", 5);
-                }
+                //if (Settings.Raphael)
+                //{
+                Resource.Register("script_raphael", ResourceTypes.JavaScript, Resources.Resources.Scripts.ResourceManager, "raphael").NoMinify();
+                Resource.Group(Resource.CommonResourceScript, "script_raphael", 5);
+                //}
 
-                if (Settings.Fabric)
-                {
-                    Resource.Register("script_fabric", ResourceTypes.JavaScript, Resources.Resources.Scripts.ResourceManager, "fabric").NoMinify();
-                    Resource.Group(Resource.CommonResourceScript, "script_fabric", 6);
-                }
+                //if (Settings.Fabric)
+                //{
+                Resource.Register("script_fabric", ResourceTypes.JavaScript, Resources.Resources.Scripts.ResourceManager, "fabric").NoMinify();
+                Resource.Group(Resource.CommonResourceScript, "script_fabric", 6);
+                //}
 
                 Resource.Register("script_webfont", ResourceTypes.JavaScript, Resources.Resources.Scripts.ResourceManager, "webfont").NoMinify();
                 Resource.Group(Resource.CommonResourceScript, "script_webfont", 7);

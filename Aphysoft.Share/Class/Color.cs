@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Aphysoft.Share
 { 
-    public struct Color
+    public struct ShareColor
     {
         #region Fields
 
@@ -37,14 +37,14 @@ namespace Aphysoft.Share
 
         #region Constructors
 
-        public Color(int red, int green, int blue)
+        public ShareColor(int red, int green, int blue)
         {
             this.red = red > 255 ? 255 : red < 0 ? 0 : red;
             this.green = green > 255 ? 255 : green < 0 ? 0 : green;
             this.blue = blue > 255 ? 255 : blue < 0 ? 0 : blue;
         }
 
-        public Color(string hex)
+        public ShareColor(string hex)
         {
             if (hex.Length == 6)
             {

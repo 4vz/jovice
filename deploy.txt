@@ -1,0 +1,4 @@
+ATHENA=127.0.0.1
+CENTER-ABOUT:GITFTP:GIT=https://github.com/4vz/center-about.git;SERVER=gaia.telkom.center;DIR=D:\CENTER.TELKOM.ABOUT;USER=admin-app;PASS=Jovice$123
+TEST:ATHENA:LOCAL=Test/bin/
+NECROW:ATHENA:LOCAL=Necrow/bin/

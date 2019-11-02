@@ -66,7 +66,7 @@ namespace Aphysoft.Share
 
                     if (rus == "1")
                     {
-                        PageData cd = GetPageData(Settings.UrlPrefix + url, true);
+                        PageData cd = GetPageData(WebSettings.UrlPrefix + url, true);
 
                         ContentHeaderPacket packet = new ContentHeaderPacket();
                         packet.Family = cd.Family;
@@ -77,7 +77,7 @@ namespace Aphysoft.Share
                     }
                     else
                     {
-                        PageData cd = GetPageData(Settings.UrlPrefix + url, false);
+                        PageData cd = GetPageData(WebSettings.UrlPrefix + url, false);
 
                         ContentBodyPacket packet = new ContentBodyPacket();
                         packet.Family = cd.Family;
@@ -130,10 +130,10 @@ namespace Aphysoft.Share
             queryStringPath = null;
 
             // recheck if path prefix is application prefix
-            if (path.StartsWith(Settings.UrlPrefix))
+            if (path.StartsWith(WebSettings.UrlPrefix))
             {
                 // remove prefix
-                path = path.Substring(Settings.UrlPrefix.Length);
+                path = path.Substring(WebSettings.UrlPrefix.Length);
 
                 // split between query string
                 string[] pathAndQueryString = path.Split(new char[] { '?' }, 2);
@@ -146,7 +146,6 @@ namespace Aphysoft.Share
                 // lookup through dictionary, for path, from long entry first
                 foreach (string pageUrl in contentRegisterPerPagesKeySort)
                 {
-
                     if (pageUrl.EndsWith("?"))
                     {
                         // variable path
@@ -192,7 +191,6 @@ namespace Aphysoft.Share
         private static ContentPackage GetContentPackage(ContentRegister register)
         {
             ContentPackage package;
-            DesignType design = Share.Current.Request.Design;
 
             package = register.Package;
 
@@ -203,7 +201,7 @@ namespace Aphysoft.Share
         {            
             PageData data = new PageData();
 
-            if (path.StartsWith(Settings.UrlPrefix))
+            if (path.StartsWith(WebSettings.UrlPrefix))
             {
                 string contentPath, queryString, queryStringPath;
 
@@ -265,7 +263,7 @@ namespace Aphysoft.Share
 
                             // add dynamic script
                             BindingParameters parameters = new BindingParameters();
-                            parameters.RefererUrl = Settings.UrlPrefix + contentPath;
+                            parameters.RefererUrl = WebSettings.UrlPrefix + contentPath;
 
                             Content.ScriptDataBinding(parameters, scriptData);
 
@@ -369,7 +367,7 @@ namespace Aphysoft.Share
                     foreach (ContentPage page in pages)
                     {
                         if (!contentRegisterPerPages.ContainsKey(page.Url) &&
-                            !page.Url.StartsWith("~/" + Settings.ResourceProviderPath + "/")
+                            !page.Url.StartsWith("~/resources/")
                             )
                         {
                             contentRegisterPerPages.Add(page.Url, register);
@@ -436,16 +434,9 @@ namespace Aphysoft.Share
             string html;
             string initHtml;
 
-            if (!Settings.Ajaxify)
-            {
-                html = cd.Html;
-                initHtml = "null";
-            }
-            else
-            {
-                html = "";
-                initHtml = js.Serialize(cd.Html);
-            }
+            // ajaxify
+            html = "";
+            initHtml = js.Serialize(cd.Html);
 
             HttpResponse response = context.Response;
             HttpRequest request = context.Request;
@@ -454,13 +445,7 @@ namespace Aphysoft.Share
             response.Write("<!doctype html>");
             response.Write("<!-- By Afis Herman Reza Devara. Open the browser's developer console for more information about this. -->");
             response.Write("<html><head><title>");
-            if (title == null) response.Write(Settings.FullName);
-            else
-            {
-                string fti = Settings.TitleFormat;
-                fti = fti.Replace("{TITLE}", title);
-                response.Write(fti);
-            }
+            response.Write(WebSettings.DefaultTitle);
             // end title
             response.Write("</title>");
             // meta
@@ -472,20 +457,20 @@ namespace Aphysoft.Share
             response.Write("<meta name=\"apple-mobile-web-app-status-bar-style\" content=\"black-translucent\" />");
             // shortcut icon
             string shortcutIconKey;
-            if (Settings.ShortcutIcon == null)
+            //if (WebSettings.ShortcutIcon == null)
                 shortcutIconKey = "image_shortcuticon";
-            else
-            {
-                Resource rs = Resource.Get(Settings.ShortcutIcon);
-                if (rs != null)
-                {
-                    if (rs.ResourceType == ResourceTypes.JPEG || rs.ResourceType == ResourceTypes.PNG)
-                        shortcutIconKey = Settings.ShortcutIcon;
-                    else
-                        shortcutIconKey = "image_shortcuticon";
-                }
-                else shortcutIconKey = "image_shortcuticon";
-            }
+            //else
+            //{
+            //    Resource rs = Resource.Get(Settings.ShortcutIcon);
+            //    if (rs != null)
+            //    {
+            //        if (rs.ResourceType == ResourceTypes.JPEG || rs.ResourceType == ResourceTypes.PNG)
+            //            shortcutIconKey = Settings.ShortcutIcon;
+            //        else
+            //            shortcutIconKey = "image_shortcuticon";
+            //    }
+            //    else shortcutIconKey = "image_shortcuticon";
+            //}
 
             Resource defaultShortcutIcon = Resource.Get(shortcutIconKey);
             response.Write("<link rel=\"icon\" type=\"" + defaultShortcutIcon.MimeType + "\" href=\"" + Resource.GetPath(shortcutIconKey) + "\" />");
@@ -517,7 +502,7 @@ namespace Aphysoft.Share
             #region CSS Bridge
 
             StyleSheetData css = new StyleSheetData();
-            Share.Current.StyleSheetDataBinding(context, css);
+            Web.Current.StyleSheetDataBinding(context, css);
 
             foreach (KeyValuePair<string, StyleSheetDataClass> pair in css.Css)
             {
@@ -546,12 +531,12 @@ namespace Aphysoft.Share
             response.Write("<div id=\"top\" class=\"_TO\"></div>");
             response.Write("<div id=\"bottom\" class=\"_BM\"></div>");
             response.Write("<div id=\"pages\" class=\"_PS\">");
-            if (!Settings.Ajaxify)
-            {
-                response.Write("<div id=\"page\" class=\"_PG\">");
-                response.Write(html); // TODO
-                response.Write("</div>");
-            }
+            //if (!Settings.Ajaxify)
+            //{
+            //    response.Write("<div id=\"page\" class=\"_PG\">");
+            //    response.Write(html); // TODO
+            //   response.Write("</div>");
+            //}
             response.Write("</div>");
             response.Write("</div>"); // end main
             response.Write("<div id=\"nojs\" class=\"_NJ\"></div>");
@@ -565,13 +550,13 @@ namespace Aphysoft.Share
             StringBuilder sb = new StringBuilder();
 
             ScriptData scriptData = new ScriptData();
-            Share.Current.ScriptDataBinding(context, scriptData);
+            Web.Current.ScriptDataBinding(context, scriptData);
             sb.Append("share.data({ " + string.Join(", ", scriptData.GetArrayString()) + " });");
 
             sb.Append("$(function() {");
             sb.Append(string.Format("share.init(\"{0}\", \"{1}\", \"{2}\", \"{3}\", {4}, \"{5}\", {6}, {7}, {8}, {9});",
             /*0*/cd.Family,
-            /*1*/HttpContext.Current.Request.RawUrl.Substring(Settings.UrlPrefix.Length),
+            /*1*/HttpContext.Current.Request.RawUrl.Substring(WebSettings.UrlPrefix.Length),
             /*2*/cd.ScriptUrl,
             /*3*/cd.CssUrl,
             /*4*/initHtml,
@@ -583,7 +568,9 @@ namespace Aphysoft.Share
             ));
             sb.Append("});");
 
-            response.Write(WebUtilities.Minifier.MinifyJavaScript(sb.ToString()));
+            //response.Write(WebUtilities.Minifier.MinifyJavaScript(sb.ToString()));
+            response.Write(sb.ToString());
+
 
             response.Write("/*]]>*/</script>");
             response.Write("</body>");
@@ -609,7 +596,7 @@ namespace Aphysoft.Share
                 {
                     if (index < register.Pages.Length)
                     {
-                        HttpContext.Current.Response.Redirect(Settings.UrlPrefix + register.Pages[index].Url + (string.IsNullOrEmpty(querystring) ? string.Empty : "?" + querystring), true);
+                        HttpContext.Current.Response.Redirect(WebSettings.UrlPrefix + register.Pages[index].Url + (string.IsNullOrEmpty(querystring) ? string.Empty : "?" + querystring), true);
                         HttpContext.Current.Response.End();
                     }
                 }

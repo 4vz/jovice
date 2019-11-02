@@ -8,11 +8,16 @@ using System.Threading;
 using System.Net;
 using Aphysoft.Share;
 
-namespace Center
+using Jovice;
+
+using Aveezo;
+
+
+namespace Necrow
 {
     #region To Database
 
-    class PERouteNameToDatabase : ToDatabase
+    class PERouteNameToDatabase : Data
     {        
         private string name;
 
@@ -79,7 +84,7 @@ namespace Center
         }        
     }
 
-    class PEQOSToDatabase : ToDatabase
+    class PEQOSToDatabase : Data
     {
         private string name;
 
@@ -203,9 +208,11 @@ namespace Center
             get { return deleteIPID; }
             set { deleteIPID = value; }
         }
+
+
     }
 
-    class PERouteUseToDatabase : ToDatabase
+    class PERouteUseToDatabase : Data
     {
         private string type;
 
@@ -488,7 +495,7 @@ namespace Center
         }
     }
 
-    class PEPrefixListToDatabase : ToDatabase
+    class PEPrefixListToDatabase : Data
     {
         private string name;
 
@@ -499,7 +506,7 @@ namespace Center
         }
     }
 
-    class PEPrefixEntryToDatabase : ToDatabase
+    class PEPrefixEntryToDatabase : Data
     {
         private string prefixListID;
 
@@ -582,7 +589,7 @@ namespace Center
         }
     }
 
-    class DerivedRouteNetworkToDatabase : ToDatabase
+    class DerivedRouteNetworkToDatabase : Data
     {
         private string ip;
 
@@ -637,14 +644,14 @@ namespace Center
         #endregion
     }
 
-    internal sealed partial class Probe
+    public sealed partial class Probe
     {
         private ProbeProcessResult PEProcess()
         {
             ProbeProcessResult probe = new ProbeProcessResult();
 
-            string[] lines = null;
-            Batch batch = Batch();            
+            string[] lines = null;            
+            Batch batch = j.Batch();            
             Result result;
 
             Dictionary<string, DerivedRouteNetworkToDatabase> routeiplive = new Dictionary<string, DerivedRouteNetworkToDatabase>();
@@ -652,13 +659,13 @@ namespace Center
             #region VRF
 
             Dictionary<string, PERouteNameToDatabase> routenamelive = new Dictionary<string, PERouteNameToDatabase>();
-            Dictionary<string, Row> routenamedb = QueryDictionary("select * from PERouteName where PN_NO = {0}", "PN_Name", nodeID);
+            Dictionary<string, Row> routenamedb = j.QueryDictionary("select * from PERouteName where PN_NO = {0}", "PN_Name", nodeID);
             if (routenamedb == null) return DatabaseFailure(probe);
             Dictionary<string, List<string>> routetargetlocaldb = new Dictionary<string, List<string>>();
             Dictionary<string, string> routenameroutereference = new Dictionary<string, string>();
 
-            result = Query("select * from PERouteName, PERouteTarget where PN_PR = PT_PR and PN_NO = {0}", nodeID);
-            if (!result.OK) return DatabaseFailure(probe);
+            result = j.Query("select * from PERouteName, PERouteTarget where PN_PR = PT_PR and PN_NO = {0}", nodeID);
+            if (!result) return DatabaseFailure(probe);
 
             foreach (Row row in result)
             {
@@ -1026,7 +1033,7 @@ namespace Center
                 if (!routenamedb.ContainsKey(pair.Key))
                 {
                     Event("VRF Name ADD: " + pair.Key);
-                    li.ID = Database.ID();
+                    li.Id = Database.ID();
                     routenameinsert.Add(li);
                 }
                 else
@@ -1037,8 +1044,8 @@ namespace Center
 
                     PERouteNameToDatabase u = new PERouteNameToDatabase();
 
-                    u.ID = db["PN_ID"].ToString();
-                    li.ID = u.ID;
+                    u.Id = db["PN_ID"].ToString();
+                    li.Id = u.Id;
 
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
@@ -1100,11 +1107,11 @@ namespace Center
                 if (!routesearch.ContainsKey(length))
                 {
                     // search route target for 
-                    r = Query("select a.PT_PR, a.PT_TC from " +
+                    r = j.Query("select a.PT_PR, a.PT_TC from " +
                         "(select PT_PR, STR(CASE WHEN (PT_IPv6 IS NULL) THEN '0' ELSE '1' END) + LTRIM(STR(PT_Type)) + PT_Community as 'PT_TC' from PERouteTarget) a, " +
                         "(select PT_PR, COUNT(PT_PR) as 'COUNT' from PERouteTarget group by PT_PR) b " +
                         "where a.PT_PR = b.PT_PR and COUNT = {0} order by a.PT_PR ", length);
-                    if (!r.OK) return DatabaseFailure(probe);
+                    if (!r) return DatabaseFailure(probe);
                     routesearch.Add(length, r);
                 }
                 else r = routesearch[length];
@@ -1146,10 +1153,10 @@ namespace Center
             batch.Begin();
             foreach (KeyValuePair<string, string[]> pair in routetargetinsert)
             {
-                batch.Execute("insert into PERoute(PR_ID) values({0})", pair.Key);
+                batch.Add("insert into PERoute(PR_ID) values({0})", pair.Key);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.VRF, false);
 
             // Route Target
@@ -1158,54 +1165,54 @@ namespace Center
             {
                 foreach (string routeTarget in pair.Value)
                 {
-                    Insert insert = Insert("PERouteTarget");
+                    Insert insert = j.Insert("PERouteTarget");
                     insert.Value("PT_ID", Database.ID());
                     insert.Value("PT_PR", pair.Key);
                     insert.Value("PT_Type", routeTarget[1] == '1');
                     insert.Value("PT_Community", routeTarget.Substring(2));
                     insert.Value("PT_IPv6", routeTarget[0] == '1');
-                    batch.Execute(insert);
+                    batch.Add(insert);
                 }
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.VRFRouteTarget, false);
 
             // Route Name
             batch.Begin();
             foreach (PERouteNameToDatabase s in routenameinsert)
             {
-                Insert insert = Insert("PERouteName");
-                insert.Value("PN_ID", s.ID);
+                Insert insert = j.Insert("PERouteName");
+                insert.Value("PN_ID", s.Id);
                 insert.Value("PN_PR", s.RouteID);
                 insert.Value("PN_NO", nodeID);
                 insert.Value("PN_Name", s.Name);
                 insert.Value("PN_RD", s.RD);
                 insert.Value("PN_RDv6", s.RDIPv6);
-                batch.Execute(insert);
+                batch.Add(insert);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.VRFReference, false);
 
             // UPDATE
             batch.Begin();
             foreach (PERouteNameToDatabase s in routenameupdate)
             {
-                Update update = Update("PERouteName");
+                Update update = j.Update("PERouteName");
                 update.Set("PN_RD", s.RD, s.UpdateRD);
                 update.Set("PN_RDv6", s.RDIPv6, s.UpdateRDIPv6);
                 update.Set("PN_PR", s.RouteID, s.UpdateRouteTargets);
-                update.Where("PN_ID", s.ID);
-                batch.Execute(update);
+                update.Where("PN_ID", s.Id);
+                batch.Add(update);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.VRFReference, false);
 
             #endregion
 
-            routenamedb = QueryDictionary("select * from PERouteName where PN_NO = {0}", "PN_Name", nodeID);
+            routenamedb = j.QueryDictionary("select * from PERouteName where PN_NO = {0}", "PN_Name", nodeID);
             if (routenamedb == null) return DatabaseFailure(probe);
 
             foreach (KeyValuePair<string, Row> pair in routenamedb)
@@ -1221,7 +1228,7 @@ namespace Center
             #region QOS
 
             Dictionary<string, PEQOSToDatabase> qoslive = new Dictionary<string, PEQOSToDatabase>();
-            Dictionary<string, Row> qosdb = QueryDictionary("select * from PEQOS where PQ_NO = {0}", "PQ_Name", nodeID);
+            Dictionary<string, Row> qosdb = j.QueryDictionary("select * from PEQOS where PQ_NO = {0}", "PQ_Name", nodeID);
             if (qosdb == null) return DatabaseFailure(probe);
             List<PEQOSToDatabase> qosinsert = new List<PEQOSToDatabase>();
 
@@ -1381,7 +1388,7 @@ namespace Center
                     Event("QOS ADD: " + li.Name + " (" + (li.Package == null ? "-" : li.Package) + ", " +
                         (li.Bandwidth == -1 ? "-" : (li.Bandwidth + "K")) + ")");
 
-                    li.ID = Database.ID();
+                    li.Id = Database.ID();
                     qosinsert.Add(li);
                 }
             }
@@ -1396,21 +1403,21 @@ namespace Center
             batch.Begin();
             foreach (PEQOSToDatabase s in qosinsert)
             {
-                Insert insert = Insert("PEQOS");
-                insert.Value("PQ_ID", s.ID);
+                Insert insert = j.Insert("PEQOS");
+                insert.Value("PQ_ID", s.Id);
                 insert.Value("PQ_NO", nodeID);
                 insert.Value("PQ_Name", s.Name);
                 insert.Value("PQ_Bandwidth", s.Bandwidth.Nullable(-1));
                 insert.Value("PQ_Package", s.Package);
-                batch.Execute(insert);
+                batch.Add(insert);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.QOS, false);
 
             #endregion
 
-            qosdb = QueryDictionary("select * from PEQOS where PQ_NO = {0}", "PQ_Name", nodeID);
+            qosdb = j.QueryDictionary("select * from PEQOS where PQ_NO = {0}", "PQ_Name", nodeID);
             if (qosdb == null) return DatabaseFailure(probe);
 
             #endregion
@@ -1419,7 +1426,7 @@ namespace Center
 
             SortedDictionary<string, PEInterfaceToDatabase> interfacelive = new SortedDictionary<string, PEInterfaceToDatabase>();
             List<string> duplicatedinterfaces = new List<string>();
-            Dictionary<string, Row> interfacedb = QueryDictionary("select * from PEInterface where PI_NO = {0}", "PI_Name", delegate (Row row) { duplicatedinterfaces.Add(row["PI_ID"].ToString()); }, nodeID);
+            Dictionary<string, Row> interfacedb = j.QueryDictionary("select * from PEInterface where PI_NO = {0}", "PI_Name", delegate (Row row) { duplicatedinterfaces.Add(row["PI_ID"].ToString()); }, nodeID);
             if (interfacedb == null) return DatabaseFailure(probe);
             Dictionary<string, List<string[]>> ipdb = new Dictionary<string, List<string[]>>();
 
@@ -1427,28 +1434,28 @@ namespace Center
             {
                 Event(duplicatedinterfaces.Count + " interface(s) are found duplicated, began deleting...");
                 string duplicatedinterfacestr = "'" + string.Join("', '", duplicatedinterfaces.ToArray()) + "'";
-                result = Execute("update MEInterface set MI_TO_PI = NULL where MI_TO_PI in (" + duplicatedinterfacestr + ")");
-                if (!result.OK) return DatabaseFailure(probe);
-                result = Execute("update PEInterface set PI_PI = NULL where PI_PI in (" + duplicatedinterfacestr + ")");
-                if (!result.OK) return DatabaseFailure(probe);
-                result = Execute("update PERoute set PR_PI = NULL where PR_PI in (" + duplicatedinterfacestr + ")");
-                if (!result.OK) return DatabaseFailure(probe);
-                result = Execute("update PERouteUse set PU_PI = NULL where PU_PI in (" + duplicatedinterfacestr + ")");
-                if (!result.OK) return DatabaseFailure(probe);
-                result = Execute("update POP set OO_PI = NULL where OO_PI in (" + duplicatedinterfacestr + ")");
-                if (!result.OK) return DatabaseFailure(probe);
-                result = Execute("delete from PEInterfaceIP where PP_PI in (" + duplicatedinterfacestr + ")");
-                if (!result.OK) return DatabaseFailure(probe);
-                result = Execute("delete from PEMac where PA_PI in (" + duplicatedinterfacestr + ")");
+                result = j.Execute("update MEInterface set MI_TO_PI = NULL where MI_TO_PI in (" + duplicatedinterfacestr + ")");
+                if (!result) return DatabaseFailure(probe);
+                result = j.Execute("update PEInterface set PI_PI = NULL where PI_PI in (" + duplicatedinterfacestr + ")");
+                if (!result) return DatabaseFailure(probe);
+                result = j.Execute("update PERoute set PR_PI = NULL where PR_PI in (" + duplicatedinterfacestr + ")");
+                if (!result) return DatabaseFailure(probe);
+                result = j.Execute("update PERouteUse set PU_PI = NULL where PU_PI in (" + duplicatedinterfacestr + ")");
+                if (!result) return DatabaseFailure(probe);
+                result = j.Execute("update POP set OO_PI = NULL where OO_PI in (" + duplicatedinterfacestr + ")");
+                if (!result) return DatabaseFailure(probe);
+                result = j.Execute("delete from PEInterfaceIP where PP_PI in (" + duplicatedinterfacestr + ")");
+                if (!result) return DatabaseFailure(probe);
+                result = j.Execute("delete from PEMac where PA_PI in (" + duplicatedinterfacestr + ")");
 
-                result = Execute("delete from PEInterface where PI_ID in (" + duplicatedinterfacestr + ")");
-                if (!result.OK) return DatabaseFailure(probe);
+                result = j.Execute("delete from PEInterface where PI_ID in (" + duplicatedinterfacestr + ")");
+                if (!result) return DatabaseFailure(probe);
                 Event(result, EventActions.Delete, EventElements.Interface, true);
             }
 
-            result = Query(@"select PI_Name, PP_ID, CAST(PP_IPv6 as varchar) + '_' + CAST(PP_Order as varchar) + '_' + PP_IP as IPKEY 
+            result = j.Query(@"select PI_Name, PP_ID, CAST(PP_IPv6 as varchar) + '_' + CAST(PP_Order as varchar) + '_' + PP_IP as IPKEY 
 from PEInterface, PEInterfaceIP where PP_PI = PI_ID and PI_NO = {0} order by PI_Name asc", nodeID);
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
 
             batch.Begin();
             foreach (Row row in result)
@@ -1475,7 +1482,7 @@ from PEInterface, PEInterfaceIP where PP_PI = PI_ID and PI_NO = {0} order by PI_
                     if (oipkey == nipkey)
                     {
                         // so remove this
-                        batch.Execute("delete from PEInterfaceIP where PP_ID = {0}", oppid);
+                        batch.Add("delete from PEInterfaceIP where PP_ID = {0}", oppid);
                         exist = true;
                     }
                 }
@@ -1485,7 +1492,7 @@ from PEInterface, PEInterfaceIP where PP_PI = PI_ID and PI_NO = {0} order by PI_
             }
 
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             if (result.Count > 0) Event("Removing duplicated IP in previous database");
             Event(result, EventActions.Delete, EventElements.InterfaceIP, false);
 
@@ -1498,8 +1505,6 @@ from PEInterface, PEInterfaceIP where PP_PI = PI_ID and PI_NO = {0} order by PI_
             Dictionary<string, string> virtualmac = new Dictionary<string, string>();
             Dictionary<string, PEMacToDatabase> maclive = new Dictionary<string, PEMacToDatabase>();
             Dictionary<string, string> activeroutename = new Dictionary<string, string>();
-
-            ServiceReference interfaceServiceReference = new ServiceReference();
 
             Event("Checking Interface");
 
@@ -1940,6 +1945,48 @@ Last input 00:00:00, output 00:00:00
                                 }
                             }
                         }
+                    }
+
+                    // bundle-ether
+                    if (Request("show bundle", out lines, probe)) return probe;
+
+                    bool capturePort = false;
+                    int beport = -1;
+
+                    foreach (string line in lines)
+                    {
+                        string[] tokens = line.Tokenize(1, StringOperations.Trim);
+
+                        if (tokens[0].StartsWith("Bundle-Ether"))
+                        {
+                            capturePort = false;
+                            beport = -1;
+                            NetworkInterface be = NetworkInterface.Parse(tokens[0]);
+
+                            if (interfacelive.ContainsKey(be.Name))
+                            {
+                                if (int.TryParse(be.PortName, out beport))
+                                {
+
+                                }
+                            }
+                        }
+                        else if (tokens[0] == "Port")
+                        {
+                            capturePort = true;
+                        }
+                        else if (capturePort)
+                        {
+                            NetworkInterface be = NetworkInterface.Parse(tokens[0]);
+
+                            if (be != null && interfacelive.ContainsKey(be.Name))
+                            {
+                                PEInterfaceToDatabase cif = interfacelive[be.Name];
+                                cif.Aggr = beport;
+                            }
+                        }
+
+                        Event(tokens[0]);
                     }
 
                     #endregion
@@ -3231,7 +3278,7 @@ Last input 00:00:00, output 00:00:00
                     }
                 }
 
-                if (Request(@"disp cur int | in interface|vlan-type\ dot1q|qos\ car\ cir|ip\ address|ipv6\ address", out lines, probe)) return probe;
+                if (Request(@"disp cur int | in interface|vlan-type\ dot1q|qos-profile|qos\ car\ cir|ip\ address|ipv6\ address", out lines, probe)) return probe;
 
                 //interface Eth-Trunk25.3648
                 //01234567890123456
@@ -3395,6 +3442,24 @@ Last input 00:00:00, output 00:00:00
                                             }
                                         }
                                     }
+                                }
+                            }
+                        }
+                        else if (linetrim.StartsWith("qos-profile"))
+                        {
+                            string[] linex = linetrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                            if (linex.Length >= 3)
+                            {
+                                string qosName = linex[1];
+                                string qosDir = linex[2];
+
+                                if (qosdb.ContainsKey(qosName))
+                                {
+                                    string qosID = qosdb[qosName]["PQ_ID"].ToString();
+
+                                    if (qosDir == "inbound") current.InputQOSID = qosID;
+                                    else if (qosDir == "outbound") current.OutputQOSID = qosID;
                                 }
                             }
                         }
@@ -3742,7 +3807,6 @@ Last input 00:00:00, output 00:00:00
 
                 #endregion
             }
-
             
             #endregion
 
@@ -3778,7 +3842,7 @@ Last input 00:00:00, output 00:00:00
             {
                 foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> v in NecrowVirtualization.PEPhysicalInterfaces)
                 {
-                    if (v.Item1 == nodeName)
+                    if (v.Item1 == NodeName)
                     {
                         vPEPhysicalInterfaces = v.Item2;
                         vExists = true;
@@ -3787,10 +3851,12 @@ Last input 00:00:00, output 00:00:00
                 if (!vExists)
                 {
                     vPEPhysicalInterfaces = new List<Tuple<string, string, string, string, string, string>>();
-                    NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(nodeName, vPEPhysicalInterfaces));
+                    NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(NodeName, vPEPhysicalInterfaces));
                     NecrowVirtualization.PEPhysicalInterfacesSort(true);
                 }
             }
+
+            ServiceImmediateDiscovery(interfacelive);
 
             int sinf = 0, sinfup = 0, sinfhu = 0, sinfag = 0, sinfhuup = 0, sinfte = 0, sinfteup = 0, sinfgi = 0, sinfgiup = 0, sinffa = 0, sinffaup = 0, sinfet = 0, sinfetup = 0, sinfse = 0, sinfseup = 0,
                 ssubinf = 0, ssubinfup = 0, ssubinfupup = 0, ssubinfag = 0, ssubinfagup = 0, ssubinfagupup = 0, ssubinfhu = 0, ssubinfhuup = 0, ssubinfhuupup = 0, ssubinfte = 0, ssubinfteup = 0, ssubinfteupup = 0, ssubinfgi = 0, ssubinfgiup = 0, ssubinfgiupup = 0, ssubinffa = 0, ssubinffaup = 0, ssubinffaupup = 0, ssubinfet = 0, ssubinfetup = 0, ssubinfetupup = 0;
@@ -3834,9 +3900,8 @@ Last input 00:00:00, output 00:00:00
                         if (interfacedb.ContainsKey(parentPort)) // cek di existing db
                             li.ParentID = interfacedb[parentPort]["PI_ID"].ToString();
                         else if (interfaceinsert.ContainsKey(parentPort)) // cek di interface yg baru
-                            li.ParentID = interfaceinsert[parentPort].ID;
+                            li.ParentID = interfaceinsert[parentPort].Id;
                     }
-
 
                     if (!inf.IsSubInterface)
                     {
@@ -3882,8 +3947,8 @@ Last input 00:00:00, output 00:00:00
 
                                     // query lawan
                                     li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
-                                    result = Query("select MI_ID, MI_DOT1Q, MI_TO_MI, MI_TO_PI from MEInterface where MI_MI = {0}", li.TopologyMEInterfaceID);
-                                    if (!result.OK) return DatabaseFailure(probe);
+                                    result = j.Query("select MI_ID, MI_DOT1Q, MI_TO_MI, MI_TO_PI from MEInterface where MI_MI = {0}", li.TopologyMEInterfaceID);
+                                    if (!result) return DatabaseFailure(probe);
                                     foreach (Row row in result)
                                     {
                                         if (!row["MI_DOT1Q"].IsNull)
@@ -3940,13 +4005,13 @@ Last input 00:00:00, output 00:00:00
                     }
                 }
 
-                li.EquipmentName = NetworkInterface.EquipmentName(nodeManufacture, li.Name);
+                li.EquipmentName = NetworkInterface.EquipmentName(nodeManufacture + (nodeManufacture == cso && nodeVersion == xr ? "XR" : ""), li.Name);
 
                 if (!interfacedb.ContainsKey(pair.Key))
                 {
                     Event("Interface ADD: " + pair.Key);
 
-                    li.ID = Database.ID();
+                    li.Id = Database.ID();
                     interfaceinsert.Add(li.Name, li);
 
                     // IP
@@ -3958,17 +4023,14 @@ Last input 00:00:00, output 00:00:00
                             Event("+ " + (ipx[0] == "0" ? "IPv4" : "IPv6") + " " + (ipx[1] == "1" ? "" : "secondary ") + ipx[2]);
                         }
                     }
-
-                    // Service
-                    if (li.Description != null) interfaceServiceReference.Add(li, li.Description);
                 }
                 else
                 {
                     Row db = interfacedb[pair.Key];
 
                     PEInterfaceToDatabase u = new PEInterfaceToDatabase();
-                    u.ID = db["PI_ID"].ToString();
-                    li.ID = u.ID;
+                    u.Id = db["PI_ID"].ToString();
+                    li.Id = u.Id;
 
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
@@ -3987,12 +4049,12 @@ Last input 00:00:00, output 00:00:00
                         u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
                         UpdateInfo(updateinfo, "pi-to-mi", db["PI_TO_MI"].ToString(), li.TopologyMEInterfaceID, true);
                     }
-                    else if (li.TopologyMEInterfaceID != null && li.NeighborCheckMITOPI != u.ID)
+                    else if (li.TopologyMEInterfaceID != null && li.NeighborCheckMITOPI != u.Id)
                     {
                         update = true;
                         u.UpdateNeighborCheckMITOPI = true;
                         u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
-                        UpdateInfo(updateinfo, "neighbor-mi-to-pi", li.NeighborCheckMITOPI, u.ID, true);
+                        UpdateInfo(updateinfo, "neighbor-mi-to-pi", li.NeighborCheckMITOPI, u.Id, true);
                     }
                     if (db["PI_TO_NI"].ToString() != li.TopologyNBInterfaceID)
                     {
@@ -4008,13 +4070,13 @@ Last input 00:00:00, output 00:00:00
                         u.Description = li.Description;
                         UpdateInfo(updateinfo, "description", db["PI_Description"].ToString(), li.Description, true);
                     }
-                    if (updatingNecrow || u.UpdateDescription)
+                    if (db["PI_SI"] != li.ServiceImmediateID)
                     {
                         update = true;
-                        u.ServiceID = null;
-                        if (li.Description != null) interfaceServiceReference.Add(u, li.Description);
+                        u.UpdateServiceImmediateID = true;
+                        u.ServiceImmediateID = li.ServiceImmediateID;
+                        UpdateInfo(updateinfo, "service-immediate", "UPDATING");
                     }
-
                     if (db["PI_Status"].ToBool() != li.Status)
                     {
                         update = true;
@@ -4239,7 +4301,183 @@ Last input 00:00:00, output 00:00:00
                     }
                 }
             }
+            
+            // NECROW 3.0
+            foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
+            {
+                PEInterfaceToDatabase li = pair.Value;
 
+                NetworkInterface inf = NetworkInterface.Parse(li.Name);
+                               
+                // OPTIMUM RATE
+                int ori = 0, oro = 0;
+                
+                int cr = -1;
+                if (inf != null)
+                {
+                    if (inf.Type == "Ag")
+                    {
+                        PEInterfaceToDatabase aggrInterface = null;
+
+                        if (inf.IsSubInterface)
+                        {
+                            if (interfacelive.ContainsKey(inf.BaseName))
+                            {
+                                aggrInterface = interfacelive[inf.BaseName];
+                            }
+                        }
+                        else
+                        {
+                            aggrInterface = li;
+                        }
+
+                        if (aggrInterface != null)
+                        {
+                            cr = 0;
+                            foreach (PEInterfaceToDatabase pix in aggrInterface.AggrChilds)
+                            {
+                                string ty = pix.InterfaceType;
+
+                                int typerate = 0;
+                                if (ty == "Hu") typerate = 104857600;
+                                else if (ty == "Te") typerate = 10485760;
+                                else if (ty == "Gi") typerate = 1048576;
+                                else if (ty == "Fa") typerate = 102400;
+                                else if (ty == "Et") typerate = 10240;
+                                else if (ty == "Se") typerate = 0;
+
+                                cr += typerate;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (inf.IsSubInterface)
+                        {
+                            if (interfacelive.ContainsKey(inf.BaseName))
+                            {
+                                PEInterfaceToDatabase par = interfacelive[inf.BaseName];
+
+                                string ty = par.InterfaceType;
+
+                                int typerate = 0;
+                                if (ty == "Hu") typerate = 104857600;
+                                else if (ty == "Te") typerate = 10485760;
+                                else if (ty == "Gi") typerate = 1048576;
+                                else if (ty == "Fa") typerate = 102400;
+                                else if (ty == "Et") typerate = 10240;
+                                else if (ty == "Se") typerate = 0;
+
+                                cr = typerate;
+                            }
+                        }
+                        else
+                        {
+                            string ty = li.InterfaceType;
+
+                            int typerate = 0;
+                            if (ty == "Hu") typerate = 104857600;
+                            else if (ty == "Te") typerate = 10485760;
+                            else if (ty == "Gi") typerate = 1048576;
+                            else if (ty == "Fa") typerate = 102400;
+                            else if (ty == "Et") typerate = 10240;
+                            else if (ty == "Se") typerate = 0;
+
+                            cr = typerate;
+                        }
+                    }
+                }
+                
+                if (cr != -1)
+                {
+                    int dri = li.RateInput == -1 ? int.MaxValue : li.RateInput;
+                    int dro = li.RateOutput == -1 ? int.MaxValue : li.RateOutput;
+
+                    int qri = int.MaxValue, qro = int.MaxValue;
+                    foreach (KeyValuePair<string, Row> qpair in qosdb)
+                    {
+                        string rid = qpair.Value["PQ_ID"];
+
+                        if (rid == li.InputQOSID)
+                            qri = qpair.Value["PQ_Bandwidth"].ToInt(int.MaxValue);
+                        if (rid == li.OutputQOSID)
+                            qro = qpair.Value["PQ_Bandwidth"].ToInt(int.MaxValue);
+                    }
+
+                    ori = int.MaxValue;
+                    if (dri < ori) ori = dri;
+                    if (qri < ori) ori = qri;
+                    if (cr < ori) ori = cr;
+
+                    oro = int.MaxValue;
+                    if (dro < oro) oro = dro;
+                    if (qro < oro) oro = qro;
+                    if (cr < oro) oro = cr;
+                }
+
+                // INTERFACE
+                Result ifr = j.Query("select IF_ID, IF_Entry_State, IF_OptimumRate_Input, IF_OptimumRate_Output from Interface where IF_NO = {0} and IF_EquipmentName = {1}", nodeID, li.EquipmentName);
+
+                if (ifr == 0)
+                {
+                    Insert ifi = j.Insert("Interface");
+                    li.InterfaceID = ifi.Key("IF_ID");
+                    ifi.Value("IF_Entry_State", 1);
+                    ifi.Value("IF_Entry_LastToggle", DateTime.UtcNow);
+                    ifi.Value("IF_NO", nodeID);
+                    ifi.Value("IF_EquipmentName", li.EquipmentName);
+                    ifi.Value("IF_OptimumRate_Input", ori);
+                    ifi.Value("IF_OptimumRate_Output", oro);
+                    ifi.Execute();
+                }
+                else
+                {
+                    li.InterfaceID = ifr[0]["IF_ID"];
+                    bool est = ifr[0]["IF_Entry_State"];
+                    int dori = ifr[0]["IF_OptimumRate_Input"].ToInt(-1);
+                    int doro = ifr[0]["IF_OptimumRate_Output"].ToInt(-1);
+
+                    Update ifu = j.Update("Interface");
+                    ifu.Set("IF_Entry_State", 1, est == false);
+                    ifu.Set("IF_OptimumRate_Input", ori, dori != ori);
+                    ifu.Set("IF_OptimumRate_Output", oro, doro != oro);
+
+                    if (!ifu.IsEmpty)
+                    {
+                        ifu.Where("IF_ID", li.InterfaceID);
+                        ifu.Execute();
+                    }
+
+                    if (interfacedb.ContainsKey(pair.Key))
+                    {
+                        string dbid = interfacedb[pair.Key]["PI_ID"];
+                        string dbif = interfacedb[pair.Key]["PI_IF"];
+
+                        bool found = false;
+
+                        if (dbif != li.InterfaceID)
+                        {
+                            foreach (PEInterfaceToDatabase uix in interfaceupdate)
+                            {
+                                if (uix.Id == dbid)
+                                {
+                                    uix.InterfaceID = dbif;
+                                    uix.UpdateInterfaceID = true;
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (!found)
+                        {
+                            // langsung update aja
+                            j.Execute("update PEInterface set PI_IF = {0} where PI_ID = {1}", li.InterfaceID, dbid);
+                        }
+                    }
+                }
+            }
+            
             Summary("INTERFACE_COUNT", sinf);
             Summary("INTERFACE_COUNT_UP", sinfup);
             Summary("INTERFACE_COUNT_HU", sinfhu);
@@ -4272,7 +4510,7 @@ Last input 00:00:00, output 00:00:00
             Summary("SUBINTERFACE_COUNT_FA_UP", ssubinffaup);
             Summary("SUBINTERFACE_COUNT_FA_UP_UP", ssubinffaupup);
 
-            Dictionary<string, Row> macdb = QueryDictionary("select * from PEMac where PA_NO = {0}", delegate (Row row)
+            Dictionary<string, Row> macdb = j.QueryDictionary("select * from PEMac where PA_NO = {0}", delegate (Row row)
             {
                 return row["PA_PN"].ToString() + "_" + row["PA_IP"].ToString();
             }, nodeID);
@@ -4284,7 +4522,7 @@ Last input 00:00:00, output 00:00:00
                 PEMacToDatabase li = pair.Value;
 
                 string name = li.InterfaceID;
-                li.InterfaceID = interfacelive[name].ID;
+                li.InterfaceID = interfacelive[name].Id;
 
                 string routename = null;
 
@@ -4301,7 +4539,7 @@ Last input 00:00:00, output 00:00:00
                 {
                     Event("MAC ADD: " + routename + " " + li.IPAddress + " " + li.MacAddress);
 
-                    li.ID = Database.ID();
+                    li.Id = Database.ID();
                     macinsert.Add(li);
                 }
                 else
@@ -4310,8 +4548,8 @@ Last input 00:00:00, output 00:00:00
 
                     PEMacToDatabase u = new PEMacToDatabase();
 
-                    u.ID = db["PA_ID"].ToString();
-                    li.ID = u.ID;
+                    u.Id = db["PA_ID"].ToString();
+                    li.Id = u.Id;
 
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
@@ -4341,18 +4579,16 @@ Last input 00:00:00, output 00:00:00
             #endregion
 
             #region Execute
-
-            // SERVICE REFERENCE
-            ServiceDiscovery(interfaceServiceReference);
-
+            
             // ADD
             batch.Begin();
             List<Tuple<string, string>> interfaceTopologyMIUpdate = new List<Tuple<string, string>>();
             foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfaceinsert)
             {
                 PEInterfaceToDatabase s = pair.Value;
-                Insert insert = Insert("PEInterface");
-                insert.Value("PI_ID", s.ID);
+                Insert insert = j.Insert("PEInterface");
+                insert.Value("PI_ID", s.Id);
+                insert.Value("PI_IF", s.InterfaceID);
                 insert.Value("PI_NO", nodeID);
                 insert.Value("PI_Name", s.Name);
                 insert.Value("PI_Status", s.Status);
@@ -4368,7 +4604,7 @@ Last input 00:00:00, output 00:00:00
                 insert.Value("PI_PQ_Output", s.OutputQOSID);
                 insert.Value("PI_Rate_Input", s.RateInput.Nullable(-1));
                 insert.Value("PI_Rate_Output", s.RateOutput.Nullable(-1));
-                insert.Value("PI_SE", s.ServiceID);
+                insert.Value("PI_SI", s.ServiceImmediateID);
                 insert.Value("PI_PI", s.ParentID);
                 insert.Value("PI_TO_MI", s.TopologyMEInterfaceID);
                 insert.Value("PI_TO_NI", s.TopologyNBInterfaceID);
@@ -4380,33 +4616,34 @@ Last input 00:00:00, output 00:00:00
                 insert.Value("PI_Summary_CIRTotalInput", s.CirTotalInput.Nullable(-1));
                 insert.Value("PI_Summary_CIRTotalOutput", s.CirTotalOutput.Nullable(-1));
                 insert.Value("PI_Summary_SubInterfaceCount", s.SubInterfaceCount.Nullable(-1));
-                batch.Execute(insert);
+                batch.Add(insert);
 
-                interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
-                if (s.IP != null) ipinsert.Add(s.ID, s.IP);
+                interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.Id));
+                if (s.IP != null) ipinsert.Add(s.Id, s.IP);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.Interface, false);
 
             // UPDATE
             batch.Begin();
             foreach (PEInterfaceToDatabase s in interfaceupdate)
             {
-                Update update = Update("PEInterface");
+                Update update = j.Update("PEInterface");
                 update.Set("PI_PI", s.ParentID, s.UpdateParentID);
                 if (s.UpdateTopologyMEInterfaceID)
                 {
                     update.Set("PI_TO_MI", s.TopologyMEInterfaceID);
-                    interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
+                    interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.Id));
                 }
                 else if (s.UpdateNeighborCheckMITOPI)
                 {
-                    interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
+                    interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.Id));
                 }
+                update.Set("PI_IF", s.InterfaceID, s.UpdateInterfaceID);
                 update.Set("PI_TO_NI", s.TopologyNBInterfaceID, s.UpdateTopologyNBInterfaceID);
                 update.Set("PI_Description", s.Description, s.UpdateDescription);
-                update.Set("PI_SE", s.ServiceID, updatingNecrow || s.UpdateDescription);
+                update.Set("PI_SI", s.ServiceImmediateID, s.UpdateServiceImmediateID);
                 update.Set("PI_Status", s.Status, s.UpdateStatus);
                 update.Set("PI_Protocol", s.Protocol, s.UpdateProtocol);
                 update.Set("PI_Enable", s.Enable, s.UpdateEnable);
@@ -4427,28 +4664,28 @@ Last input 00:00:00, output 00:00:00
                 update.Set("PI_Summary_CIRTotalInput", s.CirTotalInput.Nullable(-1), s.UpdateCirTotalInput);
                 update.Set("PI_Summary_CIRTotalOutput", s.CirTotalOutput.Nullable(-1), s.UpdateCirTotalOutput);
                 update.Set("PI_Summary_SubInterfaceCount", s.SubInterfaceCount.Nullable(-1), s.UpdateSubInterfaceCount);
-                update.Where("PI_ID", s.ID);
-                batch.Execute(update);
+                update.Where("PI_ID", s.Id);
+                batch.Add(update);
 
                 if (s.IP != null)
-                    ipinsert.Add(s.ID, s.IP);
+                    ipinsert.Add(s.Id, s.IP);
                 if (s.DeleteIP != null)
-                    ipdelete.Add(s.ID, s.DeleteIPID);
+                    ipdelete.Add(s.Id, s.DeleteIPID);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.Interface, false);
 
             batch.Begin();
             foreach (Tuple<string, string> tuple in interfaceTopologyMIUpdate)
             {
                 if (tuple.Item1 != null)
-                    batch.Execute("update MEInterface set MI_TO_PI = {0} where MI_ID = {1}", tuple.Item2, tuple.Item1);
+                    batch.Add("update MEInterface set MI_TO_PI = {0} where MI_ID = {1}", tuple.Item2, tuple.Item1);
                 else
-                    batch.Execute("update MEInterface set MI_TO_PI = NULL where MI_TO_PI = {0}", tuple.Item2);
+                    batch.Add("update MEInterface set MI_TO_PI = NULL where MI_TO_PI = {0}", tuple.Item2);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
 
             // IP ADD
             batch.Begin();
@@ -4457,18 +4694,18 @@ Last input 00:00:00, output 00:00:00
                 List<string> ips = pair.Value;
                 foreach (string ip in ips)
                 {
-                    Insert insert = Insert("PEInterfaceIP");
+                    Insert insert = j.Insert("PEInterfaceIP");
                     insert.Value("PP_ID", Database.ID());
                     insert.Value("PP_PI", pair.Key);
                     string[] ipx = ip.Split(StringSplitTypes.Underscore);
                     insert.Value("PP_IPv6", ipx[0] == "0" ? false : true);
                     insert.Value("PP_Order", int.Parse(ipx[1]));
                     insert.Value("PP_IP", ipx[2]);
-                    batch.Execute(insert);
+                    batch.Add(insert);
                 }
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.InterfaceIP, false);
 
             // IP DELETE
@@ -4477,11 +4714,11 @@ Last input 00:00:00, output 00:00:00
             {
                 foreach (string id in pair.Value)
                 {
-                    batch.Execute("delete from PEInterfaceIP where PP_ID = {0}", id);
+                    batch.Add("delete from PEInterfaceIP where PP_ID = {0}", id);
                 }
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.InterfaceIP, false);
 
             // DELETE
@@ -4492,17 +4729,22 @@ Last input 00:00:00, output 00:00:00
                 if (!interfacelive.ContainsKey(pair.Key))
                 {
                     Event("Interface DELETE: " + pair.Key);
+                    string ifid = pair.Value["PI_IF"];
                     string id = pair.Value["PI_ID"].ToString();
 
-                    batch.Execute("delete from PEMac where PA_PI = {0}", id);
-                    batch.Execute("update MEInterface set MI_TO_PI = NULL where MI_TO_PI = {0}", id);
-                    batch.Execute("update PERoute set PR_PI = NULL where PR_PI = {0}", id);
-                    batch.Execute("update PEInterface set PI_PI = NULL where PI_PI = {0}", id);
+                    batch.Add("delete from PEMac where PA_PI = {0}", id);
+                    batch.Add("update MEInterface set MI_TO_PI = NULL where MI_TO_PI = {0}", id);
+                    batch.Add("update PERoute set PR_PI = NULL where PR_PI = {0}", id);
+                    batch.Add("update PEInterface set PI_PI = NULL where PI_PI = {0}", id);
+
+                    if (ifid != null)
+                        batch.Add("update Interface set IF_Entry_State = 0, IF_Entry_LastToggle = {0} where IF_ID = {1}", DateTime.UtcNow, ifid);
+
                     interfacedelete.Add(id);
                 }
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.InterfaceReference, false);
 
             // redone vPEPhysicalInterfaces
@@ -4510,110 +4752,113 @@ Last input 00:00:00, output 00:00:00
             foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
             {
                 PEInterfaceToDatabase li = pair.Value;
-                vPEPhysicalInterfaces.Add(new Tuple<string, string, string, string, string, string>(li.Name, li.Description, li.ID, li.InterfaceType, li.ParentID, li.TopologyMEInterfaceID));
+                vPEPhysicalInterfaces.Add(new Tuple<string, string, string, string, string, string>(li.Name, li.Description, li.Id, li.InterfaceType, li.ParentID, li.TopologyMEInterfaceID));
             }
             NecrowVirtualization.PEPhysicalInterfacesSort(vPEPhysicalInterfaces);
 
             batch.Begin();
             foreach (string id in interfacedelete)
             {
-                batch.Execute("delete from PEInterfaceIP where PP_PI = {0}", id);
+                batch.Add("delete from PEInterfaceIP where PP_PI = {0}", id);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.InterfaceIP, false);
 
             batch.Begin();
             foreach (string id in interfacedelete)
             {
-                batch.Execute("update POP set OO_PI = NULL where OO_PI = {0}", id);
-                batch.Execute("update PERouteUse set PU_PI = NULL, PU_PI_Gone = (select PI_Name from PEInterface where PI_ID = {0}) where PU_PI = {0}", id);
+                batch.Add("update POP set OO_PI = NULL where OO_PI = {0}", id);
+                batch.Add("update PERouteUse set PU_PI = NULL, PU_PI_Gone = (select PI_Name from PEInterface where PI_ID = {0}) where PU_PI = {0}", id);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.InterfaceReference, false);
 
             batch.Begin();
             foreach (string id in interfacedelete)
             {
-                batch.Execute("delete from PEInterface where PI_ID = {0}", id);
+                batch.Add("delete from PEInterface where PI_ID = {0}", id);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.Interface, false);
 
-            // RESERVES
-            batch.Begin();
-            foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
-            {
-                foreach (KeyValuePair<string, Row> pair2 in reserves)
-                {
-                    string key2 = pair2.Key;
-                    if (key2.StartsWith(pair.Value.Name + "=") || key2.EndsWith("=" + pair.Value.ServiceSID))
-                    {
-                        batch.Execute("delete from Reserve where RE_ID = {0}", pair2.Value["RE_ID"].ToString());
-                    }
-                }
-            }
-            result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " reserved entr" + (result.AffectedRows > 1 ? "ies have" : "y has") + " been found");
+            //// RESERVES
+            //batch.Begin();
+            //foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
+            //{
+            //    foreach (KeyValuePair<string, Row> pair2 in reserves)
+            //    {
+            //        string key2 = pair2.Key;
+            //        if (key2.StartsWith(pair.Value.Name + "=") || key2.EndsWith("=" + pair.Value.ServiceVID))
+            //        {
+            //            batch.Add("delete from Reserve where RE_ID = {0}", pair2.Value["RE_ID"].ToString());
+            //        }
+            //    }
+            //}
+            //result = batch.Commit();
+            //if (!result) return DatabaseFailure(probe);
+            //if (result.AffectedRows > 0) Event(result.AffectedRows + " reserved entr" + (result.AffectedRows > 1 ? "ies have" : "y has") + " been found");
 
             // POP
-            batch.Begin();
-            foreach (KeyValuePair<string, Row> pair in popInterfaces)
+            if (popInterfaces != null)
             {
-                Row row = pair.Value;
-                if (row["OO_PI"].IsNull)
+                batch.Begin();
+                foreach (KeyValuePair<string, Row> pair in popInterfaces)
                 {
-                    if (interfacelive.ContainsKey(pair.Key))
+                    Row row = pair.Value;
+                    if (row["OO_PI"].IsNull)
                     {
-                        batch.Execute("update POP set OO_PI = {0} where OO_ID = {1}", interfacelive[pair.Key].ID, row["OO_ID"].ToString());
+                        if (interfacelive.ContainsKey(pair.Key))
+                        {
+                            batch.Add("update POP set OO_PI = {0} where OO_ID = {1}", interfacelive[pair.Key].Id, row["OO_ID"].ToString());
+                        }
+                    }
+                    else
+                    {
+                        if (!interfacelive.ContainsKey(pair.Key))
+                        {
+                            batch.Add("update POP set OO_PI = NULL where OO_ID = {0}", row["OO_ID"].ToString());
+                        }
                     }
                 }
-                else
-                {
-                    if (!interfacelive.ContainsKey(pair.Key))
-                    {
-                        batch.Execute("update POP set OO_PI = NULL where OO_ID = {0}", row["OO_ID"].ToString());
-                    }
-                }
+                result = batch.Commit();
+                if (!result) return DatabaseFailure(probe);
+                Event(result, EventActions.Update, EventElements.POPInterfaceReference, false);
             }
-            result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
-            Event(result, EventActions.Update, EventElements.POPInterfaceReference, false);
 
             // MAC
             // ADD
             batch.Begin();
             foreach (PEMacToDatabase s in macinsert)
             {
-                Insert insert = Insert("PEMac");
-                insert.Value("PA_ID", s.ID);
+                Insert insert = j.Insert("PEMac");
+                insert.Value("PA_ID", s.Id);
                 insert.Value("PA_NO", nodeID);
                 insert.Value("PA_PI", s.InterfaceID);
                 insert.Value("PA_PN", s.RouteNameID);
                 insert.Value("PA_IP", s.IPAddress);
                 insert.Value("PA_MAC", s.MacAddress);
                 insert.Value("PA_Age", s.Age);
-                batch.Execute(insert);
+                batch.Add(insert);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.Mac, false);
 
             // UPDATE
             batch.Begin();
             foreach (PEMacToDatabase s in macupdate)
             {
-                Update update = Update("PEMac");
+                Update update = j.Update("PEMac");
                 update.Set("PA_MAC", s.MacAddress, s.UpdateMacAddress);
                 update.Set("PA_Age", s.Age, s.UpdateAge);
-                update.Where("PA_ID", s.ID);
-                batch.Execute(update);
+                update.Where("PA_ID", s.Id);
+                batch.Add(update);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.Mac, false);
 
             // DELETE
@@ -4637,11 +4882,11 @@ Last input 00:00:00, output 00:00:00
                     Event("MAC DELETE: " + routename + " " + pair.Value["PA_IP"].ToString());
                     string id = pair.Value["PA_ID"].ToString();
 
-                    batch.Execute("delete from PEMac where PA_ID = {0}", id);
+                    batch.Add("delete from PEMac where PA_ID = {0}", id);
                 }
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.Mac, false);
 
             #endregion
@@ -4651,7 +4896,7 @@ Last input 00:00:00, output 00:00:00
             #region ROUTING
 
             Dictionary<string, PERouteUseToDatabase> routeuselive = new Dictionary<string, PERouteUseToDatabase>();
-            Dictionary<string, Row> routeusedb = QueryDictionary("select PERouteUse.* from PERouteUse, PERouteName where PU_PN = PN_ID and PN_NO = {0}", delegate (Row row)
+            Dictionary<string, Row> routeusedb = j.QueryDictionary("select PERouteUse.* from PERouteUse, PERouteName where PU_PN = PN_ID and PN_NO = {0}", delegate (Row row)
             {
                 StringBuilder keysb = new StringBuilder();
 
@@ -4716,9 +4961,9 @@ Last input 00:00:00, output 00:00:00
             List<PERouteUseToDatabase> routeuseupdate = new List<PERouteUseToDatabase>();
 
             Dictionary<string, Tuple<PEPrefixListToDatabase, List<PEPrefixEntryToDatabase>>> prefixlistlive = new Dictionary<string, Tuple<PEPrefixListToDatabase, List<PEPrefixEntryToDatabase>>>();
-            Dictionary<string, Row> prefixlistdb = QueryDictionary("select * from PEPrefixList where PX_NO = {0}", "PX_Name", nodeID);
+            Dictionary<string, Row> prefixlistdb = j.QueryDictionary("select * from PEPrefixList where PX_NO = {0}", "PX_Name", nodeID);
             if (prefixlistdb == null) return DatabaseFailure(probe);
-            Dictionary<string, Row> prefixentrydb = QueryDictionary("select PX_Name, PEPrefixEntry.* from PEPrefixEntry, PEPrefixList where PY_PX = PX_ID and PX_NO = {0}", delegate (Row row)
+            Dictionary<string, Row> prefixentrydb = j.QueryDictionary("select PX_Name, PEPrefixEntry.* from PEPrefixEntry, PEPrefixList where PY_PX = PX_ID and PX_NO = {0}", delegate (Row row)
             {
                 return row["PX_Name"].ToString() + "_" + row["PY_Network"].ToString() + "_" + row["PY_Sequence"].ToIntShort(-1) + "_" + row["PY_Access"].ToString() + "_" + row["PY_Ge"].ToIntShort(-1) + "_" + row["PY_Le"].ToIntShort(-1);
             }, nodeID);
@@ -4787,7 +5032,7 @@ Last input 00:00:00, output 00:00:00
                                                 ifname = nif.Name;
                                                 if (interfacelive.ContainsKey(ifname))
                                                 {
-                                                    interfaceID = interfacelive[ifname].ID;
+                                                    interfaceID = interfacelive[ifname].Id;
                                                 }
                                             }
 
@@ -4803,7 +5048,7 @@ Last input 00:00:00, output 00:00:00
                                             ifname = nif.Name;
                                             if (interfacelive.ContainsKey(ifname))
                                             {
-                                                interfaceID = interfacelive[ifname].ID;
+                                                interfaceID = interfacelive[ifname].Id;
                                             }
                                         }
                                         neighbor = parts[2];
@@ -5202,7 +5447,7 @@ Last input 00:00:00, output 00:00:00
                                                 string interfaceID = null;
                                                 if (interfacelive.ContainsKey(currentInterface))
                                                 {
-                                                    interfaceID = interfacelive[currentInterface].ID;
+                                                    interfaceID = interfacelive[currentInterface].Id;
                                                     if (interfaceID != null)
                                                     {
                                                         i.InterfaceID = interfaceID;
@@ -5279,7 +5524,7 @@ Last input 00:00:00, output 00:00:00
                                         string interfaceID = null;
                                         if (interfacelive.ContainsKey(currentInterface))
                                         {
-                                            interfaceID = interfacelive[currentInterface].ID;
+                                            interfaceID = interfacelive[currentInterface].Id;
                                             if (interfaceID != null)
                                             {
                                                 i.InterfaceID = interfaceID;
@@ -5340,7 +5585,7 @@ Last input 00:00:00, output 00:00:00
                                         string interfaceID = null;
                                         if (interfacelive.ContainsKey(currentInterface))
                                         {
-                                            interfaceID = interfacelive[currentInterface].ID;
+                                            interfaceID = interfacelive[currentInterface].Id;
                                             if (interfaceID != null)
                                             {
                                                 i.InterfaceID = interfaceID;
@@ -5409,7 +5654,7 @@ Last input 00:00:00, output 00:00:00
                                         if (nif != null)
                                         {
                                             ifname = nif.Name;
-                                            if (interfacelive.ContainsKey(ifname)) interfaceID = interfacelive[ifname].ID;
+                                            if (interfacelive.ContainsKey(ifname)) interfaceID = interfacelive[ifname].Id;
                                             if (fortharg != null) neighbor = fortharg;
                                             else neighbor = "INTERFACE";
                                         }
@@ -5657,7 +5902,7 @@ Last input 00:00:00, output 00:00:00
                                         string interfaceID = null;
                                         if (interfacelive.ContainsKey(dif))
                                         {
-                                            interfaceID = interfacelive[dif].ID;
+                                            interfaceID = interfacelive[dif].Id;
                                             if (interfaceID != null) i.InterfaceID = interfaceID;
                                         }
                                         else if (dif != null) i.InterfaceGone = dif;
@@ -5797,7 +6042,7 @@ Last input 00:00:00, output 00:00:00
                                                                 if (neighborIP.IsInSameSubnet(net.FirstUsable, net.Netmask))
                                                                 {
                                                                     // satu subnet, bisa jadi neighbor tembakan
-                                                                    i.InterfaceID = li.ID;
+                                                                    i.InterfaceID = li.Id;
                                                                     break;
                                                                 }
                                                             }
@@ -6245,7 +6490,7 @@ Last input 00:00:00, output 00:00:00
                                     if (nif != null)
                                     {
                                         ifname = nif.Name;
-                                        if (interfacelive.ContainsKey(ifname)) interfaceID = interfacelive[ifname].ID;
+                                        if (interfacelive.ContainsKey(ifname)) interfaceID = interfacelive[ifname].Id;
                                         if (fortharg != null) neighbor = fortharg;
                                         else neighbor = "INTERFACE";
                                     }
@@ -6423,7 +6668,7 @@ Last input 00:00:00, output 00:00:00
                                             string interfaceName = nif.Name;
                                             if (interfacelive.ContainsKey(interfaceName))
                                             {
-                                                string interfaceID = interfacelive[interfaceName].ID;
+                                                string interfaceID = interfacelive[interfaceName].Id;
                                                 if (interfaceID != null) i.InterfaceID = interfaceID;
                                             }
                                             else if (interfaceName != null) i.InterfaceGone = interfaceName;
@@ -6466,7 +6711,7 @@ Last input 00:00:00, output 00:00:00
                 {
                     Event("Prefix-List ADD: " + pair.Key);
 
-                    li.ID = Database.ID();
+                    li.Id = Database.ID();
                     prefixlistinsert.Add(li);
                 }
                 else
@@ -6474,8 +6719,8 @@ Last input 00:00:00, output 00:00:00
                     Row db = prefixlistdb[pair.Key];
 
                     PEPrefixListToDatabase u = new PEPrefixListToDatabase();
-                    u.ID = db["PX_ID"].ToString();
-                    li.ID = u.ID;
+                    u.Id = db["PX_ID"].ToString();
+                    li.Id = u.Id;
 
                     // theres no update for PrefixList atm
                 }
@@ -6503,8 +6748,8 @@ Last input 00:00:00, output 00:00:00
 
                         Event("+ " + en.Network + (en.Access != null ? " " + (en.Access == "P" ? "permit" : "deny") : ""));
 
-                        en.ID = Database.ID();
-                        en.PrefixListID = li.ID;
+                        en.Id = Database.ID();
+                        en.PrefixListID = li.Id;
                         prefixentryinsert.Add(en);
                     }
                     else
@@ -6512,8 +6757,8 @@ Last input 00:00:00, output 00:00:00
                         Row db = prefixentrydb[key];
 
                         PEPrefixEntryToDatabase u = new PEPrefixEntryToDatabase();
-                        u.ID = db["PY_ID"].ToString();
-                        en.ID = u.ID;
+                        u.Id = db["PY_ID"].ToString();
+                        en.Id = u.Id;
 
                         bool update = false;
                         StringBuilder updateinfo = new StringBuilder();
@@ -6610,7 +6855,7 @@ Last input 00:00:00, output 00:00:00
                     {
                         foreach (KeyValuePair<string, PEInterfaceToDatabase> pair2 in interfacelive)
                         {
-                            if (pair2.Value.ID == li.InterfaceID)
+                            if (pair2.Value.Id == li.InterfaceID)
                             {
                                 referencedinterface = pair2.Key;
                                 break;
@@ -6630,7 +6875,7 @@ Last input 00:00:00, output 00:00:00
                         {
                             if (prefixlistlive.ContainsKey(li.PrefixListInID))
                             {
-                                li.PrefixListInID = prefixlistlive[li.PrefixListInID].Item1.ID;
+                                li.PrefixListInID = prefixlistlive[li.PrefixListInID].Item1.Id;
                             }
                             else
                             {
@@ -6642,7 +6887,7 @@ Last input 00:00:00, output 00:00:00
                         {
                             if (prefixlistlive.ContainsKey(li.PrefixListOutID))
                             {
-                                li.PrefixListOutID = prefixlistlive[li.PrefixListOutID].Item1.ID;
+                                li.PrefixListOutID = prefixlistlive[li.PrefixListOutID].Item1.Id;
                             }
                             else
                             {
@@ -6657,7 +6902,7 @@ Last input 00:00:00, output 00:00:00
 
                     Event("Routing ADD: " + info);
 
-                    li.ID = Database.ID();
+                    li.Id = Database.ID();
                     routeuseinsert.Add(li);
                 }
                 else
@@ -6665,8 +6910,8 @@ Last input 00:00:00, output 00:00:00
                     Row db = routeusedb[pair.Key];
 
                     PERouteUseToDatabase u = new PERouteUseToDatabase();
-                    u.ID = db["PU_ID"].ToString();
-                    li.ID = u.ID;
+                    u.Id = db["PU_ID"].ToString();
+                    li.Id = u.Id;
 
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
@@ -6687,7 +6932,7 @@ Last input 00:00:00, output 00:00:00
                         {
                             if (prefixlistlive.ContainsKey(li.PrefixListInID))
                             {
-                                li.PrefixListInID = prefixlistlive[li.PrefixListInID].Item1.ID;
+                                li.PrefixListInID = prefixlistlive[li.PrefixListInID].Item1.Id;
                             }
                             else
                             {
@@ -6699,7 +6944,7 @@ Last input 00:00:00, output 00:00:00
                         {
                             if (prefixlistlive.ContainsKey(li.PrefixListOutID))
                             {
-                                li.PrefixListOutID = prefixlistlive[li.PrefixListOutID].Item1.ID;
+                                li.PrefixListOutID = prefixlistlive[li.PrefixListOutID].Item1.Id;
                             }
                             else
                             {
@@ -6816,15 +7061,15 @@ Last input 00:00:00, output 00:00:00
             batch.Begin();
             foreach (PEPrefixListToDatabase s in prefixlistinsert)
             {
-                Insert insert = Insert("PEPrefixList");
-                insert.Value("PX_ID", s.ID);
+                Insert insert = j.Insert("PEPrefixList");
+                insert.Value("PX_ID", s.Id);
                 insert.Value("PX_NO", nodeID);
                 insert.Value("PX_Name", s.Name);
 
-                batch.Execute(insert);
+                batch.Add(insert);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.PrefixList, false);
 
             // PREFIX-ENTRY
@@ -6832,8 +7077,8 @@ Last input 00:00:00, output 00:00:00
             batch.Begin();
             foreach (PEPrefixEntryToDatabase s in prefixentryinsert)
             {
-                Insert insert = Insert("PEPrefixEntry");
-                insert.Value("PY_ID", s.ID);
+                Insert insert = j.Insert("PEPrefixEntry");
+                insert.Value("PY_ID", s.Id);
                 insert.Value("PY_PX", s.PrefixListID);
                 insert.Value("PY_Network", s.Network);
                 insert.Value("PY_Sequence", s.Sequence.Nullable(-1));
@@ -6841,36 +7086,36 @@ Last input 00:00:00, output 00:00:00
                 insert.Value("PY_Ge", s.GE.Nullable(-1));
                 insert.Value("PY_Le", s.LE.Nullable(-1));
 
-                batch.Execute(insert);
+                batch.Add(insert);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.PrefixEntry, false);
 
             // UPDATE
             batch.Begin();
             foreach (PEPrefixEntryToDatabase s in prefixentryupdate)
             {
-                Update update = Update("PEPrefixEntry");
+                Update update = j.Update("PEPrefixEntry");
                 update.Set("PY_Sequence", s.Sequence, s.UpdateSequence);
                 update.Set("PY_Access", s.Access, s.UpdateAccess);
                 update.Set("PY_Ge", s.GE.Nullable(-1), s.UpdateGE);
                 update.Set("PY_Le", s.LE.Nullable(-1), s.UpdateLE);
-                update.Where("PY_ID", s.ID);
-                batch.Execute(update);
+                update.Where("PY_ID", s.Id);
+                batch.Add(update);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.PrefixEntry, false);
 
             // DELETE
             batch.Begin();
             foreach (string s in prefixentrydelete)
             {
-                batch.Execute("delete from PEPrefixEntry where PY_ID = {0}", s);
+                batch.Add("delete from PEPrefixEntry where PY_ID = {0}", s);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.PrefixEntry, false);
 
             // ROUTEUSE
@@ -6878,8 +7123,8 @@ Last input 00:00:00, output 00:00:00
             batch.Begin();
             foreach (PERouteUseToDatabase s in routeuseinsert)
             {
-                Insert insert = Insert("PERouteUse");
-                insert.Value("PU_ID", s.ID);
+                Insert insert = j.Insert("PERouteUse");
+                insert.Value("PU_ID", s.Id);
                 insert.Value("PU_PN", s.RouteNameID);
                 insert.Value("PU_Type", s.Type);
 
@@ -6923,17 +7168,17 @@ Last input 00:00:00, output 00:00:00
 
                 }
 
-                batch.Execute(insert);
+                batch.Add(insert);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.Routing, false);
 
             // UPDATE
             batch.Begin();
             foreach (PERouteUseToDatabase s in routeuseupdate)
             {
-                Update update = Update("PERouteUse");
+                Update update = j.Update("PERouteUse");
                 update.Set("PU_PI", s.InterfaceID, s.UpdateInterface);
                 update.Set("PU_PI_Gone", s.InterfaceGone, s.UpdateInterface);
                 update.Set("PU_B_RemoteAS", s.RemoteAS.Nullable(-1), s.UpdateRemoteAS);
@@ -6948,11 +7193,11 @@ Last input 00:00:00, output 00:00:00
                 update.Set("PU_B_MaximumPrefix_WarningOnly", s.MaximumPrefixWarningOnly, s.UpdateMaximumPrefixWarningOnly);
                 update.Set("PU_O_MessageDigestKey", s.MessageDigestKey, s.UpdateMessageDigestKey);
                 update.Set("PU_O_InterfaceNetwork", s.InterfaceNetwork, s.UpdateInterfaceNetwork);
-                update.Where("PU_ID", s.ID);
-                batch.Execute(update);
+                update.Where("PU_ID", s.Id);
+                batch.Add(update);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.Routing, false);
 
             // DELETE
@@ -6979,7 +7224,7 @@ Last input 00:00:00, output 00:00:00
                     {
                         foreach (KeyValuePair<string, PEInterfaceToDatabase> pair2 in interfacelive)
                         {
-                            if (pair2.Value.ID == interfaceID)
+                            if (pair2.Value.Id == interfaceID)
                             {
                                 referencedinterface = pair2.Key;
                                 break;
@@ -6998,11 +7243,11 @@ Last input 00:00:00, output 00:00:00
                     else if (type == "E") info += "eigrp" + (referencedinterface != null ? " (" + referencedinterface + ")" : "");
                     
                     Event("Routing DELETE: " + info);
-                    batch.Execute("delete from PERouteUse where PU_ID = {0}", pair.Value["PU_ID"].ToString());
+                    batch.Add("delete from PERouteUse where PU_ID = {0}", pair.Value["PU_ID"].ToString());
                 }
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.Routing, false);
 
             #endregion
@@ -7016,7 +7261,7 @@ Last input 00:00:00, output 00:00:00
             List<string> routeipinsertnode = new List<string>();
             List<DerivedRouteNetworkToDatabase> routeipinsert = new List<DerivedRouteNetworkToDatabase>();
             List<DerivedRouteNetworkToDatabase> routeipupdate = new List<DerivedRouteNetworkToDatabase>();
-            Dictionary<string, Row> routeipdb = QueryDictionary("select DRNO_ID, DRN_ID, DRN_PR, DRN_IP, DRN_Type, DRN_Private from DerivedRouteNetworkNode, DerivedRouteNetwork where DRNO_NO = {0} and DRNO_DRN = DRN_ID", delegate(Row row)
+            Dictionary<string, Row> routeipdb = j.QueryDictionary("select DRNO_ID, DRN_ID, DRN_PR, DRN_IP, DRN_Type, DRN_Private from DerivedRouteNetworkNode, DerivedRouteNetwork where DRNO_NO = {0} and DRNO_DRN = DRN_ID", delegate(Row row)
             {
                 return row["DRN_PR"].ToString() + "_" + row["DRN_IP"].ToString();
             }, nodeID);
@@ -7069,9 +7314,9 @@ Last input 00:00:00, output 00:00:00
                     if (result.Count == 0)
                     {
                         // theres no
-                        li.ID = Database.ID();
+                        li.Id = Database.ID();
                         routeipinsert.Add(li);
-                        routeipinsertnode.Add(li.ID);
+                        routeipinsertnode.Add(li.Id);
                     }
                     else
                     {
@@ -7087,8 +7332,8 @@ Last input 00:00:00, output 00:00:00
                     Row db = routeipdb[pair.Key];
 
                     DerivedRouteNetworkToDatabase u = new DerivedRouteNetworkToDatabase();
-                    u.ID = db["DRN_ID"].ToString();
-                    li.ID = u.ID;
+                    u.Id = db["DRN_ID"].ToString();
+                    li.Id = u.Id;
 
                     bool update = false;
 
@@ -7120,44 +7365,44 @@ Last input 00:00:00, output 00:00:00
             batch.Begin();
             foreach (DerivedRouteNetworkToDatabase s in routeipinsert)
             {
-                Insert insert = Insert("DerivedRouteNetwork");
-                insert.Value("DRN_ID", s.ID);
+                Insert insert = j.Insert("DerivedRouteNetwork");
+                insert.Value("DRN_ID", s.Id);
                 insert.Value("DRN_PR", s.RouteID);
                 insert.Value("DRN_IP", s.IP);
                 insert.Value("DRN_IPv6", s.IPv6);
                 insert.Value("DRN_Type", s.Type);
                 insert.Value("DRN_Private", s.PrivateAddress);
-                batch.Execute(insert);
+                batch.Add(insert);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
 
             // ADD NODE
             batch.Begin();
             foreach (string s in routeipinsertnode)
             {
-                Insert insert = Insert("DerivedRouteNetworkNode");
+                Insert insert = j.Insert("DerivedRouteNetworkNode");
                 insert.Value("DRNO_ID", Database.ID());
                 insert.Value("DRNO_NO", nodeID);
                 insert.Value("DRNO_DRN", s);
 
-                batch.Execute(insert);
+                batch.Add(insert);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
 
             // UPDATE
             batch.Begin();
             foreach (DerivedRouteNetworkToDatabase s in routeipupdate)
             {
-                Update update = Update("DerivedRouteNetwork");
+                Update update = j.Update("DerivedRouteNetwork");
                 update.Set("DRN_Type", s.Type, s.UpdateType);
                 update.Set("DRN_Private", s.PrivateAddress, s.UpdatePrivateAddress);
-                update.Where("DRN_ID", s.ID);
-                batch.Execute(update);
+                update.Where("DRN_ID", s.Id);
+                batch.Add(update);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
 
             // DELETE
             batch.Begin();
@@ -7177,9 +7422,9 @@ Last input 00:00:00, output 00:00:00
                         {
                             // im the only one
                             // remove node
-                            batch.Execute("delete from DerivedRouteNetworkNode where DRNO_ID = {0}", result[0]["DRNO_ID"].ToString());
+                            batch.Add("delete from DerivedRouteNetworkNode where DRNO_ID = {0}", result[0]["DRNO_ID"].ToString());
                             // remove summary
-                            batch.Execute("delete from DerivedRouteNetwork where DRN_ID = {0}", id);
+                            batch.Add("delete from DerivedRouteNetwork where DRN_ID = {0}", id);
                         }
                     }
                     else
@@ -7191,7 +7436,7 @@ Last input 00:00:00, output 00:00:00
                             if (uno == nodeID)
                             {
                                 // just remove node
-                                batch.Execute("delete from DerivedRouteNetworkNode where DRNO_ID = {0}", row["DRNO_ID"].ToString());
+                                batch.Add("delete from DerivedRouteNetworkNode where DRNO_ID = {0}", row["DRNO_ID"].ToString());
                                 break;
                             }
                         }
@@ -7199,7 +7444,7 @@ Last input 00:00:00, output 00:00:00
                 }
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
 
             #endregion
 
@@ -7215,12 +7460,12 @@ Last input 00:00:00, output 00:00:00
                 {
                     Event("Prefix-List DELETE: " + pair.Key);
                     // delete left over PEPrefixEntry
-                    batch.Execute("delete from PEPrefixEntry where PY_PX = {0}", pair.Value["PX_ID"].ToString());
-                    batch.Execute("delete from PEPrefixList where PX_ID = {0}", pair.Value["PX_ID"].ToString());
+                    batch.Add("delete from PEPrefixEntry where PY_PX = {0}", pair.Value["PX_ID"].ToString());
+                    batch.Add("delete from PEPrefixList where PX_ID = {0}", pair.Value["PX_ID"].ToString());
                 }
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.PrefixList, false);
 
             // DELETE QOS
@@ -7231,13 +7476,13 @@ Last input 00:00:00, output 00:00:00
                 {
                     Event("QOS DELETE: " + pair.Key);
                     string pqid = pair.Value["PQ_ID"].ToString();
-                    batch.Execute("update PEInterface set PI_PQ_Input = NULL where PI_PQ_Input = {0}", pqid);
-                    batch.Execute("update PEInterface set PI_PQ_Output = NULL where PI_PQ_Output = {0}", pqid);
-                    batch.Execute("delete from PEQOS where PQ_ID = {0}", pqid);                    
+                    batch.Add("update PEInterface set PI_PQ_Input = NULL where PI_PQ_Input = {0}", pqid);
+                    batch.Add("update PEInterface set PI_PQ_Output = NULL where PI_PQ_Output = {0}", pqid);
+                    batch.Add("delete from PEQOS where PQ_ID = {0}", pqid);                    
                 }
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.QOS, false);
 
             // DELETE ROUTE
@@ -7249,24 +7494,24 @@ Last input 00:00:00, output 00:00:00
                 {
                     Event("Route Name DELETE: " + pair.Key);
                     string id = pair.Value["PN_ID"].ToString();
-                    batch.Execute("update PEInterface set PI_PN = NULL where PI_PN = {0}", id);
-                    batch.Execute("delete from PERouteUse where PU_PN = {0}", id);
+                    batch.Add("update PEInterface set PI_PN = NULL where PI_PN = {0}", id);
+                    batch.Add("delete from PERouteUse where PU_PN = {0}", id);
                     routenamedelete.Add(id);
                 }
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             batch.Begin();
             foreach (string id in routenamedelete)
             {
-                batch.Execute("delete from PERouteName where PN_ID = {0}", id);
+                batch.Add("delete from PERouteName where PN_ID = {0}", id);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.VRFReference, false);
 
-            result = Query("select PR_ID from PERoute left join PERouteName on PN_PR = PR_ID where PN_ID is null");
-            if (!result.OK) return DatabaseFailure(probe);
+            result = j.Query("select PR_ID from PERoute left join PERouteName on PN_PR = PR_ID where PN_ID is null");
+            if (!result) return DatabaseFailure(probe);
 
             List<string> prids = new List<string>();
             foreach (Row row in result)
@@ -7278,18 +7523,18 @@ Last input 00:00:00, output 00:00:00
 
             if (prid != null)
             {
-                result = Execute("delete from DerivedRouteNetworkNode where DRNO_DRN in (select DRN_ID from DerivedRouteNetwork where DRN_PR in (" + prid + "))");
-                if (!result.OK) return DatabaseFailure(probe);
+                result = j.Execute("delete from DerivedRouteNetworkNode where DRNO_DRN in (select DRN_ID from DerivedRouteNetwork where DRN_PR in (" + prid + "))");
+                if (!result) return DatabaseFailure(probe);
 
-                result = Execute("delete from DerivedRouteNetwork where DRN_PR in (" + prid + ")");
-                if (!result.OK) return DatabaseFailure(probe);
+                result = j.Execute("delete from DerivedRouteNetwork where DRN_PR in (" + prid + ")");
+                if (!result) return DatabaseFailure(probe);
 
-                result = Execute("delete from PERouteTarget where PT_PR in (" + prid + ")");
-                if (!result.OK) return DatabaseFailure(probe);
+                result = j.Execute("delete from PERouteTarget where PT_PR in (" + prid + ")");
+                if (!result) return DatabaseFailure(probe);
                 Event(result, EventActions.Delete, EventElements.VRFRouteTarget, false);
 
-                result = Execute("delete from PERoute where PR_ID in (" + prid + ")");
-                if (!result.OK) return DatabaseFailure(probe);
+                result = j.Execute("delete from PERoute where PR_ID in (" + prid + ")");
+                if (!result) return DatabaseFailure(probe);
                 Event(result, EventActions.Delete, EventElements.VRF, false);
 
             }
@@ -7378,7 +7623,7 @@ Last input 00:00:00, output 00:00:00
                                         if (neighborIP.IsInSameSubnet(net.FirstUsable, net.Netmask))
                                         {
                                             // satu subnet, bisa jadi neighbor tembakan
-                                            interfaceID = li.ID;
+                                            interfaceID = li.Id;
                                             break;
                                         }
                                     }

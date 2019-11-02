@@ -9,7 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Web;
 
-namespace Center
+namespace Jovice
 {
     public static class Server
     {
@@ -42,7 +42,7 @@ namespace Center
 
         public static void Init()
         {
-            Settings.ServerInit();
+            //Settings.ServerInit();
 
 
             //TelegramBot.Init();
@@ -60,7 +60,7 @@ namespace Center
             //Service.Disconnected += NecrowConnectionDisconnected;
 
             // Callback if register necrowa being registered to the server
-            Provider.RegisterCallback("necrow", NecrowRegistered);
+            //Provider.RegisterCallback("necrow", NecrowRegistered);
 
             totalRam = (float)Math.Round((double)(computerInfo.TotalPhysicalMemory / 1024000));
 
@@ -151,9 +151,9 @@ namespace Center
                 if (connection == necrowConnection)
                 {
                     necrowConnection = null;
-                    Provider.SetActionByRegister("necrowavailability", "necrow", "offline");
+                    //Provider.SetActionByRegister("necrowavailability", "necrow", "offline");
 
-                    TelegramBot.NecrowOffline();
+                    //TelegramBot.NecrowOffline();
                 }
             }
         }
@@ -168,7 +168,7 @@ namespace Center
             {
                 necrowConnection = e.Connection;
                 NecrowSend(new ServerNecrowServiceMessage(NecrowServiceMessageType.HelloResponse));
-                TelegramBot.NecrowOnline();
+                //TelegramBot.NecrowOnline();
 
                 //Provider.SetActionByRegisterMatch("service_[ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=]+", "yayaya");
                 //Provider.SetActionByRegisterMatch("service", "service", "yayaya");
@@ -176,11 +176,11 @@ namespace Center
             }
             else if (m.Type == NecrowServiceMessageType.ProbeStatus)
             {
-                TelegramBot.NecrowProbeStatus(m);
+                //TelegramBot.NecrowProbeStatus(m);
             }
             else if (m.Type == NecrowServiceMessageType.Probe)
             {
-                TelegramBot.NecrowProbe(m);
+                //TelegramBot.NecrowProbe(m);
             }
         }
 
@@ -196,19 +196,19 @@ namespace Center
 
         private static void ClientNecrowServiceMessageHandler(MessageEventArgs e)
         {
-            ClientNecrowServiceMessage m = (ClientNecrowServiceMessage)e.Message;
+            //ClientNecrowServiceMessage m = (ClientNecrowServiceMessage)e.Message;
 
-            if (m.Type == ClientNecrowMessageTypes.IsNecrowAvailable)
-            {
-                bool av = IsNecrowConnected();
-                if (av) m.Data = "online";
-                else m.Data = "offline";
-            }
-            else if (m.Type == ClientNecrowMessageTypes.Ping)
-            { 
-            }
+            //if (m.Type == ClientNecrowMessageTypes.IsNecrowAvailable)
+            //{
+            //    bool av = IsNecrowConnected();
+            //    if (av) m.Data = "online";
+            //    else m.Data = "offline";
+            //}
+            //else if (m.Type == ClientNecrowMessageTypes.Ping)
+            //{ 
+            //}
 
-            e.Connection.Reply(m);
+            //e.Connection.Reply(m);
         }
 
         #endregion
@@ -235,7 +235,7 @@ namespace Center
     }
     
     [Serializable]
-    public class ClientNecrowServiceMessage : SessionServiceMessage
+    public class ClientNecrowServiceMessage : SessionMessage
     {
         #region Fields
 

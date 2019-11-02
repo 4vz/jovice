@@ -4,7 +4,7 @@
 
 
     $$.script("search_jovice_service", function (b, r, f, p, t) {
-                
+
         //--- match properties
         /*
         f.setButton(function () {
@@ -66,16 +66,22 @@
             });
         });
         */
-        f.setSize(100);
-        
+        f.setSize(125);
+
         //--- entry values
+        var visualID = f.column("SI_VID");
         var serviceID = f.column("SE_SID");
+        var checked = f.column("SI_SE_Check");
+
+        var detail = f.column("SE_Detail");
+
         var customerName = f.column("SC_Name");
-        var setype = f.column("SE_Type");
+        var setype = f.column("SI_Type");
+        var seproduct = f.column("SP_Product");
 
         var topologies = f.column("Topology");
         var purposes = f.column("Purpose");
-        
+
         var vrfnames = f.column("Vrf");
         var rateinputs = f.column("RateInput");
         var inputlimits = f.column("InputLimiter");
@@ -84,37 +90,245 @@
         var ips = f.column("IP");
         var vcids = f.column("VCID");
         var nodeinfos = f.column("NodeInfo");
-        var localaccesses = f.column("LocalAccess");       
+        var localaccesses = f.column("LocalAccess");
         var routeTypes = f.column("RouteType");
+
+        var orders = f.column("Orders");
 
         var ipd = f.column("IPD");
 
         var streamSeID = f.column("StreamServiceID");
-        
-        if (f.create) {                        
-            r.serviceID = $$.text(b)({ font: ["body", 15], color: "accent", top: 13, left: 20, weight: "600", noBreak: true, clickToSelect: true, cursor: "copy" });
-            r.serviceType = $$.text(b)({ font: ["body", 15], color: 25, clickToSelect: true, cursor: "copy", attach: [r.serviceID, "right", 20] });
-            r.customerName = $$.text(b)({ font: ["body", 15], color: 25, weight: "600", noBreak: true, truncate: true, attach: [r.serviceType, "right2", 20, 20] });
 
-            r.serviceInformation = $$.box(b)({ top: 40, height: 60, leftRight: 20 });
+
+
+        if (f.create) {
+            r.serviceID = $$.text(b)({ font: ["body", 15], color: "accent", top: 13, left: 20, weight: "600", noBreak: true, clickToSelect: true, cursor: "copy" });
+            r.verified = $$.icon(b, center.icon("verified"))({ attach: [r.serviceID, "right", 5], color: 45, size: [16, 16], tooltip: "This SID is verified" });
+
+            r.serviceType = $$.text(b)({ font: ["body", 15], color: 25, noBreak: true, clickToSelect: true, cursor: "copy", attach: [r.serviceID, "right", 35] });
+            r.customerName = $$.text(b)({ font: ["body", 15], color: 25, weight: "600", noBreak: true, truncate: true, attach: [r.serviceType, "right", 20] });
+            r.customerDiscovered = $$.icon(b, center.icon("lightning"))({ color: 35, size: [20, 20], attach: [r.customerName, "right", 5], tooltipSpanColor: ["accent+50"], tooltip: "The data in this service are {0|discovered} and not verified" });
+
+            r.orderInfo = "";
+            r.orderInfoExpand = "";
+            r.orderInfoDetail = "";
+            r.orderInfoDetail2 = "";
+
+            r.serviceOrderInformation = $$.box(b)({ color: 85, height: 22, attach: [r.customerName, "right", 20, -2], z: 10 });
+            r.serviceOrderInformation({
+                leave: function () {
+                    r.serviceOrderInformation.stop();
+                    r.serviceOrderInformation.height(22, {
+                        duration: 100, complete: function () {
+                            $$(100, function () {
+                                if (!r.serviceOrderInformation.isMouseOver()) {
+                                    r.serviceOrderInformationText.text(r.orderInfo);
+                                    r.serviceOrderInformation.width(r.serviceOrderInformationText.width() + 20, { duration: 100 });
+                                }
+                            });
+                        }
+                    });
+                },
+                enter: function () {
+                    r.serviceOrderInformationText.text(r.orderInfoExpand);
+                    r.serviceOrderInformationDetail.text(r.orderInfoDetail);
+
+                    r.serviceOrderInformationWidth = 0;
+                    r.serviceOrderInformationHeight = 44;
+
+                    if (r.serviceOrderInformationText.width() > r.serviceOrderInformationWidth) r.serviceOrderInformationWidth = r.serviceOrderInformationText.width();
+                    if (r.serviceOrderInformationDetail.width() > r.serviceOrderInformationWidth) r.serviceOrderInformationWidth = r.serviceOrderInformationDetail.width();
+
+                    if (r.orderInfoDetail2 != null) {
+                        r.serviceOrderInformationDetail2.width(r.serviceOrderInformationWidth);
+                        r.serviceOrderInformationDetail2.text(r.orderInfoDetail2);
+                        r.serviceOrderInformationHeight += r.serviceOrderInformationDetail2.height() + 9;
+                    }
+
+                    r.serviceOrderInformation.stop();
+                    r.serviceOrderInformation.width(r.serviceOrderInformationWidth + 20, {
+                        duration: 100, complete: function () {
+                            $$(100, function () {
+                                if (r.serviceOrderInformation.isMouseOver()) {
+                                    r.serviceOrderInformation.height(r.serviceOrderInformationHeight, { duration: 100 });
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+            r.serviceOrderInformationText = $$.text(r.serviceOrderInformation)({
+                noBreak: true, cursor: "default", left: 10, top: 4, font: 12, text: "SUSPENDED",
+                spanColor: ["accent"]
+            });
+            r.serviceOrderInformationDetail = $$.text(r.serviceOrderInformation)({
+                noBreak: true, cursor: "default", left: 10, top: 26, font: 12, text: "DETAIL1",
+                spanColor: ["accent"]
+            });
+            r.serviceOrderInformationDetail2 = $$.text(r.serviceOrderInformation)({
+                noBreak: false, cursor: "default", left: 10, top: 48, font: 12, text: "DETAIL2",
+                spanColor: ["accent"]
+            });
+
+            r.detail = $$.box(b)({ top: 40, height: 40, leftRight: 20 });
+            r.serviceDetail = $$.text(r.detail)({ color: 25, font: 12, italic: true, noBreak: true, truncate: true });
+
+            r.serviceInformation = $$.box(b)({ bottom: 0, height: 60, leftRight: 20, });
 
             r.topologyReferences = [];
+
         }
 
         //-- MAIN
-        r.serviceID.text(serviceID);
-        r.customerName.text(customerName != null ? customerName : "");                
+
+        if (serviceID != null) {
+            r.serviceID.text(serviceID);
+            r.verified.show();
+        }
+        else {
+            r.serviceID.text(visualID);
+            r.verified.hide();
+        }
+
+        if (detail != null) {
+            r.serviceDetail.text(detail);
+        }
+        else {
+            r.serviceDetail.text("");
+        }
+
+        if (customerName != null) {
+
+            if (customerName.startsWith("!")) {
+                customerName = customerName.substring(1);
+                r.customerDiscovered.show();
+            }
+            else {
+                r.customerDiscovered.hide();
+            }
+
+            r.customerName.text(customerName);
+        }
+        else {
+            r.customerName.text("");
+            r.customerDiscovered.hide();
+        }
+
+
+
+
+
+        
+        r.orderInfo = null;
+        r.orderInfoExpand = null;
+        r.orderInfoDetail = null;
+        r.orderInfoDetail2 = null;
+
+        //0 ORDER, 1 DATE, 2 ACTION, 3 STATUS, 4 AM
+        //ACTION=  A add, D delete, U update, S suspend, R resume, N none
+        //STATUS=  F failed, I inprogress, C complete, L cancelled, A abandoned, S submitted, P pending, G pending cancel, N none
+
+        if (orders.length > 0) {
+
+            var reind = -1;
+            $.each(orders, function (oi, ov) {
+                if (ov[3].isIn(["C", "I", "S", "P"])) {
+                    reind = oi;
+                    return false;
+                }
+            });
+
+            if (reind > -1) {
+                if (orders[reind][2] == "D") {
+
+                    var d = $$.date("{DD}/{MM}/{YYYY}", $$.date(orders[reind][1]));
+
+                    if (orders[reind][3].isIn(["I", "S", "P"])) {
+
+                        r.orderInfo = "DELETE IN PROGRESS";
+                        r.orderInfoExpand = "DELETE IN PROGRESS SINCE {0|" + d + "}";
+                        r.orderInfoDetail = "ORDER: {0BX|" + orders[reind][0] + "}";
+
+                        $.each(orders, function (oi, ov) {
+                            if (oi > reind) {
+                                if (ov[2] == "S" && ov[3] == "C") {
+                                    r.orderInfoDetail2 = "Currently SUSPENDED by order: {0BKX|" + ov[0] + "}";
+                                    return false;
+                                }
+                            }
+                        });
+                    }
+                    else if (orders[reind][3] == "C") {
+                        r.orderInfo = "DELETED";
+                        r.orderInfoExpand = "DELETED SINCE {0|" + d + "}";
+                        r.orderInfoDetail = "ORDER: {0BX|" + orders[reind][0] + "}";
+                    }
+                }
+                else if (orders[reind][2] == "S") {
+
+                    var d = $$.date("{DD}/{MM}/{YYYY}", $$.date(orders[reind][1]));
+
+                    if (orders[reind][3].isIn(["I", "S", "P"])) {
+
+                        r.orderInfo = "SUSPEND IN PROGRESS";
+                        r.orderInfoExpand = "SUSPEND IN PROGRESS SINCE {0|" + d + "}";
+                        r.orderInfoDetail = "ORDER: {0BX|" + orders[reind][0] + "}";
+                    }
+                    else if (orders[reind][3] == "C") {
+                        r.orderInfo = "SUSPENDED";
+                        r.orderInfoExpand = "SUSPENDED SINCE {0|" + d + "}";
+                        r.orderInfoDetail = "ORDER: {0BX|" + orders[reind][0] + "}";
+                    }
+                }
+                else if (orders[reind][2] == "A") {
+
+                    var d = $$.date("{DD}/{MM}/{YYYY}", $$.date(orders[reind][1]));
+
+                    if (orders[reind][3].isIn(["I"])) {
+
+                        r.orderInfo = "NEW SERVICE IN PROGRESS";
+                        r.orderInfoExpand = "NEW SERVICE IN PROGRESS SINCE {0|" + d + "}";
+                        r.orderInfoDetail = "ORDER: {0BX|" + orders[reind][0] + "}";
+
+
+                    }
+                    else if (orders[reind][3] == "C") {
+
+                        var sel = ($$.date() - $$.date(orders[reind][1])) / (1000 * 3600 * 24);
+
+                        if (sel < 60) {
+
+                            r.orderInfo = "NEW SERVICE";
+                            r.orderInfoExpand = "NEW SERVICE SINCE {0|" + d + "}";
+                            r.orderInfoDetail = "ORDER: {0BX|" + orders[reind][0] + "}";
+                            //r.orderInfoDetail2 = "This label is provided for new services less than 2 months old";
+
+                        }
+                    }
+                }
+            }
+        }
+
+        if (r.orderInfo != null) {
+            r.serviceOrderInformation.show();
+            r.serviceOrderInformationText.text(r.orderInfo);
+            r.serviceOrderInformation.width(r.serviceOrderInformationText.width() + 20);
+        }
+        else {
+            r.serviceOrderInformation.hide();
+        }
+
+
         if (setype != null) {
-            var sesubtype = f.column("SE_SubType");
+            var sesubtype = f.column("SubType");
             var setypetext = null;
 
-            if (setype == "VP") {
-                if (sesubtype == "TA") setypetext = "Trans Access";
-                else setypetext = "VPNIP";
-            }
+            if (setype == "VP") setypetext = "VPNIP";
+            else if (setype == "TA") setypetext = "Trans Access";
             else if (setype == "AS") setypetext = "Astinet";
             else if (setype == "AB") setypetext = "Astinet Beda Bandwidth";
             else if (setype == "VI") setypetext = "VPN Instant";
+            else if (setype == "IT") setypetext = "IP Transit";
             else if (setype == "ID") setypetext = "Metro Ethernet (Incompleted)";
             else if (setype == "ME") {
                 if (sesubtype == "PP") setypetext = "Metro Ethernet Point-To-Point";
@@ -126,9 +340,18 @@
             else if (setype == "TS") {
                 if (sesubtype == "SI") setypetext = "Telkomsel Site";
             }
+
             r.serviceType.text(setypetext);
+            r.serviceType.color(25);
         }
-        else r.serviceType.text("");
+        else {
+
+            var product = f.column("SP_Product");
+            var setypetext = product;
+
+            r.serviceType.text(setypetext);
+            r.serviceType.color(60);
+        }
 
         //-- TOPOLOGIES
         if (topologies.length > 0) r.serviceInformation.show();
@@ -142,44 +365,51 @@
                 r.topologyReferences[topologyIndex] = {};
                 ref = r.topologyReferences[topologyIndex];
 
-                ref.purpose = $$.text(b)({
-                    cursor: "pointer", font: ["body", 15], hide: true, button: {
-                        normal: function () { this.color(25); },
-                        over: function () { this.color(50); },
-                    }
+                ref.purpose = $$.box(b)({
+                    hide: true, button: {
+                        normal: function () { this.color(50); },
+                        over: function () { this.color(60); },
+                    },
+                    color: 50,
+                    height: 22,
+                    cursor: "pointer"
+                });
+                ref.purposeText = $$.text(ref.purpose)({
+                    noBreak: true, left: 10, top: 4, font: 12, color: 100
                 });
 
                 ref.area = $$.box(r.serviceInformation)({ size: ["100%", 60], top: topologyIndex * 60 });
 
                 ref.speedArea = $$.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: false });
-                $$.icon(ref.speedArea, center.icon("speed"))({ top: 2, left: 0, color: 45, size: [16, 16] });
+                $$.icon(ref.speedArea, center.icon("speed"))({ top: 2, left: 0, color: 45, size: [16, 16], tooltip: "Minimum speeds that were configured end-to-end" });
                 ref.speedText = $$.text(ref.speedArea)({ font: ["body", 13], color: 0, top: 2, left: 22, noBreak: true });
 
                 ref.vrfArea = $$.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
-                $$.icon(ref.vrfArea, center.icon("cloud"))({ top: 2, left: 0, color: 45, size: [16, 16] });
+                $$.icon(ref.vrfArea, center.icon("cloud"))({ top: 2, left: 0, color: 45, size: [16, 16], tooltip: "VRF/Cloud that was configured on the PE interface" });
                 ref.vrfText = $$.text(ref.vrfArea)({ font: ["body", 13], color: 0, top: 2, left: 22, noBreak: true, clickToSelect: true, cursor: "copy" });
 
                 ref.ipArea = $$.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
-                $$.icon(ref.ipArea, center.icon("IP"))({ top: 2, left: 0, color: 45, size: [16, 16] });
+                $$.icon(ref.ipArea, center.icon("IP"))({ top: 2, left: 0, color: 45, size: [16, 16], tooltip: "WAN IP that was configured on the PE interface" });
                 ref.ipText = $$.text(ref.ipArea)({ font: ["body", 13], color: 0, top: 2, left: 22, noBreak: true, clickToSelect: true, cursor: "copy" });
 
                 ref.ceArea = $$.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
-                ref.ceIcon = $$.icon(ref.ceArea, center.icon("fire"))({ top: 2, left: 0, color: 45, size: [16, 16] });
+                ref.ceIcon = $$.icon(ref.ceArea, center.icon("fire"))({ top: 2, left: 0, color: 45, size: [16, 16], tooltip: "First IP/ARP resolution entry on PE" });
                 ref.ceIPText = $$.text(ref.ceArea)({ font: ["body", 13], color: 0, top: 2, left: 22, noBreak: true, clickToSelect: true, cursor: "copy" });
                 ref.ceToIcon = $$.icon(ref.ceArea, center.icon("skipright"))({ top: 3, left: 0, color: 45, size: [14, 14] });
                 ref.ceMACText = $$.text(ref.ceArea)({ font: ["body", 13], weight: "500", color: 0, top: 2, left: 22, noBreak: true, clickToSelect: true, cursor: "copy" });
                 
-                ref.vcidArea = $$.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
-                $$.text(ref.vcidArea)({ top: 3, left: 4, font: ["body", 6], text: "VC", color: 10 });
-                $$.text(ref.vcidArea)({ top: 9, left: 5, font: ["body", 6], text: "ID", color: 10 });
+                ref.vcidArea = $$.box(ref.area)({ cursor: "default", left: 0, top: 0, height: 22, width: 0, hide: true });
+                ref.vcidLabel = $$.box(ref.vcidArea)({ top: 0, left: 0, height: 22, width: 20, tooltip: "VCID/SDP label that was configured on ME routes" });
+                $$.text(ref.vcidLabel)({ top: 3, left: 4, font: ["body", 6], text: "VC", color: 10 });
+                $$.text(ref.vcidLabel)({ top: 9, left: 5, font: ["body", 6], text: "ID", color: 10 });
                 ref.vcidText = $$.text(ref.vcidArea)({ font: ["body", 13], color: 0, top: 2, left: 22, noBreak: true, clickToSelect: true, cursor: "copy" });
 
                 ref.routeArea = $$.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
-                $$.icon(ref.routeArea, center.icon("map"))({ top: 2, left: 0, color: 45, size: [16, 16] });
+                $$.icon(ref.routeArea, center.icon("map"))({ top: 2, left: 0, color: 45, size: [16, 16], tooltip: "Route types that were configured on PE" });
                 ref.routeText = $$.text(ref.routeArea)({ font: ["body", 13], color: 0, top: 2, left: 22, noBreak: true });
 
                 ref.updateArea = $$.box(ref.area)({ left: 0, top: 0, height: 22, width: 0, hide: true });
-                $$.icon(ref.updateArea, center.icon("time"))({ top: 2, left: 0, color: 45, size: [16, 16] });
+                $$.icon(ref.updateArea, center.icon("time"))({ top: 2, left: 0, color: 45, size: [16, 16], tooltip: "Last update" });
                 ref.updateText = $$.text(ref.updateArea)({ font: ["body", 13], color: 0, top: 2, left: 22, noBreak: true });
 
                 ref.topologyArea = $$.box(ref.area)({ leftRight: [0, 0], top: 22, height: 28, hide: true, scroll: { vertical: false, horizontal: true, type: "button" } });
@@ -193,7 +423,7 @@
                         var iref = r.topologyReferences[index];
                         if (index != topologyIndex) {
                             iref.purpose.enableButton();
-                            iref.purpose.color(25);
+                            iref.purpose.color(50);
                         }
                         else {
                             iref.purpose.disableButton();
@@ -206,9 +436,25 @@
 
             t.drawTopology(f, ref, topology, topologyIndex, ref.topologyArea);
 
-            ref.purpose({ text: purposes[topologyIndex], color: topologyIndex == 0 ? "accent" : 25 });
-            if (topologyIndex == 0) ref.purpose.disableButton();
-            else ref.purpose.enableButton();
+            var sp;
+
+            if (purposes[topologyIndex] == null) sp = "TOPOLOGY " + (topologyIndex + 1);
+            else sp = purposes[topologyIndex];
+
+            //debug(customerName + " " + purposes.length);
+
+            ref.purpose.show();
+            ref.purposeText.text(sp);
+            ref.purpose.width(ref.purposeText.leftWidth() + 10);
+
+            if (topologyIndex == 0) {
+                ref.purpose.disableButton();
+                ref.purpose.color("accent");
+            }
+            else {
+                ref.purpose.enableButton();
+                ref.purpose.color(50);
+            }
 
             var vrf = vrfnames[topologyIndex];
             var rateinput = rateinputs[topologyIndex];
@@ -295,6 +541,7 @@
                     ref.ceMACText.hide();
 
                     clw = ref.ceIPText.leftWidth();
+
                 }
                 else if (sip != null && smac != null)
                 {
@@ -311,6 +558,10 @@
                     ref.ceMACText.left(ref.ceToIcon.leftWidth() + 8);
 
                     clw = ref.ceMACText.leftWidth();
+
+                    if (r.orderInfo == "NEW SERVICE IN PROGRESS") {
+                        r.orderInfoDetail2 = "Waiting for order completion";
+                    }
                 }
                 else {
                     ref.ceArea.hide();
@@ -376,26 +627,29 @@
             else ref.updateArea.hide();            
         });
 
-        if (topologies.length > 0) {
-            $.each(r.topologyReferences, function (index, reference) {
-                if (index < topologies.length) {
-                    if (topologies.length > 1) {
-                        reference.purpose.show();
-                        if (index == 0) reference.purpose.attach(r.serviceType, "right", 20);
-                        else reference.purpose.attach(r.topologyReferences[index - 1].purpose, "right", 20);
-                    }
-                    else reference.purpose.hide();
+        $.each(r.topologyReferences, function (index, reference) {
+            if (index < topologies.length) {
+                if (topologies.length > 1) {
+                    reference.purpose.show();
+                    if (index == 0) reference.purpose.attach(r.serviceType, "right", 20, -2);
+                    else reference.purpose.attach(r.topologyReferences[index - 1].purpose, "right", 0);
                 }
                 else {
-                    reference.area.hide();
                     reference.purpose.hide();
                 }
-            });
+            }
+            else {
+                reference.area.hide();
+                reference.purpose.hide();
+            }
+        });
 
-            if (topologies.length > 1) r.customerName.attach(r.topologyReferences[topologies.length - 1].purpose, "right2", 20, 20);
-            else r.customerName.attach(r.serviceType, "right2", 20, 20);
+        if (topologies.length > 1) {
+            r.customerName.attach(r.topologyReferences[topologies.length - 1].purpose, "right", 20);
         }
-        else r.customerName.attach(r.serviceType, "right2", 20, 20);
+        else {
+            r.customerName.attach(r.serviceType, "right", 20);
+        }
     });
 
 })();

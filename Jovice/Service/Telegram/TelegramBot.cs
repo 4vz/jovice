@@ -5,15 +5,12 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using UAParser;
-using Humanizer;
 using System.Diagnostics;
-using System.Net.Http;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using System.Configuration;
 
-namespace Center
+namespace Jovice
 {
     internal class Conversation
     {
@@ -56,8 +53,7 @@ namespace Center
 
         #endregion
     }
-
-    
+       
 
     internal class BotGroup
     {
@@ -587,7 +583,7 @@ namespace Center
 
         private static void MessageProbeExecute(string probe, long chatID, int messageID, int fromID)
         {
-            Database jovice = Jovice.Database;
+            Database jovice = Jovice.Database();
             // query name apakah ada
             Result result = jovice.Query("select * from Node where lower(NO_Name) = {0}", probe);
 

@@ -1,16 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Web;
 using Aphysoft.Share;
 
 namespace Center
 {
-    public class Center : Share
+    public class Center : Web
     {
         protected override void OnInit()
         {
-            Client.Init();
+
         }
 
         protected override void OnResourceLoad()
@@ -61,7 +62,6 @@ namespace Center
             Content.Register("developers", DevelopersResources.ResourceManager, "developers", "~/View/Developers/developers.js", "/developers::Center Developers");
 
             #endregion
-
             Resource.Register("satellite_png_dish", ResourceTypes.PNG, SatelliteResources.ResourceManager, "png_dish", "~/View/Satellite/PNG/dish.png");
             Resource.Register("satellite_png_sine1", ResourceTypes.PNG, SatelliteResources.ResourceManager, "png_sine1", "~/View/Satellite/PNG/sine1.png");
 

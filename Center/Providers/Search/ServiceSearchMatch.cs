@@ -7,6 +7,9 @@ using Aphysoft.Share;
 
 using System.Text;
 using System.Net;
+using Jovice;
+
+using Aveezo;
 
 namespace Center.Providers
 {
@@ -17,14 +20,14 @@ namespace Center.Providers
         public ServiceSearchMatch() : base()
         {
             Root("services");
-            Root("service");            
+            Root("service");
 
+            Language("oid", "OID");
+            Language("order id", "OID");
             Language("sid", "SID");
             Language("service id", "SID");
             Language("services id", "SID");
-            Language("cid", "CID");
-            Language("customer id", "CID");
-            Language("customers id", "CID");
+
             Language("customer", "CUSTOMER");
             Language("customers", "CUSTOMER");
             Language("name", "NAME");
@@ -94,10 +97,17 @@ namespace Center.Providers
 
                     if (descriptor.Descriptor == "SID")
                     {
-                        if (c == SearchConstraints.StartsWith) return "SE_SID like '" + v + "%'";
-                        else if (c == SearchConstraints.EndsWith) return "SE_SID like '%" + v + "'";
-                        else if (c == SearchConstraints.Like) return "SE_SID like '%" + v + "%'";
-                        else if (c == SearchConstraints.Equal) return "SE_SID like '" + v + "'";
+                        if (c == SearchConstraints.StartsWith) return $"SI_VID like '{v}%'";
+                        else if (c == SearchConstraints.EndsWith) return $"SI_VID like '%{v}'";
+                        else if (c == SearchConstraints.Like) return $"SI_VID like '%{v}%'";
+                        else if (c == SearchConstraints.Equal) return $"SI_VID like '{v}'";
+                    }
+                    else if (descriptor.Descriptor == "OID")
+                    {
+                        if (c == SearchConstraints.StartsWith) return $"SO_OID like '{v}%'";
+                        else if (c == SearchConstraints.EndsWith) return $"SO_OID like '%{v}'";
+                        else if (c == SearchConstraints.Like) return $"SO_OID like '%{v}%'";
+                        else if (c == SearchConstraints.Equal) return $"SO_OID like '{v}'";
                     }
                     else if ((descriptor.SuperDescriptor == "CUSTOMER" && descriptor.Descriptor == "NAME") || descriptor.Descriptor == "CUSTOMER")
                     {
@@ -106,40 +116,33 @@ namespace Center.Providers
                         else if (c == SearchConstraints.Like) return "SC_Name like '%" + v + "%'";
                         else if (c == SearchConstraints.Equal) return "SC_Name like '" + v + "'";
                     }
-                    else if (descriptor.Descriptor == "CID")
-                    {
-                        if (c == SearchConstraints.StartsWith) return "SC_CID like '" + v + "%'";
-                        else if (c == SearchConstraints.EndsWith) return "SC_CID like '%" + v + "'";
-                        else if (c == SearchConstraints.Like) return "SC_CID like '%" + v + "%'";
-                        else if (c == SearchConstraints.Equal) return "SC_CID like '" + v + "'";
-                    }
                     else if (descriptor.Descriptor == "ASTINET")
                     {
-                        string res = "SE_Type = 'AS'";
+                        string res = "SI_Type = 'AS'";
                         if (v.Length > 0) res += " AND SC_Name like '" + v + "'";
                         return res;
                     }
                     else if (descriptor.Descriptor == "ASTINETBB")
                     {
-                        string res = "SE_Type = 'AB'";
+                        string res = "SI_Type = 'AB'";
                         if (v.Length > 0) res += " AND SC_Name like '" + v + "'";
                         return res;
                     }
                     else if (descriptor.Descriptor == "VPNIP")
                     {
-                        string res = "SE_Type = 'VP'";
+                        string res = "SI_Type = 'VP'";
                         if (v.Length > 0) res += " AND SC_Name like '" + v + "'";
                         return res;
                     }
                     else if (descriptor.Descriptor == "TRANSACC")
                     {
-                        string res = "SE_Type = 'VP' AND SE_SubType = 'TA'";
+                        string res = "SI_Type = 'TA'";
                         if (v.Length > 0) res += " AND SC_Name like '" + v + "'";
                         return res;
                     }
                     else if (descriptor.Descriptor == "METRO")
                     {
-                        string res = "SE_Type is null";
+                        string res = "SI_Type is null";
                         if (v.Length > 0) res += " AND SC_Name like '" + v + "'";
                         return res;
                     }
@@ -155,23 +158,27 @@ namespace Center.Providers
 select distinct SO_ID
 from (select SO_ID
 from (
-select MC_SE as SO_ID from 
+select MC_SI as SO_ID from 
 MECircuit" + whereVCID.Format(" where ") + @"
 union all
-select MI_SE as SO_ID from
+select MI_SI as SO_ID from
 MEInterface, MECircuit
 where MI_MC = MC_ID" + whereVCID.Format(" and ") + @"
 union all
-select PI_SE as SO_ID from
+select PI_SI as SO_ID from
 PEInterface, MEInterface, MECircuit
 where PI_ID = MI_TO_PI and MI_MC = MC_ID" + whereVCID.Format(" and ") + @"
 ) source where SO_ID is not null
 ) source, Service
-left join ServiceCustomer on SC_ID = SE_SC
-where SE_ID = SO_ID" + whereService.Format(" and ");
+left join ServiceCustomer on SC_ID = SE_O_SC
+where SI_ID = SO_ID" + whereService.Format(" and ");
 
                 matchResult.Query = @"
-select distinct SE_ID, SE_SID, SC_CID, SC_Name, SC_Name_Set, SE_Type, SE_SubType
+select distinct 
+
+SE_ID, SE_VID, SE_Type, SE_SubType, SE_O_SID, SE_O_OID, SE_O_N_Detail, SE_O_N_AM, SC_Name, SC_AlternateName, SC_N_AccountNumber
+
+
 from (
 select SO_ID, ROW_NUMBER() OVER (order by SO_Rate desc, SO_Bandwidth desc
 ) AS SO_RN from (
@@ -194,41 +201,43 @@ where SE_ID = SO_ID" + whereService.Format(" and ");
             else
             {
                 #region Service exists
-                matchResult.QueryCount = @"
-select SE_ID from Service left join ServiceCustomer on SC_ID = SE_SC" + whereService.Format(" where ");
+                matchResult.QueryCount = $@"
+select distinct SI_ID 
+from ServiceImmediate
+left join Service on SE_ID = SI_SE
+left join ServiceOrder on SO_SE = SE_ID
+left join ServiceCustomer on SC_ID = SE_SC{whereService.Format(" where ")}";
 
-                matchResult.Query = @"
-select SE_ID, SE_SID, SC_CID, SC_Name, SC_Name_Set, SE_Type, SE_SubType
-from Service left join ServiceCustomer on SC_ID = SE_SC" + whereService.Format(" where ");
+                matchResult.Query = $@"
+select distinct SI_ID, SI_VID, SE_SID, SE_Detail, SC_Name, SC_AlternateName, SC_AccountNumber, 
+case when SI_Type is NULL then SP_Type else SI_Type end as SI_Type, 
+SI_SE_Check, SE_ID, SE_LastCheck, SP_Product
+from ServiceImmediate
+left join Service on SE_ID = SI_SE
+left join ServiceOrder on SO_SE = SE_ID
+left join ServiceCustomer on SC_ID = SE_SC
+left join ServiceProduct on SP_ID = SE_SP{whereService.Format(" where ")}";
                 #endregion
             }
 
-            matchResult.RowID = "SE_ID";
+            matchResult.RowID = "SI_ID";
 
+            matchResult.Hide("SI_ID");
             matchResult.Hide("SE_ID");
+
+            Topology.Prepare(matchResult);
 
             matchResult.Sort("SE_SID", "SID");
             matchResult.Sort("SC_Name", "Customer");
 
-            Topology.Prepare(matchResult);
-
-            matchResult.AddColumn("StreamServiceID"); // 22
+            matchResult.AddColumn("StreamServiceID"); // 33
         }
 
         public override void RowProcess(SearchMatchResult matchResult, List<object> objects)
         {
-            string seID = (string)objects[2];
+            Topology.Discovery(objects, TopologyDiscoveryTypes.ServiceID);   
 
-            string serviceType = (string)objects[7];
-            string serviceSubType = (string)objects[8];
-
-            Topology.Discovery(objects, TopologyDiscoveryTypes.ServiceID, seID, ref serviceType, ref serviceSubType);
-
-            // modify serviceType dan serviceSubType
-            objects[7] = serviceType;
-            objects[8] = serviceSubType;
-
-            objects.Add(Base64.Encode(seID));
+            objects.Add(Base64.Encode((string)objects[2])); // 34
         }
 
         private static string[] CommonString(string left, string right)

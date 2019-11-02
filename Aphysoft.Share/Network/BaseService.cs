@@ -886,8 +886,7 @@ namespace Aphysoft.Share
 
             MessageEventArgs eva = new MessageEventArgs(rto.Connection, messageID, messageReplyID, rto.Message);
 
-            if (rto.Callback != null)
-                rto.Callback(eva);
+            //rto.Callback?.Invoke(eva);
 
             if (eva.IsResponse)
             {
@@ -942,8 +941,6 @@ namespace Aphysoft.Share
     public delegate void DisconnectedEventHandler(Connection connection);
 
     public delegate void ReceivedEventHandler(MessageEventArgs e);
-
-    public delegate void OnReceivedCallback(MessageEventArgs e);
 
     public delegate bool MessageWaitCallback(object o);
 
@@ -1364,7 +1361,7 @@ namespace Aphysoft.Share
             {
                 int messageLength = bytes.Length;
 
-                int messageID = RandomHelper.Next(); // TODO use helper 0 <= x <= int.Max
+                int messageID = Rnd.Int(); // TODO use helper 0 <= x <= int.Max
 
                 message.messageID = messageID;
 
@@ -1592,19 +1589,9 @@ namespace Aphysoft.Share
     {
         #region Fields
 
-        private string message;
+        public string Message { get; }
 
-        public string Message
-        {
-            get { return message; }
-        }
-
-        private DateTime timestamp;
-
-        public DateTime Timestamp
-        {
-            get { return timestamp; }
-        }
+        public DateTime Timestamp { get; }
 
         #endregion
 
@@ -1612,8 +1599,8 @@ namespace Aphysoft.Share
 
         public EventServiceMessage(string message)
         {
-            this.message = message;
-            timestamp = DateTime.Now;
+            this.Message = message;
+            Timestamp = DateTime.Now;
         }
 
         #endregion

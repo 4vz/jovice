@@ -6,6 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 
+using Aveezo;
+
 namespace Aphysoft.Share
 {
     public delegate APIPacket APIRequest(APIAsyncResult result, string[] paths, string apiAccessID);
@@ -23,7 +25,7 @@ namespace Aphysoft.Share
 
         internal static void Init()
         {
-            Database share = Share.Database;
+            Database share = Web.Database;
 
             Dictionary<string, Row> rapi = share.QueryDictionary("select * from [Api]", "AP_Name");
 

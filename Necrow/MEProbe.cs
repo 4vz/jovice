@@ -7,11 +7,15 @@ using System.Threading;
 using Aphysoft.Share;
 using System.Globalization;
 
-namespace Center
+using Jovice;
+
+using Aveezo;
+
+namespace Necrow
 {
     #region To Database
 
-    class MECustomerToDatabase : ToDatabase
+    class MECustomerToDatabase : Data
     {
         private string customerID;
 
@@ -100,37 +104,13 @@ namespace Center
             set { updateCircuit = value; }
         }
 
-        private string ingressID = null;
+        public string IngressID { get; set; } = null;
 
-        public string IngressID
-        {
-            get { return ingressID; }
-            set { ingressID = value; }
-        }
+        public bool UpdateIngressID { get; set; } = false;
 
-        private bool updateIngressID = false;
+        public string EgressID { get; set; } = null;
 
-        public bool UpdateIngressID
-        {
-            get { return updateIngressID; }
-            set { updateIngressID = value; }
-        }
-
-        private string egressID = null;
-
-        public string EgressID
-        {
-            get { return egressID; }
-            set { egressID = value; }
-        }
-
-        private bool updateEgressID = false;
-
-        public bool UpdateEgressID
-        {
-            get { return updateEgressID; }
-            set { updateEgressID = value; }
-        }
+        public bool UpdateEgressID { get; set; } = false;
 
         private bool updateUsed = false;
 
@@ -288,85 +268,21 @@ namespace Center
 
     class MECircuitToDatabase : ServiceBaseToDatabase
     {
-        private string vcid;
+        public string VCID { get; set; }
 
-        public string VCID
-        {
-            get { return vcid; }
-            set { vcid = value; }
-        }
+        public string Type { get; set; }
 
-        private string type;
+        public bool UpdateType { get; set; } = false;
 
-        public string Type
-        {
-            get { return type; }
-            set { type = value; }
-        }
+        public string CustomerID { get; set; }
 
-        private bool updateType = false;
+        public bool UpdateCustomer { get; set; } = false;
 
-        public bool UpdateType
-        {
-            get { return updateType; }
-            set { updateType = value; }
-        }
+        public int AdmMTU { get; set; } = -1;
 
-        private string customerID;
+        public bool UpdateAdmMTU { get; set; } = false;
 
-        public string CustomerID
-        {
-            get { return customerID; }
-            set { customerID = value; }
-        }
-
-        private bool updateCustomer = false;
-
-        public bool UpdateCustomer
-        {
-            get { return updateCustomer; }
-            set { updateCustomer = value; }
-        }
-
-        private int admMTU = -1;
-
-        public int AdmMTU
-        {
-            get { return admMTU; }
-            set { admMTU = value; }
-        }
-
-        private bool updateAdmMTU = false;
-
-        public bool UpdateAdmMTU
-        {
-            get { return updateAdmMTU; }
-            set { updateAdmMTU = value; }
-        }
-
-        private string description;
-
-        public string Description
-        {
-            get { return description; }
-            set { description = value; }
-        }
-
-        private bool updateDescription = false;
-
-        public bool UpdateDescription
-        {
-            get { return updateDescription; }
-            set { updateDescription = value; }
-        }
-
-        private List<string> adjacentPeers = null;
-
-        public List<string> AdjacentPeers
-        {
-            get { return adjacentPeers; }
-            set { adjacentPeers = value; }
-        }
+        public List<string> AdjacentPeers { get; set; } = null;
     }
 
     class MEPeerToDatabase : StatusToDatabase
@@ -446,14 +362,14 @@ namespace Center
 
     #endregion
 
-    internal sealed partial class Probe
+    public sealed partial class Probe
     {
         private ProbeProcessResult MEProcess()
         {
             ProbeProcessResult probe = new ProbeProcessResult();
 
             string[] lines = null;
-            Batch batch = Batch();
+            Batch batch = j.Batch();
             Result result;
 
             #region ALU-CUSTOMER
@@ -467,7 +383,7 @@ namespace Center
             {
                 Event("Checking Circuit Customer");
 
-                alucustdb = QueryDictionary("select * from MECustomer where MU_NO = {0}", "MU_UID", nodeID);
+                alucustdb = j.QueryDictionary("select * from MECustomer where MU_NO = {0}", "MU_UID", nodeID);
                 if (alucustdb == null) return DatabaseFailure(probe);
 
                 #region Live
@@ -495,7 +411,7 @@ namespace Center
                     if (!alucustdb.ContainsKey(pair.Key))
                     {
                         Event("ALU-Customer ADD: " + li.CustomerID);
-                        li.ID = Database.ID();
+                        li.Id = Database.ID();
                         alucustinsert.Add(li);
                     }
                 }
@@ -508,14 +424,14 @@ namespace Center
                 batch.Begin();
                 foreach (MECustomerToDatabase s in alucustinsert)
                 {
-                    Insert insert = Insert("MECustomer");
-                    insert.Value("MU_ID", s.ID);
+                    Insert insert = j.Insert("MECustomer");
+                    insert.Value("MU_ID", s.Id);
                     insert.Value("MU_NO", nodeID);
                     insert.Value("MU_UID", s.CustomerID);
-                    batch.Execute(insert);
+                    batch.Add(insert);
                 }
                 result = batch.Commit();
-                if (!result.OK) return DatabaseFailure(probe);
+                if (!result) return DatabaseFailure(probe);
                 Event(result, EventActions.Add, EventElements.ALUCustomer, false);
 
                 // UPDATE
@@ -527,12 +443,12 @@ namespace Center
                     //if (v.Count > 0) batch.Execute("update MECustomer set " + StringHelper.EscapeFormat(string.Join(",", v.ToArray())) + " where MU_ID = {0}", s.ID);
                 }
                 result = batch.Commit();
-                if (!result.OK) return DatabaseFailure(probe);
+                if (!result) return DatabaseFailure(probe);
                 Event(result, EventActions.Update, EventElements.ALUCustomer, false);
 
                 #endregion
 
-                alucustdb = QueryDictionary("select * from MECustomer where MU_NO = {0}", "MU_UID", nodeID);
+                alucustdb = j.QueryDictionary("select * from MECustomer where MU_NO = {0}", "MU_UID", nodeID);
                 if (alucustdb == null) return DatabaseFailure(probe);
             }
 
@@ -543,7 +459,7 @@ namespace Center
             Event("Checking QOS");
 
             Dictionary<string, MEQOSToDatabase> qoslive = new Dictionary<string, MEQOSToDatabase>();
-            Dictionary<string, Row> qosdb = QueryDictionary("select * from MEQOS where MQ_NO = {0}", delegate (Row row) { return (row["MQ_Type"].ToBool() ? "1" : "0") + "_" + row["MQ_Name"].ToString(); }, nodeID);
+            Dictionary<string, Row> qosdb = j.QueryDictionary("select * from MEQOS where MQ_NO = {0}", delegate (Row row) { return (row["MQ_Type"].ToBool() ? "1" : "0") + "_" + row["MQ_Name"].ToString(); }, nodeID);
             if (qosdb == null) return DatabaseFailure(probe);
             List<MEQOSToDatabase> qosinsert = new List<MEQOSToDatabase>();
             List<MEQOSToDatabase> qosupdate = new List<MEQOSToDatabase>();
@@ -645,7 +561,7 @@ namespace Center
                 if (!qosdb.ContainsKey(pair.Key))
                 {
                     Event("QOS ADD: " + pair.Key + ((pair.Value.Bandwidth == -1) ? "" : ("(" + pair.Value.Bandwidth + "K)")));
-                    li.ID = Database.ID();
+                    li.Id = Database.ID();
                     qosinsert.Add(li);
                 }
                 else
@@ -653,7 +569,7 @@ namespace Center
                     Row db = qosdb[pair.Key];
 
                     MEQOSToDatabase u = new MEQOSToDatabase();
-                    u.ID = db["MQ_ID"].ToString();
+                    u.Id = db["MQ_ID"].ToString();
 
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
@@ -680,34 +596,34 @@ namespace Center
             batch.Begin();
             foreach (MEQOSToDatabase s in qosinsert)
             {
-                Insert insert = Insert("MEQOS");
-                insert.Value("MQ_ID", s.ID);
+                Insert insert = j.Insert("MEQOS");
+                insert.Value("MQ_ID", s.Id);
                 insert.Value("MQ_NO", nodeID);
                 insert.Value("MQ_Name", s.Name);
                 insert.Value("MQ_Type", s.Type.Nullable(-1));
                 insert.Value("MQ_Bandwidth", s.Bandwidth.Nullable(-1));
-                batch.Execute(insert);
+                batch.Add(insert);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.QOS, false);
 
             // UPDATE
             batch.Begin();
             foreach (MEQOSToDatabase s in qosupdate)
             {
-                Update update = Update("MEQOS");
+                Update update = j.Update("MEQOS");
                 update.Set("MQ_Bandwidth", s.Bandwidth.Nullable(-1), s.UpdateBandwidth);
-                update.Where("MQ_ID", s.ID);
-                batch.Execute(update);
+                update.Where("MQ_ID", s.Id);
+                batch.Add(update);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.QOS, false);
 
             #endregion
 
-            qosdb = QueryDictionary("select * from MEQOS where MQ_NO = {0}", delegate (Row row) { return (row["MQ_Type"].ToBool() ? "1" : "0") + "_" + row["MQ_Name"].ToString(); }, nodeID);
+            qosdb = j.QueryDictionary("select * from MEQOS where MQ_NO = {0}", delegate (Row row) { return (row["MQ_Type"].ToBool() ? "1" : "0") + "_" + row["MQ_Name"].ToString(); }, nodeID);
             if (qosdb == null) return DatabaseFailure(probe);
 
             #endregion
@@ -717,9 +633,9 @@ namespace Center
             Event("Checking SDP");
 
             Dictionary<string, MESDPToDatabase> sdplive = new Dictionary<string, MESDPToDatabase>();
-            Dictionary<string, Row> sdpdb = QueryDictionary("select * from MESDP where MS_NO = {0}", "MS_SDP", nodeID);
+            Dictionary<string, Row> sdpdb = j.QueryDictionary("select * from MESDP where MS_NO = {0}", "MS_SDP", nodeID);
             if (sdpdb == null) return DatabaseFailure(probe);
-            Dictionary<string, Row> ipnodedb = QueryDictionary("select NO_IP, NO_ID from Node where NO_IP is not null", "NO_IP");
+            Dictionary<string, Row> ipnodedb = j.QueryDictionary("select NO_IP, NO_ID from Node where NO_IP is not null", "NO_IP");
             if (ipnodedb == null) return DatabaseFailure(probe);
             List<MESDPToDatabase> sdpinsert = new List<MESDPToDatabase>();
             List<MESDPToDatabase> sdpupdate = new List<MESDPToDatabase>();
@@ -907,7 +823,7 @@ namespace Center
                 if (!sdpdb.ContainsKey(pair.Key))
                 {
                     Event("SDP ADD: " + pair.Key);
-                    li.ID = Database.ID();
+                    li.Id = Database.ID();
                     sdpinsert.Add(li);
                 }
                 else
@@ -915,7 +831,7 @@ namespace Center
                     Row db = sdpdb[pair.Key];
 
                     MESDPToDatabase u = new MESDPToDatabase();
-                    u.ID = db["MS_ID"].ToString();
+                    u.Id = db["MS_ID"].ToString();
 
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
@@ -985,8 +901,8 @@ namespace Center
             batch.Begin();
             foreach (MESDPToDatabase s in sdpinsert)
             {
-                Insert insert = Insert("MESDP");
-                insert.Value("MS_ID", s.ID);
+                Insert insert = j.Insert("MESDP");
+                insert.Value("MS_ID", s.Id);
                 insert.Value("MS_NO", nodeID);
                 insert.Value("MS_SDP", s.SDP);
                 insert.Value("MS_Status", s.Status);
@@ -996,17 +912,17 @@ namespace Center
                 insert.Value("MS_Type", s.Type);
                 insert.Value("MS_LSP", s.LSP);
                 insert.Value("MS_TO_NO", s.FarEndNodeID);
-                batch.Execute(insert);
+                batch.Add(insert);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.SDP, false);
 
             // UPDATE
             batch.Begin();
             foreach (MESDPToDatabase s in sdpupdate)
             {
-                Update update = Update("MESDP");
+                Update update = j.Update("MESDP");
                 update.Set("MS_Status", s.Status, s.UpdateStatus);
                 update.Set("MS_Protocol", s.Protocol, s.UpdateProtocol);
                 update.Set("MS_Type", s.Type, s.UpdateType);
@@ -1014,16 +930,16 @@ namespace Center
                 update.Set("MS_MTU", s.AdmMTU.Nullable(-1), s.UpdateAdmMTU);
                 update.Set("MS_IP", s.FarEnd, s.UpdateFarEnd);
                 update.Set("MS_TO_NO", s.FarEndNodeID, s.UpdateFarEndNodeID);
-                update.Where("MS_ID", s.ID);
-                batch.Execute(update);
+                update.Where("MS_ID", s.Id);
+                batch.Add(update);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.SDP, false);
 
             #endregion
 
-            sdpdb = QueryDictionary("select * from MESDP where MS_NO = {0}", "MS_SDP", nodeID);
+            sdpdb = j.QueryDictionary("select * from MESDP where MS_NO = {0}", "MS_SDP", nodeID);
             if (sdpdb == null) return DatabaseFailure(probe);
 
             #endregion
@@ -1032,14 +948,12 @@ namespace Center
 
             Event("Checking Circuit");
 
-            Dictionary<string, MECircuitToDatabase> circuitlive = new Dictionary<string, MECircuitToDatabase>();
+            SortedDictionary<string, MECircuitToDatabase> circuitlive = new SortedDictionary<string, MECircuitToDatabase>();
             Dictionary<string, Row> circuitdb = null;
             List<MECircuitToDatabase> circuitinsert = new List<MECircuitToDatabase>();
             List<MECircuitToDatabase> circuitupdate = new List<MECircuitToDatabase>();
             List<string[]> hweCircuitMplsL2vc = null;
             List<string[]> hweCircuitVllCcc = null;
-
-            ServiceReference circuitServiceReference = new ServiceReference();
 
             //circuitdb = QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_VCID", nodeID);
             //goto debug3;
@@ -1051,22 +965,22 @@ namespace Center
                 #region alu
 
                 // PRESTEP, fix duplicated vcid in alu metro that might happen if probe fail sometime ago.
-                result = Query("select MC_VCID from (select MC_VCID, COUNT(MC_VCID) as c from MECircuit where MC_NO = {0} group by MC_VCID) a where c >= 2", nodeID);
+                result = j.Query("select MC_VCID from (select MC_VCID, COUNT(MC_VCID) as c from MECircuit where MC_NO = {0} group by MC_VCID) a where c >= 2", nodeID);
                 if (result.Count > 0)
                 {
                     Event(result.Count + " circuit(s) are found duplicated, began deleting...");
                     List<string> duplicatedvcids = new List<string>();
                     foreach (Row row in result) duplicatedvcids.Add(row["MC_VCID"].ToString());
                     string duplicatedvcidstr = "'" + string.Join("', '", duplicatedvcids.ToArray()) + "'";
-                    Execute("update MEInterface set MI_MC = NULL where MI_MC in (select MC_ID from MECircuit where MC_VCID in (" + duplicatedvcidstr + ") and MC_NO = {0})", nodeID);
-                    Execute("update MEPeer set MP_TO_MC = NULL where MP_TO_MC in (select MC_ID from MECircuit where MC_VCID in (" + duplicatedvcidstr + ") and MC_NO = {0})", nodeID);
-                    result = Execute("delete from MEPeer where MP_MC in (select MC_ID from MECircuit where MC_VCID in (" + duplicatedvcidstr + ") and MC_NO = {0})", nodeID);
+                    j.Execute("update MEInterface set MI_MC = NULL where MI_MC in (select MC_ID from MECircuit where MC_VCID in (" + duplicatedvcidstr + ") and MC_NO = {0})", nodeID);
+                    j.Execute("update MEPeer set MP_TO_MC = NULL where MP_TO_MC in (select MC_ID from MECircuit where MC_VCID in (" + duplicatedvcidstr + ") and MC_NO = {0})", nodeID);
+                    result = j.Execute("delete from MEPeer where MP_MC in (select MC_ID from MECircuit where MC_VCID in (" + duplicatedvcidstr + ") and MC_NO = {0})", nodeID);
                     Event(result.AffectedRows + " peer(s) have been deleted");
-                    result = Execute("delete from MECircuit where MC_ID in (select MC_ID from MECircuit where MC_VCID in (" + duplicatedvcidstr + ") and MC_NO = {0})", nodeID);
+                    result = j.Execute("delete from MECircuit where MC_ID in (select MC_ID from MECircuit where MC_VCID in (" + duplicatedvcidstr + ") and MC_NO = {0})", nodeID);
                     Event(result.AffectedRows + " circuits(s) have been deleted");
                 }
 
-                circuitdb = QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_VCID", nodeID);
+                circuitdb = j.QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_VCID", nodeID);
                 if (circuitdb == null) return DatabaseFailure(probe);
 
                 //goto debug3;
@@ -1158,7 +1072,7 @@ namespace Center
             {
                 #region hwe
 
-                circuitdb = QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_Description", nodeID);
+                circuitdb = j.QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_Description", nodeID);
                 if (circuitdb == null) return DatabaseFailure(probe);
 
                 // display vsi verbose | in VSI
@@ -1459,6 +1373,9 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
             #region Check
 
             Dictionary<string, List<string>> adjacentPeers = null;
+
+            ServiceImmediateDiscovery(circuitlive);
+
             foreach (KeyValuePair<string, MECircuitToDatabase> pair in circuitlive)
             {
                 MECircuitToDatabase li = pair.Value;
@@ -1467,10 +1384,10 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 {
                     if (adjacentPeers == null)
                     {
-                        result = Query("select MP_VCID, MP_ID from MEPeer, MESDP, Node where MP_MS = MS_ID and MS_IP = NO_IP and NO_ID = {0}", nodeID);
-                        if (!result.OK) return DatabaseFailure(probe);
+                        result = j.Query("select MP_VCID, MP_ID from MEPeer, MESDP, Node where MP_MS = MS_ID and MS_IP = NO_IP and NO_ID = {0}", nodeID);
+                        if (!result) return DatabaseFailure(probe);
                         adjacentPeers = new Dictionary<string, List<string>>();
-                        if (result.OK)
+                        if (result)
                         {
                             foreach (Row row in result)
                             {
@@ -1492,12 +1409,8 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                     }
 
                     Event("Circuit ADD: " + pair.Key);
-                    li.ID = Database.ID();
-                    if (li.Description != null)
-                    {
-                        if (!li.Description.EndsWith("_GROUP") && !li.Description.EndsWith("_CCC"))
-                            circuitServiceReference.Add(li, li.Description);
-                    }
+                    li.Id = Database.ID();
+
                     if (li.VCID != null)
                     {
                         if (adjacentPeers.ContainsKey(li.VCID))
@@ -1511,7 +1424,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                     Row db = circuitdb[pair.Key];
 
                     MECircuitToDatabase u = new MECircuitToDatabase();
-                    u.ID = db["MC_ID"].ToString();
+                    u.Id = db["MC_ID"].ToString();
 
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
@@ -1530,38 +1443,34 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                         u.Protocol = li.Protocol;
                         UpdateInfo(updateinfo, "protocol", db["MC_Protocol"].ToBool().DescribeUpDown(), li.Protocol.DescribeUpDown());
                     }
-                    if (db["MC_Type"].ToString() != li.Type)
+                    if (db["MC_Type"] != li.Type)
                     {
                         update = true;
                         u.UpdateType = true;
                         u.Type = li.Type;
                         UpdateInfo(updateinfo, "type", db["MC_Type"].ToString(), li.Type);
                     }
-                    if (db["MC_MU"].ToString() != li.CustomerID)
+                    if (db["MC_MU"] != li.CustomerID)
                     {
                         update = true;
                         u.UpdateCustomer = true;
                         u.CustomerID = li.CustomerID;
-                        UpdateInfo(updateinfo, "customer", db["MC_MU"].ToString(), li.CustomerID, true);
+                        UpdateInfo(updateinfo, "customer", db["MC_MU"], li.CustomerID, true);
                     }
-                    if (db["MC_Description"].ToString() != li.Description)
+                    if (db["MC_Description"] != li.Description)
                     {
                         update = true;
                         u.UpdateDescription = true;
                         u.Description = li.Description;
-                        UpdateInfo(updateinfo, "description", db["MC_Description"].ToString(), li.Description, true);
+                        UpdateInfo(updateinfo, "description", db["MC_Description"], li.Description, true);
                     }
-                    if (updatingNecrow || u.UpdateDescription)
+                    if (db["MC_SI"] != li.ServiceImmediateID)
                     {
                         update = true;
-                        u.ServiceID = null;
-                        if (li.Description != null)
-                        {
-                            circuitServiceReference.Add(u, li.Description);
-                            UpdateInfo(updateinfo, "SERVICE REFERENCE", "scanning");
-                        }
+                        u.UpdateServiceImmediateID = true;
+                        u.ServiceImmediateID = li.ServiceImmediateID;
+                        UpdateInfo(updateinfo, "service-immediate", "UPDATING");
                     }
-
                     if (db["MC_MTU"].ToIntShort(-1) != li.AdmMTU)
                     {
                         update = true;
@@ -1581,15 +1490,12 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
             #region Execute
 
-            // SERVICE REFERENCE
-            ServiceDiscovery(circuitServiceReference);
-
             // ADD
             batch.Begin();
             foreach (MECircuitToDatabase s in circuitinsert)
             {
-                Insert insert = Insert("MECircuit");
-                insert.Value("MC_ID", s.ID);
+                Insert insert = j.Insert("MECircuit");
+                insert.Value("MC_ID", s.Id);
                 insert.Value("MC_NO", nodeID);
                 insert.Value("MC_VCID", s.VCID);
                 insert.Value("MC_Type", s.Type);
@@ -1598,11 +1504,11 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 insert.Value("MC_MU", s.CustomerID);
                 insert.Value("MC_Description", s.Description);
                 insert.Value("MC_MTU", s.AdmMTU.Nullable(0));
-                insert.Value("MC_SE", s.ServiceID);
-                batch.Execute(insert);
+                insert.Value("MC_SI", s.ServiceImmediateID);
+                batch.Add(insert);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.Circuit, false);
 
             batch.Begin();
@@ -1611,36 +1517,36 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 if (s.AdjacentPeers != null)
                 {
                     string[] peers = s.AdjacentPeers.ToArray();
-                    foreach (string peer in peers) batch.Execute("update MEPeer set MP_TO_MC = {0} where MP_ID = {1}", s.ID, peer);
+                    foreach (string peer in peers) batch.Add("update MEPeer set MP_TO_MC = {0} where MP_ID = {1}", s.Id, peer);
                 }
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.CircuitReference, false);
 
             // UPDATE
             batch.Begin();
             foreach (MECircuitToDatabase s in circuitupdate)
             {
-                Update update = Update("MECircuit");
+                Update update = j.Update("MECircuit");
                 update.Set("MC_Status", s.Status, s.UpdateStatus);
                 update.Set("MC_Protocol", s.Protocol, s.UpdateProtocol);
                 update.Set("MC_Type", s.Type, s.UpdateType);
                 update.Set("MC_Description", s.Description, s.UpdateDescription);
-                update.Set("MC_SE", s.ServiceID, updatingNecrow || s.UpdateDescription);
+                update.Set("MC_SI", s.ServiceImmediateID, s.UpdateServiceImmediateID);
                 update.Set("MC_MTU", s.AdmMTU.Nullable(0), s.UpdateAdmMTU);
                 update.Set("MC_MU", s.CustomerID, s.UpdateCustomer);
-                update.Where("MC_ID", s.ID);
-                batch.Execute(update);
+                update.Where("MC_ID", s.Id);
+                batch.Add(update);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.Circuit, false);
 
             #endregion
 
-            if (nodeManufacture == alu) circuitdb = QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_VCID", nodeID);
-            else if (nodeManufacture == hwe) circuitdb = QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_Description", nodeID);
+            if (nodeManufacture == alu) circuitdb = j.QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_VCID", nodeID);
+            else if (nodeManufacture == hwe) circuitdb = j.QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_Description", nodeID);
             if (circuitdb == null) return DatabaseFailure(probe);
 
             #endregion
@@ -1651,7 +1557,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
             Dictionary<string, MEPeerToDatabase> peerlive = new Dictionary<string, MEPeerToDatabase>();
             List<string> duplicatedpeers = new List<string>();
-            Dictionary<string, Row> peerdb = QueryDictionary("select * from MEPeer, MECircuit, MESDP where MP_MC = MC_ID and MP_MS = MS_ID and MC_NO = {0}", delegate (Row row) {
+            Dictionary<string, Row> peerdb = j.QueryDictionary("select * from MEPeer, MECircuit, MESDP where MP_MC = MC_ID and MP_MS = MS_ID and MC_NO = {0}", delegate (Row row) {
                 return row["MS_SDP"].ToString() + ":" + row["MP_VCID"].ToString();
             }, delegate (Row row) { duplicatedpeers.Add(row["MP_ID"].ToString()); }, nodeID);
             if (peerdb == null) return DatabaseFailure(probe);
@@ -1662,8 +1568,8 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
             {
                 Event(duplicatedpeers.Count + " peer-per-circuit(s) are found duplicated, began deleting...");
                 string duplicatedpeerstr = "'" + string.Join("', '", duplicatedpeers.ToArray()) + "'";
-                result = Execute("delete from MEPeer where MP_ID in (" + duplicatedpeerstr + ")");
-                if (!result.OK) return DatabaseFailure(probe);
+                result = j.Execute("delete from MEPeer where MP_ID in (" + duplicatedpeerstr + ")");
+                if (!result) return DatabaseFailure(probe);
                 Event(result, EventActions.Delete, EventElements.Peer, true);
             }
 
@@ -1824,15 +1730,15 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
             {
                 MEPeerToDatabase li = pair.Value;
 
-                result = Query("select MC_ID from MESDP, MECircuit where MS_TO_NO = MC_NO and MS_ID = {0} and MC_VCID = {1}", li.SDPID, li.VCID);
-                if (!result.OK) return DatabaseFailure(probe);
+                result = j.Query("select MC_ID from MESDP, MECircuit where MS_TO_NO = MC_NO and MS_ID = {0} and MC_VCID = {1}", li.SDPID, li.VCID);
+                if (!result) return DatabaseFailure(probe);
 
                 if (result.Count > 0) li.ToCircuitID = result[0]["MC_ID"].ToString();
 
                 if (!peerdb.ContainsKey(pair.Key))
                 {
                     Event("Peer ADD: " + pair.Key);
-                    li.ID = Database.ID();
+                    li.Id = Database.ID();
                     peerinsert.Add(li);
                 }
                 else
@@ -1840,8 +1746,8 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                     Row db = peerdb[pair.Key];
 
                     MEPeerToDatabase u = new MEPeerToDatabase();
-                    u.ID = db["MP_ID"].ToString();
-                    li.ID = u.ID;
+                    u.Id = db["MP_ID"].ToString();
+                    li.Id = u.Id;
 
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
@@ -1890,33 +1796,33 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
             batch.Begin();
             foreach (MEPeerToDatabase s in peerinsert)
             {
-                Insert insert = Insert("MEPeer");
-                insert.Value("MP_ID", s.ID);
+                Insert insert = j.Insert("MEPeer");
+                insert.Value("MP_ID", s.Id);
                 insert.Value("MP_MC", s.CircuitID);
                 insert.Value("MP_MS", s.SDPID);
                 insert.Value("MP_VCID", s.VCID);
                 insert.Value("MP_Protocol", s.Protocol);
                 insert.Value("MP_Type", s.Type);
                 insert.Value("MP_TO_MC", s.ToCircuitID);
-                batch.Execute(insert);
+                batch.Add(insert);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.Peer, false);
 
             // UPDATE
             batch.Begin();
             foreach (MEPeerToDatabase s in peerupdate)
             {
-                Update update = Update("MEPeer");
+                Update update = j.Update("MEPeer");
                 update.Set("MP_Protocol", s.Protocol, s.UpdateProtocol);
                 update.Set("MP_Type", s.Type, s.UpdateType);
                 update.Set("MP_TO_MC", s.ToCircuitID, s.UpdateToCircuitID);
-                update.Where("MP_ID", s.ID);
-                batch.Execute(update);
+                update.Where("MP_ID", s.Id);
+                batch.Add(update);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.Peer, false);
 
             // DELETE
@@ -1931,19 +1837,19 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
                     string mpID = pair.Value["MP_ID"].ToString();
                     peerdelete.Add(mpID);
-                    batch.Execute("update MEMac set MA_MP = NULL where MA_MP = {0}", mpID);             
+                    batch.Add("update MEMac set MA_MP = NULL where MA_MP = {0}", mpID);             
                 }
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
 
             batch.Begin();
             foreach (string id in peerdelete)
             {
-                batch.Execute("delete from MEPeer where MP_ID = {0}", id);
+                batch.Add("delete from MEPeer where MP_ID = {0}", id);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.Peer, false);
 
             #endregion
@@ -1956,7 +1862,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
             SortedDictionary<string, MEInterfaceToDatabase> interfacelive = new SortedDictionary<string, MEInterfaceToDatabase>();
             List<string> duplicatedinterfaces = new List<string>();
-            Dictionary<string, Row> interfacedb = QueryDictionary("select * from MEInterface where MI_NO = {0}", "MI_Name", delegate (Row row) { duplicatedinterfaces.Add(row["MI_ID"].ToString()); }, nodeID);
+            Dictionary<string, Row> interfacedb = j.QueryDictionary("select * from MEInterface where MI_NO = {0}", "MI_Name", delegate (Row row) { duplicatedinterfaces.Add(row["MI_ID"].ToString()); }, nodeID);
             if (interfacedb == null) return DatabaseFailure(probe);
             SortedDictionary<string, MEInterfaceToDatabase> interfaceinsert = new SortedDictionary<string, MEInterfaceToDatabase>();
             List<MEInterfaceToDatabase> interfaceupdate = new List<MEInterfaceToDatabase>();
@@ -1965,22 +1871,20 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
             {
                 Event(duplicatedinterfaces.Count + " interface(s) are found duplicated, began deleting...");
                 string duplicatedinterfacestr = "'" + string.Join("', '", duplicatedinterfaces.ToArray()) + "'";
-                result = Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI in (" + duplicatedinterfacestr + ")");
-                if (!result.OK) return DatabaseFailure(probe);
-                result = Execute("update MEInterface set MI_MI = NULL where MI_MI in (" + duplicatedinterfacestr + ")");
-                if (!result.OK) return DatabaseFailure(probe);
-                result = Execute("update MEInterface set MI_TO_MI = NULL where MI_TO_MI in (" + duplicatedinterfacestr + ")");
-                if (!result.OK) return DatabaseFailure(probe);
-                result = Execute("delete from DerivedAreaConnection where DAC_MI_1 in (" + duplicatedinterfacestr + ") or DAC_MI_2 in (" + duplicatedinterfacestr + ")");
-                if (!result.OK) return DatabaseFailure(probe);
-                result = Execute("delete from MEMac where MA_MI in (" + duplicatedinterfacestr + ")");
-                if (!result.OK) return DatabaseFailure(probe);
-                result = Execute("delete from MEInterface where MI_ID in (" + duplicatedinterfacestr + ")");
-                if (!result.OK) return DatabaseFailure(probe);
+                result = j.Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI in (" + duplicatedinterfacestr + ")");
+                if (!result) return DatabaseFailure(probe);
+                result = j.Execute("update MEInterface set MI_MI = NULL where MI_MI in (" + duplicatedinterfacestr + ")");
+                if (!result) return DatabaseFailure(probe);
+                result = j.Execute("update MEInterface set MI_TO_MI = NULL where MI_TO_MI in (" + duplicatedinterfacestr + ")");
+                if (!result) return DatabaseFailure(probe);
+                result = j.Execute("delete from DerivedAreaConnection where DAC_MI_1 in (" + duplicatedinterfacestr + ") or DAC_MI_2 in (" + duplicatedinterfacestr + ")");
+                if (!result) return DatabaseFailure(probe);
+                result = j.Execute("delete from MEMac where MA_MI in (" + duplicatedinterfacestr + ")");
+                if (!result) return DatabaseFailure(probe);
+                result = j.Execute("delete from MEInterface where MI_ID in (" + duplicatedinterfacestr + ")");
+                if (!result) return DatabaseFailure(probe);
                 Event(result, EventActions.Delete, EventElements.Interface, true);
             }
-
-            ServiceReference interfaceServiceReference = new ServiceReference();
 
             #region Live
 
@@ -2498,11 +2402,13 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                     if (!interfacelive.ContainsKey(name))
                                     {
                                         // Unexpected Lag, not found in Lag Description
-                                        MEInterfaceToDatabase mid = new MEInterfaceToDatabase();
-                                        mid.Name = name;
-                                        mid.Status = true;
-                                        mid.Protocol = true;
-                                        mid.Enable = true;
+                                        MEInterfaceToDatabase mid = new MEInterfaceToDatabase
+                                        {
+                                            Name = name,
+                                            Status = true,
+                                            Protocol = true,
+                                            Enable = true
+                                        };
                                         interfacelive.Add(name, mid);
                                     }
                                 }
@@ -2620,6 +2526,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             }
                         }
                     }
+
+                    //if (Request("show router interface detail", out lines, probe)) return probe;
                 }
                 #endregion
             }
@@ -3391,7 +3299,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             {
                 foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> v in NecrowVirtualization.MEPhysicalInterfaces)
                 {
-                    if (v.Item1 == nodeName)
+                    if (v.Item1 == NodeName)
                     {
                         vMEPhysicalInterfaces = v.Item2;
                         vExists = true;
@@ -3401,13 +3309,15 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 if (!vExists)
                 {
                     vMEPhysicalInterfaces = new List<Tuple<string, string, string, string, string, string, string>>();
-                    NecrowVirtualization.MEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(nodeName, vMEPhysicalInterfaces));
+                    NecrowVirtualization.MEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(NodeName, vMEPhysicalInterfaces));
                     NecrowVirtualization.MEPhysicalInterfacesSort(true);
                 }
             }
 
             int sinf = 0, sinfup = 0, sinfag = 0, sinfhu = 0, sinfhuup = 0, sinfte = 0, sinfteup = 0, sinfgi = 0, sinfgiup = 0, sinffa = 0, sinffaup = 0, sinfet = 0, sinfetup = 0,
                 ssubinf = 0, ssubinfup = 0, ssubinfupup = 0, ssubinfag = 0, ssubinfagup = 0, ssubinfagupup = 0, ssubinfhu = 0, ssubinfhuup = 0, ssubinfhuupup = 0, ssubinfte = 0, ssubinfteup = 0, ssubinfteupup = 0, ssubinfgi = 0, ssubinfgiup = 0, ssubinfgiupup = 0, ssubinffa = 0, ssubinffaup = 0, ssubinffaupup = 0, ssubinfet = 0, ssubinfetup = 0, ssubinfetupup = 0;
+
+            ServiceImmediateDiscovery(interfacelive);
 
             foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
             {
@@ -3449,16 +3359,20 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         if (interfacedb.ContainsKey(parentPort)) // cek di existing db
                             li.ParentID = interfacedb[parentPort]["MI_ID"].ToString();
                         else if (interfaceinsert.ContainsKey(parentPort)) // cek di interface yg baru
-                            li.ParentID = interfaceinsert[parentPort].ID;
+                            li.ParentID = interfaceinsert[parentPort].Id;
                     }
+
+                    //if (inf.Name == "Ex10/1/6")
+                    ///{
+                        //Event("Debug");
+                    //}
 
                     if (!inf.IsSubInterface)
                     {
                         if (inftype == "Ag")
                         {
                             // we need support with child
-                            int myaggr;
-                            if (int.TryParse(inf.Interface, out myaggr))
+                            if (int.TryParse(inf.Interface, out int myaggr))
                             {
                                 // cari child di interfacelive yg aggr-nya myaggr
                                 List<MEInterfaceToDatabase> agPhysicals = new List<MEInterfaceToDatabase>();
@@ -3473,6 +3387,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 // jika setiap anak memiliki neighbor YANG PARENT IDNYA TIDAK NULL DAN SAMA, maka set ke adjacentParentID
                                 string childNeighborParentID = null;
                                 int neighborType = 0; // 1: PE, 2: ME
+
                                 foreach (MEInterfaceToDatabase mi in li.AggrChilds)
                                 {
                                     FindPhysicalNeighbor(mi); // find topology anaknya dulu
@@ -3496,6 +3411,14 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                     }
                                 }
 
+
+
+                                // jika child ga nyambung, coba orang tua
+                                //if (childNeighborParentID == null)
+                                //{
+                                //    FindPhysicalNeighbor(li);
+                                //}
+
                                 // adjacentParentID adalah parentID (aggr) dari lawannya interface aggr ini di PE.
                                 if (childNeighborParentID != null)
                                 {
@@ -3506,8 +3429,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
                                         // query lawan
                                         li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
-                                        result = Query("select PI_ID, PI_DOT1Q, PI_TO_MI from PEInterface where PI_PI = {0}", li.TopologyPEInterfaceID);
-                                        if (!result.OK) return DatabaseFailure(probe);
+                                        result = j.Query("select PI_ID, PI_DOT1Q, PI_TO_MI from PEInterface where PI_PI = {0}", li.TopologyPEInterfaceID);
+                                        if (!result) return DatabaseFailure(probe);
                                         foreach (Row row in result)
                                         {
                                             if (!row["PI_DOT1Q"].IsNull)
@@ -3524,8 +3447,8 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
                                         // query lawan
                                         li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
-                                        result = Query("select MI_ID, MI_DOT1Q, MI_TO_MI, MI_TO_PI from MEInterface where MI_MI = {0}", li.TopologyMEInterfaceID);
-                                        if (!result.OK) return DatabaseFailure(probe);
+                                        result = j.Query("select MI_ID, MI_DOT1Q, MI_TO_MI, MI_TO_PI from MEInterface where MI_MI = {0}", li.TopologyMEInterfaceID);
+                                        if (!result) return DatabaseFailure(probe);
                                         foreach (Row row in result)
                                         {
                                             if (!row["MI_DOT1Q"].IsNull)
@@ -3590,25 +3513,22 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     }
                 }
 
-                li.EquipmentName = NetworkInterface.EquipmentName(nodeManufacture, li.Name);
+                li.EquipmentName = NetworkInterface.EquipmentName(nodeManufacture + (nodeManufacture == cso && nodeVersion == xr ? "XR" : ""), li.Name);
 
                 if (!interfacedb.ContainsKey(pair.Key))
                 {
                     Event("Interface ADD: " + pair.Key);
 
-                    li.ID = Database.ID();
+                    li.Id = Database.ID();
                     interfaceinsert.Add(li.Name, li);
-
-                    // Service
-                    if (li.Description != null) interfaceServiceReference.Add(li, li.Description);
                 }
                 else
                 {
                     Row db = interfacedb[pair.Key];
 
                     MEInterfaceToDatabase u = new MEInterfaceToDatabase();
-                    u.ID = db["MI_ID"].ToString();
-                    li.ID = u.ID;
+                    u.Id = db["MI_ID"].ToString();
+                    li.Id = u.Id;
 
                     bool update = false;
                     StringBuilder updateinfo = new StringBuilder();
@@ -3627,12 +3547,12 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.TopologyPEInterfaceID = li.TopologyPEInterfaceID;
                         UpdateInfo(updateinfo, "mi-to-pi", db["MI_TO_PI"].ToString(), li.TopologyPEInterfaceID, true);
                     }
-                    else if (li.TopologyPEInterfaceID != null && li.NeighborCheckPITOMI != u.ID)
+                    else if (li.TopologyPEInterfaceID != null && li.NeighborCheckPITOMI != u.Id)
                     {
                         update = true;
                         u.UpdateNeighborCheckPITOMI = true;
                         u.TopologyPEInterfaceID = li.TopologyPEInterfaceID;
-                        UpdateInfo(updateinfo, "neighbor-pi-to-mi", li.NeighborCheckPITOMI, u.ID, true);
+                        UpdateInfo(updateinfo, "neighbor-pi-to-mi", li.NeighborCheckPITOMI, u.Id, true);
                     }
                     if (db["MI_TO_MI"].ToString() != li.TopologyMEInterfaceID)
                     {
@@ -3641,12 +3561,12 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
                         UpdateInfo(updateinfo, "mi-to-mi", db["MI_TO_MI"].ToString(), li.TopologyMEInterfaceID, true);
                     }
-                    else if (li.TopologyMEInterfaceID != null && li.NeighborCheckMITOMI != u.ID)
+                    else if (li.TopologyMEInterfaceID != null && li.NeighborCheckMITOMI != u.Id)
                     {
                         update = true;
                         u.UpdateNeighborCheckMITOMI = true;
                         u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
-                        UpdateInfo(updateinfo, "neighbor-mi-to-mi", li.NeighborCheckMITOMI, u.ID, true);
+                        UpdateInfo(updateinfo, "neighbor-mi-to-mi", li.NeighborCheckMITOMI, u.Id, true);
                     }
                     if (db["MI_TO_NI"].ToString() != li.TopologyNBInterfaceID)
                     {
@@ -3662,13 +3582,13 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.Description = li.Description;
                         UpdateInfo(updateinfo, "description", db["MI_Description"].ToString(), li.Description, true);
                     }
-                    if (updatingNecrow || u.UpdateDescription)
+                    if (db["MI_SI"] != li.ServiceImmediateID)
                     {
                         update = true;
-                        u.ServiceID = null;
-                        if (li.Description != null) interfaceServiceReference.Add(u, li.Description);
+                        u.UpdateServiceImmediateID = true;
+                        u.ServiceImmediateID = li.ServiceImmediateID;
+                        UpdateInfo(updateinfo, "service-immediate", "UPDATING");
                     }
-
                     if (db["MI_Status"].ToBool() != li.Status)
                     {
                         update = true;
@@ -3853,6 +3773,183 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
             }
 
+            // NECROW 3.0
+            foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
+            {
+                MEInterfaceToDatabase li = pair.Value;
+
+                NetworkInterface inf = NetworkInterface.Parse(li.Name);
+
+                // OPTIMUM RATE
+                int ori = 0, oro = 0;
+
+                int cr = -1;
+                if (inf != null)
+                {
+                    if (inf.Type == "Ag")
+                    {
+                        MEInterfaceToDatabase aggrInterface = null;
+
+                        if (inf.IsSubInterface)
+                        {
+                            if (interfacelive.ContainsKey(inf.BaseName))
+                            {
+                                aggrInterface = interfacelive[inf.BaseName];
+                            }
+                        }
+                        else
+                        {
+                            aggrInterface = li;
+                        }
+
+                        if (aggrInterface != null)
+                        {
+                            cr = 0;
+                            foreach (MEInterfaceToDatabase pix in aggrInterface.AggrChilds)
+                            {
+                                string ty = pix.InterfaceType;
+
+                                int typerate = 0;
+                                if (ty == "Hu") typerate = 104857600;
+                                else if (ty == "Te") typerate = 10485760;
+                                else if (ty == "Gi") typerate = 1048576;
+                                else if (ty == "Fa") typerate = 102400;
+                                else if (ty == "Et") typerate = 10240;
+                                else if (ty == "Se") typerate = 0;
+
+                                cr += typerate;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (inf.IsSubInterface)
+                        {
+                            if (interfacelive.ContainsKey(inf.BaseName))
+                            {
+                                MEInterfaceToDatabase par = interfacelive[inf.BaseName];
+
+                                string ty = par.InterfaceType;
+
+                                int typerate = 0;
+                                if (ty == "Hu") typerate = 104857600;
+                                else if (ty == "Te") typerate = 10485760;
+                                else if (ty == "Gi") typerate = 1048576;
+                                else if (ty == "Fa") typerate = 102400;
+                                else if (ty == "Et") typerate = 10240;
+                                else if (ty == "Se") typerate = 0;
+
+                                cr = typerate;
+                            }
+                        }
+                        else
+                        {
+                            string ty = li.InterfaceType;
+
+                            int typerate = 0;
+                            if (ty == "Hu") typerate = 104857600;
+                            else if (ty == "Te") typerate = 10485760;
+                            else if (ty == "Gi") typerate = 1048576;
+                            else if (ty == "Fa") typerate = 102400;
+                            else if (ty == "Et") typerate = 10240;
+                            else if (ty == "Se") typerate = 0;
+
+                            cr = typerate;
+                        }
+                    }
+                }
+
+                if (cr != -1)
+                {
+                    int dri = li.RateInput == -1 ? int.MaxValue : li.RateInput;
+                    int dro = li.RateOutput == -1 ? int.MaxValue : li.RateOutput;
+                    
+                    int qri = int.MaxValue, qro = int.MaxValue;
+                    foreach (KeyValuePair<string, Row> qpair in qosdb)
+                    {
+                        string rid = qpair.Value["MQ_ID"];
+                        bool rdi = qpair.Value["MQ_Type"];
+
+                        if (rid == li.IngressID && !rdi)
+                            qri = qpair.Value["MQ_Bandwidth"].ToInt(int.MaxValue);
+                        if (rid == li.EgressID && rdi)
+                            qro = qpair.Value["MQ_Bandwidth"].ToInt(int.MaxValue);
+                    }
+
+                    ori = int.MaxValue;
+                    if (dri < ori) ori = dri;
+                    if (qri < ori) ori = qri;
+                    if (cr < ori) ori = cr;
+
+                    oro = int.MaxValue;
+                    if (dro < oro) oro = dro;
+                    if (qro < oro) oro = qro;
+                    if (cr < oro) oro = cr;
+                }
+
+                // INTERFACE
+                Result ifr = j.Query("select IF_ID, IF_Entry_State, IF_OptimumRate_Input, IF_OptimumRate_Output from Interface where IF_NO = {0} and IF_EquipmentName = {1}", nodeID, li.EquipmentName);
+
+                if (ifr == 0)
+                {
+                    Insert ifi = j.Insert("Interface");
+                    li.InterfaceID = ifi.Key("IF_ID");
+                    ifi.Value("IF_Entry_State", 1);
+                    ifi.Value("IF_Entry_LastToggle", DateTime.UtcNow);
+                    ifi.Value("IF_NO", nodeID);
+                    ifi.Value("IF_EquipmentName", li.EquipmentName);
+                    ifi.Value("IF_OptimumRate_Input", ori);
+                    ifi.Value("IF_OptimumRate_Output", oro);
+                    ifi.Execute();
+                }
+                else
+                {
+                    li.InterfaceID = ifr[0]["IF_ID"];
+                    bool est = ifr[0]["IF_Entry_State"];
+                    int dori = ifr[0]["IF_OptimumRate_Input"].ToInt(-1);
+                    int doro = ifr[0]["IF_OptimumRate_Output"].ToInt(-1);
+
+                    Update ifu = j.Update("Interface");
+                    ifu.Set("IF_Entry_State", 1, est == false);
+                    ifu.Set("IF_OptimumRate_Input", ori, dori != ori);
+                    ifu.Set("IF_OptimumRate_Output", oro, doro != oro);
+
+                    if (!ifu.IsEmpty)
+                    {
+                        ifu.Where("IF_ID", li.InterfaceID);
+                        ifu.Execute();
+                    }
+
+                    if (interfacedb.ContainsKey(pair.Key))
+                    {
+                        string dbid = interfacedb[pair.Key]["MI_ID"];
+                        string dbif = interfacedb[pair.Key]["MI_IF"];
+
+                        bool found = false;
+
+                        if (dbif != li.InterfaceID)
+                        {
+                            foreach (MEInterfaceToDatabase uix in interfaceupdate)
+                            {
+                                if (uix.Id == dbid)
+                                {
+                                    uix.InterfaceID = dbif;
+                                    uix.UpdateInterfaceID = true;
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (!found)
+                        {
+                            // langsung update aja
+                            j.Execute("update MEInterface set MI_IF = {0} where MI_ID = {1}", li.InterfaceID, dbid);
+                        }
+                    }
+                }
+            }
+
             Summary("INTERFACE_COUNT", sinf);
             Summary("INTERFACE_COUNT_UP", sinfup);
             Summary("INTERFACE_COUNT_HU", sinfhu);
@@ -3886,9 +3983,6 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             #endregion
 
             #region Execute
-            
-            // SERVICE REFERENCE
-            ServiceDiscovery(interfaceServiceReference);
 
             // ADD
             batch.Begin();
@@ -3901,8 +3995,9 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             {
                 MEInterfaceToDatabase s = pair.Value;
 
-                Insert insert = Insert("MEInterface");
-                insert.Value("MI_ID", s.ID);
+                Insert insert = j.Insert("MEInterface");
+                insert.Value("MI_ID", s.Id);
+                insert.Value("MI_IF", s.InterfaceID);
                 insert.Value("MI_NO", nodeID);
                 insert.Value("MI_Name", s.Name);
                 insert.Value("MI_Status", s.Status);
@@ -3923,7 +4018,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 insert.Value("MI_Mode", s.Mode.Nullable('-'));
                 insert.Value("MI_Encapsulation", s.Mode.Nullable('-'));
                 insert.Value("MI_Info", s.Info);
-                insert.Value("MI_SE", s.ServiceID);
+                insert.Value("MI_SI", s.ServiceImmediateID);
                 insert.Value("MI_MI", s.ParentID);
                 insert.Value("MI_TO_PI", s.TopologyPEInterfaceID);
                 insert.Value("MI_TO_MI", s.TopologyMEInterfaceID);
@@ -3936,43 +4031,44 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 insert.Value("MI_Summary_CIRTotalInput", s.CirTotalInput.Nullable(-1));
                 insert.Value("MI_Summary_CIRTotalOutput", s.CirTotalOutput.Nullable(-1));
                 insert.Value("MI_Summary_SubInterfaceCount", s.SubInterfaceCount.Nullable(-1));
-                batch.Execute(insert);
+                batch.Add(insert);
 
-                interfaceTopologyPIUpdate.Add(new Tuple<string, string>(s.TopologyPEInterfaceID, s.ID));
-                interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
+                interfaceTopologyPIUpdate.Add(new Tuple<string, string>(s.TopologyPEInterfaceID, s.Id));
+                interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.Id));
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Add, EventElements.Interface, false);
 
             // UPDATE       
             batch.Begin();
             foreach (MEInterfaceToDatabase s in interfaceupdate)
             {
-                Update update = Update("MEInterface");
+                Update update = j.Update("MEInterface");
                 update.Set("MI_MI", s.ParentID, s.UpdateParentID);
 
                 if (s.UpdateTopologyPEInterfaceID)
                 {
                     update.Set("MI_TO_PI", s.TopologyPEInterfaceID);
-                    interfaceTopologyPIUpdate.Add(new Tuple<string, string>(s.TopologyPEInterfaceID, s.ID));
+                    interfaceTopologyPIUpdate.Add(new Tuple<string, string>(s.TopologyPEInterfaceID, s.Id));
                 }
                 else if (s.UpdateNeighborCheckPITOMI)
                 {
-                    interfaceTopologyPIUpdate.Add(new Tuple<string, string>(s.TopologyPEInterfaceID, s.ID));
+                    interfaceTopologyPIUpdate.Add(new Tuple<string, string>(s.TopologyPEInterfaceID, s.Id));
                 }
                 if (s.UpdateTopologyMEInterfaceID)
                 {
                     update.Set("MI_TO_MI", s.TopologyMEInterfaceID);
-                    interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
+                    interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.Id));
                 }
                 else if (s.UpdateNeighborCheckMITOMI)
                 {
-                    interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.ID));
+                    interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.Id));
                 }
+                update.Set("MI_IF", s.InterfaceID, s.UpdateInterfaceID);
                 update.Set("MI_TO_NI", s.TopologyNBInterfaceID, s.UpdateTopologyNBInterfaceID);
                 update.Set("MI_Description", s.Description, s.UpdateDescription);
-                update.Set("MI_SE", s.ServiceID, s.UpdateDescription || updatingNecrow);
+                update.Set("MI_SI", s.ServiceImmediateID, s.UpdateServiceImmediateID);
                 update.Set("MI_Status", s.Status, s.UpdateStatus);
                 update.Set("MI_Protocol", s.Protocol, s.UpdateProtocol);
                 update.Set("MI_Enable", s.Enable, s.UpdateEnable);
@@ -3998,25 +4094,25 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 update.Set("MI_Summary_CIRTotalInput", s.CirTotalInput.Nullable(-1), s.UpdateCirTotalInput);
                 update.Set("MI_Summary_CIRTotalOutput", s.CirTotalOutput.Nullable(-1), s.UpdateCirTotalOutput);
                 update.Set("MI_Summary_SubInterfaceCount", s.SubInterfaceCount, s.UpdateSubInterfaceCount);
-                update.Where("MI_ID", s.ID);
-                batch.Execute(update);
+                update.Where("MI_ID", s.Id);
+                batch.Add(update);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.Interface, false);
 
             batch.Begin();
             foreach (Tuple<string, string> tuple in interfaceTopologyPIUpdate)
             {
-                if (tuple.Item1 != null) batch.Execute("update PEInterface set PI_TO_MI = {0} where PI_ID = {1}", tuple.Item2, tuple.Item1);
-                else batch.Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI = {0}", tuple.Item2);
+                if (tuple.Item1 != null) batch.Add("update PEInterface set PI_TO_MI = {0} where PI_ID = {1}", tuple.Item2, tuple.Item1);
+                else batch.Add("update PEInterface set PI_TO_MI = NULL where PI_TO_MI = {0}", tuple.Item2);
             }
             foreach (Tuple<string, string> tuple in interfaceTopologyMIUpdate)
             {
-                if (tuple.Item1 != null) batch.Execute("update MEInterface set MI_TO_MI = {0} where MI_ID = {1}", tuple.Item2, tuple.Item1);
+                if (tuple.Item1 != null) batch.Add("update MEInterface set MI_TO_MI = {0} where MI_ID = {1}", tuple.Item2, tuple.Item1);
                 else
                 {
-                    batch.Execute("update MEInterface set MI_TO_MI = NULL where MI_TO_MI = {0}", tuple.Item2);
+                    batch.Add("update MEInterface set MI_TO_MI = NULL where MI_TO_MI = {0}", tuple.Item2);
 
                     // remove dac from virtualization
                     foreach (KeyValuePair<string, Tuple<string, string, string, string>> entry in NecrowVirtualization.DerivedAreaConnections)
@@ -4030,7 +4126,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Update, EventElements.NBInterface, false);
 
             // DELETE
@@ -4041,12 +4137,17 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 if (!interfacelive.ContainsKey(pair.Key))
                 {
                     Event("Interface DELETE: " + pair.Key);
+                    string ifid = pair.Value["MI_IF"];
                     string id = pair.Value["MI_ID"].ToString();
 
-                    batch.Execute("update PEInterface set PI_TO_MI = NULL where PI_TO_MI = {0}", id);
-                    batch.Execute("update MEInterface set MI_TO_MI = NULL where MI_TO_MI = {0}", id);
-                    batch.Execute("update MEInterface set MI_MI = NULL where MI_MI = {0}", id);
-                    batch.Execute("update MEMac set MA_MI = NULL where MA_MI = {0}", id);
+                    batch.Add("update PEInterface set PI_TO_MI = NULL where PI_TO_MI = {0}", id);
+                    batch.Add("update MEInterface set MI_TO_MI = NULL where MI_TO_MI = {0}", id);
+                    batch.Add("update MEInterface set MI_MI = NULL where MI_MI = {0}", id);
+                    batch.Add("update MEMac set MA_MI = NULL where MA_MI = {0}", id);
+
+                    if (ifid != null)
+                        batch.Add("update Interface set IF_Entry_State = 0, IF_Entry_LastToggle = {0} where IF_ID = {1}", DateTime.UtcNow, ifid);
+
                     interfacedelete.Add(id);
 
                     // remove dac from virtualization
@@ -4061,7 +4162,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.Interface, false);
 
             // AREA CONNECTIONS
@@ -4079,7 +4180,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     if (((li.ParentID != null && li.Aggr != -1) || li.ParentID == null) && li.TopologyMEInterfaceID != null)
                     {
                         // fisik (biasa atau anak aggregator)
-                        string interfaceID = li.ID;
+                        string interfaceID = li.Id;
                         bool existInVir = false;
 
                         foreach (KeyValuePair<string, Tuple<string, string, string, string>> pair2 in NecrowVirtualization.DerivedAreaConnections)
@@ -4093,17 +4194,17 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 {
                                     // gak bener ini, update!
                                     remove.Add(pair2.Key);
-                                    result = Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
-                                    if (!result.OK) return DatabaseFailure(probe);
+                                    result = j.Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
+                                    if (!result) return DatabaseFailure(probe);
                                     if (result.Count == 1)
                                     {
                                         string topologyAreaID = result[0]["NO_AR"].ToString();
                                         add.Add(new Tuple<string, Tuple<string, string, string, string>>(pair2.Key, new Tuple<string, string, string, string>(nodeAreaID, topologyAreaID, interfaceID, li.TopologyMEInterfaceID)));
-                                        Update update = Update("DerivedAreaConnection");
+                                        Update update = j.Update("DerivedAreaConnection");
                                         update.Where("DAC_ID", pair2.Key);
                                         update.Set("DAC_AR_2", topologyAreaID);
                                         update.Set("DAC_MI_2", li.TopologyMEInterfaceID);
-                                        batch.Execute(update);
+                                        batch.Add(update);
                                     }
                                 }
                                 break;
@@ -4115,17 +4216,17 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 {
                                     // gak bener ini, update!
                                     remove.Add(pair2.Key);
-                                    result = Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
-                                    if (!result.OK) return DatabaseFailure(probe);
+                                    result = j.Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
+                                    if (!result) return DatabaseFailure(probe);
                                     if (result.Count == 1)
                                     {
                                         string topologyAreaID = result[0]["NO_AR"].ToString();
                                         add.Add(new Tuple<string, Tuple<string, string, string, string>>(pair2.Key, new Tuple<string, string, string, string>(topologyAreaID, nodeAreaID, li.TopologyMEInterfaceID, interfaceID)));
-                                        Update update = Update("DerivedAreaConnection");
+                                        Update update = j.Update("DerivedAreaConnection");
                                         update.Where("DAC_ID", pair2.Key);
                                         update.Set("DAC_AR_1", topologyAreaID);
                                         update.Set("DAC_MI_1", li.TopologyMEInterfaceID);
-                                        batch.Execute(update);
+                                        batch.Add(update);
                                     }
                                 }
                                 break;
@@ -4137,26 +4238,26 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         {
                             // add
                             string dacID = Database.ID();
-                            result = Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
-                            if (!result.OK) return DatabaseFailure(probe);
+                            result = j.Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
+                            if (!result) return DatabaseFailure(probe);
                             if (result.Count == 1)
                             {
                                 string topologyAreaID = result[0]["NO_AR"].ToString();
                                 add.Add(new Tuple<string, Tuple<string, string, string, string>>(dacID, new Tuple<string, string, string, string>(nodeAreaID, topologyAreaID, interfaceID, li.TopologyMEInterfaceID)));
-                                Insert insert = Insert("DerivedAreaConnection");
+                                Insert insert = j.Insert("DerivedAreaConnection");
                                 insert.Value("DAC_ID", dacID);
                                 insert.Value("DAC_AR_1", nodeAreaID);
                                 insert.Value("DAC_AR_2", topologyAreaID);
                                 insert.Value("DAC_MI_1", interfaceID);
                                 insert.Value("DAC_MI_2", li.TopologyMEInterfaceID);
-                                batch.Execute(insert);
+                                batch.Add(insert);
                             }
                         }
                     }
                 }
 
                 result = batch.Commit();
-                if (!result.OK) return DatabaseFailure(probe);
+                if (!result) return DatabaseFailure(probe);
 
                 // modify virtualizations
                 // remove
@@ -4176,10 +4277,10 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 foreach (string dacID in dacRemove)
                 {
                     NecrowVirtualization.DerivedAreaConnections.Remove(dacID);
-                    batch.Execute("delete from DerivedAreaConnection where DAC_ID = {0}", dacID);
+                    batch.Add("delete from DerivedAreaConnection where DAC_ID = {0}", dacID);
                 }
                 result = batch.Commit();
-                if (!result.OK) return DatabaseFailure(probe);
+                if (!result) return DatabaseFailure(probe);
             }
 
             // redone vMEPhysicalInterfaces
@@ -4187,35 +4288,35 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
             {
                 MEInterfaceToDatabase li = pair.Value;
-                vMEPhysicalInterfaces.Add(new Tuple<string, string, string, string, string, string, string>(li.Name, li.Description, li.ID, li.InterfaceType, li.ParentID, li.TopologyMEInterfaceID, li.TopologyPEInterfaceID));
+                vMEPhysicalInterfaces.Add(new Tuple<string, string, string, string, string, string, string>(li.Name, li.Description, li.Id, li.InterfaceType, li.ParentID, li.TopologyMEInterfaceID, li.TopologyPEInterfaceID));
             }
             NecrowVirtualization.MEPhysicalInterfacesSort(vMEPhysicalInterfaces);
 
             batch.Begin();
             foreach (string id in interfacedelete)
             {
-                batch.Execute("delete from MEInterface where MI_ID = {0}", id);
+                batch.Add("delete from MEInterface where MI_ID = {0}", id);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.Interface, false);
 
             // RESERVES
-            batch.Begin();
-            foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
-            {
-                foreach (KeyValuePair<string, Row> pair2 in reserves)
-                {
-                    string key2 = pair2.Key;
-                    if (key2.StartsWith(pair.Value.Name + "=") || key2.EndsWith("=" + pair.Value.ServiceSID))
-                    {
-                        batch.Execute("delete from Reserve where RE_ID = {0}", pair2.Value["RE_ID"].ToString());
-                    }
-                }
-            }
-            result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
-            if (result.AffectedRows > 0) Event(result.AffectedRows + " reserved entr" + (result.AffectedRows > 1 ? "ies have " : "y has ") + " been found");
+            //batch.Begin();
+            //foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
+            //{
+            //    foreach (KeyValuePair<string, Row> pair2 in reserves)
+            //    {
+            //        string key2 = pair2.Key;
+            //        if (key2.StartsWith(pair.Value.Name + "=") || key2.EndsWith("=" + pair.Value.ServiceVID))
+            //        {
+            //            batch.Add("delete from Reserve where RE_ID = {0}", pair2.Value["RE_ID"].ToString());
+            //        }
+            //    }
+            //}
+            //result = batch.Commit();
+            //if (!result) return DatabaseFailure(probe);
+            //if (result.AffectedRows > 0) Event(result.AffectedRows + " reserved entr" + (result.AffectedRows > 1 ? "ies have " : "y has ") + " been found");
 
             #endregion
 
@@ -4232,21 +4333,21 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 {
                     Event("Circuit DELETE: " + pair.Key);
                     string id = pair.Value["MC_ID"].ToString();
-                    batch.Execute("update MEInterface set MI_MC = NULL where MI_MC = {0}", id);
-                    batch.Execute("update MEPeer set MP_TO_MC = NULL where MP_TO_MC = {0}", id);
-                    batch.Execute("delete from MEMac where MA_MC = {0}", id);
+                    batch.Add("update MEInterface set MI_MC = NULL where MI_MC = {0}", id);
+                    batch.Add("update MEPeer set MP_TO_MC = NULL where MP_TO_MC = {0}", id);
+                    batch.Add("delete from MEMac where MA_MC = {0}", id);
                     circuitdelete.Add(id);
                 }
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             batch.Begin();
             foreach (string id in circuitdelete)
             {
-                batch.Execute("delete from MECircuit where MC_ID = {0}", id);
+                batch.Add("delete from MECircuit where MC_ID = {0}", id);
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.Circuit, false);
 
             // SDP DELETE
@@ -4256,11 +4357,11 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 if (!sdplive.ContainsKey(pair.Key))
                 {
                     Event("SDP DELETE: " + pair.Key);
-                    batch.Execute("delete from MESDP where MS_ID = {0}", pair.Value["MS_ID"].ToString());
+                    batch.Add("delete from MESDP where MS_ID = {0}", pair.Value["MS_ID"].ToString());
                 }
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.SDP, false);
 
             // ALU CUSTOMER DELETE            
@@ -4273,12 +4374,12 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     if (!alucustlive.ContainsKey(pair.Key))
                     {
                         Event("ALU-Customer DELETE: " + pair.Key);
-                        batch.Execute("update MECircuit set MC_MU = NULL where MC_MU = {0}", row["MU_ID"].ToString()); // in case theres stupid circuit left around
-                        batch.Execute("delete from MECustomer where MU_ID = {0}", row["MU_ID"].ToString());
+                        batch.Add("update MECircuit set MC_MU = NULL where MC_MU = {0}", row["MU_ID"].ToString()); // in case theres stupid circuit left around
+                        batch.Add("delete from MECustomer where MU_ID = {0}", row["MU_ID"].ToString());
                     }
                 }
                 result = batch.Commit();
-                if (!result.OK) return DatabaseFailure(probe);
+                if (!result) return DatabaseFailure(probe);
                 Event(result, EventActions.Delete, EventElements.ALUCustomer, false);
             }
 
@@ -4291,13 +4392,13 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 {
                     Event("QOS DELETE: " + pair.Key);
                     string mqid = row["MQ_ID"].ToString();
-                    batch.Execute("update MEInterface set MI_MQ_Input = NULL where MI_MQ_Input = {0}", mqid);
-                    batch.Execute("update MEInterface set MI_MQ_Output = NULL where MI_MQ_Output = {0}", mqid);
-                    batch.Execute("delete from MEQOS where MQ_ID = {0}", mqid);
+                    batch.Add("update MEInterface set MI_MQ_Input = NULL where MI_MQ_Input = {0}", mqid);
+                    batch.Add("update MEInterface set MI_MQ_Output = NULL where MI_MQ_Output = {0}", mqid);
+                    batch.Add("delete from MEQOS where MQ_ID = {0}", mqid);
                 }
             }
             result = batch.Commit();
-            if (!result.OK) return DatabaseFailure(probe);
+            if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.QOS, false);
 
             #endregion

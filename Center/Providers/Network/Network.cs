@@ -5,20 +5,22 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Web;
 
+using Aveezo;
+
 namespace Center.Providers
 {
     public static class Network
     {
         public static ProviderPacket ProviderRequest(ResourceAsyncResult result, int id)
         {
-            Database jovice = Jovice.Database;
+            Database j = Database.Get("JOVICE");
 
             if (id == 15001) // Request AR
             {
                 string reqType = Params.GetValue("ia"); // 
                 if (reqType == "G")
                 {
-                    Result r = jovice.Query("select * from AreaGroup");
+                    Result r = j.Query("select * from AreaGroup");
                     NetworkProviderPacket p = new NetworkProviderPacket();
                     List<object[]> points = new List<object[]>();
                     foreach (Row row in r)
@@ -38,7 +40,7 @@ namespace Center.Providers
                 }
                 else if (reqType == "W")
                 {
-                    Result r = jovice.Query("select * from AreaWitel");
+                    Result r = j.Query("select * from AreaWitel");
                     NetworkProviderPacket p = new NetworkProviderPacket();
                     List<object[]> points = new List<object[]>();
                     foreach (Row row in r)
@@ -84,7 +86,7 @@ namespace Center.Providers
                                 double latMax = latMin + 2;
                                 if (latMax == 90) latMax = 90.0001;
 
-                                Result r = jovice.Query("select * from Area where AR_Latitude >= {0} and AR_Latitude < {1} and AR_Longitude >= {2} and AR_Longitude < {3}", latMin, latMax, lngMin, lngMax);
+                                Result r = j.Query("select * from Area where AR_Latitude >= {0} and AR_Latitude < {1} and AR_Longitude >= {2} and AR_Longitude < {3}", latMin, latMax, lngMin, lngMax);
                                                                 
                                 foreach (Row row in r)
                                 {
@@ -100,7 +102,7 @@ namespace Center.Providers
                                     points.Add(ob);
                                 }
 
-                                r = jovice.Query(@"
+                                r = j.Query(@"
 select distinct aa.AR_ID so, ba.AR_Latitude de_Latitude, ba.AR_Longitude de_Longitude, ba.AR_Name de_Name from Area aa, Node an, MEInterface ai, MEInterface bi, Node bn, Area ba
 where an.NO_AR = aa.AR_ID and  ai.MI_NO = an.NO_ID and ai.MI_TO_MI = bi.MI_ID and bi.MI_NO = bn.NO_ID and bn.NO_AR = ba.AR_ID
 and aa.AR_ID <> ba.AR_ID

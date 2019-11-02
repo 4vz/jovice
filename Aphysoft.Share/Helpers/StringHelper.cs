@@ -12,11 +12,15 @@ namespace Aphysoft.Share
 {
     public static class StringSplitTypes
     {
-        public static readonly char[] Space = new char[] { ' ' };
-        public static readonly char[] Comma = new char[] { ',' };
-        public static readonly char[] Dot = new char[] { '.' };
-        public static readonly char[] Underscore = new char[] { '_' };
-        public static readonly char[] Slash = new char[] { '/' };
+        public static readonly char[] Space = { ' ' };
+        public static readonly char[] Comma = { ',' };
+        public static readonly char[] Dot = { '.' };
+        public static readonly char[] Underscore = { '_' };
+        public static readonly char[] Slash = { '/' };
+        public static readonly char[] SemiColon = { ';' };
+        public static readonly char[] Colon = { ':' };
+        public static readonly char[] Pipe = { '|' };
+        public static readonly char[] Dash = { '-' };
     }
 
 
@@ -202,7 +206,7 @@ namespace Aphysoft.Share
 
 
 
-        private static Random randomHelper = null;
+        private static System.Random randomHelper = null;
 
         private static string javaScriptSafeVariableCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
@@ -220,7 +224,7 @@ namespace Aphysoft.Share
         public static string CreateJavaScriptSafeVariable(int length)
         {
             if (randomHelper == null)
-                randomHelper = new Random();
+                randomHelper = new System.Random();
 
             StringBuilder sb = new StringBuilder();
           
@@ -249,7 +253,7 @@ namespace Aphysoft.Share
         public static string CreateSafeRandomCharacter(int length)
         {
             if (randomHelper == null)
-                randomHelper = new Random();
+                randomHelper = new System.Random();
 
             StringBuilder sb = new StringBuilder();
 

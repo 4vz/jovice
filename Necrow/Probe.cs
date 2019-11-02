@@ -6,591 +6,206 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
-
 using System.Text.RegularExpressions;
-
 using Aphysoft.Share;
 
+using Aveezo;
 
-namespace Center
+namespace Necrow
 {
     #region To Database
-
-    internal abstract class ToDatabase
+    
+    internal abstract class StatusToDatabase : Data
     {
-        private string id;
+        public bool Status { get; set; }
 
-        public string ID
-        {
-            get { return id; }
-            set { id = value; }
-        }
+        public bool Protocol { get; set; }
 
-    }
+        public bool Enable { get; set; }
 
-    internal abstract class StatusToDatabase : ToDatabase
-    {
-        private bool status;
+        public bool UpdateStatus { get; set; } = false;
 
-        public bool Status
-        {
-            get { return status; }
-            set { status = value; }
-        }
+        public bool UpdateProtocol { get; set; } = false;
 
-        private bool protocol;
-
-        public bool Protocol
-        {
-            get { return protocol; }
-            set { protocol = value; }
-        }
-
-        private bool enable;
-
-        public bool Enable
-        {
-            get { return enable; }
-            set { enable = value; }
-        }
-
-        private bool updateStatus = false;
-
-        public bool UpdateStatus
-        {
-            get { return updateStatus; }
-            set { updateStatus = value; }
-        }
-
-        private bool updateProtocol = false;
-
-        public bool UpdateProtocol
-        {
-            get { return updateProtocol; }
-            set { updateProtocol = value; }
-        }
-
-        private bool updateEnable = false;
-
-        public bool UpdateEnable
-        {
-            get { return updateEnable; }
-            set { updateEnable = value; }
-        }
+        public bool UpdateEnable { get; set; } = false;
     }
 
     internal abstract class ServiceBaseToDatabase : StatusToDatabase
     {
-        private string serviceID;
+        public string ServiceImmediateID { get; set; }
 
-        public string ServiceID
-        {
-            get { return serviceID; }
-            set { serviceID = value; }
-        }
+        public bool UpdateServiceImmediateID { get; set; } = false;
 
-        private string serviceSID;
+        public string ServiceVID { get; set; }
 
-        public string ServiceSID
-        {
-            get { return serviceSID; }
-            set { serviceSID = value; }
-        }
+        public string Description { get; set; }
+
+        public bool UpdateDescription { get; set; } = false;
     }
 
     internal abstract class InterfaceToDatabase : ServiceBaseToDatabase
     {
-        #region Basic
+        public string InterfaceID { get; set; } = null;
 
-        private string name;
+        public bool UpdateInterfaceID { get; set; } = false;
 
-        public string Name
-        {
-            get { return name; }
-            set { name = value; }
-        }
+        public string Name { get; set; }
 
-        private bool updateName = false;
+        public bool UpdateName { get; set; } = false;
 
-        public bool UpdateName
-        {
-            get { return updateName; }
-            set { updateName = value; }
-        }
+        public string EquipmentName { get; set; }
 
-        private string equipmentName;
+        public bool UpdateEquipmentName { get; set; }
 
-        public string EquipmentName { get => equipmentName; set => equipmentName = value; }
+        public string InterfaceType { get; set; } = null;
 
-        private bool updateEquipmentName;
+        public bool UpdateInterfaceType { get; set; } = false;
 
-        public bool UpdateEquipmentName { get => updateEquipmentName; set => updateEquipmentName = value; }
+        public int Dot1Q { get; set; } = -1;
 
-        private string description;
+        public bool UpdateDot1Q { get; set; } = false;
 
-        public string Description
-        {
-            get { return description; }
-            set { description = value; }
-        }
+        public DateTime? LastDown { get; set; } = null;
 
-        private bool updateDescription = false;
+        public bool UpdateLastDown { get; set; } = false;
 
-        public bool UpdateDescription
-        {
-            get { return updateDescription; }
-            set { updateDescription = value; }
-        }
-        
-        private string interfaceType = null;
+        public int RateInput { get; set; } = -1;
 
-        public string InterfaceType
-        {
-            get { return interfaceType; }
-            set { interfaceType = value; }
-        }
+        public int RateOutput { get; set; } = -1;
 
-        private bool updateInterfaceType = false;
+        public bool UpdateRateInput { get; set; } = false;
 
-        public bool UpdateInterfaceType
-        {
-            get { return updateInterfaceType; }
-            set { updateInterfaceType = value; }
-        }
+        public bool UpdateRateOutput { get; set; } = false;
 
-        private int dot1q = -1;
+        public char Mode { get; set; } = '-';
 
-        public int Dot1Q
-        {
-            get { return dot1q; }
-            set { dot1q = value; }
-        }
+        public bool UpdateMode { get; set; } = false;
 
-        private bool updateDot1Q = false;
+        public char Encapsulation { get; set; } = '-';
 
-        public bool UpdateDot1Q
-        {
-            get { return updateDot1Q; }
-            set { updateDot1Q = value; }
-        }
+        public bool UpdateEncapsulation { get; set; } = false;
 
-        private DateTime? lastDown = null;
+        public int AdmMTU { get; set; } = -1;
 
-        public DateTime? LastDown
-        {
-            get { return lastDown; }
-            set { lastDown = value; }
-        }
+        public bool UpdateAdmMTU { get; set; } = false;
 
-        private bool updateLastDown = false;
+        public int RunMTU { get; set; } = -1;
 
-        public bool UpdateLastDown
-        {
-            get { return updateLastDown; }
-            set { updateLastDown = value; }
-        }
+        public bool UpdateRunMTU { get; set; } = false;
 
-        #endregion
+        public int Aggr { get; set; } = -1;
 
-        #region QOS
+        public bool UpdateAggr { get; set; } = false;
 
-        private int rateInput = -1;
+        public string ParentID { get; set; } = null;
 
-        public int RateInput
-        {
-            get { return rateInput; }
-            set { rateInput = value; }
-        }
+        public bool UpdateParentID { get; set; } = false;
 
-        private int rateOutput = -1;
+        public string TopologyMEInterfaceID { get; set; } = null;
 
-        public int RateOutput
-        {
-            get { return rateOutput; }
-            set { rateOutput = value; }
-        }
+        public bool UpdateTopologyMEInterfaceID { get; set; } = false;
 
-        private bool updateRateInput = false;
+        public string TopologyNBInterfaceID { get; set; } = null;
 
-        public bool UpdateRateInput
-        {
-            get { return updateRateInput; }
-            set { updateRateInput = value; }
-        }
+        public bool UpdateTopologyNBInterfaceID { get; set; } = false;
 
-        private bool updateRateOutput = false;
+        public bool PhysicalNeighborChecked { get; set; } = false;
 
-        public bool UpdateRateOutput
-        {
-            get { return updateRateOutput; }
-            set { updateRateOutput = value; }
-        }
+        public string AggrNeighborParentID { get; set; } = null;
 
-        #endregion
+        public Dictionary<int, Tuple<string, string, string>> ChildrenNeighbor { get; set; } = null;
 
-        #region Usage
+        public long CirTotalInput { get; set; } = -1;
 
-        private char mode = '-';
+        public bool UpdateCirTotalInput { get; set; } = false;
 
-        public char Mode { get => mode; set => mode = value; }
+        public long CirTotalOutput { get; set; } = -1;
 
-        private bool updateMode = false;
+        public bool UpdateCirTotalOutput { get; set; } = false;
 
-        public bool UpdateMode { get => updateMode; set => updateMode = value; }
+        public int CirConfigTotalInput { get; set; } = -1;
 
-        private char encapsulation = '-';
+        public bool UpdateCirConfigTotalInput { get; set; } = false;
 
-        public char Encapsulation { get => encapsulation; set => encapsulation = value; }
+        public int CirConfigTotalOutput { get; set; } = -1;
 
-        private bool updateEncapsulation = false;
+        public bool UpdateCirConfigTotalOutput { get; set; } = false;
 
-        public bool UpdateEncapsulation { get => updateEncapsulation; set => updateEncapsulation = value; }
+        public int SubInterfaceCount { get; set; } = -1;
 
-        #endregion
+        public bool UpdateSubInterfaceCount { get; set; } = false;
 
-        #region MTU
+        public float TrafficInput { get; set; } = -1;
 
-        private int admMTU = -1;
+        public bool UpdateTrafficInput { get; set; } = false;
 
-        public int AdmMTU { get => admMTU; set => admMTU = value; }
+        public float TrafficOutput { get; set; } = -1;
 
-        private bool updateAdmMTU = false;
-
-        public bool UpdateAdmMTU { get => updateAdmMTU; set => updateAdmMTU = value; }
-
-        private int runMTU = -1;
-
-        public int RunMTU { get => runMTU; set => runMTU = value; }
-
-        private bool updateRunMTU = false;
-
-        public bool UpdateRunMTU { get => updateRunMTU; set => updateRunMTU = value; }
-
-        #endregion
-
-        #region Topology
-
-        private int aggr = -1;
-
-        public int Aggr
-        {
-            get { return aggr; }
-            set { aggr = value; }
-        }
-
-        private bool updateAggr = false;
-
-        public bool UpdateAggr
-        {
-            get { return updateAggr; }
-            set { updateAggr = value; }
-        }
-
-        private string parentID = null;
-
-        public string ParentID
-        {
-            get { return parentID; }
-            set { parentID = value; }
-        }
-
-        private bool updateParentID = false;
-
-        public bool UpdateParentID
-        {
-            get { return updateParentID; }
-            set { updateParentID = value; }
-        }
-
-        private string topologyMEInterfaceID = null;
-
-        public string TopologyMEInterfaceID
-        {
-            get { return topologyMEInterfaceID; }
-            set { topologyMEInterfaceID = value; }
-        }
-
-        private bool updateTopologyMEInterfaceID = false;
-
-        public bool UpdateTopologyMEInterfaceID
-        {
-            get { return updateTopologyMEInterfaceID; }
-            set { updateTopologyMEInterfaceID = value; }
-        }
-
-        private string topologyNBInterfaceID = null;
-
-        public string TopologyNBInterfaceID
-        {
-            get { return topologyNBInterfaceID; }
-            set { topologyNBInterfaceID = value; }
-        }
-
-        private bool updateTopologyNBInterfaceID = false;
-
-        public bool UpdateTopologyNBInterfaceID
-        {
-            get { return updateTopologyNBInterfaceID; }
-            set { updateTopologyNBInterfaceID = value; }
-        }
-
-        private bool physicalNeighborChecked = false;
-
-        public bool PhysicalNeighborChecked
-        {
-            get { return physicalNeighborChecked; }
-            set { physicalNeighborChecked = value; }
-        }
-
-        private string aggrNeighborParentID = null;
-
-        public string AggrNeighborParentID
-        {
-            get { return aggrNeighborParentID; }
-            set { aggrNeighborParentID = value; }
-        }
-
-        private Dictionary<int, Tuple<string, string, string>> childrenNeighbor = null;
-
-        public Dictionary<int, Tuple<string, string, string>> ChildrenNeighbor
-        {
-            get { return childrenNeighbor; }
-            set { childrenNeighbor = value; }
-        }
-
-        #endregion
-
-        #region Summary
-
-        private long cirTotalInput = -1;
-
-        public long CirTotalInput
-        {
-            get { return cirTotalInput; }
-            set { cirTotalInput = value; }
-        }
-
-        private bool updateCirTotalInput = false;
-
-        public bool UpdateCirTotalInput
-        {
-            get { return updateCirTotalInput; }
-            set { updateCirTotalInput = value; }
-        }
-
-        private long cirTotalOutput = -1;
-
-        public long CirTotalOutput
-        {
-            get { return cirTotalOutput; }
-            set { cirTotalOutput = value; }
-        }
-
-        private bool updateCirTotalOutput = false;
-
-        public bool UpdateCirTotalOutput
-        {
-            get { return updateCirTotalOutput; }
-            set { updateCirTotalOutput = value; }
-        }
-
-        private int cirConfigTotalInput = -1;
-
-        public int CirConfigTotalInput
-        {
-            get { return cirConfigTotalInput; }
-            set { cirConfigTotalInput = value; }
-        }
-
-        private bool updateCirConfigTotalInput = false;
-
-        public bool UpdateCirConfigTotalInput
-        {
-            get { return updateCirConfigTotalInput; }
-            set { updateCirConfigTotalInput = value; }
-        }
-
-        private int cirConfigTotalOutput = -1;
-
-        public int CirConfigTotalOutput
-        {
-            get { return cirConfigTotalOutput; }
-            set { cirConfigTotalOutput = value; }
-        }
-
-        private bool updateCirConfigTotalOutput = false;
-
-        public bool UpdateCirConfigTotalOutput
-        {
-            get { return updateCirConfigTotalOutput; }
-            set { updateCirConfigTotalOutput = value; }
-        }
-
-        private int subInterfaceCount = -1;
-
-        public int SubInterfaceCount
-        {
-            get { return subInterfaceCount; }
-            set { subInterfaceCount = value; }
-        }
-
-        private bool updateSubInterfaceCount = false;
-
-        public bool UpdateSubInterfaceCount
-        {
-            get { return updateSubInterfaceCount; }
-            set { updateSubInterfaceCount = value; }
-        }
-
-        #endregion
-
-        #region Percentage
-
-        private float trafficInput = -1;
-
-        public float TrafficInput { get => trafficInput; set => trafficInput = value; }
-
-        private bool updateTrafficInput = false;
-
-        public bool UpdateTrafficInput { get => updateTrafficInput; set => updateTrafficInput = value; }
-
-        private float trafficOutput = -1;
-
-        public float TrafficOutput { get => trafficOutput; set => trafficOutput = value; }
-
-        private bool updateTrafficOutput = false;
-
-        public bool UpdateTrafficOutput { get => updateTrafficOutput; set => updateTrafficOutput = value; }
-
-        #endregion
+        public bool UpdateTrafficOutput { get; set; } = false;
     }
 
-    internal abstract class MacToDatabase : ToDatabase
+    internal abstract class MacToDatabase : Data
     {
-        private string macAddress;
+        public string MacAddress { get; set; }
 
-        public string MacAddress { get => macAddress; set => macAddress = value; }
+        public bool UpdateMacAddress { get; set; } = false;
 
-        private bool updateMacAddress = false;
+        public string InterfaceID { get; set; }
 
-        public bool UpdateMacAddress { get => updateMacAddress; set => updateMacAddress = value; }
+        public int Age { get; set; }
 
-        private string interfaceID;
-
-        public string InterfaceID { get => interfaceID; set => interfaceID = value; }
-
-        private int age;
-
-        public int Age { get => age; set => age = value; }
-
-        private bool updateAge = false;
-
-        public bool UpdateAge { get => updateAge; set => updateAge = value; }
+        public bool UpdateAge { get; set; } = false;
     }
 
-    internal class CustomerToDatabase : ToDatabase
+    internal class CustomerToDatabase : Data
     {
-        private string name;
+        public string Name { get; set; }
 
-        public string Name
-        {
-            get { return name; }
-            set { name = value; }
-        }
-
-        private string cid;
-
-        public string CID
-        {
-            get { return cid; }
-            set { cid = value; }
-        }
+        public string CID { get; set; }
     }
 
-    internal class ServiceToDatabase : ToDatabase
+    internal class ServiceToDatabase : Data
     {
-        private string sid;
+        public string VID { get; set; }
 
-        public string SID
-        {
-            get { return sid; }
-            set { sid = value; }
-        }
-
-        private string type;
-
-        public string Type
-        {
-            get { return type; }
-            set { type = value; }
-        }
-
-        private string subType;
-
-        public string SubType
-        {
-            get { return subType; }
-            set { subType = value; }
-        }
-
-        private string rawDesc;
-
-        public string RawDesc
-        {
-            get { return rawDesc; }
-            set { rawDesc = value; }
-        }
-
-        private string customerID;
-
-        public string CustomerID
-        {
-            get { return customerID; }
-            set { customerID = value; }
-        }
+        public string Type { get; set; }
     }
 
-    internal class SlotToDatabase : ToDatabase
+    [Data("NodeSlot", "NC_ID", "NC")]
+    internal class NodeSlotData : Data
     {
-        private string slotID1 = null;
+        [Field("{0}_Slot1", true)]
+        public int? Slot1 { get; set; }
 
-        public string SlotID1 { get => slotID1; set => slotID1 = value; }
+        [Field("{0}_Slot2", true)]
+        public int? Slot2 { get; set; }
 
-        private string slotID2 = null;
+        [Field("{0}_Slot3", true)]
+        public int? Slot3 { get; set; }
 
-        public string SlotID2 { get => slotID2; set => slotID2 = value; }
+        [Field("{0}_Type", true)]
+        public string Type { get; set; }
 
-        private string info1 = null;
+        [Field("{0}_Board", true)]
+        public string Board { get; set; }
 
-        public string Info1 { get => info1; set => info1 = value; }
+        [Field("{0}_Info", true)]
+        public string Info { get; set; }
 
-        private string info2 = null;
+        [Field("{0}_Serial", true)]
+        public string Serial { get; set; }
 
-        public string Info2 { get => info2; set => info2 = value; }
+        [Field("{0}_LastStartUp", true)]
+        public DateTime? LastStartUp { get; set; }
 
-        private string info3 = null;
+        [Field("{0}_Enable", true)]
+        public bool? Enable { get; set; }
 
-        public string Info3 { get => info3; set => info3 = value; }
+        [Field("{0}_Protocol", true)]
+        public bool? Protocol { get; set; }
 
-        private string info4 = null;
-
-        public string Info4 { get => info4; set => info4 = value; }        
-
-        private bool updateInfo1 = false;
-
-        public bool UpdateInfo1 { get => updateInfo1; set => updateInfo1 = value; }
-
-        private bool updateInfo2 = false;
-
-        public bool UpdateInfo2 { get => updateInfo2; set => updateInfo2 = value; }
-
-        private bool updateInfo3 = false;
-
-        public bool UpdateInfo3 { get => updateInfo3; set => updateInfo3 = value; }
-
-        private bool updateInfo4 = false;
-
-        public bool UpdateInfo4 { get => updateInfo4; set => updateInfo4 = value; }
+        [Field("{0}_Capacity", true)]
+        public int? Capacity { get; set; }
     }
 
     #endregion
@@ -644,7 +259,13 @@ namespace Center
         #endregion
     }
 
-    internal sealed partial class Probe : SshConnection
+    public enum ProbeTypes
+    {
+        Runner,
+        Deep
+    }
+
+    public sealed partial class Probe : SshConnection
     {
         #region Enums
 
@@ -679,26 +300,23 @@ namespace Center
 
         #region Fields
 
-        private Necrow instance = null;
+        private Necrow necrow = null;
 
-        private ProbeProperties properties;
-        internal ProbeProperties Properties { get { return properties; } }
-        
+        public string ProbeUserAccessID { get; private set; } = null;
+
         private Thread idleThread = null;
-        
-        private Dictionary<string, object> updates;
-        private Dictionary<string, string> summaries;
-        private string defaultOutputIdentifier = null;
-        private string outputIdentifier = null;
-        
-        private Database j;
 
-        private string lastNodeName = null;
-        private DateTime lastProbeEndTime = DateTime.MinValue;
+        private Dictionary<string, object> updates;
+        private Dictionary<string, (string, bool)> summaries;
+
+        public int Identifier { get; private set; } = 0;
+
+        private string outputIdentifier = null;
+
+        private Database j;
 
         private string nodeID;
         private List<string> nodeRules;
-        private string nodeName;
         private string nodeManufacture;
         private string nodeModel;
         private string nodeVersion;
@@ -713,31 +331,15 @@ namespace Center
         private DateTime nodeStartUp = DateTime.MinValue;
 
         private string probeProgressID = null;
-
-        private DateTime nodeProbeStartTime = DateTime.MinValue;
-        private DateTime sshProbeStartTime = DateTime.MinValue;
-
         private bool updatingNecrow = false;
 
-        public string NodeName
-        {
-            get { return nodeName; }
-        }
+        public string NodeName { get; private set; }
 
-        public string LastNodeName
-        {
-            get { return lastNodeName; }
-        }
+        public string LastNodeName { get; private set; } = null;
 
-        public DateTime NodeProbeStartTime
-        {
-            get { return nodeProbeStartTime; }
-        }
+        public DateTime NodeProbeStartTime { get; private set; } = DateTime.MinValue;
 
-        public DateTime LastProbeEndTime
-        {
-            get { return lastProbeEndTime; }
-        }
+        public DateTime LastProbeEndTime { get; private set; } = DateTime.MinValue;
 
         private readonly string alu = "ALCATEL-LUCENT";
         private readonly string hwe = "HUAWEI";
@@ -748,123 +350,36 @@ namespace Center
         private Dictionary<string, Row> reserves;
         private Dictionary<string, Row> popInterfaces;
 
-        private ProbeRequestData probeRequestData = null;
+        public bool IsProbing { get; private set; } = false;
 
-        private bool probing = false;
-
-        public bool IsProbing
-        {
-            get { return probing; }
-        }
-
-        public DateTime SSHProbeStartTime
-        {
-            get { return sshProbeStartTime; }
-        }
+        public DateTime SSHProbeStartTime { get; private set; } = DateTime.MinValue;
 
         private bool queueStop = false;
 
-        private bool sessionStart = false;
+        public bool SessionStart { get; set; } = false;
 
-        public bool SessionStart
-        {
-            get { return sessionStart; }
-            set { sessionStart = value; }
-        }
+        public ProbeTypes ProbeType { get; set; } = ProbeTypes.Runner;
+
+        private string serverAddress = null;
+        private string serverUser = null;
+        private string serverPassword = null;
+        private string tacacUser = null;
+        private string tacacPassword = null;
+
+        internal bool ProgressPending { get; set; } = false;
+        internal bool ProgressQueueDeep { get; set; } = false;
 
         #endregion
 
         #region Constructors
 
-        public Probe(ProbeProperties properties, Necrow instance, string identifier)
+        public Probe(Necrow necrow, int identifier)
         {
-            this.properties = properties;
-            this.defaultOutputIdentifier = identifier;
-            this.instance = instance;
+            this.necrow = necrow;
 
-            j = Jovice.Database;
-        }
+            j = Database.Get("JOVICE");
 
-        #endregion
-
-        #region Database
-
-        public Batch Batch()
-        {
-            if (j == null) j = Jovice.Database;
-            return j.Batch();
-        }
-
-        public Insert Insert(string table)
-        {
-            if (j == null) j = Jovice.Database;
-            return j.Insert(table);
-        }
-
-        public Update Update(string table)
-        {
-            if (j == null) j = Jovice.Database;
-            return j.Update(table);
-        }
-
-        public Dictionary<string, Row> QueryDictionary(string sql, string key, params object[] args)
-        {
-            if (j == null) j = Jovice.Database;
-            return j.QueryDictionary(sql, key, args);
-        }
-
-        public Dictionary<string, Row> QueryDictionary(string sql, string key, QueryDictionaryDuplicateCallback duplicate, params object[] args)
-        {
-            if (j == null) j = Jovice.Database;
-            return j.QueryDictionary(sql, key, duplicate, args);
-        }
-
-        public Dictionary<string, Row> QueryDictionary(string sql, QueryDictionaryKeyCallback callback, params object[] args)
-        {
-            if (j == null) j = Jovice.Database;
-            return j.QueryDictionary(sql, callback, args);
-        }
-
-        public Dictionary<string, Row> QueryDictionary(string sql, QueryDictionaryKeyCallback callback, QueryDictionaryDuplicateCallback duplicate, params object[] args)
-        {
-            if (j == null) j = Jovice.Database;
-            return j.QueryDictionary(sql, callback, duplicate, args);
-        }
-
-        public List<string> QueryList(string sql, string key, params object[] args)
-        {
-            if (j == null) j = Jovice.Database;
-            return j.QueryList(sql, key, args);
-        }
-
-        public string Format(string sql, params object[] args)
-        {
-            if (j == null) j = Jovice.Database;
-            return j.Format(sql, args);
-        }
-
-        public Result Query(string sql, params object[] args)
-        {
-            if (j == null) j = Jovice.Database;
-            return j.Query(sql, args);
-        }
-
-        public Column Scalar(string sql, params object[] args)
-        {
-            if (j == null) j = Jovice.Database;
-            return j.Scalar(sql, args);
-        }
-
-        public Result Execute(string sql, params object[] args)
-        {
-            if (j == null) j = Jovice.Database;
-            return j.Execute(sql, args);
-        }
-
-        public Result ExecuteIdentity(string sql, params object[] args)
-        {
-            if (j == null) j = Jovice.Database;
-            return j.ExecuteIdentity(sql, args);
+            Identifier = identifier;
         }
 
         #endregion
@@ -873,10 +388,12 @@ namespace Center
 
         private void Event(string message)
         {
+            string name = (ProbeType == ProbeTypes.Runner ? "RUNNER" : "DEEP") + Identifier;
+
             if (outputIdentifier == null)
-                instance.Event(message, defaultOutputIdentifier);
+                necrow.Event(message, name);
             else
-                instance.Event(message, defaultOutputIdentifier, outputIdentifier);
+                necrow.Event(message, name, outputIdentifier);
         }
 
         private void Event(Result result, EventActions action, EventElements element, bool reportzero)
@@ -965,384 +482,423 @@ namespace Center
 
         #region Start Stop
 
+        public void Start()
+        {
+            if (IsStarted) return;
+
+            Dictionary<string, int> accessCount = new Dictionary<string, int>();
+
+            lock (necrow.ProbeInstances)
+            {
+                foreach (Probe oprobe in necrow.ProbeInstances)
+                {
+                    if (oprobe.ProbeUserAccessID != null)
+                    {
+                        if (!accessCount.ContainsKey(oprobe.ProbeUserAccessID)) accessCount.Add(oprobe.ProbeUserAccessID, 1);
+                        else accessCount[oprobe.ProbeUserAccessID] = accessCount[oprobe.ProbeUserAccessID] + 1;
+                    }
+                }
+            }
+            foreach (KeyValuePair<string, ProbeUserAccess> pair in necrow.ProbeUserAccess)
+            {
+                if (!accessCount.ContainsKey(pair.Key))
+                {
+                    accessCount.Add(pair.Key, 0);
+                }
+            }
+
+            // pilih userAccess yang paling sedikit
+            int min = int.MaxValue;
+            string saccessid = null;
+
+            foreach (KeyValuePair<string, int> pair in accessCount)
+            {
+                if (pair.Value < min)
+                {
+                    min = pair.Value;
+                    saccessid = pair.Key;
+                }
+            }
+
+            // saccessid is the selected
+            ProbeUserAccessID = saccessid;
+
+            serverAddress = necrow.ProbeUserAccess[ProbeUserAccessID].ServerAddress;
+            serverUser = necrow.ProbeUserAccess[ProbeUserAccessID].ServerUser;
+            serverPassword = necrow.ProbeUserAccess[ProbeUserAccessID].ServerPassword;
+            tacacUser = necrow.ProbeUserAccess[ProbeUserAccessID].TacacUser;
+            tacacPassword = necrow.ProbeUserAccess[ProbeUserAccessID].TacacPassword;
+
+            Event("Starting... (" + serverUser + "@" + serverAddress + " [" + tacacUser + "])");
+            Start(serverAddress, serverUser, serverPassword);
+        }
+
         public void QueueStop()
         {
             queueStop = true;
         }
 
-        public void Start()
-        {
-            Start(properties.SSHServerAddress, properties.SSHUser, properties.SSHPassword);
-        }
-
         #endregion
-        
+
         #region Handlers
 
         protected override void OnStarting()
         {
-            Event("Connecting... (" + properties.SSHUser + "@" + properties.SSHServerAddress + " [" + properties.TacacUser + "])");
-            Thread.Sleep(RandomHelper.Next(0, 500));
+            Event("Connecting...");
+            Thread.Sleep(Rnd.Int(0, 500));
         }
 
         protected override void OnConnected()
         {
             Event("Connected!");
-
-            sshProbeStartTime = DateTime.UtcNow;
+            SSHProbeStartTime = DateTime.UtcNow;
         }
 
         protected override void OnProcess()
         {
             Event("Terminal prefix: " + terminalPrefix);
 
-            Row restartCurrentNode = null;
+            string restartCurrentNodeID = null;
             int restartCount = 0;
 
             while (true)
             {
-                string xpID = null;
-                Row node = null;
-                bool continueProcess = false;
-                bool prioritizeProcess = false;
-                bool prioritizeAsk = false;
-                probeRequestData = null;
+                string progressID = null;
 
-                if (restartCurrentNode != null)
+                ProgressPending = false;
+                ProgressQueueDeep = false;
+
+                bool fromDeepNodeQueue = false;
+
+                if (restartCurrentNodeID != null)
                 {
-                    node = restartCurrentNode;
+                    nodeID = restartCurrentNodeID;
                     restartCount++;
-                    restartCurrentNode = null;
+                    restartCurrentNodeID = null;
                 }
                 else
                 {
-                    Tuple<string, ProbeRequestData> prioritize = null;
-
-                    if (properties.Case == "MAIN")
-                    {
-                        prioritize = instance.NextPrioritize();
-
-                        if (prioritize != null)
-                        {
-                            string prioritizeNode = prioritize.Item1;
-
-                            if (prioritizeNode.EndsWith("*"))
-                            {
-                                prioritizeNode = prioritizeNode.TrimEnd(new char[] { '*' });
-                                prioritizeProcess = true;
-                            }
-                            else if (prioritizeNode.EndsWith("?"))
-                            {
-                                prioritizeNode = prioritizeNode.TrimEnd(new char[] { '?' });
-                                prioritizeAsk = true;
-                            }
-
-
-                            Event("Prioritizing Probe: " + prioritizeNode);
-                            Result rnode = Query("select * from Node where upper(NO_Name) = {0} and NO_Active = 1", prioritizeNode);
-
-                            if (rnode.Count == 1)
-                            {
-                                node = rnode[0];
-
-                                if (prioritize.Item2 != null)
-                                {
-                                    probeRequestData = prioritize.Item2;
-                                    probeRequestData.Message.Data = new object[] { node["NO_Name"].ToString(), "STARTING" };
-                                    probeRequestData.Connection.Reply(probeRequestData.Message);
-                                }
-                            }
-                            else
-                            {
-                                // notfound
-                                Event(prioritizeNode + " is not found in the database");
-                            }
-                        }
-                    }
-
-                    if (prioritize == null)
-                    {
-                        Tuple<string, string> noded = instance.NextNode(properties.Case);
-
-                        xpID = noded.Item1;
-                        Result rnode = Query("select * from Node where NO_ID = {0}", noded.Item2);
-                        
-                        node = rnode[0];
-
-                        if (node["NO_Active"].ToBool() == false)
-                        {
-                            // remove this from progress and moveon
-                            Execute("delete from ProbeProgress where XP_ID = {0}", xpID);
-                            continue;
-                        }
-                    }
-
                     restartCount = 0;
-                }
-
-                if (node != null)
-                {
-                    bool caughtError = false;
-                    
-                    string info = null;
-                    ProbeProcessResult probe = null;
-#if !DEBUG
-                    try
-                    {
-#endif
-
-                    probe = Enter(node, xpID, out continueProcess, prioritizeProcess, prioritizeAsk);
-
-                    if (probe != null)
-                    {
-                        if (probe.FailureType == FailureTypes.ALURequest)
-                        {
-                            // restart?
-                            Event("Probe error: ALU request has failed");
-
-                            if (restartCount < 2) restartCurrentNode = node;
-                            else
-                            {
-                                Update(UpdateTypes.Remark, "PROBEFAILED");
-                                caughtError = true;
-
-                                instance.PendingNode(properties.Case, xpID, nodeID, TimeSpan.FromHours(4));
-                            }
-
-                            continueProcess = false;
-                        }
-                        else if (probe.FailureType == FailureTypes.ManufactureCorrected)
-                        {
-                            restartCurrentNode = Query("select * from Node where NO_ID = {0}", node["NO_ID"].ToString())[0];
-                            continueProcess = false;
-                        }
-                        else if (probe.FailureType != FailureTypes.None)
-                        {
-                            string errorMessage = null;
-                            if (probe.FailureType == FailureTypes.Connection) errorMessage = "Connection error";
-                            else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error: " + j.LastException.Message.Trim(new char[] { '\r', '\n', ' ' }) + ", SQL: " + j.LastException.Sql;
-                            else if (probe.FailureType == FailureTypes.Request) errorMessage = "Request error";
-#if !DEBUG
-                            throw new Exception(errorMessage);
-#else
-                            Event("Probe error: " + errorMessage);
-                            Update(UpdateTypes.Remark, "PROBEFAILED");
-                            caughtError = true;
-                            continueProcess = false;
-#endif
-                        }
-                    }
-#if !DEBUG
-                    }
-                    catch (Exception ex)
-                    {              
-                        if (ex.Message.IndexOf("was being aborted") == -1)
-                        {
-                            info = ex.Message;
-                            instance.Log(nodeName, ex.Message, ex.StackTrace);
-                            Update(UpdateTypes.Remark, "PROBEFAILED");
-                        }
-
-                        continueProcess = false;
-
-                        Save();
-
-                        if (probing)
-                        {
-                            if (info != null)
-                                Event("Caught error: " + info + ", exiting current node...");
-                            Exit();
-                        }
-                        else if (info != null)
-                            Event("Caught error: " + info);
-
-                        caughtError = true;
-                    }
-#endif
-
-                    if (continueProcess)
-                    {
-                        #region Continue Process
-                        idleThread = new Thread(new ThreadStart(delegate ()
-                        {
-                            while (true)
-                            {
-                                Thread.Sleep(30000);
-                                if (nodeManufacture == alu || nodeManufacture == cso || nodeManufacture == hwe) SendCharacter((char)27);
-
-                            }
-                        }));
-                        idleThread.Start();
-                                                
-                        if (properties.Case == "MAIN")
-                        {
-                            #region MAIN CASE preparations
-
-                            Batch batch = Batch();
-                            Result result;
-                            batch.Begin();
-                            // RESERVES
-                            reserves = QueryDictionary("select * from Reserve where RE_NO = {0}", delegate (Row row)
-                            {
-                                return row["RE_By_Name"].ToString() + "=" + row["RE_By_SID"].ToString();
-                            }, delegate (Row row)
-                            {
-                            // delete duplicated
-                            batch.Execute("delete from Reserve where RE_ID = {0}", row["RE_ID"].ToString());
-                            }, nodeID);
-
-                            // POP
-                            if (nodeType == "P")
-                            {
-                                popInterfaces = new Dictionary<string, Row>();
-                                result = Query("select * from POP where UPPER(OO_NO_Name) = {0}", nodeName);
-                                foreach (Row row in result)
-                                {
-                                    string storedID = row["OO_ID"].ToString();
-                                    string interfaceName = row["OO_PI_Name"].ToString();
-                                    string type = row["OO_Type"].ToString();
-
-                                    string key = interfaceName + "_" + type;
-
-                                    bool ooPINULL = row["OO_PI"].IsNull;
-
-                                    if (!popInterfaces.ContainsKey(key))
-                                    {
-                                        popInterfaces.Add(key, row);
-
-                                        if (row["OO_NO_Name"].ToString() != nodeName)
-                                        {
-                                            // fix incorrect name in POP
-                                            batch.Execute("update POP set OO_NO_Name = {0} where OO_ID = {1}", nodeName, storedID);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        // delete duplicated OO_PI_Name per OO_NO_Name
-                                        batch.Execute("delete from POP where OO_ID = {0}", storedID);
-                                    }
-                                }
-                            }
-                            else popInterfaces = null;
-
-                            batch.Commit();
-
-                            #endregion
-                        }
-#if !DEBUG
-                        try
-                        {
-#endif
-
-                        if (properties.Case == "MAIN")
-                        {
-                            if (nodeType == "P") probe = PEProcess();
-                            else if (nodeType == "M") probe = MEProcess();
-                        }
-                        else
-                            probe = MEMacProcess();
-
-                        if (probe != null)
-                        {
-                            if (probe.FailureType == FailureTypes.ALURequest)
-                            {
-                                // restart?
-                                Event("Probe error: ALU request has failed");
-
-                                if (restartCount < 2) restartCurrentNode = node;
-                                else
-                                {
-                                    Update(UpdateTypes.Remark, "PROBEFAILED");
-                                    caughtError = true;
-
-                                    instance.PendingNode(properties.Case, xpID, nodeID, TimeSpan.FromHours(4));
-                                }
-                            }
-                            else if (probe.FailureType == FailureTypes.ProbeStopped)
-                            {
-                                Event("Probe error: Probe has been stopped in the middle of request");
-                                caughtError = true;
-
-                                instance.PendingNode(properties.Case, xpID, nodeID, TimeSpan.FromMinutes(30));
-                            }
-                            else if (probe.FailureType != FailureTypes.None)
-                            {
-                                string errorMessage = null;
-                                if (probe.FailureType == FailureTypes.Connection) errorMessage = "Connection error";
-                                else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error: " + j.LastException.Message.Trim(new char[] { '\r', '\n', ' ' }) + ", SQL: " + j.LastException.Sql;
-                                else if (probe.FailureType == FailureTypes.Request) errorMessage = "Request error";
-
-#if !DEBUG
-                                throw new Exception(errorMessage);
-#else
-                                Event("Probe error: " + errorMessage);
-                                Update(UpdateTypes.Remark, "PROBEFAILED");
-                                caughtError = true;
-#endif
-                            }
-                        }
-
-#if !DEBUG
-                            instance.AcknowledgeNodeVersion(nodeManufacture, nodeVersion, nodeSubVersion);
-                        }
-                        catch (Exception ex)
-                        {
-                            if (ex.Message.IndexOf("was being aborted") == -1)
-                            {
-                                info = ex.Message;
-                                instance.Log(nodeName, ex.Message, ex.StackTrace);
-                                Event("Caught error: " + ex.Message + ", exiting current node...");
-                                Update(UpdateTypes.Remark, "PROBEFAILED");
-                                caughtError = true;
-                            }
-                        }
-#endif
-                        if (idleThread != null)
-                        {
-                            idleThread.Abort();
-                            idleThread = null;
-                        }
-                        #endregion
-                    }
-
-                    if (probe != null && probe.FailureType == FailureTypes.Connection)
-                    {
-                        Save();
-
-                        ConnectionFailure();
-                    }
-                    else if (restartCurrentNode != null)
-                    {
-                        Event("Probe process to the node is to be restarted");
-
-                        if (probing)
-                            Exit();
-                    }
+                    if (ProbeType == ProbeTypes.Runner)
+                        necrow.NextRunnerNode(out nodeID, out progressID);
                     else
                     {
-                        if (probing)
-                            SaveExit();
+                        necrow.NextDeepNode(out nodeID, out progressID);
+                        fromDeepNodeQueue = true;
                     }
+                }
 
-                    if (probeRequestData != null)
+                if (nodeID == null)
+                {
+                    necrow.DeleteProbe(this);
+                    break;
+                }
+                else
+                {
+                    bool caughtError = false;
+                    bool continueProcess = false;
+
+                    // lets do this
+                    Result resultNode = j.Query("select * from Node where NO_ID = {0}", nodeID);
+
+                    if (resultNode == 1)
                     {
-                        if (!continueProcess) { }
-                        else if (caughtError)
+                        Row node = resultNode[0];
+
+                        if (node == null)
                         {
-                            probeRequestData.Message.Data = new object[] { nodeName, "ERROR", info };
-                            probeRequestData.Connection.Reply(probeRequestData.Message);
+                            Event("Cannot found NO_ID");
+                            necrow.RemoveProgress(progressID);
                         }
                         else
                         {
-                            probeRequestData.Message.Data = new object[] { nodeName, "FINISH" };
-                            probeRequestData.Connection.Reply(probeRequestData.Message);
-                        }
-                        
-                    }
+                            ProbeProcessResult probe = null;
+#if !DEBUG
+                            string info = null;
+                            try
+                            {
+#endif
+                                probe = Enter(node, progressID, fromDeepNodeQueue, out continueProcess);
 
-                    Thread.Sleep(5000); // GRACE PERIOD BETWEEN NODES OR NECROW TO DO SOMETHING
+                                if (probe != null)
+                                {
+                                    if (probe.FailureType == FailureTypes.ALURequest)
+                                    {
+                                        // restart?
+                                        Event("Probe error: ALU request has failed");
+
+                                        if (restartCount < 2) restartCurrentNodeID = nodeID;
+                                        else
+                                        {
+                                            Update(UpdateTypes.Remark, "PROBEFAILED");
+                                            caughtError = true;
+
+                                            necrow.PendingNode(this, progressID, TimeSpan.FromHours(4));
+                                        }
+
+                                        continueProcess = false;
+                                    }
+                                    else if (probe.FailureType == FailureTypes.ManufactureCorrected)
+                                    {
+                                        restartCurrentNodeID = nodeID;
+                                        continueProcess = false;
+                                    }
+                                    else if (probe.FailureType != FailureTypes.None)
+                                    {
+                                        string errorMessage = null;
+                                        if (probe.FailureType == FailureTypes.Connection) errorMessage = "Connection error";
+                                        else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error: " + j.LastException.Message.Trim(new char[] { '\r', '\n', ' ' }) + ", SQL: " + j.LastException.Sql;
+                                        else if (probe.FailureType == FailureTypes.Request) errorMessage = "Request error";
+#if !DEBUG
+                                        throw new Exception(errorMessage);
+#else
+                                    Event("Probe error: " + errorMessage);
+                                    Update(UpdateTypes.Remark, "PROBEFAILED");
+                                    caughtError = true;
+                                    continueProcess = false;
+#endif
+                                    }
+                                }
+
+#if !DEBUG
+                            }
+                            catch (Exception ex)
+                            {
+                                if (ex.Message.IndexOf("was being aborted") == -1)
+                                {
+                                    info = ex.Message;
+                                    necrow.Log(NodeName, ex.Message, ex.StackTrace);
+                                    Update(UpdateTypes.Remark, "PROBEFAILED");
+                                }
+
+                                continueProcess = false;
+
+                                Save();
+
+                                if (IsProbing)
+                                {
+                                    if (info != null)
+                                        Event("Caught error: " + info + ", exiting current node...");
+                                    Exit();
+                                }
+                                else if (info != null)
+                                    Event("Caught error: " + info);
+                            }
+#endif
+
+                            if (continueProcess)
+                            {
+                                #region Continue Process                            
+
+                                if (ProbeType == ProbeTypes.Runner)
+                                {
+                                    lock (necrow.ProbeLock)
+                                    {
+                                        if (necrow.DeepProbeCount >= necrow.MaxDeepProbeCount)
+                                        {
+                                            // masukkan queue
+                                            Event("Queuing to deep probe");
+                                            necrow.QueueDeep(nodeID, progressID);
+                                            ProgressQueueDeep = true;
+                                        }
+                                        else
+                                        {
+                                            // I, myself, become DEEP
+                                            Event($"CHANGE PROBE: RUNNER{Identifier} to DEEP{Identifier}");
+                                            ProbeType = ProbeTypes.Deep;
+                                        }
+                                    }
+                                }
+
+                                if (!ProgressQueueDeep)
+                                {
+                                    j.Execute("update ProbeProgress set XP_Deep = 1 where XP_ID = {0}", progressID);
+
+                                    idleThread = new Thread(new ThreadStart(delegate ()
+                                    {
+                                        while (true)
+                                        {
+                                            Thread.Sleep(30000);
+                                            if (nodeManufacture == alu || nodeManufacture == cso || nodeManufacture == hwe) SendCharacter((char)27);
+
+                                        }
+                                    }));
+                                    idleThread.Start();
+
+                                    Batch batch = j.Batch();
+                                    Result result;
+                                    batch.Begin();
+
+                                    //// RESERVES
+                                    //reserves = j.QueryDictionary("select * from Reserve where RE_NO = {0}", delegate (Row row)
+                                    //{
+                                    //    return row["RE_By_Name"].ToString() + "=" + row["RE_By_SID"].ToString();
+                                    //}, delegate (Row row)
+                                    //{
+                                    //// delete duplicated
+                                    //batch.Add("delete from Reserve where RE_ID = {0}", row["RE_ID"].ToString());
+                                    //}, nodeID);
+
+                                    // POP
+                                    if (nodeType == "P")
+                                    {
+                                        popInterfaces = new Dictionary<string, Row>();
+                                        result = j.Query("select * from POP where UPPER(OO_NO_Name) = {0}", NodeName);
+                                        foreach (Row row in result)
+                                        {
+                                            string storedID = row["OO_ID"].ToString();
+                                            string interfaceName = row["OO_PI_Name"].ToString();
+                                            string type = row["OO_Type"].ToString();
+
+                                            string key = interfaceName + "_" + type;
+
+                                            bool ooPINULL = row["OO_PI"].IsNull;
+
+                                            if (!popInterfaces.ContainsKey(key))
+                                            {
+                                                popInterfaces.Add(key, row);
+
+                                                if (row["OO_NO_Name"].ToString() != NodeName)
+                                                {
+                                                    // fix incorrect name in POP
+                                                    batch.Add("update POP set OO_NO_Name = {0} where OO_ID = {1}", NodeName, storedID);
+                                                }
+                                            }
+                                            else
+                                            {
+                                                // delete duplicated OO_PI_Name per OO_NO_Name
+                                                batch.Add("delete from POP where OO_ID = {0}", storedID);
+                                            }
+                                        }
+                                    }
+                                    else popInterfaces = null;
+
+                                    batch.Commit();
+#if !DEBUG
+                                    try
+                                    {
+#endif
+                                        if (nodeType == "P" || nodeType == "T") probe = PEProcess();
+                                        else if (nodeType == "M") probe = MEProcess();
+
+                                        if (probe != null)
+                                        {
+                                            if (probe.FailureType == FailureTypes.ALURequest)
+                                            {
+                                                // restart?
+                                                Event("Probe error: ALU request has failed");
+
+                                                if (restartCount < 2) restartCurrentNodeID = nodeID;
+                                                else
+                                                {
+                                                    Update(UpdateTypes.Remark, "PROBEFAILED");
+                                                    caughtError = true;
+
+                                                    necrow.PendingNode(this, progressID, TimeSpan.FromHours(4));
+                                                }
+                                            }
+                                            else if (probe.FailureType == FailureTypes.ProbeStopped)
+                                            {
+                                                Event("Probe error: Probe has been stopped in the middle of request");
+                                                caughtError = true;
+
+                                                necrow.PendingNode(this, progressID, TimeSpan.FromMinutes(30));
+                                            }
+                                            else if (probe.FailureType != FailureTypes.None)
+                                            {
+                                                string errorMessage = null;
+                                                if (probe.FailureType == FailureTypes.Connection) errorMessage = "Connection error";
+                                                else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error: " + j.LastException.Message.Trim(new char[] { '\r', '\n', ' ' }) + ", SQL: " + j.LastException.Sql;
+                                                else if (probe.FailureType == FailureTypes.Request) errorMessage = "Request error";
+
+#if !DEBUG
+                                                throw new Exception(errorMessage);
+#else
+                                            Event("Probe error: " + errorMessage);
+                                            Update(UpdateTypes.Remark, "PROBEFAILED");
+                                            caughtError = true;
+#endif
+                                            }
+                                        }
+
+#if !DEBUG
+                                        necrow.AcknowledgeNodeVersion(nodeManufacture, nodeVersion, nodeSubVersion);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        if (ex.Message.IndexOf("was being aborted") == -1)
+                                        {
+                                            info = ex.Message;
+                                            necrow.Log(NodeName, ex.Message, ex.StackTrace);
+                                            Event("Caught error: " + ex.Message + ", exiting current node...");
+                                            Update(UpdateTypes.Remark, "PROBEFAILED");
+                                            caughtError = true;
+                                        }
+                                    }
+#endif
+                                    if (idleThread != null)
+                                    {
+                                        idleThread.Abort();
+                                        idleThread = null;
+                                    }
+                                }
+                                else
+                                {
+                                    j.Execute("update ProbeProgress set XP_Deep = 1, XP_StartTime = NULL where XP_ID = {0}", progressID);
+                                }
+
+
+                                #endregion
+                            }
+
+                            if (probe != null && probe.FailureType == FailureTypes.Connection)
+                            {
+                                Event("Connection failure");
+
+                                Save();
+                                SessionFailure();
+
+                                Thread.Sleep(1000);
+                            }
+                            else if (restartCurrentNodeID != null)
+                            {
+                                Event("Probe process to the node is to be restarted");
+
+                                if (IsProbing)
+                                    Exit();
+
+                                Thread.Sleep(5000);
+                            }
+                            else
+                            {
+                                Event("Save and Exit");
+
+                                if (IsProbing)
+                                    SaveExit();
+
+                                Thread.Sleep(1000);
+                            }
+
+                            //if (probeRequestData != null)
+                            //{
+                            //    if (!continueProcess) { }
+                            //    else if (caughtError)
+                            //    {
+                            //        probeRequestData.Message.Data = new object[] { NodeName, "ERROR", info };
+                            //        probeRequestData.Connection.Reply(probeRequestData.Message);
+                            //    }
+                            //    else
+                            //    {
+                            //        probeRequestData.Message.Data = new object[] { NodeName, "FINISH" };
+                            //        probeRequestData.Connection.Reply(probeRequestData.Message);
+                            //    }
+
+                        }
+                    }
                 }
             }
+
+            Stop();
         }
 
         protected override void OnBeforeTerminate()
@@ -1352,8 +908,8 @@ namespace Center
 
         protected override void OnTerminated()
         {
-            probing = false;
-            sshProbeStartTime = DateTime.MinValue;
+            IsProbing = false;
+            SSHProbeStartTime = DateTime.MinValue;
             Event("Disconnected");
         }
 
@@ -1367,12 +923,10 @@ namespace Center
             }
         }
 
-        protected override void OnConnectionFailure()
+        protected override void OnSessionFailure()
         {
-            Event("Connection failure has occured");
-
+            Event("Session failure has occured");
             outputIdentifier = null;
-           
             Thread.Sleep(5000);
         }
 
@@ -1399,7 +953,7 @@ namespace Center
             while (n > 1)
             {
                 n--;
-                int k = RandomHelper.Next(n + 1);
+                int k = Rnd.Int(n + 1);
                 T value = list[k];
                 list[k] = list[n];
                 list[n] = value;
@@ -1470,20 +1024,20 @@ namespace Center
             string cpeip = null;
             hostname = hostname.ToLower();
 
-            if (Request("cat /etc/hosts", out string[] lines)) ConnectionFailure();
+            if (Request("cat /etc/hosts", out string[] lines)) SessionFailure();
 
             Dictionary<string, string> greppair = new Dictionary<string, string>();
             foreach (string line in lines)
             {
                 if (line.Length > 0 && char.IsDigit(line[0]))
-                {                    
+                {
                     string[] linex = line.Trim().Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
 
                     if (linex.Length == 2)
                     {
                         string gip = linex[0];
                         string ghn = linex[1].ToLower();
-                        
+
                         if (!reverse)
                         {
                             if (ghn == hostname)
@@ -1509,7 +1063,7 @@ namespace Center
 
             if (greppair.ContainsKey(hostname.ToLower()))
                 cpeip = greppair[hostname.ToLower()].ToUpper();
-            return 
+            return
                 cpeip;
         }
 
@@ -1541,32 +1095,33 @@ namespace Center
             }
         }
 
-        private void Status(string status)
+        private void Summary(string key, int value, bool archive = true)
         {
-            if (probeProgressID != null) Execute("update ProbeProgress set XP_Status = {0} where XP_ID = {1}", status, probeProgressID);
+            Summary(key, value.ToString(), archive);
         }
 
-        private void Summary(string key, int value)
+        private void Summary(string key, float value, bool archive = true)
         {
-            Summary(key, value.ToString());
+            Summary(key, value.ToString(), archive);
         }
 
-        private void Summary(string key, float value)
+        private void Summary(string key, bool value, bool archive = true)
         {
-            Summary(key, value.ToString());
+            Summary(key, value ? 1 : 0, archive);
         }
 
-        private void Summary(string key, bool value)
-        {
-            Summary(key, value ? 1 : 0);
-        }
-
-        private void Summary(string key, string value)
+        private void Summary(string key, string value, bool archive = true)
         {
             if (key != null && value != null)
             {
-                if (summaries.ContainsKey(key)) summaries[key] = value;
-                else summaries.Add(key, value);
+                if (summaries.ContainsKey(key))
+                {
+                    summaries[key] = (value, archive);
+                }
+                else
+                {
+                    summaries.Add(key, (value, archive));
+                }
             }
         }
 
@@ -1580,9 +1135,9 @@ namespace Center
             outputIdentifier = null;
             Event("Exit!");
 
-            probing = false;
-            lastNodeName = nodeName;
-            lastProbeEndTime = DateTime.UtcNow;
+            IsProbing = false;
+            LastNodeName = NodeName;
+            LastProbeEndTime = DateTime.UtcNow;
 
             if (queueStop)
                 Stop();
@@ -1616,11 +1171,7 @@ namespace Center
 
         private bool Request(string command, out string[] lines, ProbeProcessResult probe)
         {
-            Event("Request [" + command + "]...");
-
-#if DEBUG
-            Event("Command length: " + command.Length);
-#endif
+            Event($"Sending command [{command}] (Length: {command.Length})");
 
             bool requestLoop = true;
             bool requestFailed = false;
@@ -1719,19 +1270,18 @@ namespace Center
 
                         if (!IsProbing)
                         {
-                            Event("The probe is not probing anymore");
                             requestFailed = true;
                             probe.FailureType = FailureTypes.ProbeStopped;
                             break;
                         }
-                        
+
                         wait++;
 
                         // 10 = 1 detik, 100 = 10 detik, 600 = 1 menit, 1200 = 2 menit, 3000 = 5 menit, 6000 = 10 menit
 
                         if (wait % 200 == 0 && wait < 6000) // setiap 20 detik, notifikasi waiting
                         {
-                            Event("Waiting...");
+                            Event($"Waiting for output ({wait / 10}s)");
                             SendLine("");
 
 #if DEBUG
@@ -1741,7 +1291,7 @@ namespace Center
                         Thread.Sleep(100);
                         if (wait == 6000)
                         {
-                            Event("Reading timeout, cancel the reading...");
+                            Event("Output timeout, cancel the reading");
                             requestFailed = true;
                         }
                         else if (wait >= 6000 && wait % 50 == 0)
@@ -1780,7 +1330,7 @@ namespace Center
 
                     if (improperCommand)
                     {
-                        Event("Improper command, send request again...");
+                        Event("Command truncated, resending the command");
                         ClearOutput();
                         Thread.Sleep(500);
                     }
@@ -1813,7 +1363,7 @@ namespace Center
 
                         if (completed)
                         {
-                            Event("Request completed (" + lines.Length + " lines in " + string.Format("{0:0.###}", stopwatch.Elapsed.TotalSeconds) + "s)");
+                            Event($"Output completed ({lines.Length} lines in {string.Format("{0:0.###}", stopwatch.Elapsed.TotalSeconds)}s)");
                             requestLoop = false;
                         }
                         else
@@ -1822,13 +1372,13 @@ namespace Center
                             {
                                 if (aluError < 5)
                                 {
-                                    Event("Request not completed: ALU Request Error. Try again");
+                                    Event("Output not completed: ALU command error, resending the command");
                                     Thread.Sleep(5000);
                                     requestLoop = true;
                                 }
                                 else
                                 {
-                                    Event("Request not completed: ALU Request Error.");
+                                    Event("Output not completed: ALU command error");
                                     requestLoop = false;
                                     requestFailed = true;
                                     probe.FailureType = FailureTypes.ALURequest;
@@ -1859,8 +1409,8 @@ namespace Center
         {
             bool connectSuccess = false;
 
-            string user = properties.TacacUser;
-            string pass = properties.TacacPassword;
+            string user = tacacUser;
+            string pass = tacacPassword;
 
             Event("Connecting with Telnet... (" + user + "@" + host + ")");
             SendLine("telnet " + host);
@@ -1918,8 +1468,8 @@ namespace Center
         {
             bool connectSuccess = false;
 
-            string user = properties.TacacUser;
-            string pass = properties.TacacPassword;
+            string user = tacacUser;
+            string pass = tacacPassword;
 
             // ssh-keygen -R <node>
 
@@ -1963,7 +1513,7 @@ namespace Center
                 else
                 {
                     if (expect.Index == -1)
-                    {                        
+                    {
                         SendControlC();
 
                         if (expect.IsTimeout)
@@ -2023,122 +1573,114 @@ namespace Center
             try
             {
 #endif
-            Insert insert;
-            Update update;
-            Result result;
-            Batch batch = Batch();
-            
-            update = Update("Node");
-            foreach (KeyValuePair<string, object> pair in updates)
-            {
-                if (instance.KeeperNode.ContainsKey(nodeID))
+                Insert insert;
+                Update update;
+                Result result;
+                Batch batch = j.Batch();
+
+                update = j.Update("Node");
+                foreach (KeyValuePair<string, object> pair in updates)
                 {
-                    Dictionary<string, object> keeper = instance.KeeperNode[nodeID];
-                    if (pair.Key == "NO_IP")
+                    if (necrow.KeeperNode.ContainsKey(nodeID))
                     {
-                        keeper["NO_IP"] = pair.Value;
+                        Dictionary<string, object> keeper = necrow.KeeperNode[nodeID];
+                        if (pair.Key == "NO_IP")
+                        {
+                            keeper["NO_IP"] = pair.Value;
+                        }
                     }
+                    update.Set(pair.Key, pair.Value);
                 }
-                update.Set(pair.Key, pair.Value);
-            }
-            update.Where("NO_ID", nodeID);
-            update.Execute();
-            
-            // end node
-            result = ExecuteIdentity("insert into ProbeHistory(XH_NO, XH_StartTime, XH_EndTime) values({0}, {1}, {2})", nodeID, nodeProbeStartTime, DateTime.UtcNow);
-            long probeHistoryID = result.Identity;
-            
-            // nodesummary
-            result = Query("select * from NodeSummary where NS_NO = {0}", nodeID);
-            //if (!result.OK) return DatabaseFailure(probe);
-            Dictionary<string, Tuple<string, string>> dbsummaries = new Dictionary<string, Tuple<string, string>>();
+                update.Where("NO_ID", nodeID);
+                update.Execute();
 
-            batch.Begin();
-            foreach (Row row in result)
-            {
-                string key = row["NS_Key"].ToString();
-                string id = row["NS_ID"].ToString();
-                string value = row["NS_Value"].ToString();
+                // end node
+                result = j.ExecuteIdentity("insert into ProbeHistory(XH_NO, XH_StartTime, XH_EndTime) values({0}, {1}, {2})", nodeID, NodeProbeStartTime, DateTime.UtcNow);
+                long probeHistoryID = result.Identity;
 
-                if (dbsummaries.ContainsKey(key)) batch.Execute("delete from NodeSummary where NS_ID = {0}", id); // Duplicated summary key, remove this
-                else dbsummaries.Add(key, new Tuple<string, string>(id, value));
-            }
-            batch.Commit();
+                // nodesummary
+                result = j.Query("select * from NodeSummary where NS_NO = {0}", nodeID);
+                //if (!result) return DatabaseFailure(probe);
+                Dictionary<string, Tuple<string, string>> dbsummaries = new Dictionary<string, Tuple<string, string>>();
 
-            // old nodesummaryarchive (for migration purpose build 21)
-            List<string> availablearchives = QueryList("select NS_Key from NodeSummaryArchive, NodeSummary where NSX_NS = NS_ID and NS_NO = {0}", "NS_Key", nodeID);
-
-            batch.Begin();
-            foreach (KeyValuePair<string, string> pair in summaries)
-            {
-                if (pair.Value == null) continue; // were not accepting null summary
-
-                Tuple<string, string> db = null;
-                if (dbsummaries.ContainsKey(pair.Key)) db = dbsummaries[pair.Key];
-
-                if (db == null)
+                batch.Begin();
+                foreach (Row row in result)
                 {
-                    string id = Database.ID();
+                    string key = row["NS_Key"].ToString();
+                    string id = row["NS_ID"].ToString();
+                    string value = row["NS_Value"].ToString();
 
-                    insert = Insert("NodeSummary");
-                    insert.Value("NS_ID", id);
-                    insert.Value("NS_NO", nodeID);
-                    insert.Value("NS_Key", pair.Key);
-                    insert.Value("NS_Value", pair.Value);
-                    batch.Execute(insert);
-
-                    insert = Insert("NodeSummaryArchive");
-                    insert.Value("NSX_XH", probeHistoryID);
-                    insert.Value("NSX_NS", id);
-                    insert.Value("NSX_Value", pair.Value);
-                    batch.Execute(insert);
-
-                    Event("Summary " + pair.Key + " NEW: " + pair.Value);
+                    if (dbsummaries.ContainsKey(key)) batch.Add("delete from NodeSummary where NS_ID = {0}", id); // Duplicated summary key, remove this
+                    else dbsummaries.Add(key, new Tuple<string, string>(id, value));
                 }
-                else
-                {
-                    string id = db.Item1;
-                    string value = db.Item2;
+                batch.Commit();
 
-                    if (pair.Value != value)
+                batch.Begin();
+                foreach (KeyValuePair<string, (string, bool)> pair in summaries)
+                {
+                    (string value, bool archive) = pair.Value;
+
+                    Tuple<string, string> db = null;
+                    if (dbsummaries.ContainsKey(pair.Key)) db = dbsummaries[pair.Key];
+
+                    if (db == null)
                     {
-                        // summary has changed
-                        // insert archive
-                        insert = Insert("NodeSummaryArchive");
-                        insert.Value("NSX_XH", probeHistoryID);
-                        insert.Value("NSX_NS", id);
-                        insert.Value("NSX_Value", pair.Value);
-                        batch.Execute(insert);
-                        // update nodesummary
-                        update = Update("NodeSummary");
-                        update.Set("NS_Value", pair.Value);
-                        update.Where("NS_ID", id);
-                        batch.Execute(update);
+                        string id = Database.ID();
 
-                        Event("Summary " + pair.Key + " CHANGED: " + value + " -> " + pair.Value);
+                        insert = j.Insert("NodeSummary");
+                        insert.Value("NS_ID", id);
+                        insert.Value("NS_NO", nodeID);
+                        insert.Value("NS_Key", pair.Key);
+                        insert.Value("NS_Value", value);
+                        batch.Add(insert);
+
+                        if (archive)
+                        {
+                            insert = j.Insert("NodeSummaryArchive");
+                            insert.Value("NSX_XH", probeHistoryID);
+                            insert.Value("NSX_NS", id);
+                            insert.Value("NSX_Value", value);
+                            batch.Add(insert);
+                        }
+
+                        Event("Summary " + pair.Key + " NEW: " + pair.Value);
                     }
                     else
                     {
-                        // no change
-                        // check if we dont have archive before, make one
-                        if (availablearchives.IndexOf(pair.Key) == -1)
+                        string id = db.Item1;
+                        string existingValue = db.Item2;
+
+                        if (value != existingValue)
                         {
-                            insert = Insert("NodeSummaryArchive");
-                            insert.Value("NSX_XH", probeHistoryID); // current probehistory
-                            insert.Value("NSX_NS", id);
-                            insert.Value("NSX_Value", value); // current value
-                            batch.Execute(insert);
+                            // summary has changed
+
+                            if (archive)
+                            {
+                                // insert archive
+                                insert = j.Insert("NodeSummaryArchive");
+                                insert.Value("NSX_XH", probeHistoryID);
+                                insert.Value("NSX_NS", id);
+                                insert.Value("NSX_Value", value);
+                                batch.Add(insert);
+                            }
+
+                            // update nodesummary
+                            update = j.Update("NodeSummary");
+                            update.Set("NS_Value", value);
+                            update.Where("NS_ID", id);
+                            batch.Add(update);
+
+                            Event("Summary " + pair.Key + " CHANGED: " + existingValue + " -> " + value);
                         }
                     }
                 }
-            }
-            batch.Commit();
+                batch.Commit();
 
 #if !DEBUG
             }
             catch (Exception ex)
             {
-                instance.Log(nodeName, ex.Message, ex.StackTrace);
+                necrow.Log(NodeName, ex.Message, ex.StackTrace);
                 Event("Caught error on Save(): " + ex.Message + ", try again");
                 Save();
             }
@@ -2146,7 +1688,12 @@ namespace Center
 
             if (probeProgressID != null)
             {
-                Execute("delete from ProbeProgress where XP_ID = {0}", probeProgressID);
+                if (!ProgressPending && !ProgressQueueDeep)
+                {
+                    // delete progress whenever only not pending and not queueing deep
+                    j.Execute("delete from ProbeProgress where XP_ID = {0}", probeProgressID);
+                }
+
                 probeProgressID = null;
             }
         }
@@ -2170,7 +1717,7 @@ namespace Center
             }
 
             Event("Discovered Manufacture: " + nodeManufacture);
-            instance.UpdateManufacture(nodeID, nodeManufacture);
+            necrow.UpdateManufacture(nodeID, nodeManufacture);
         }
 
         private bool ParseHuaweiUptime(string uptimeString, out TimeSpan uptime)
@@ -2201,12 +1748,13 @@ namespace Center
             return true;
         }
 
-        private ProbeProcessResult Enter(Row row, string probeProgressID, out bool continueProcess, bool prioritizeProcess, bool prioritizeAsk)
+        private ProbeProcessResult Enter(Row row, string probeProgressID, bool fromDeepNodeQueue, out bool continueProcess)
         {
+            bool prioritizeProcess = false;
             ProbeProcessResult probe = new ProbeProcessResult();
             string[] lines = null;
 
-            Batch batch = Batch();
+            Batch batch = j.Batch();
             Result result = null;
 
             continueProcess = false;
@@ -2214,10 +1762,10 @@ namespace Center
             WaitUntilTerminalReady();
 
             updates = new Dictionary<string, object>();
-            summaries = new Dictionary<string, string>();
+            summaries = new Dictionary<string, (string, bool)>();
 
             nodeID = row["NO_ID"].ToString();
-            nodeName = row["NO_Name"].ToString();
+            NodeName = row["NO_Name"].ToString();
             nodeManufacture = row["NO_Manufacture"].ToString();
             nodeModel = row["NO_Model"].ToString();
             nodeVersion = row["NO_Version"].ToString();
@@ -2241,17 +1789,16 @@ namespace Center
                 deltaTimeStamp = DateTime.UtcNow - previousTimeStamp.Value;
             }
 
+            NodeProbeStartTime = DateTime.UtcNow;
 
-            nodeProbeStartTime = DateTime.UtcNow;
-            
             if (probeProgressID != null)
-                Execute("update ProbeProgress set XP_StartTime = {0} where XP_ID = {1}", DateTime.UtcNow, this.probeProgressID);
+                j.Execute("update ProbeProgress set XP_StartTime = {0} where XP_ID = {1}", DateTime.UtcNow, this.probeProgressID);
 
-            Event("Begin probing into " + nodeName);
+            Event("Begin probing into " + NodeName);
 
             Update(UpdateTypes.Remark, null);
             Update(UpdateTypes.TimeStamp, DateTime.UtcNow);
-            
+
             bool checkChassis = false;
             updatingNecrow = false;
             if (nodeNVER < Necrow.Version)
@@ -2263,7 +1810,7 @@ namespace Center
 
             #region CHECK ACCESS RULE
 
-            nodeRules = QueryList("select * from NodeAccessRule where NAR_NO = {0}", "NAR_Rule", nodeID);
+            nodeRules = j.QueryList("select * from NodeAccessRule where NAR_NO = {0}", "NAR_Rule", nodeID);
 
             #endregion
 
@@ -2272,7 +1819,7 @@ namespace Center
             if (nodeIP != null) Event("Host IP: " + nodeIP);
 
             Event("Checking host IP");
-            string resolvedIP = ResolveHostName(nodeName, false);
+            string resolvedIP = ResolveHostName(NodeName, false);
 
             if (nodeIP == null)
             {
@@ -2282,13 +1829,38 @@ namespace Center
 
                     if (previousRemark == "UNRESOLVED1" && deltaTimeStamp > TimeSpan.FromHours(2))
                     {
+                        Update(UpdateTypes.Remark, "UNRESOLVED2");
+                        necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(22));
+                    }
+                    else if (previousRemark == "UNRESOLVED2" && deltaTimeStamp > TimeSpan.FromHours(24))
+                    {
+                        Update(UpdateTypes.Remark, "UNRESOLVED3");
+                        necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
+                    }
+                    else if (previousRemark == "UNRESOLVED3" && deltaTimeStamp > TimeSpan.FromHours(48))
+                    {
+                        Update(UpdateTypes.Remark, "UNRESOLVED4");
+                        necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
+                    }
+                    else if (previousRemark == "UNRESOLVED4" && deltaTimeStamp > TimeSpan.FromHours(72))
+                    {
+                        Update(UpdateTypes.Remark, "UNRESOLVED5");
+                        necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
+                    }
+                    else if (previousRemark == "UNRESOLVED5" && deltaTimeStamp > TimeSpan.FromHours(96))
+                    {
+                        Update(UpdateTypes.Remark, "UNRESOLVED6");
+                        necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(72));
+                    }
+                    else if (previousRemark == "UNRESOLVED6" && deltaTimeStamp > TimeSpan.FromHours(168))
+                    {
                         Update(UpdateTypes.Remark, "UNRESOLVED");
-                        instance.DisableNode(nodeID);
+                        necrow.DisableNode(nodeID);
                     }
                     else if (previousRemark == null || !previousRemark.StartsWith("UNRESOLVED"))
                     {
                         Update(UpdateTypes.Remark, "UNRESOLVED1");
-                        instance.PendingNode(properties.Case, probeProgressID, nodeID, TimeSpan.FromHours(2));
+                        necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(2));
                     }
                     else Update(UpdateTypes.Remark, previousRemark);
 
@@ -2314,21 +1886,21 @@ namespace Center
 
                     if (hostName != null)
                     {
-                        result = Query("select * from Node where NO_Name = {0}", hostName);
+                        result = j.Query("select * from Node where NO_Name = {0}", hostName);
 
                         if (result.Count == 0)
                         {
-                            Event("Node " + nodeName + " has changed to " + hostName);
-                            if (!NecrowVirtualization.AliasExists(nodeName))
+                            Event("Node " + NodeName + " has changed to " + hostName);
+                            if (!NecrowVirtualization.AliasExists(NodeName))
                             {
-                                Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})", Database.ID(), nodeID, nodeName);
+                                j.Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})", Database.ID(), nodeID, NodeName);
                                 NecrowVirtualization.AliasLoad();
                             }
 
                             Update(UpdateTypes.Name, hostName);
 
                             // Update interface virtualizations
-                            if (nodeType == "P")
+                            if (nodeType == "P" || nodeType == "T")
                             {
                                 Tuple<string, List<Tuple<string, string, string, string, string, string>>> changeThis = null;
                                 List<Tuple<string, string, string, string, string, string>> interfaces = null;
@@ -2336,7 +1908,7 @@ namespace Center
                                 {
                                     foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> entry in NecrowVirtualization.PEPhysicalInterfaces)
                                     {
-                                        if (entry.Item1 == nodeName)
+                                        if (entry.Item1 == NodeName)
                                         {
                                             changeThis = entry;
                                             break;
@@ -2361,7 +1933,7 @@ namespace Center
                                 {
                                     foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> entry in NecrowVirtualization.MEPhysicalInterfaces)
                                     {
-                                        if (entry.Item1 == nodeName)
+                                        if (entry.Item1 == NodeName)
                                         {
                                             changeThis = entry;
                                             break;
@@ -2378,20 +1950,20 @@ namespace Center
                                     NecrowVirtualization.MEPhysicalInterfacesSort();
                                 }
                             }
-                            
-                            nodeName = hostName;
+
+                            NodeName = hostName;
                         }
                         else
                         {
-                            Event("Node " + nodeName + " has new name " + hostName + ". " + hostName + " is already exists.");
+                            Event("Node " + NodeName + " has new name " + hostName + ". " + hostName + " is already exists.");
                             Event("Mark this node as inactive");
 
                             Update(UpdateTypes.Remark, "NAMECONFLICTED");
-                            instance.DisableNode(nodeID);
+                            necrow.DisableNode(nodeID);
 
                             Save();
                             return probe;
-                        }                        
+                        }
                     }
                     else
                     {
@@ -2399,13 +1971,38 @@ namespace Center
 
                         if (previousRemark == "UNRESOLVED1" && deltaTimeStamp > TimeSpan.FromHours(2))
                         {
+                            Update(UpdateTypes.Remark, "UNRESOLVED2");
+                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(22));
+                        }
+                        else if (previousRemark == "UNRESOLVED2" && deltaTimeStamp > TimeSpan.FromHours(24))
+                        {
+                            Update(UpdateTypes.Remark, "UNRESOLVED3");
+                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
+                        }
+                        else if (previousRemark == "UNRESOLVED3" && deltaTimeStamp > TimeSpan.FromHours(48))
+                        {
+                            Update(UpdateTypes.Remark, "UNRESOLVED4");
+                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
+                        }
+                        else if (previousRemark == "UNRESOLVED4" && deltaTimeStamp > TimeSpan.FromHours(72))
+                        {
+                            Update(UpdateTypes.Remark, "UNRESOLVED5");
+                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
+                        }
+                        else if (previousRemark == "UNRESOLVED5" && deltaTimeStamp > TimeSpan.FromHours(96))
+                        {
+                            Update(UpdateTypes.Remark, "UNRESOLVED6");
+                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(72));
+                        }
+                        else if (previousRemark == "UNRESOLVED6" && deltaTimeStamp > TimeSpan.FromHours(168))
+                        {
                             Update(UpdateTypes.Remark, "UNRESOLVED");
-                            instance.DisableNode(nodeID);
+                            necrow.DisableNode(nodeID);
                         }
                         else if (previousRemark == null || !previousRemark.StartsWith("UNRESOLVED"))
                         {
                             Update(UpdateTypes.Remark, "UNRESOLVED1");
-                            instance.PendingNode(properties.Case, probeProgressID, nodeID, TimeSpan.FromHours(2));
+                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(2));
                         }
                         else Update(UpdateTypes.Remark, previousRemark);
 
@@ -2416,19 +2013,14 @@ namespace Center
                 else if (nodeIP != resolvedIP)
                 {
                     Event("Host IP has changed to: " + resolvedIP);
-
-                    Update(UpdateTypes.Remark, "IPHASCHANGED");
-                    instance.DisableNode(nodeID);
-
-                    Save();
-
-                    return probe;
+                    Update(UpdateTypes.IP, resolvedIP);
+                    nodeIP = resolvedIP;
                 }
             }
 
             Event("Host identified");
 
-            outputIdentifier = nodeName;
+            outputIdentifier = NodeName;
 
             #endregion
 
@@ -2454,7 +2046,7 @@ namespace Center
 
             #region CONNECT
 
-            string connectType = null;            
+            string connectType = null;
             string connectBy = null;
 
             while (true)
@@ -2491,13 +2083,13 @@ namespace Center
 
                     if (currentConnectType == "T")
                     {
-                        connectSuccess = ConnectByTelnet(nodeName, nodeManufacture);
+                        connectSuccess = ConnectByTelnet(NodeName, nodeManufacture);
                         if (connectSuccess) connectBy = "T";
                         else Event("Telnet failed");
                     }
                     else if (currentConnectType == "S")
                     {
-                        connectSuccess = ConnectBySSH(nodeName, nodeManufacture);
+                        connectSuccess = ConnectBySSH(NodeName, nodeManufacture);
                         if (connectSuccess) connectBy = "S";
                         else Event("SSH failed");
                     }
@@ -2519,7 +2111,7 @@ namespace Center
 
                         string testOtherNode;
 
-                        if (nodeName == "PE2-D2-CKA-VPN") testOtherNode = "PE-D2-CKA-VPN";
+                        if (NodeName == "PE2-D2-CKA-VPN") testOtherNode = "PE-D2-CKA-VPN";
                         else testOtherNode = "PE2-D2-CKA-VPN";
 
                         Event("Trying to connect to other node...(" + testOtherNode + ")");
@@ -2587,22 +2179,57 @@ namespace Center
                         if (previousRemark == "CONNECTFAIL1" && deltaTimeStamp > TimeSpan.FromHours(2))
                         {
                             Update(UpdateTypes.Remark, "CONNECTFAIL2");
-                            instance.PendingNode(properties.Case, probeProgressID, nodeID, TimeSpan.FromHours(6));
+                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(4));
                         }
                         else if (previousRemark == "CONNECTFAIL2" && deltaTimeStamp > TimeSpan.FromHours(6))
                         {
                             Update(UpdateTypes.Remark, "CONNECTFAIL3");
-                            instance.PendingNode(properties.Case, probeProgressID, nodeID, TimeSpan.FromHours(12));
+                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(6));
                         }
                         else if (previousRemark == "CONNECTFAIL3" && deltaTimeStamp > TimeSpan.FromHours(12))
                         {
+                            Update(UpdateTypes.Remark, "CONNECTFAIL4");
+                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(12));
+                        }
+                        else if (previousRemark == "CONNECTFAIL4" && deltaTimeStamp > TimeSpan.FromHours(24))
+                        {
+                            Update(UpdateTypes.Remark, "CONNECTFAIL5");
+                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
+                        }
+                        else if (previousRemark == "CONNECTFAIL5" && deltaTimeStamp > TimeSpan.FromHours(48))
+                        {
+                            Update(UpdateTypes.Remark, "CONNECTFAIL6");
+                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
+                        }
+                        else if (previousRemark == "CONNECTFAIL6" && deltaTimeStamp > TimeSpan.FromHours(72))
+                        {
+                            Update(UpdateTypes.Remark, "CONNECTFAIL7");
+                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
+                        }
+                        else if (previousRemark == "CONNECTFAIL7" && deltaTimeStamp > TimeSpan.FromHours(96))
+                        {
+                            Update(UpdateTypes.Remark, "CONNECTFAIL8");
+                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
+                        }
+                        else if (previousRemark == "CONNECTFAIL8" && deltaTimeStamp > TimeSpan.FromHours(120))
+                        {
+                            Update(UpdateTypes.Remark, "CONNECTFAIL9");
+                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
+                        }
+                        else if (previousRemark == "CONNECTFAIL9" && deltaTimeStamp > TimeSpan.FromHours(144))
+                        {
+                            Update(UpdateTypes.Remark, "CONNECTFAIL10");
+                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
+                        }
+                        else if (previousRemark == "CONNECTFAIL10" && deltaTimeStamp > TimeSpan.FromHours(168))
+                        {
                             Update(UpdateTypes.Remark, "CONNECTFAIL");
-                            instance.DisableNode(nodeID);
+                            necrow.DisableNode(nodeID);
                         }
                         else if (previousRemark == null || !previousRemark.StartsWith("CONNECTFAIL"))
                         {
                             Update(UpdateTypes.Remark, "CONNECTFAIL1");
-                            instance.PendingNode(properties.Case, probeProgressID, nodeID, TimeSpan.FromHours(2));
+                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(2));
                         }
                         else Update(UpdateTypes.Remark, previousRemark);
 
@@ -2630,8 +2257,8 @@ namespace Center
             }
 
             Event("Connected!");
-            
-            probing = true;
+
+            IsProbing = true;
 
             string terminal = null;
 
@@ -2665,7 +2292,7 @@ namespace Center
                     if (nodeManufacture == null)
                     {
                         Event("Unknown manufacture");
-                        Save();                        
+                        Save();
                     }
                     else
                     {
@@ -3020,7 +2647,7 @@ namespace Center
             {
                 // convert to UTC
                 currentNodeStartUp = currentNodeStartUp - nodeTimeOffset;
-            }            
+            }
 
             if (nodeStartUp < currentNodeStartUp)
             {
@@ -3093,14 +2720,16 @@ namespace Center
                 string subVersion = null;
                 string model = null;
 
-                Dictionary<string, SlotToDatabase> slotlive = new Dictionary<string, SlotToDatabase>();
-                Dictionary<string, Row> slotdb = QueryDictionary("select * from NodeSlot where NC_NO = {0}", delegate (Row slotr)
+
+                Dictionary<string, NodeSlotData> slotlive = new Dictionary<string, NodeSlotData>();
+                Dictionary<string, Row> slotdb = j.QueryDictionary("select * from NodeSlot where NC_NO = {0}", delegate (Row slotr)
                 {
-                    return slotr["NC_ID1"].ToString() + "-" + slotr["NC_ID2"].ToString("");
+
+                    return slotr["NC_Slot1"].ToString() + "-" + slotr["NC_Slot2"].ToString("") + "-" + slotr["NC_Slot3"].ToString("");
                 }, nodeID);
                 if (slotdb == null) return DatabaseFailure(probe);
-                List<SlotToDatabase> slotinsert = new List<SlotToDatabase>();
-                List<SlotToDatabase> slotupdate = new List<SlotToDatabase>();
+                List<NodeSlotData> slotinsert = new List<NodeSlotData>();
+                List<NodeSlotData> slotupdate = new List<NodeSlotData>();
 
                 int maxSlot = 0;
                 int curSlot = 0;
@@ -3121,41 +2750,51 @@ namespace Center
                         }
                     }
 
-                    if (Request("show chassis | match expression \"  Type|slots\"", out lines, probe)) return probe;
+                    if (Request("show chassis", out lines, probe)) return probe;
+
+                    int chassisSection = 0;
 
                     foreach (string line in lines)
                     {
                         string lineTrim = line.Trim();
 
-                        if (line.StartsWith("    Type"))
+                        if (line.StartsWith("------------")) chassisSection++;
+
+                        if (chassisSection == 0)
                         {
-                            string[] tokens = lineTrim.Split(new char[] { ':' });
-                            if (tokens.Length == 2)
-                                model = tokens[1].Trim();
-                        }
-                        else if (lineTrim.StartsWith("Number of slots"))
-                        {
-                            string[] tokens = lineTrim.Split(new char[] { ':' });
-                            if (tokens.Length == 2)
+                            if (lineTrim.StartsWith("Type"))
                             {
-                                string slots = tokens[1].Trim();
-                                if (int.TryParse(slots, out int c))
+                                string[] tokens = lineTrim.Split(new char[] { ':' });
+                                if (tokens.Length == 2)
+                                    model = tokens[1].Trim();
+                            }
+                            else if (lineTrim.StartsWith("Number of slots"))
+                            {
+                                string[] tokens = lineTrim.Split(new char[] { ':' });
+                                if (tokens.Length == 2)
                                 {
-                                    if (c > 2)
-                                        maxSlot = c - 2;
+                                    string slots = tokens[1].Trim();
+                                    if (int.TryParse(slots, out int c))
+                                    {
+                                        if (c > 2)
+                                            maxSlot = c - 2;
+                                    }
                                 }
                             }
                         }
                     }
 
-                    if (Request("show mda", out lines, probe)) return probe;
+                    // hardcoded maxSlot
+                    if (model == "7750 SR-a8")
+                        maxSlot = 4;
 
+                    if (Request("show card state", out lines, probe)) return probe;
 
-                    string sid = null;
+                    int nc1 = -1, nc2 = -1;
+
                     bool capturing = false;
-                    bool combined = false;
 
-                    SlotToDatabase current = null;
+                    NodeSlotData current = null;
 
                     foreach (string line in lines)
                     {
@@ -3163,144 +2802,101 @@ namespace Center
                         {
                             string lineTrim = line.Trim();
 
-                            if (lineTrim.StartsWith("Equipped Type (if different)"))
-                            {
-                                combined = true;
-                            }
-
-
-                            if (char.IsDigit(line[0]))
+                            if (!capturing && char.IsDigit(line[0]))
                             {
                                 capturing = true;
+                            }
+                            else if (capturing && line[0] == '=')
+                            {
+                                capturing = false;
                             }
 
                             if (capturing)
                             {
-                                if (line[0] != '=')
+                                if (line[0] == ' ')
                                 {
-                                    string[] tokens = line.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-                                    bool secondary = line[0] == ' ';
+                                    current.Board = lineTrim;
+                                }
+                                else
+                                {
+                                    nc2 = -1;
 
-                                    // combined
-                                    //5     1     m2-10gb-xp-xfp                              up        up
-                                    //      2     m2-10gb-xp-xfp                              up        up
+                                    string[] tokens = lineTrim.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
 
-                                    //1     1     m10-1gb-sfp-b                               up        up
-                                    //      2     m20-1gb-xp-sfp                              down      failed
-                                    //                m10-1gb-sfp-b
-                                    //                (not equipped)
-                                    //3     1     m2-10gb-xp-xfp                              up        up
-
-
-
-                                    // seperated
-                                    //===============================================================================
-                                    //MDA Summary
-                                    //===============================================================================
-                                    //Slot  Mda   Provisioned           Equipped              Admin     Operational
-                                    //            Mda-type              Mda-type              State     State
-                                    //-------------------------------------------------------------------------------
-                                    //1     1     a16-chds1             a16-chds1             up        up
-                                    //      5     a8-eth                a8-eth                up        up
-                                    //      6     a8-eth                a8-eth                up        up
-
-
-                                    string mda = null;
-
-                                    string slotprovision = null;
-                                    string slotequiped = null; 
-                                    string slotadmin = null;
-                                    string slotprotocol = null;
-                                    
-                                    
-                                    if (!secondary)
+                                    string ix = tokens[0];
+                                    if (ix.IndexOf('/') > -1)
                                     {
-                                        sid = tokens[0];
-                                        mda = tokens[1];
-                                        slotprovision = tokens[2];
+                                        string[] ox = ix.Split(StringSplitTypes.Slash);
 
-                                        if (combined)
+                                        if (!int.TryParse(ox[0], out nc1))
                                         {
-                                            slotequiped = slotprovision;
-                                            slotadmin = tokens[3];
-                                            slotprotocol = tokens[4];
+                                            nc1 = 0;
                                         }
-                                        else
+                                        if (!int.TryParse(ox[1], out nc2))
                                         {
-                                            if (tokens.Length == 6)
-                                            {
-                                                slotequiped = tokens[3];
-                                                slotadmin = tokens[4];
-                                                slotprotocol = tokens[5];
-                                            }
-                                            else
-                                            {
-                                                slotequiped = null;
-                                                slotadmin = tokens[3];
-                                                slotprotocol = tokens[4];
-                                            }
+                                            nc2 = 0;
                                         }
-
-                                        curSlot++;
                                     }
                                     else
-                                    {    
-                                        if (combined)
+                                    {
+                                        if (char.IsDigit(ix[0]))
                                         {
-                                            if (tokens.Length == 1)
-                                            {
-                                                // equipment
-                                                current.Info2 = tokens[0];
-                                            }
-                                            else if (tokens.Length == 2 && tokens[0] == "(not")
-                                            {
-                                                current.Info2 = "(not equipped)";
-                                            }
-                                            else
-                                            {
-                                                mda = tokens[0];
-                                                slotprovision = tokens[1];
-                                                slotequiped = slotprovision;
-                                                slotadmin = tokens[2];
-                                                slotprotocol = tokens[3];
-                                            }
+                                            nc1 = int.Parse(ix);
+                                            curSlot++;
                                         }
                                         else
                                         {
-                                            mda = tokens[0];
-                                            slotprovision = tokens[1];
-
-                                            if (tokens.Length == 5)
-                                            {
-                                                slotequiped = tokens[2];
-                                                slotadmin = tokens[3];
-                                                slotprotocol = tokens[4];
-                                            }
-                                            else
-                                            {
-                                                slotequiped = null;
-                                                slotadmin = tokens[2];
-                                                slotprotocol = tokens[3];
-                                            }
+                                            nc1 = 101 + (ix[0] - 65);
                                         }
                                     }
 
-                                    if (mda != null)
+                                    // save
+                                    NodeSlotData li = new NodeSlotData();
+
+                                    li.Slot1 = nc1;
+
+                                    if (nc2 > -1)
+                                        li.Slot2 = nc2;
+
+                                    li.Type = tokens[1];
+                                    li.Board = tokens[1];
+                                    li.Enable = tokens[2] == "up" ? true : false;
+                                    li.Protocol = tokens[3] == "up" ? true : false;
+
+                                    if (tokens.Length > 4)
                                     {
-                                        SlotToDatabase li = new SlotToDatabase();
-                                        li.SlotID1 = sid;
-                                        li.SlotID2 = mda;
-                                        li.Info1 = slotprovision;
-                                        li.Info2 = slotequiped;
-                                        li.Info3 = slotadmin;
-                                        li.Info4 = slotprotocol;
-
-                                        current = li;
-
-                                        slotlive.Add(sid + "-" + mda, li);
+                                        if (int.TryParse(tokens[4], out int capacity))
+                                        {
+                                            li.Capacity = capacity;
+                                        }
                                     }
 
+                                    current = li;
+
+                                    string key = nc1 + "-" + (nc2 > -1 ? nc2 + "-" : "-");
+
+                                    slotlive.Add(key, li);
                                 }
+                                /*
+
+1      iom3-xp                           up    up                  2
+1/1    m2-10gb-xp-xfp                    up    up            2
+1/2    m10-1gb-xp-sfp                    up    up            10
+2      iom3-xp                           up    up                  2
+2/1    m2-10gb-xp-xfp                    up    up            2
+2/2    m10-1gb-xp-sfp                    up    up            10
+3      iom-20g-b                         up    up                  2
+3/1    m20-1gb-xp-sfp                    up    up            20
+3/2    m2-10gb-xp-xfp                    up    up            2
+4      iom-20g-b                         up    up                  2
+4/1    m2-10gb-xp-xfp                    up    up            2
+4/2    m2-10gb-xp-xfp                    down  provisioned   2
+           (not equipped)
+A      sfm-80g                           up    up                      Active
+B      sfm-80g                           up    up                      Standby
+
+
+                                */
                             }
                         }
                     }
@@ -3323,14 +2919,15 @@ namespace Center
 
                     if (Request("display version | in LPU|StartupTime|Version", out lines, probe)) return probe;
 
-                    string lpu = null;
-                    string startuptime = null;
-                    string pcb = null;
+                    int nc1 = -1, nc2 = -1;
+
+                    DateTime? startuptime = null;
 
                     foreach (string line in lines)
                     {
                         if (line.Length > 0)
                         {
+
                             string lineTrim = line.Trim();
 
                             if (lineTrim.StartsWith("LPU  Slot  Quantity"))
@@ -3338,7 +2935,7 @@ namespace Center
                                 string[] tokens = lineTrim.Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
                                 if (tokens.Length == 2 && int.TryParse(tokens[1].Trim(), out int c)) maxSlot = c;
                             }
-                            else if (lineTrim.StartsWith("LPU "))
+                            else if (line.StartsWith("LPU "))
                             {
                                 curSlot++;
 
@@ -3349,13 +2946,13 @@ namespace Center
                                     string s = tokens[1].Trim();
                                     if (int.TryParse(s, out int c))
                                     {
-                                        lpu = s;
+                                        nc1 = c;
+                                        nc2 = -1;
                                         startuptime = null;
-                                        pcb = null;
                                     }
                                 }
                             }
-                            else if (lpu != null)
+                            else if (nc1 != -1)
                             {
                                 if (lineTrim.StartsWith("StartupTime"))
                                 {
@@ -3366,7 +2963,7 @@ namespace Center
                                         string time = tokens[2];
                                         if (DateTime.TryParseExact(date + " " + time, "yyyy/MM/dd HH:mm:ss", null, DateTimeStyles.None, out DateTime startupDateTime))
                                         {
-                                            startuptime = startupDateTime.ToEpochTime() + "";
+                                            startuptime = startupDateTime;
                                         }
                                     }
                                 }
@@ -3375,21 +2972,191 @@ namespace Center
                                     string[] tokens = lineTrim.Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
                                     if (tokens.Length == 2)
                                     {
-                                        pcb = tokens[1].Trim();
+                                        NodeSlotData li = new NodeSlotData();
 
-                                        SlotToDatabase li = new SlotToDatabase();
-                                        li.SlotID1 = lpu;
-                                        li.Info1 = pcb;
-                                        li.Info2 = startuptime;
+                                        li.Slot1 = nc1;
 
-                                        slotlive.Add(lpu + "-", li);
+                                        li.Info = tokens[1].Trim();
+                                        li.LastStartUp = startuptime;
 
-                                        lpu = null;
+                                        slotlive.Add(nc1 + "--", li);
+
+                                        nc1 = -1;
                                     }
                                 }
                             }
                         }
                     }
+
+                    if (Request("display elabel brief", out lines, probe)) return probe;
+
+
+                    /*
+          1         2         3         4         5         6
+0123456789012345678901234567890123456789012345678901234567890123456789
+LPU 1      CR57LPUF101A0       210305358910E2000051            LPUF-100
+  PIC 0    CR57L5XXA0          030MXM10E2000053                P100-A-5*10GBase LAN/WAN-XFP-A
+  PIC 2    CR57L5XXA0          030MXM10E2000049                P100-A-5*10GBase LAN/WAN-XFP-A
+LPU 2      CR57LPUF240A00      210305469010K7000259            LPUF-240
+  PIC 0    CR57E1NCB1          030QDFW0K7000001                P240-A-1x100GBase LAN-CFP
+LPU 15     CR53LPUFC0          03846110DB000532
+  PIC 0    CR53C2CF0           030KBB10E8000067                2-Port Channelized OC-3c/STM-1c P
+                                                               OS-SFP
+LPU 2      CR57LPUF240A00      210305469010K7000259            LPUF-240
+  PIC 0    CR57E1NCB1          030QDFW0K7000001                P240-A-1x100GBase LAN-CFP
+
+
+5.120
+          1         2         3         4         5         6
+0123456789012345678901234567890123456789012345678901234567890123456789
+LPU 5    CX61LPUK21   210305253310F4000012    LPUF-21-A
+  PIC 0  CR52L1XXB0   030KKP10F2000168
+  PIC 1  CR52L1XXB0   030KKP10F2000090
+LPU 6    CX61EFFFG0   2103051580109A000176
+  PIC 0  CR52EFFFT0   030GES109A000033
+LPU 8    CR52EFGEG0   030FNF1086000201
+  PIC 0  CR52EFGE     0362291086000263
+MPU 9    CR52SRUA1    030GED1086000058
+MPU 10   CR52SRUA1    030GED1086000052
+SFU 11   CR52SFUD0    030AUG1085001920
+SFU 12   CR52SFUD0    030AUG1085001924
+
+8.100/8.150
+          1         2         3         4         5         6
+0123456789012345678901234567890123456789012345678901234567890123456789
+LPU 1           CR57LPUF240A00  210305469010H7000016    LPUF-240
+  PIC 0         CR57LBXF1       030QDDW0H6000141        P240-12x10GBase LAN/WAN-SFP+ -A
+LPU 8           CR57LPUF120A03  210305518910HA000016    LPUF-51-E
+  PIC 0         CR57EFGFB0      030PMA10H9001062        P51-24xFE/GE-SFP-A
+MPU 9           CR57SRUA480A81  210305725710H7000101    SRUA8
+MPU 10          CR57SRUA480A81  210305725710H7000103    SRUA8
+SFU 11          CR57SFU480C00   210305609510H7000122    SFUI-480-C
+SFU 12          CR57SFU480C00   210305609510H7000121    SFUI-480-C
+PWR 17
+
+8.180
+          1         2         3         4         5         6         7         8
+012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+LPU 1           CR58LPUF2TA00                            210305770210JB000007    NE9000 LPUF-2T
+  PIC 0         CR58EANBC0                               032VDR10JA000001        NP-10x100GBase-QSFP28
+LPU 2           CR58LPUF2TA00                            210305770210JC000010    NE9000 LPUF-2T
+  PIC 0         CR58EANBC0                               032VDR10JB000016        NP-10x100GBase-QSFP28
+LPU 3           CR58LPUF480C01                           210305753210JB000005    NE9000 LPUF-480
+  PIC 0         CR58LFXF0                                032JVE10JA000010        NP-24x1000M/10GBase LAN/WAN-SFP+
+  PIC 1         CR58LFXF0                                032JVE10JA000004        NP-24x1000M/10GBase LAN/WAN-SFP+
+LPU 4           CR58LPUF480C01                           210305753210JB000007    NE9000 LPUF-480
+  PIC 0         CR58LFXF0                                032JVE10JA000001        NP-24x1000M/10GBase LAN/WAN-SFP+
+MPU 9           CR58MPUP10                               210305753110JB000077    NE9000 MPUP1
+
+
+                    */
+
+                    nc1 = -1;
+                    nc2 = -2;
+
+                    NodeSlotData current = null;
+                    StringBuilder desc = new StringBuilder();
+
+                    foreach (string line in lines)
+                    {
+                        if (line.Length > 0)
+                        {
+                            string[] t;
+
+                            if (nodeVersion == "5.120")
+                            {
+                                t = line.Tokenize(4, StringOperations.None, 0, 9, 22, 46);
+                            }
+                            else if (nodeVersion == "8.100" || nodeVersion == "8.150")
+                            {
+                                t = line.Tokenize(4, StringOperations.None, 0, 16, 32, 56);
+                            }
+                            else if (nodeVersion == "8.180")
+                            {
+                                t = line.Tokenize(4, StringOperations.None, 0, 16, 57, 81);
+                            }
+                            else
+                            {
+                                t = line.Tokenize(4, StringOperations.None, 0, 11, 31, 63);
+                            }
+                            string[] tt = t.Trim();
+
+                            if (t.Length == 4)
+                            {
+                                if (tt[0] == "")
+                                {
+                                    desc.Append(t[3]);
+
+                                    if (current != null)
+                                    {
+                                        current.Type = desc.ToString().Trim();
+                                    }
+                                }
+                                else
+                                {
+                                    if (tt[0].StartsWith("LPU"))
+                                    {
+                                        if (!int.TryParse(tt[0].Tokenize(2, StringOperations.None)[1], out nc1)) nc1 = -1;
+                                        nc2 = -1;
+
+                                        desc.Clear();
+                                    }
+                                    else if (tt[0].StartsWith("PIC"))
+                                    {
+                                        if (!int.TryParse(tt[0].Tokenize(2, StringOperations.None)[1], out nc2)) nc2 = -1;
+
+                                        desc.Clear();
+                                    }
+                                    else
+                                    {
+                                        nc1 = -1;
+                                    }
+
+                                    if (nc1 > -1)
+                                    {
+                                        string key = nc1 + "-" + (nc2 > -1 ? nc2 + "-" : "-");
+
+                                        if (slotlive.ContainsKey(key))
+                                        {
+                                            current = slotlive[key];
+                                        }
+                                        else
+                                        {
+                                            current = new NodeSlotData();
+
+                                            current.Slot1 = nc1;
+                                            current.Slot2 = nc2.Nullable(-1);
+
+                                            slotlive.Add(key, current);
+                                        }
+
+                                        desc.Append(t[3]);
+
+                                        current.Board = tt[1];
+                                        current.Serial = tt[2];
+
+                                        string type = desc.ToString().Trim();
+
+                                        if (string.IsNullOrEmpty(type))
+                                        {
+                                            current.Type = null;
+                                            current.Enable = true;
+                                            current.Protocol = true;
+                                        }
+                                        else
+                                        {
+                                            current.Type = type;
+                                            current.Enable = true;
+                                            current.Protocol = true;
+                                        }
+
+                                    }
+
+                                }
+                            }
+                        }
+                    }
+
 
                     if (version == null)
                     {
@@ -3518,7 +3285,8 @@ namespace Center
                 }
                 if (nodeVersion == null)
                 {
-                    throw new Exception("Cant determined node version");
+                    throw new Exception("Cant determined node ver" +
+                        "sion");
                 }
                 if (subVersion != nodeSubVersion)
                 {
@@ -3529,60 +3297,24 @@ namespace Center
 
                 #region Check
 
-                foreach (KeyValuePair<string, SlotToDatabase> pair in slotlive)
+                foreach (KeyValuePair<string, NodeSlotData> pair in slotlive)
                 {
-                    SlotToDatabase li = pair.Value;
+                    NodeSlotData li = pair.Value;
 
                     if (!slotdb.ContainsKey(pair.Key))
                     {
                         Event("Slot ADD: " + pair.Key);
 
-                        li.ID = Database.ID();
+                        li.Id = Database.ID();
                         slotinsert.Add(li);
                     }
                     else
                     {
                         Row db = slotdb[pair.Key];
 
-                        SlotToDatabase u = new SlotToDatabase();
-                        u.ID = db["NC_ID"].ToString();
-                        li.ID = u.ID;
-
-                        bool update = false;
-                        StringBuilder updateinfo = new StringBuilder();
-
-                        if (db["NC_Info1"].ToString() != li.Info1)
+                        if (li.Update(out NodeSlotData u, db))
                         {
-                            update = true;
-                            u.UpdateInfo1 = true;
-                            u.Info1 = li.Info1;
-                            UpdateInfo(updateinfo, "info1", db["NC_Info1"].ToString(), li.Info1);
-                        }
-                        if (db["NC_Info2"].ToString() != li.Info2)
-                        {
-                            update = true;
-                            u.UpdateInfo2 = true;
-                            u.Info2 = li.Info2;
-                            UpdateInfo(updateinfo, "info2", db["NC_Info2"].ToString(), li.Info2);
-                        }
-                        if (db["NC_Info3"].ToString() != li.Info3)
-                        {
-                            update = true;
-                            u.UpdateInfo3 = true;
-                            u.Info3 = li.Info3;
-                            UpdateInfo(updateinfo, "info3", db["NC_Info3"].ToString(), li.Info3);
-                        }
-                        if (db["NC_Info4"].ToString() != li.Info4)
-                        {
-                            update = true;
-                            u.UpdateInfo4= true;
-                            u.Info4 = li.Info4;
-                            UpdateInfo(updateinfo, "info4", db["NC_Info4"].ToString(), li.Info4);
-                        }
-
-                        if (update)
-                        {
-                            Event("Slot UPDATE: " + pair.Key + " " + updateinfo.ToString());
+                            Event("Slot UPDATE: " + pair.Key);
                             slotupdate.Add(u);
                         }
                     }
@@ -3594,37 +3326,51 @@ namespace Center
 
                 // ADD
                 batch.Begin();
-                foreach (SlotToDatabase s in slotinsert)
+                foreach (NodeSlotData s in slotinsert)
                 {
-                    Insert insert = Insert("NodeSlot");
-                    insert.Value("NC_ID", s.ID);
+                    Insert insert = j.Insert("NodeSlot");
+                    insert.Value("NC_ID", s.Id);
                     insert.Value("NC_NO", nodeID);
-                    insert.Value("NC_ID1", s.SlotID1);
-                    insert.Value("NC_ID2", s.SlotID2);
-                    insert.Value("NC_Info1", s.Info1);
-                    insert.Value("NC_Info2", s.Info2);
-                    insert.Value("NC_Info3", s.Info3);
-                    insert.Value("NC_Info4", s.Info4);
-                    batch.Execute(insert);
+                    insert.Value("NC_Slot1", s.Slot1);
+                    insert.Value("NC_Slot2", s.Slot2);
+                    insert.Value("NC_Slot3", s.Slot3);
+                    insert.Value("NC_Type", s.Type);
+                    insert.Value("NC_Board", s.Board);
+                    insert.Value("NC_Info", s.Info);
+                    insert.Value("NC_Serial", s.Serial);
+                    insert.Value("NC_LastStartUp", s.LastStartUp);
+                    insert.Value("NC_Enable", s.Enable);
+                    insert.Value("NC_Protocol", s.Protocol);
+                    insert.Value("NC_Capacity", s.Capacity);
+
+                    batch.Add(insert);
                 }
+
                 result = batch.Commit();
-                if (!result.OK) return DatabaseFailure(probe);
+                if (!result) return DatabaseFailure(probe);
                 Event(result, EventActions.Add, EventElements.Slot, false);
 
                 // UPDATE
                 batch.Begin();
-                foreach (SlotToDatabase s in slotupdate)
+
+                foreach (NodeSlotData s in slotupdate)
                 {
-                    Update update = Update("NodeSlot");
-                    update.Set("NC_Info1", s.Info1, s.UpdateInfo1);
-                    update.Set("NC_Info2", s.Info2, s.UpdateInfo2);
-                    update.Set("NC_Info3", s.Info3, s.UpdateInfo3);
-                    update.Set("NC_Info4", s.Info4, s.UpdateInfo4);
-                    update.Where("NC_ID", s.ID);
-                    batch.Execute(update);
+                    Update update = j.Update("NodeSlot");
+
+                    update.Set("NC_Type", s.Type, s.IsUpdated("Type"));
+                    update.Set("NC_Board", s.Board, s.IsUpdated("Board"));
+                    update.Set("NC_Info", s.Info, s.IsUpdated("Info"));
+                    update.Set("NC_Serial", s.Serial, s.IsUpdated("Serial"));
+                    update.Set("NC_LastStartUp", s.LastStartUp, s.IsUpdated("LastStartUp"));
+                    update.Set("NC_Enable", s.Enable, s.IsUpdated("Enable"));
+                    update.Set("NC_Protocol", s.Protocol, s.IsUpdated("Protocol"));
+                    update.Set("NC_Capacity", s.Capacity, s.IsUpdated("Capacity"));
+                    update.Where("NC_ID", s.Id);
+
+                    batch.Add(update);
                 }
                 result = batch.Commit();
-                if (!result.OK) return DatabaseFailure(probe);
+                if (!result) return DatabaseFailure(probe);
                 Event(result, EventActions.Update, EventElements.Slot, false);
 
                 // SDP DELETE
@@ -3634,11 +3380,11 @@ namespace Center
                     if (!slotlive.ContainsKey(pair.Key))
                     {
                         Event("Slot DELETE: " + pair.Key);
-                        batch.Execute("delete from NodeSlot where NC_ID = {0}", pair.Value["NC_ID"].ToString());
+                        batch.Add("delete from NodeSlot where NC_ID = {0}", pair.Value["NC_ID"].ToString());
                     }
                 }
                 result = batch.Commit();
-                if (!result.OK) return DatabaseFailure(probe);
+                if (!result) return DatabaseFailure(probe);
                 Event(result, EventActions.Delete, EventElements.Slot, false);
 
                 #endregion
@@ -3646,8 +3392,6 @@ namespace Center
                 Summary("CHASSIS_PROCESS_SLOT_MAX", maxSlot);
                 Summary("CHASSIS_PROCESS_SLOT_COUNT", curSlot);
             }
-
-
 
             Event("Version: " + nodeVersion + ((nodeSubVersion != null) ? ":" + nodeSubVersion : ""));
 
@@ -4364,68 +4108,43 @@ namespace Center
             if (cpu > -1 && cpu < 100)
             {
                 Event("CPU = " + cpu + "%");
-                Summary("CPU", cpu);
+                Summary("CPU", cpu, false);
             }
             else
             {
                 Event("CPU load is unavailable (" + cpu + ")");
-                Summary("CPU", null);
             }
             if (mtotal > -1)
             {
                 Event("Memory total = " + mtotal + "KB");
-                Summary("MEMORY_TOTAL", mtotal);
-            }
-            else
-            {
-                Event("Memory total is unavailable");
-                Summary("MEMORY_TOTAL", null);
+                Summary("MEMORY_TOTAL", mtotal, false);
             }
             if (mused > -1)
             {
                 Event("Memory used = " + mused + "KB");
-                Summary("MEMORY_USED", mused);
+                Summary("MEMORY_USED", mused, false);
+            }
+
+            #endregion
+
+            #endregion
+
+            if (configurationHasChanged || fromDeepNodeQueue)
+            {
+                continueProcess = true;
+            }
+            else if (necrow.TestNode == nodeID && necrow.TestProbeType == ProbeTypes.Deep)
+            {
+                Event("Deep Test Node, continuing process");
+                continueProcess = true;
+            }
+            else if (updatingNecrow)
+            {
+                continueProcess = true;
             }
             else
             {
-                Event("Memory used is unavailable");
-                Summary("MEMORY_USED", null);
-            }
-
-            #endregion
-
-            #endregion
-
-            if (properties.Case == "MAIN")
-            {
-                if (configurationHasChanged)
-                {
-                    continueProcess = true;
-                }
-                else if (prioritizeProcess)
-                {
-                    Event("Prioritized node, continuing process");
-                    continueProcess = true;
-                }
-                else if (updatingNecrow)
-                {
-                    continueProcess = true;
-                }
-                else if (prioritizeAsk)
-                {
-                    probeRequestData.Message.Data = new object[] { nodeName, "UPTODATE", lastConfLive };
-                    probeRequestData.Connection.Reply(probeRequestData.Message);
-
-                    SaveExit();
-                }
-                else
-                {
-                    SaveExit();
-                }
-            }
-            else if (properties.Case == "M")
-            {
-                continueProcess = true;
+                SaveExit();
             }
 
             return probe;
@@ -4482,373 +4201,99 @@ namespace Center
                 UpdateInfo(updateInfo, title, from, to);
         }
 
-        private void ServiceDiscovery(ServiceReference reference)
+        private void ServiceImmediateDiscovery<T>(SortedDictionary<string, T> liveEntries) where T : ServiceBaseToDatabase
         {
-            Batch batch = Batch();
+            Batch batch = j.Batch();
             Result result;
 
-            List<Tuple<ServiceBaseToDatabase, ServiceMapping>> mappings = reference.Mappings;
-            List<string> customerid = new List<string>();
-            List<string> serviceid = new List<string>();
-            List<string> servicebycustomerid = new List<string>();
-            Dictionary<string, Row> customerdb = new Dictionary<string, Row>();
-            Dictionary<string, Row> servicedb = new Dictionary<string, Row>();
-            Dictionary<string, List<Row>> servicebycustomerdb = new Dictionary<string, List<Row>>();
-            List<CustomerToDatabase> customerinsert = new List<CustomerToDatabase>();
-            List<CustomerToDatabase> customerupdate = new List<CustomerToDatabase>();
             List<ServiceToDatabase> serviceinsert = new List<ServiceToDatabase>();
             List<ServiceToDatabase> serviceupdate = new List<ServiceToDatabase>();
 
-            foreach (Tuple<ServiceBaseToDatabase, ServiceMapping> tuple in mappings)
+            foreach (KeyValuePair<string, T> pair in liveEntries)
             {
-                string sid = tuple.Item2.SID;
-                string cid = tuple.Item2.CID;
-                if (serviceid.IndexOf(sid) == -1) serviceid.Add(sid);
-                if (cid != null && customerid.IndexOf(cid) == -1) customerid.Add(cid);
-            }
-
-            Result customerresult = Query("select * from ServiceCustomer where SC_CID in {0}", customerid);
-            foreach (Row row in customerresult)
-            {
-                string c_id = row["SC_ID"].ToString();
-
-                customerdb.Add(row["SC_CID"].ToString(), row);
-                if (!row["SC_Name_Set"].ToBool(false)) servicebycustomerid.Add(row["SC_ID"].ToString());
-
-                if (!servicebycustomerdb.ContainsKey(c_id)) servicebycustomerdb.Add(c_id, new List<Row>());
-            }
-            Result serviceresult = Query("select * from Service where SE_SID in {0} or SE_SC in {1}", serviceid, servicebycustomerid);
-            foreach (Row row in serviceresult)
-            {
-                servicedb.Add(row["SE_SID"].ToString(), row);
-                string c_id = row["SE_SC"].ToString();
-                if (c_id != null)
+                if (pair.Value is ServiceBaseToDatabase)
                 {
-                    if (servicebycustomerdb.ContainsKey(c_id)) servicebycustomerdb[c_id].Add(row);
-                    else
+                    ServiceBaseToDatabase li = pair.Value as ServiceBaseToDatabase;
+
+                    if (li.Description != null)
                     {
-                        List<Row> lrow = new List<Row>();
-                        lrow.Add(row);
-                        servicebycustomerdb.Add(c_id, lrow);
-                    }
-                }
-            }
-            foreach (Tuple<ServiceBaseToDatabase, ServiceMapping> tuple in mappings)
-            {
-                string sid = tuple.Item2.SID;
-                string cid = tuple.Item2.CID;
-                string stype = tuple.Item2.ServiceType;
-                string ssubtype = tuple.Item2.ServiceSubType;
-                string cdesc = tuple.Item2.CleanDescription;
-                
-                string s_type = null, s_subtype = null;
-                if (stype == "VPNIP")
-                {
-                    s_type = "VP";
-                    if (ssubtype == "TRANS") s_subtype = "TA";
-                }
-                else if (stype == "ASTINET") s_type = "AS";
-                else if (stype == "ASTINETBB") s_type = "AB";
-                else if (stype == "VPNINSTAN") s_type = "VI";
-                else if (stype == "TELKOMSELSITES") { s_type = "TS"; s_subtype = "SI"; }
+                        Service service = Service.Parse(li.Description);
 
-                string c_id = null, c_name = null, s_id = null;
+                        string vid = service.VID;
 
-                #region sc
-                if (cid != null)
-                {
-                    if (customerdb.ContainsKey(cid))
-                    {
-                        c_id = customerdb[cid]["SC_ID"].ToString();
-                        c_name = customerdb[cid]["SC_Name"].ToString();
-                    }
-                    else
-                    {
-                        c_id = Database.ID();
-                        c_name = cdesc;
-
-                        Row ncdb = new Row();
-                        ncdb.Add("SC_ID", new Column("SC_ID", c_id, false));
-                        ncdb.Add("SC_CID", new Column("SC_CID", cid, false));
-                        ncdb.Add("SC_Name", new Column("SC_Name", c_name, false));
-                        ncdb.Add("SC_Name_Set", new Column("SC_Name_Set", null, true));
-                        customerdb.Add(cid, ncdb);
-
-                        Event("Customer ADD: " + c_name + " (" + cid + ")");
-                        CustomerToDatabase c = new CustomerToDatabase();
-                        c.ID = c_id;
-                        c.CID = cid;
-                        c.Name = c_name;
-                        customerinsert.Add(c);
-
-                        servicebycustomerdb.Add(c_id, new List<Row>());
-                    }
-                }
-                #endregion
-
-                #region se
-
-                tuple.Item1.ServiceSID = sid;
-
-                if (servicedb.ContainsKey(sid))
-                {
-                    s_id = servicedb[sid]["SE_ID"].ToString();
-
-                    if (servicedb[sid]["SE_Type"].ToString() == null && s_type != null)
-                    {
-                        Event("Service UPDATE: " + sid + " " + s_type + " " + s_subtype);
-                        ServiceToDatabase c = new ServiceToDatabase();
-                        c.ID = s_id;
-                        c.Type = s_type;
-                        c.SubType = s_subtype;
-                        serviceupdate.Add(c);
-                    }
-
-                    tuple.Item1.ServiceID = s_id;
-                    
-                }
-                else
-                {
-                    s_id = Database.ID();
-
-                    Row ndb = new Row();
-                    ndb.Add("SE_ID", new Column("SE_ID", s_id, false));
-                    ndb.Add("SE_SID", new Column("SE_SID", sid, false));
-                    ndb.Add("SE_SC", new Column("SE_SC", c_id, false));
-                    ndb.Add("SE_Type", new Column("SE_Type", s_type, s_type == null ? true : false));
-                    ndb.Add("SE_SubType", new Column("SE_SubType", s_subtype, s_subtype == null ? true : false));
-                    ndb.Add("SE_Raw_Desc", new Column("SE_Raw_Desc", cdesc, cdesc == null ? true : false));
-                    servicedb.Add(sid, ndb);
-
-                    Event("Service ADD: " + sid + " (" + cid + ")");
-                    ServiceToDatabase c = new ServiceToDatabase();
-                    c.ID = s_id;
-                    c.SID = sid;
-                    c.CustomerID = c_id;
-                    c.Type = s_type;
-                    c.SubType = s_subtype;
-                    c.RawDesc = cdesc;
-                    serviceinsert.Add(c);
-
-                    //set interface to this service
-                    tuple.Item1.ServiceID = s_id;
-
-                    if (c_id != null)
-                        servicebycustomerdb[c_id].Add(ndb);
-                }
-                #endregion
-
-                #region Name Processing
-
-                if (c_id != null && c_name != "TELKOMSELSITES")
-                {
-                    List<Row> rownems = servicebycustomerdb[c_id];
-
-                    if (rownems.Count > 1)
-                    {
-                        List<string> nems = new List<string>();
-
-                        foreach (Row rownem in rownems)
+                        if (vid != null)
                         {
-                            string[] rds = rownem["SE_Raw_Desc"].ToString()
-                                .Split(
-                                new string[] { ",", "U/", "JL.", "JL ", "(", "[", "]", ")", "LT.", " LT ", " LT",
-                                            "GD.", " KM", " KOMP.", " BLOK ",
-                                            " SID ", " SID:", " SID-", " SID=",
-                                            " CID ", " CID:", " CID-", " CID=", " CID.", "EXCID", " JL", " EX ",
-                                            " FAA:", " FAI:", " FAA-", " FAI-", " CINTA ",
-                                            " EX-",
-                                            " KK ", "TBK", "BANDWIDTH",  },
-                                StringSplitOptions.RemoveEmptyEntries);
+                            string stype = service.ServiceType;
 
-                            if (rds.Length > 0)
-                                nems.Add(rds[0].Trim());
-                        }
+                            string s_type = null;
+                            if (stype == "VPNIP") s_type = "VP";
+                            else if (stype == "TRANS") s_type = "TA";
+                            else if (stype == "ASTINET") s_type = "AS";
+                            else if (stype == "ASTINETBB") s_type = "AB";
+                            else if (stype == "VPNINSTAN") s_type = "VI";
+                            else if (stype == "IPTRANSIT") s_type = "IT";
 
-                        Dictionary<string, int> lexicals = new Dictionary<string, int>();
+                            else if (stype == "METRO") s_type = "ME";
+                            else if (stype == "TELKOMSELSITES") s_type = "TS";
 
-                        int totaln = 0;
-                        foreach (string nem in nems)
-                        {
-                            string[] nemp = nem.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-                            for (int ni = 0; ni < nemp.Length; ni++)
+                            string s_id = null;
+
+                            #region se
+
+                            li.ServiceVID = vid;
+
+                            Result rsi = j.Query("select * from ServiceImmediate where SI_VID = {0} order by SI_SE_Check desc, SI_SE desc, SI_ID desc", vid);
+
+                            if (rsi > 0)
                             {
-                                for (int nj = 1; nj <= nemp.Length - ni; nj++)
+                                s_id = rsi[0]["SI_ID"];
+
+                                if (s_type != null)
                                 {
-                                    string[] subn = new string[nj];
-                                    Array.Copy(nemp, ni, subn, 0, nj);
-                                    string sub = string.Join(" ", subn);
-                                    if (lexicals.ContainsKey(sub))
+                                    if (rsi[0]["SI_Type"] == null || (s_type != "ME" && s_type != "TS"))
                                     {
-                                        lexicals[sub] += 1;
-                                        totaln++;
-                                    }
-                                    else
-                                        lexicals.Add(sub, 1);
-                                }
-                            }
-                        }
-
-                        List<KeyValuePair<string, int>> lexicalList = lexicals.ToList();
-
-                        if (lexicalList.Count > 0)
-                        {
-                            lexicalList.Sort((a, b) =>
-                            {
-                                if (a.Value > b.Value) return -1;
-                                else if (a.Value < b.Value) return 1;
-                                else
-                                {
-                                    if (a.Key.Length > b.Key.Length) return -1;
-                                    else if (a.Key.Length < b.Key.Length) return 1;
-                                    else return 0;
-                                }
-                            });
-
-                            string cname = lexicalList[0].Key;
-
-                            if (lexicalList[0].Value > 1)
-                            {
-                                for (int li = 0; li < (lexicalList.Count > 10 ? 10 : lexicalList.Count); li++)
-                                {
-                                    KeyValuePair<string, int> lip = lexicalList[li];
-
-                                    string likey = lip.Key;
-                                    int lival = lip.Value;
-                                    int likeylen = StringHelper.CountWord(likey);
-                                    bool lolos = true;
-                                    for (int ly = li + 1; ly < (lexicalList.Count > 10 ? 10 : lexicalList.Count); ly++)
-                                    {
-                                        KeyValuePair<string, int> lyp = lexicalList[ly];
-
-                                        string lykey = lyp.Key;
-                                        int lyval = lyp.Value;
-                                        int lykeylen = StringHelper.CountWord(lykey);
-
-                                        if (lykey.Length > likey.Length)
+                                        // update if assign new, OR s_type is not ME or TS
+                                        Event("Service Immediate UPDATE: " + vid + " " + s_type);
+                                        ServiceToDatabase c = new ServiceToDatabase
                                         {
-                                            if (likeylen > 1)
-                                            {
-                                                if (lykey.IndexOf(likey) > -1)
-                                                {
-                                                    int distance = lival - lyval;
-
-                                                    double dtotaln = (double)totaln;
-                                                    double minx = Math.Pow((1 / Math.Log(0.08 * dtotaln + 3)), 1.75);
-                                                    if (((double)distance / dtotaln) > minx) { }
-                                                    else lolos = false;
-                                                    break;
-                                                }
-                                            }
-                                            else
-                                            {
-                                                if (lykey.IndexOf(likey) > -1)
-                                                {
-                                                    if ((ly - li) < 4)
-                                                    {
-                                                        int distance = lival - lyval;
-
-                                                        double dtotaln = (double)totaln;
-                                                        double minx = Math.Pow((1 / Math.Log(0.08 * dtotaln + 3)), 1.75);
-                                                        if (((double)distance / dtotaln) > minx) { }
-                                                        else lolos = false;
-                                                        break;
-                                                    }
-                                                    else
-                                                    {
-                                                        lolos = false;
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        else
-                                        {
-                                            if (lykeylen == 1) { }
-                                            else
-                                            {
-                                                if (lykeylen < likeylen) { if (likey.IndexOf(lykey) > -1) break; }
-                                                else break;
-                                            }
-                                        }
-                                    }
-
-                                    if (lolos)
-                                    {
-                                        cname = likey;
-                                        break;
+                                            Id = s_id,
+                                            Type = s_type
+                                        };
+                                        serviceupdate.Add(c);
                                     }
                                 }
                             }
-
-                            if (cname != null)
+                            else
                             {
-                                cname = cname.Trim(new char[] { ' ', '\"', '\'', '&', '(', ')', '-' });
-                                cname = cname.Replace("PT.", "PT");
-                                cname = cname.Replace(" PT", "");
-                                cname = cname.Replace("PT ", "");
+                                s_id = Database.ID();
 
-                                if (cname != c_name)
+                                Event("Service ADD: " + vid);
+                                ServiceToDatabase c = new ServiceToDatabase
                                 {
-                                    Event("Customer UPDATE: " + cname + " (" + cid + ")");
-
-                                    customerdb.Remove(cid);
-
-                                    Row ncdb = new Row();
-                                    ncdb.Add("SC_ID", new Column("SC_ID", c_id, false));
-                                    ncdb.Add("SC_CID", new Column("SC_CID", cid, false));
-                                    ncdb.Add("SC_Name", new Column("SC_Name", cname, false));
-                                    ncdb.Add("SC_Name_Set", new Column("SC_Name_Set", null, true));
-
-                                    customerdb.Add(cid, ncdb);
-
-                                    CustomerToDatabase c = new CustomerToDatabase();
-                                    c.ID = c_id;
-                                    c.Name = cname;
-                                    customerupdate.Add(c);
-                                }
+                                    Id = s_id,
+                                    VID = vid,
+                                    Type = s_type
+                                };
+                                serviceinsert.Add(c);
                             }
 
+                            li.ServiceImmediateID = s_id;
                         }
+
+                        #endregion
                     }
                 }
-                #endregion
             }
-
-            // CUSTOMER ADD
-            batch.Begin();
-            foreach (CustomerToDatabase s in customerinsert)
-            {
-                Insert insert = Insert("ServiceCustomer");
-                insert.Value("SC_ID", s.ID);
-                insert.Value("SC_CID", s.CID);
-                insert.Value("SC_Name", s.Name);
-                batch.Execute(insert);
-            }
-            result = batch.Commit();
-            Event(result, EventActions.Add, EventElements.Customer, false);
-
-            // CUSTOMER UPDATE
-            batch.Begin();
-            foreach (CustomerToDatabase s in customerupdate)
-            {
-                batch.Execute("update ServiceCustomer set SC_Name = {0} where SC_ID = {1}", s.Name, s.ID);
-            }
-            result = batch.Commit();
-            Event(result, EventActions.Update, EventElements.Customer, false);
-
+            
             // SERVICE ADD
             batch.Begin();
             foreach (ServiceToDatabase s in serviceinsert)
             {
-                Insert insert = Insert("Service");
-                insert.Value("SE_ID", s.ID);
-                insert.Value("SE_SID", s.SID);
-                insert.Value("SE_SC", s.CustomerID);
-                insert.Value("SE_Type", s.Type);
-                insert.Value("SE_SubType", s.SubType);
-                insert.Value("SE_Raw_Desc", s.RawDesc);
-                batch.Execute(insert);
+                Insert insert = j.Insert("ServiceImmediate");
+                insert.Value("SI_ID", s.Id);
+                insert.Value("SI_VID", s.VID);
+                insert.Value("SI_Type", s.Type);
+                batch.Add(insert);
             }
             result = batch.Commit();
             Event(result, EventActions.Add, EventElements.Service, false);
@@ -4857,11 +4302,10 @@ namespace Center
             batch.Begin();
             foreach (ServiceToDatabase s in serviceupdate)
             {
-                Update update = Update("Service");
-                update.Set("SE_Type", s.Type);
-                update.Set("SE_SubType", s.SubType);
-                update.Where("SE_ID", s.ID);
-                batch.Execute(update);
+                Update update = j.Update("ServiceImmediate");
+                update.Set("SI_Type", s.Type);
+                update.Where("SI_ID", s.Id);
+                batch.Add(update);
             }
             result = batch.Commit();
             Event(result, EventActions.Update, EventElements.Service, false);
@@ -4964,9 +4408,9 @@ namespace Center
         {
             List<string> testInterfaces = new List<string>();
 
-            if (type != null && instance.InterfaceTestPrefixes.ContainsKey(type))
+            if (type != null && necrow.InterfaceTestPrefixes.ContainsKey(type))
             {
-                foreach (string prefix in instance.InterfaceTestPrefixes[type])
+                foreach (string prefix in necrow.InterfaceTestPrefixes[type])
                 {
                     testInterfaces.Add(port);
                     testInterfaces.Add(prefix + port);
@@ -4987,7 +4431,7 @@ namespace Center
             if (li.PhysicalNeighborChecked) return;
             li.PhysicalNeighborChecked = true;
 
-            string description = CleanDescription(li.Description, nodeName);
+            string description = CleanDescription(li.Description, NodeName);
             if (description == null) return;
 
             string interfaceName = li.Name;
@@ -4997,7 +4441,7 @@ namespace Center
             bool done = false;
 
             Result result;
-            Batch batch = Batch();
+            Batch batch = j.Batch();
             Insert insert;
 
             #region TO_PI
@@ -5066,7 +4510,7 @@ namespace Center
 
                         if (matchedDescription != null)
                         {
-                            string matchedNeighborPart = FindNeighborPart(matchedDescription, nodeName);
+                            string matchedNeighborPart = FindNeighborPart(matchedDescription, NodeName);
 
                             if (matchedNeighborPart != null) // at least we can find me name or the alias in pi description
                             {
@@ -5084,7 +4528,7 @@ namespace Center
                                         {
                                             // find pi child
                                             li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
-                                            result = Query("select PI_ID, PI_DOT1Q, PI_TO_MI from PEInterface where PI_PI = {0}", mi.TopologyPEInterfaceID);
+                                            result = j.Query("select PI_ID, PI_DOT1Q, PI_TO_MI from PEInterface where PI_PI = {0}", mi.TopologyPEInterfaceID);
                                             foreach (Row row in result)
                                             {
                                                 if (!row["PI_DOT1Q"].IsNull)
@@ -5139,6 +4583,7 @@ namespace Center
                     }
                 }
             }
+
             if (neighborMEPart != null)
             {
                 Tuple<string, string, string, string, string, string, string> matchedInterface = null;
@@ -5175,7 +4620,7 @@ namespace Center
 
                     if (matchedDescription != null)
                     {
-                        string matchedNeighborPart = FindNeighborPart(matchedDescription, nodeName);
+                        string matchedNeighborPart = FindNeighborPart(matchedDescription, NodeName);
 
                         if (matchedNeighborPart != null)
                         {
@@ -5196,7 +4641,7 @@ namespace Center
                                     {
                                         // find mi child
                                         li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
-                                        result = Query("select MI_ID, MI_DOT1Q, MI_TO_MI, MI_TO_PI from MEInterface where MI_MI = {0}", li.TopologyMEInterfaceID);
+                                        result = j.Query("select MI_ID, MI_DOT1Q, MI_TO_MI, MI_TO_PI from MEInterface where MI_MI = {0}", li.TopologyMEInterfaceID);
                                         foreach (Row row in result)
                                         {
                                             if (!row["MI_DOT1Q"].IsNull)
@@ -5300,18 +4745,18 @@ namespace Center
 
                         // insert neighbor node
                         neighborNodeID = Database.ID();
-                        insert = Insert("NodeNeighbor");
+                        insert = j.Insert("NodeNeighbor");
                         insert.Value("NN_ID", neighborNodeID);
                         insert.Value("NN_Name", findNeighborNode);
-                        batch.Execute(insert);
+                        batch.Add(insert);
 
                         // insert neighbor interface unspecified
                         string unspecifiedID = Database.ID();
-                        insert = Insert("NBInterface");
+                        insert = j.Insert("NBInterface");
                         insert.Value("NI_ID", unspecifiedID);
                         insert.Value("NI_NN", neighborNodeID);
                         insert.Value("NI_Name", "UNSPECIFIED");
-                        batch.Execute(insert);
+                        batch.Add(insert);
 
                         batch.Commit();
 
@@ -5365,7 +4810,7 @@ namespace Center
                         {
                             // new interface under neighborNode
                             string interfaceID = Database.ID();
-                            insert = Insert("NBInterface");
+                            insert = j.Insert("NBInterface");
                             insert.Value("NI_ID", interfaceID);
                             insert.Value("NI_NN", neighborNodeID);
                             insert.Value("NI_Name", neighborInterface);
@@ -5569,725 +5014,6 @@ namespace Center
 
             return sb.ToString();
         }
-    }
-
-    internal class ServiceReference
-    {
-        #region Fields
-
-        private List<Tuple<ServiceBaseToDatabase, ServiceMapping>> mappings;
-
-        public List<Tuple<ServiceBaseToDatabase, ServiceMapping>> Mappings
-        {
-            get { return mappings; }
-        }
-
-        #endregion
-
-        #region Constructors
-
-        public ServiceReference()
-        {
-            mappings = new List<Tuple<ServiceBaseToDatabase, ServiceMapping>>();
-        }
-
-        #endregion
-
-        #region Methods
-
-        public void Add(ServiceBaseToDatabase reference, string description)
-        {
-            ServiceMapping servmap = ServiceMapping.Parse(description);
-            if (servmap.SID != null)
-                mappings.Add(new Tuple<ServiceBaseToDatabase, ServiceMapping>(reference, servmap));
-        }
-
-        #endregion
-    }
-
-    internal class ServiceMapping
-    {
-        #region Constants
-
-        private static readonly string[] monthsEnglish = new string[] { "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER" };
-        private static readonly string[] monthsBahasa = new string[] { "JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER" };
-        private static readonly Regex findSiteID = new Regex(@"([A-Z][A-Z][A-Z][0-9][0-9][0-9])");
-        private static readonly Regex captureSIDFormat1 = new Regex(@"((?:\d+(?:-\d{7,})+)|(?:\d{7,}(?:-\d{5,})+)|(?:(?:47|30|37)\d{15}))");
-
-        #endregion
-
-        #region Properties
-
-        private string sid;
-
-        public string SID
-        {
-            get { return sid; }
-            private set { sid = value; }
-        }
-
-        private string cid;
-
-        public string CID
-        {
-            get { return cid; }
-            set { cid = value; }
-        }
-
-        private string serviceType;
-
-        public string ServiceType
-        {
-            get { return serviceType; }
-            private set { serviceType = value; }
-        }
-
-        private string serviceSubType;
-
-        public string ServiceSubType
-        {
-            get { return serviceSubType; }
-            set { serviceSubType = value; }
-        }
-
-        private string cleanDescription;
-
-        public string CleanDescription
-        {
-            get { return cleanDescription; }
-            private set { cleanDescription = value; }
-        }
-
-        private string rawDescription;
-
-        public string RawDescription
-        {
-            get { return rawDescription; }
-            private set { rawDescription = value; }
-        }
-
-        #endregion
-
-        #region Methods
-
-        public static ServiceMapping Parse(string desc)
-        {
-            ServiceMapping de = new ServiceMapping();
-            de.RawDescription = desc;
-
-            string o = string.Join(" ", desc.Split(new char[] { ' ', ';' }, StringSplitOptions.RemoveEmptyEntries)).ToUpper();
-            string d = string.Join(" ", o.Split(new char[] { '-', '_' }));
-
-            #region Find SID
-
-            int rmv = -1;
-            int rle = -1;
-
-            //                         12345678901234567890
-            if ((rmv = d.IndexOf("MM IPVPN INSTAN ")) > -1) { de.ServiceType = "VPNINSTAN"; rle = 15; }
-            else if ((rmv = d.IndexOf("MM VPNIP INSTAN ")) > -1) { de.ServiceType = "VPNINSTAN"; rle = 15; }
-            else if ((rmv = d.IndexOf("VPNIP INSTANT ")) > -1) { de.ServiceType = "VPNINSTAN"; rle = 13; }
-            else if ((rmv = d.IndexOf("IPVPN INSTANT ")) > -1) { de.ServiceType = "VPNINSTAN"; rle = 13; }
-            else if ((rmv = d.IndexOf("VPNIP INSTAN ")) > -1) { de.ServiceType = "VPNINSTAN"; rle = 12; }
-            else if ((rmv = d.IndexOf("IPVPN INSTAN ")) > -1) { de.ServiceType = "VPNINSTAN"; rle = 12; }
-            else if ((rmv = d.IndexOf("VPNIP VPN IP ")) > -1) { de.ServiceType = "VPNIP"; rle = 12; }
-            else if ((rmv = d.IndexOf("VPNIP VPNIP ")) > -1) { de.ServiceType = "VPNIP"; rle = 11; }
-            else if ((rmv = d.IndexOf("VPN INSTAN ")) > -1) { de.ServiceType = "VPNINSTAN"; rle = 10; }
-            else if ((rmv = d.IndexOf("MM IPVPN")) > -1) { de.ServiceType = "VPNIP"; rle = 8; }
-            else if ((rmv = d.IndexOf("MM VPNIP")) > -1) { de.ServiceType = "VPNIP"; rle = 8; }
-            else if ((rmv = d.IndexOf("MM VPNIP")) > -1) { de.ServiceType = "VPNIP"; rle = 8; }
-            else if ((rmv = d.IndexOf("MM VPNIP")) > -1) { de.ServiceType = "VPNIP"; rle = 8; }
-            else if ((rmv = d.IndexOf("VPN IP ")) > -1) { de.ServiceType = "VPNIP"; rle = 6; }
-            else if ((rmv = d.IndexOf("IP VPN ")) > -1) { de.ServiceType = "VPNIP"; rle = 6; }
-            else if ((rmv = d.IndexOf("VPNIP")) > -1) { de.ServiceType = "VPNIP"; rle = 5; }
-            else if ((rmv = d.IndexOf("IPVPN")) > -1) { de.ServiceType = "VPNIP"; rle = 5; }
-            //                         12345678901234567890
-            else if ((rmv = d.IndexOf("MM ASTINET BEDA BW ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 18; }
-            else if ((rmv = d.IndexOf("MM ASTINET BEDABW ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 17; }
-            else if ((rmv = d.IndexOf("ASTINET BEDA BW ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 15; }
-            else if ((rmv = d.IndexOf("ASTINET BEDABW ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 14; }
-            else if ((rmv = d.IndexOf("MM ASTINET BB ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 13; }
-            else if ((rmv = d.IndexOf("ASTINET BB ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 10; }
-            else if ((rmv = d.IndexOf("ASTINETBB ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 9; }
-            else if ((rmv = d.IndexOf("AST BEDA BW ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 11; }
-            else if ((rmv = d.IndexOf("AST BEDABW ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 10; }
-            else if ((rmv = d.IndexOf("AST BB ")) > -1) { de.ServiceType = "ASTINETBB"; rle = 7; }
-            //                         12345678901234567890
-            else if ((rmv = d.IndexOf("MM ASTINET")) > -1) { de.ServiceType = "ASTINET"; rle = 10; }
-            else if ((rmv = d.IndexOf("ASTINET")) > -1) { de.ServiceType = "ASTINET"; rle = 7; }
-            //                         12345678901234567890123
-            else if ((rmv = d.IndexOf("MM METRO ETHERNET MP2MP")) > -1) { rle = 23; }
-            else if ((rmv = d.IndexOf("MM METRO ETHERNET P2MP")) > -1) { rle = 22; }
-            else if ((rmv = d.IndexOf("MM METRO ETHERNET P2P")) > -1) { rle = 21; }
-            else if ((rmv = d.IndexOf("MM METRO ETHERNETMP2MP")) > -1) { rle = 22; }
-            else if ((rmv = d.IndexOf("MM METRO ETHERNETP2MP")) > -1) { rle = 21; }
-            else if ((rmv = d.IndexOf("MM METRO ETHERNETP2P")) > -1) { rle = 20; }
-            else if ((rmv = d.IndexOf("MM METRO ETHERNET")) > -1) { rle = 17; }
-            else if ((rmv = d.IndexOf("MM METROETHERNET")) > -1) { rle = 16; }
-            else if ((rmv = d.IndexOf("MM METRO MP2MP")) > -1) { rle = 14; }
-            else if ((rmv = d.IndexOf("MM METRO P2MP")) > -1) { rle = 13; }
-            else if ((rmv = d.IndexOf("MM METRO P2P")) > -1) { rle = 12; }
-            else if ((rmv = d.IndexOf("MM METRO")) > -1) { rle = 8; }
-            //                         12345678901234567890123
-            else if ((rmv = d.IndexOf("METRO ETHERNET MP2MP")) > -1) { rle = 20; }
-            else if ((rmv = d.IndexOf("METRO ETHERNET P2MP")) > -1) { rle = 19; }
-            else if ((rmv = d.IndexOf("METRO ETHERNET P2P")) > -1) { rle = 18; }
-            else if ((rmv = d.IndexOf("METRO ETHERNETMP2MP")) > -1) { rle = 19; }
-            else if ((rmv = d.IndexOf("METRO ETHERNETP2MP")) > -1) { rle = 18; }
-            else if ((rmv = d.IndexOf("METRO ETHERNETP2P")) > -1) { rle = 17; }
-            else if ((rmv = d.IndexOf("METRO ETHERNET")) > -1) { rle = 14; }
-            else if ((rmv = d.IndexOf("METROETHERNET")) > -1) { rle = 13; }
-            else if ((rmv = d.IndexOf("METRO MP2MP")) > -1) { rle = 11; }
-            else if ((rmv = d.IndexOf("METRO P2MP")) > -1) { rle = 10; }
-            else if ((rmv = d.IndexOf("METRO P2P")) > -1) { rle = 9; }
-            else if ((rmv = d.IndexOf("METRO ")) > -1) { rle = 5; }
-            else rmv = -1;
-
-            if (rmv > -1)
-            {
-                d = d.Remove(rmv, rle);
-                o = o.Remove(rmv, rle);
-
-                d = d.Insert(rmv, " ");
-                o = o.Insert(rmv, " ");
-            }
-            rmv = -1;
-            rle = -1;
-
-            if (de.ServiceType == null || de.ServiceType == "VPNIP")
-            {
-                //                         12345678901234567890
-                if ((rmv = d.IndexOf("VPNIP TRANS ACCESS")) > -1) { de.ServiceType = "VPNIP"; rle = 18; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANSACTIONAL ACCESS")) > -1) { de.ServiceType = "VPNIP"; rle = 20; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("MM TRANS ACCESS")) > -1) { de.ServiceType = "VPNIP"; rle = 15; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANSS ACCESS")) > -1) { de.ServiceType = "VPNIP"; rle = 13; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANS ACCESS")) > -1) { de.ServiceType = "VPNIP"; rle = 12; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANSACCESS")) > -1) { de.ServiceType = "VPNIP"; rle = 11; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANS ACCES")) > -1) { de.ServiceType = "VPNIP"; rle = 11; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANSACC")) > -1) { de.ServiceType = "VPNIP"; rle = 8; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRAN ACC")) > -1) { de.ServiceType = "VPNIP"; rle = 8; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANS AC")) > -1) { de.ServiceType = "VPNIP"; rle = 8; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANSAC")) > -1) { de.ServiceType = "VPNIP"; rle = 7; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANSC ")) > -1) { de.ServiceType = "VPNIP"; rle = 6; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANSS ")) > -1) { de.ServiceType = "VPNIP"; rle = 6; de.ServiceSubType = "TRANS"; }
-                else if ((rmv = d.IndexOf("TRANS ")) > -1 && de.ServiceType == null) { de.ServiceType = "VPNIP"; rle = 5; de.ServiceSubType = "TRANS"; }
-                else rmv = -1;
-
-                if (rmv > -1)
-                {
-                    d = d.Remove(rmv, rle);
-                    o = o.Remove(rmv, rle);
-
-                    d = d.Insert(rmv, " ");
-                    o = o.Insert(rmv, " ");
-                }
-                rmv = -1;
-                rle = -1;
-            }
-
-            rmv = -1;
-            rle = -1;
-
-            //d = d.Trim();
-            //o = o.Trim();
-
-            //                         12345678901234567890
-                 if ((rmv = d.IndexOf(" BENTROK DENGAN ")) > -1) { rle = 16; }
-            else if ((rmv = d.IndexOf("(EX SID FEAS")) > -1) { rle = 12; }
-            else if ((rmv = d.IndexOf("[EX SID FEAS")) > -1) { rle = 12; }
-            else if ((rmv = d.IndexOf("EX SID FEAS")) > -1) { rle = 11; }
-            else if ((rmv = d.IndexOf("EX SID FEAS")) > -1) { rle = 11; }
-            else if ((rmv = d.IndexOf("SID (FEAS)")) > -1) { rle = 10; }
-            else if ((rmv = d.IndexOf("SID [FEAS]")) > -1) { rle = 10; }
-            else if ((rmv = d.IndexOf("SID <FEAS>")) > -1) { rle = 10; }
-            else if ((rmv = d.IndexOf("(SID FEAS")) > -1) { rle = 9; }
-            else if ((rmv = d.IndexOf("[SID FEAS")) > -1) { rle = 9; }
-            else if ((rmv = d.IndexOf("SID FEAS")) > -1) { rle = 8; }
-            else if ((rmv = d.IndexOf("(EX FEAS")) > -1) { rle = 8; }
-            else if ((rmv = d.IndexOf("[EX FEAS")) > -1) { rle = 8; }
-            else if ((rmv = d.IndexOf("(EX SID")) > -1) { rle = 7; }
-            else if ((rmv = d.IndexOf("[EX SID")) > -1) { rle = 7; }
-            else if ((rmv = d.IndexOf("EX FEAS")) > -1) { rle = 7; }
-            else if ((rmv = d.IndexOf("EX SID")) > -1) { rle = 6; }
-            else if ((rmv = d.IndexOf("X SID")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf("EXSID")) > -1) { rle = 5; }
-            else if ((rmv = d.IndexOf("XSID3")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf("XSID4")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf("XSID ")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf("FEAS ")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf("SSID ")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf("VLAN ")) > -1) { rle = 4; }
-            else if ((rmv = d.IndexOf(" EX3")) > -1) { rle = 3; }
-            else if ((rmv = d.IndexOf(" EX4")) > -1) { rle = 3; }
-            else if ((rmv = d.IndexOf("(EX3")) > -1) { rle = 3; }
-            else if ((rmv = d.IndexOf("(EX4")) > -1) { rle = 3; }
-            else if ((rmv = d.IndexOf("[EX3")) > -1) { rle = 3; }
-            else if ((rmv = d.IndexOf("[EX4")) > -1) { rle = 3; }
-            else if ((rmv = d.IndexOf("<EX3")) > -1) { rle = 3; }
-            else if ((rmv = d.IndexOf("<EX4")) > -1) { rle = 3; }
-            
-
-            if (rmv > -1)
-            {
-                int rmvn = rmv + rle;
-                if (rmvn < d.Length)
-                {
-                    if (d[rmvn] == ' ') rmvn += 1;
-                    else if (d[rmvn] == ':' || d[rmvn] == '-' || d[rmvn] == '=')
-                    {
-                        rmvn += 1;
-                        if (rmvn < d.Length && d[rmvn] == ' ') rmvn += 1;
-                    }
-                }
-                if (rmvn < d.Length)
-                {
-                    int end = d.IndexOfAny(new char[] { ' ', ')', '(', ']', '[', '.', '<', '>' }, rmvn);
-                    if (end > -1)
-                    {
-                        d = d.Remove(rmv, end - rmv);
-                        o = o.Remove(rmv, end - rmv);
-                    }
-                    else
-                    {
-                        d = d.Remove(rmv);
-                        o = o.Remove(rmv);
-                    }
-
-                    d = d.Insert(rmv, " ");
-                    o = o.Insert(rmv, " ");
-                }
-            }
-            rmv = -1;
-            rle = -1;
-
-            // DENGAN IDENTIFIKASI "SID"
-            if (de.SID == null)
-            {
-                //                         12345678901234567890
-                if ((rmv = d.IndexOf("SID TENOSS ")) > -1) { rle = 11; }
-                else if ((rmv = d.IndexOf("SID TENOSS:")) > -1) { rle = 11; }
-                else if ((rmv = d.IndexOf("SID TENOSS=")) > -1) { rle = 11; }
-                else if ((rmv = d.IndexOf("TENOSS SID ")) > -1) { rle = 11; }
-                else if ((rmv = d.IndexOf("TENOSS SID:")) > -1) { rle = 11; }
-                else if ((rmv = d.IndexOf("TENOSS SID=")) > -1) { rle = 11; }
-                else if ((rmv = d.IndexOf("SID SID ")) > -1) { rle = 7; }
-                else if ((rmv = d.IndexOf("TENOSS:")) > -1) { rle = 7; }
-                else if ((rmv = d.IndexOf(" SOID ")) > -1) { rle = 6; }
-                else if ((rmv = d.IndexOf("(SID ")) > -1) { rle = 5; }
-                else if ((rmv = d.IndexOf("(SID:")) > -1) { rle = 5; }
-                else if ((rmv = d.IndexOf("(SID=")) > -1) { rle = 5; }
-                else if ((rmv = d.IndexOf("(SID%")) > -1) { rle = 5; }
-                else if ((rmv = d.IndexOf("<SID:")) > -1) { rle = 5; }
-                else if ((rmv = d.IndexOf("<SID=")) > -1) { rle = 5; }
-                else if ((rmv = d.IndexOf("<SID%")) > -1) { rle = 5; }
-                else if ((rmv = d.IndexOf("<SID ")) > -1) { rle = 5; }
-                else if ((rmv = d.IndexOf("[SID:")) > -1) { rle = 5; }
-                else if ((rmv = d.IndexOf("[SID=")) > -1) { rle = 5; }
-                else if ((rmv = d.IndexOf("[SID%")) > -1) { rle = 5; }
-                else if ((rmv = d.IndexOf("[SID ")) > -1) { rle = 5; }
-                else if ((rmv = d.IndexOf(" SID:")) > -1) { rle = 5; }
-                else if ((rmv = d.IndexOf(" SID=")) > -1) { rle = 5; }
-                else if ((rmv = d.IndexOf(" SID%")) > -1) { rle = 5; }
-                else if ((rmv = d.IndexOf(" SID ")) > -1) { rle = 5; }
-                else if ((rmv = d.IndexOf(" SIDT")) > -1) { rle = 4; }
-                else if ((rmv = d.IndexOf(" SID0")) > -1) { rle = 4; }
-                else if ((rmv = d.IndexOf(" SID1")) > -1) { rle = 4; }
-                else if ((rmv = d.IndexOf(" SID2")) > -1) { rle = 4; }
-                else if ((rmv = d.IndexOf(" SID3")) > -1) { rle = 4; }
-                else if ((rmv = d.IndexOf(" SID4")) > -1) { rle = 4; }
-                else if ((rmv = d.IndexOf(" SID5")) > -1) { rle = 4; }
-                else if ((rmv = d.IndexOf(" SID6")) > -1) { rle = 4; }
-                else if ((rmv = d.IndexOf(" SID7")) > -1) { rle = 4; }
-                else if ((rmv = d.IndexOf(" SID8")) > -1) { rle = 4; }
-                else if ((rmv = d.IndexOf(" SID9")) > -1) { rle = 4; }
-                else if ((rmv = d.IndexOf("SID.")) > -1) { rle = 4; }
-                else if ((rmv = d.IndexOf("SID:")) > -1) { rle = 4; }
-                else if ((rmv = d.IndexOf("SID=")) > -1) { rle = 4; }
-                else if ((rmv = d.IndexOf("SID%")) > -1) { rle = 4; }
-                else if ((rmv = d.IndexOf("SID ")) > -1) { rle = 4; }
-                // ITS A HELL DOWN HERE
-                else if ((rmv = d.IndexOf(" TELKOM FL")) > -1) { rle = 1; }
-                else if ((rmv = d.IndexOf(" INTG")) > -1) { rle = 1; }                
-                else rmv = -1;
-
-                if (rmv > -1)
-                {
-                    int rmvn = rmv + rle;
-                    if (rmvn < d.Length)
-                    {
-                        if (d[rmvn] == ' ') rmvn += 1;
-                        else if (d[rmvn] == ':' || d[rmvn] == '-' || d[rmvn] == '=' || d[rmvn] == '(' || d[rmvn] == '[')
-                        {
-                            rmvn += 1;
-                            if (rmvn < d.Length && d[rmvn] == ' ') rmvn += 1;
-                        }
-                    }
-                    if (rmvn < d.Length)
-                    {
-                        int end = -1;
-                        int nextend = rmvn;
-
-                        while (true)
-                        {
-                            end = o.IndexOfAny(new char[] { ' ', ')', '(', ']', '[', '.', '<', '>', '_' }, nextend);
-                            if (end > -1 && end < d.Length && d[end] == ' ' && end - rmvn <= 8) nextend = end + 1;
-                            else if (end > -1 && end < d.Length && d[end] == '_' && end - rmvn <= 8) nextend = end + 1;
-                            else break;
-                        }
-
-                        if (end > -1)
-                        {
-                            int len = end - rmv - rle;
-
-                            if (len + rmvn > d.Length) de.SID = o.Substring(rmvn).Trim();
-                            else de.SID = o.Substring(rmvn, len).Trim();
-
-                            d = d.Remove(rmv, end - rmv);
-                            o = o.Remove(rmv, end - rmv);
-                        }
-                        else
-                        {
-                            string imx = o.Substring(rmvn).Trim();
-                            //imx = imx.Replace(' ', '_');
-
-                            if (imx.Length > 13)
-                            {
-                                StringBuilder nimx = new StringBuilder();
-                                nimx.Append(imx.Substring(0, 13));
-                                for (int imxi = 13; imxi < imx.Length; imxi++)
-                                {
-                                    if (char.IsDigit(imx[imxi])) nimx.Append(imx[imxi]);
-                                    else break;
-                                }
-
-                                imx = nimx.ToString();
-                            }
-
-                            de.SID = imx;
-
-                            d = d.Remove(rmv);
-                            o = o.Remove(rmv);
-                        }
-                    }
-                }
-            }
-
-            // DENGAN SID FORMAT
-            if (de.SID == null)
-            {
-                Match m = captureSIDFormat1.Match(o);
-
-                if (m.Success)
-                {
-                    string sid = m.Groups[0].Value;
-
-                    int idx = o.IndexOf(sid);
-
-                    if (idx > -1)
-                    {
-                        o = o.Remove(idx, sid.Length);
-                        d = d.Remove(idx, sid.Length);
-
-                        o = o.Insert(idx, " ");
-                        d = d.Insert(idx, " ");
-
-                        de.SID = sid;
-                    }
-                }
-            }
-
-            // HEURISTIC SEARCH
-            if (de.SID == null)
-            {
-                List<string> sidc = new List<string>();
-
-                List<string> sss = new List<string>();
-
-                foreach (string si in o.Split(new char[] { ' ', ':', '=' }))
-                {
-                    string[] sis = si.Split(new char[] { '_' }, 8);
-
-                    sss.AddRange(sis);
-                }
-
-                foreach (string si in sss)
-                {
-                    int dig = 0;
-
-                    string fsi = si.Trim(new char[] { '-', ')', '(', '[', ']', '>', '<' });
-                    
-                    // count digit in si
-                    foreach (char ci in fsi)
-                        if (char.IsDigit(ci))
-                            dig++;
-
-                    double oc = (double)dig / (double)fsi.Length;
-
-                    if (oc > 0.3 && fsi.Length > 8 &&
-                        !fsi.StartsWith("FAA-") &&
-                        !fsi.StartsWith("FAI-") &&
-                        !fsi.StartsWith("FAD-") &&
-                        !fsi.StartsWith("GI") &&
-                        !fsi.StartsWith("TE") &&
-                        !fsi.StartsWith("FA") &&
-                        fsi.IndexOf("GBPS") == -1 &&
-                        fsi.IndexOf("KBPS") == -1 &&
-                        fsi.IndexOf("MBPS") == -1 &&
-                        fsi.IndexOf("BPS") == -1 &&
-                        fsi.IndexOfAny(new char[] { '/', '.', ';', '\'', '\"', '>', '<', '/' }) == -1)
-                    {
-                        int imin = fsi.LastIndexOf('-');
-
-                        if (imin > -1)
-                        {
-                            string lastport = fsi.Substring(imin + 1);
-
-                            if (lastport.Length < 5) fsi = null;
-                            else
-                            {
-                                bool adadigit = false;
-                                foreach (char lastportc in lastport)
-                                {
-                                    if (char.IsDigit(lastportc))
-                                    {
-                                        adadigit = true;
-                                        break;
-                                    }
-                                }
-
-                                if (adadigit == false)
-                                    fsi = null;
-                            }
-                        }
-
-                        if (fsi != null)
-                        {
-                            if (fsi.Length >= 6 && fsi.Length <= 16)
-                            {
-                                bool probablySID = true;
-
-                                string[] fsip = fsi.Split(new char[] { '-' });
-                                if (fsip.Length == 3)
-                                {
-                                    string first = fsip[0];
-                                    if (char.IsDigit(first[0]))
-                                    {
-                                        if (first.Length == 1 || first.Length == 2 && char.IsDigit(first[1])) { }
-                                        else probablySID = false;
-                                    }
-                                    if (probablySID && !char.IsDigit(first[0]))
-                                    {
-                                        if (first.Length >= 3 && (
-                                            ListHelper.StartsWith(monthsEnglish, first) > -1 ||
-                                            ListHelper.StartsWith(monthsBahasa, first) > -1
-                                            ))
-                                        { }
-                                        else probablySID = false;
-                                    }
-                                    string second = fsip[1];
-                                    if (probablySID && char.IsDigit(second[0]))
-                                    {
-                                        if (second.Length == 1 || second.Length == 2 && char.IsDigit(second[1])) { }
-                                        else probablySID = false;
-                                    }
-                                    if (probablySID && !char.IsDigit(second[0]))
-                                    {
-                                        if (second.Length >= 3 && (
-                                            ListHelper.StartsWith(monthsEnglish, second) > -1 ||
-                                            ListHelper.StartsWith(monthsBahasa, second) > -1
-                                            ))
-                                        { }
-                                        else probablySID = false;
-                                    }
-                                    string third = fsip[2];
-                                    if (probablySID && char.IsDigit(second[0]))
-                                    {
-                                        if (third.Length == 2 && char.IsDigit(third[1])) { }
-                                        else if (third.Length == 4 && char.IsDigit(third[1]) && char.IsDigit(third[2]) && char.IsDigit(third[3])) { }
-                                        else probablySID = false;
-                                    }
-                                    else probablySID = false;
-                                }
-                                else if (fsip.Length == 1)
-                                {
-                                    // 04APR2014
-                                    // APR42014
-                                    // 4APR2014
-                                    // 04042014
-                                    if (char.IsDigit(fsi[0])) { }
-                                    else
-                                    {
-                                        int tlen = 1;
-                                        for (int fi = 1; fi < fsi.Length; fi++)
-                                        {
-                                            if (char.IsDigit(fsi[fi])) break;
-                                            else tlen++;
-                                        }
-
-                                        string t = fsi.Substring(0, tlen);
-
-                                        if (ListHelper.StartsWith(monthsEnglish, t) > -1 ||
-                                            ListHelper.StartsWith(monthsBahasa, t) > -1)
-                                        { }
-                                        else probablySID = false;
-
-                                        if (probablySID && fsi.Length > tlen)
-                                        {
-                                            int remaining = fsi.Length - tlen;
-                                            if (remaining >= 3 && remaining <= 6)
-                                            {
-                                                for (int ooi = 0; ooi < remaining; ooi++)
-                                                {
-                                                    char cc = fsi[tlen + ooi];
-                                                    if (!char.IsDigit(cc))
-                                                    {
-                                                        probablySID = false;
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                            else probablySID = false;
-                                        }
-                                    }
-
-                                }
-                                else probablySID = false;
-
-                                if (probablySID) fsi = null;
-
-                            }
-                        }
-
-                        if (fsi != null)
-                        {
-                            sidc.Add(fsi);
-                        }
-                    }
-                }
-
-                sss.Clear();
-
-
-                if (sidc.Count > 0)
-                {
-                    sidc.Sort((a, b) => b.Length.CompareTo(a.Length));
-
-                    de.SID = sidc[0];
-                    int idx = o.IndexOf(de.SID);
-
-                    d = d.Remove(idx, de.SID.Length);
-                    o = o.Remove(idx, de.SID.Length);
-                }
-            }
-
-            if (de.SID != null)
-            {
-                if (de.SID.Length <= 8)
-                    de.SID = null;
-                else
-                {
-                    string fixsid = de.SID.Trim(new char[] { '-', ')', '(', '[', ']', '>', '<', '\'', '\"', '_' });
-
-                    fixsid = string.Join("-", fixsid.Split(new char[] { '-' }, StringSplitOptions.RemoveEmptyEntries));
-                    fixsid = string.Join("_", fixsid.Split(new char[] { '_' }, StringSplitOptions.RemoveEmptyEntries));
-                    fixsid = string.Join(" ", fixsid.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
-
-                    string[] sids = fixsid.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    if (sids.Length > 0)
-                        fixsid = sids[0];
-
-                    de.SID = fixsid;
-
-                    if (StringHelper.Count(de.SID, '-') > 3)
-                    {
-                        de.SID = null;
-                    }
-
-                    if (de.SID != null)
-                    {
-                        int lmin = de.SID.LastIndexOf('-');
-                        if (lmin > -1)
-                            de.CID = de.SID.Substring(0, lmin);
-
-                        if (de.CID == null && lmin == -1)
-                        {
-                            if (de.SID.Length == 12 && de.SID[0] == '4')
-                            {
-                                bool alldigit = true;
-                                foreach (char c in de.SID) { if (!char.IsDigit(c)) { alldigit = false; break; } }
-                                if (alldigit)
-                                {
-                                    de.CID = de.SID.Substring(0, 7);
-                                }
-                            }
-                            if (de.SID.Length == 17 && (de.SID[0] == '4' || de.SID[0] == '3'))
-                            {
-                                bool alldigit = true;
-                                foreach (char c in de.SID) { if (!char.IsDigit(c)) { alldigit = false; break; } }
-                                if (alldigit)
-                                {
-                                    de.CID = de.SID.Substring(0, 7);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            #endregion
-
-            #region Find SITEID
-
-            if (de.SID == null)
-            {
-                if (o.IndexOf("TELKOMSEL") > -1 || o.IndexOf("TSEL") > -1)
-                {
-                    Match m = findSiteID.Match(o);
-
-                    if (m.Success)
-                    {
-                        string siteID = m.Groups[0].Value;
-
-                        de.SID = siteID;
-                        de.CID = "TELKOMSELSITES";
-                        de.ServiceType = "TELKOMSELSITES";
-                        de.ServiceSubType = "TELKOMSELSITES";
-                    }
-                }
-            }
-
-            #endregion
-
-            if (de.CID != "TELKOMSELSITES")
-            {
-                o = o.Trim();
-
-                // if double, singlekan
-                if (o.Length >= 2 && o.Length % 2 == 0)
-                {
-                    int halflen = o.Length / 2;
-                    string leftside = o.Substring(0, halflen);
-                    string rightside = o.Substring(halflen, halflen);
-
-                    if (leftside == rightside)
-                        o = leftside;
-                }
-
-                o = o.Replace("()", "");
-                o = o.Replace("[]", "");
-                o = string.Join(" ", o.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries));
-
-                de.CleanDescription = o;
-            }
-            else
-            {
-                de.CleanDescription = "TELKOMSELSITES";
-            }
-
-            return de;
-        }
-
-        #endregion
     }
 
     internal class ExpectResult

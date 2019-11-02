@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 using Aphysoft.Share;
 
-namespace Center
+namespace Jovice
 {
     public class MacAddress
     {

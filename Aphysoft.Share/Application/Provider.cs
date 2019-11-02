@@ -18,383 +18,20 @@ namespace Aphysoft.Share
 {
     public class Provider
     {
-        #region Server
-
-        internal static Dictionary<string, StreamClientInstance> clientInstances;
-
-        public static Dictionary<string, StreamClientInstance> ClientInstances
-        {
-            get { return clientInstances; }
-        }
-
-        internal static Dictionary<string, StreamSessionInstance> sessionInstances;
-
-        public static Dictionary<string, StreamSessionInstance> SessionInstances
-        {
-            get { return sessionInstances; }
-        }
-
-        internal static Dictionary<string, OnReceivedCallback> registerCallbacks;
-
-        private static object instancesWaitSync = new object();
-
-        internal static void ServerInit()
-        {
-            clientInstances = new Dictionary<string, StreamClientInstance>();
-            sessionInstances = new Dictionary<string, StreamSessionInstance>();
-            registerCallbacks = new Dictionary<string, OnReceivedCallback>();
-
-            Share.Database.Execute("update [Session] set SS_ClientsCount = 0 where SS_ClientsCount > 0");
-
-            Service.Register(typeof(BaseStreamServiceMessage), BaseStreamServiceMessageHandler);
-        }
-
-        private static void BaseStreamServiceMessageHandler(MessageEventArgs e)
-        {
-            if (sessionInstances == null || clientInstances == null || registerCallbacks == null) return;
-
-            BaseServiceMessage msg = e.Message;
-            Connection connection = e.Connection;
-            Type type = msg.GetType();
-
-            BaseStreamServiceMessage streamMessage = (BaseStreamServiceMessage)msg;
-            string sessionID = streamMessage.SessionID;
-
-            if (sessionID == null)
-            {
-                
-                connection.Reply(streamMessage);
-            }
-
-            if (type == typeof(StreamServiceMessage))
-            {
-                #region Stream
-
-                StreamServiceMessage message = (StreamServiceMessage)streamMessage;
-
-                string clientID = message.ClientID;
-       
-                StreamClientInstance clientInstance;
-
-                bool newClientInstance = false;
-
-                lock (instancesWaitSync)
-                {
-                    if (clientInstances.ContainsKey(clientID))
-                        clientInstance = clientInstances[clientID];
-                    else
-                    {
-                        clientInstance = new StreamClientInstance(clientID);
-                        clientInstances.Add(clientID, clientInstance);
-                        newClientInstance = true;
-
-                        // add to sessionInstance, if not found, create new
-                        StreamSessionInstance sessionInstance;
-
-                        if (sessionInstances.ContainsKey(sessionID))
-                        {
-                            sessionInstance = sessionInstances[sessionID];
-
-                            // existing session,
-                            // the session has another client instance
-                            clientInstance.SessionIndex = sessionInstance.GetAvailableIndex();
-                        }
-                        else
-                        {
-                            sessionInstance = new StreamSessionInstance(sessionID);
-                            sessionInstances.Add(sessionID, sessionInstance);
-
-                            // yes, this is new session,
-                            // it means new client
-                            clientInstance.SessionIndex = 0;
-                        }
-
-                        clientInstance.SessionInstance = sessionInstance;
-                        sessionInstance.ClientInstances.Add(clientID, clientInstance);
-
-                        Share.Database.Execute("update [Session] set SS_ClientsCount = {0} where SS_SID = {1}", sessionInstance.ClientInstances.Count, sessionID);
-                    }
-                }
-
-                bool updateDomain = false;
-
-                if (newClientInstance)
-                {
-                    if (message.HostSessionIndex != clientInstance.SessionIndex)
-                    {
-                        message.MessageContinue = false;
-                        message.MessageType = "updatestreamdomain";
-                        message.MessageData = clientInstance.SessionIndex;
-
-                        connection.Reply(message);
-
-                        updateDomain = true;
-                    }
-                }
-
-                if (updateDomain == false)
-                {
-                    Stopwatch stopwatch = new Stopwatch();
-                    stopwatch.Start();
-
-                    do
-                    {
-                        do
-                        {
-                            if (clientInstance.DataQueue.Count > 0) break;
-                            else if (stopwatch.Elapsed.TotalSeconds >= 50) break;
-
-                            clientInstance.resetEvent.WaitOne(1000);
-                        }
-                        while (true);
-
-                        if (clientInstance.DataQueue.Count > 0)
-                        {
-                            lock (clientInstance.dataQueueWaitSync)
-                            {
-                                if (clientInstance.DataQueue.Count > 0)
-                                {
-                                    StreamInstanceData data = clientInstance.DataQueue.Dequeue();
-
-                                    message.MessageContinue = false;
-                                    message.MessageType = data.Type;
-                                    message.MessageData = data.Data;
-
-                                    connection.Reply(message);
-
-                                    if (clientInstance.DataQueue.Count == 0)
-                                        clientInstance.resetEvent.Reset();
-                                }
-                            }
-                        }
-                        else break;
-
-                    }
-                    while (true);
-                }
-
-                message.MessageContinue = true;
-                message.MessageType = null;
-                message.MessageData = null;
-
-                connection.Reply(message);
-
-                #endregion
-            }
-            else if (type == typeof(ClientEndServiceMessage))
-            {
-                #region Client End
-
-                ClientEndServiceMessage message = (ClientEndServiceMessage)streamMessage;
-
-                string clientID = message.ClientID;
-
-                lock (instancesWaitSync)
-                {                    
-                    if (clientInstances.ContainsKey(clientID))
-                    {
-                        StreamClientInstance clientInstance = clientInstances[clientID];
-
-                        clientInstances.Remove(clientID);
-
-                        StreamSessionInstance sessionInstance = clientInstance.SessionInstance;
-
-                        sessionInstance.ClientInstances.Remove(clientID);
-
-                        Share.Database.Execute("update [Session] set SS_ClientsCount = {0} where SS_SID = {1}", sessionInstance.ClientInstances.Count, sessionID);
-
-                        if (sessionInstance.ClientInstances.Count == 0)
-                        {
-                            // dont have client instances anymore, remove this
-                            if (sessionInstances.ContainsKey(sessionInstance.SessionID))
-                            {
-                                sessionInstances.Remove(sessionInstance.SessionID);
-                            }
-                        }
-                    }
-                }
-
-                #endregion
-            }
-            else if (type == typeof(RegisterServiceMessage))
-            {
-                #region Register
-
-                RegisterServiceMessage message = (RegisterServiceMessage)streamMessage;
-
-                string clientID = message.ClientID;
-                string[] registers = message.Registers;
-                bool force = message.Force;
-                
-                lock (instancesWaitSync)
-                {
-                    if (clientInstances.ContainsKey(clientID))
-                    {
-                        StreamClientInstance instance = clientInstances[clientID];
-
-                        if (force)
-                        {
-                            instance.RemoveAllRegisters();
-                        }
-                        foreach (string register in registers)
-                        {
-                            if (register.StartsWith("-"))
-                            {
-                                string registerName = register.Substring(1);
-                                if (registerName.Length > 0) instance.RemoveRegister(registerName);
-                            }
-                            else
-                            {
-                                //Service.Debug("Client " + clientID + " register " + register);
-
-                                instance.Register(register);
-                                if (registerCallbacks.ContainsKey(register))
-                                {
-                                    registerCallbacks[register](e);
-                                }
-                            }
-                        }
-
-                    }
-                }
-
-                #endregion
-            }
-        }
-
-        internal static StreamSessionInstance GetSessionInstance(string sessionID)
-        {
-            if (sessionID != null && sessionInstances.ContainsKey(sessionID))
-                return sessionInstances[sessionID];
-            else
-                return null;
-        }
-
-        public static string[] GetClientsByRegister(string register)
-        {
-            if (Service.IsServer)
-            {               
-                List<string> clients = new List<string>();
-
-                foreach (KeyValuePair<string, StreamClientInstance> pair in clientInstances)
-                {
-                    if (pair.Value.IsRegistered(register))
-                    {
-                        clients.Add(pair.Key);
-                    }
-                }
-
-                return clients.ToArray();
-            }
-            else return null;
-        }
-
-        public static KeyValuePair<string, string[]>[] GetClientsByRegisterMatch(string registerMatch)
-        {
-            if (Service.IsServer)
-            {
-                List<KeyValuePair<string, string[]>> clients = new List<KeyValuePair<string, string[]>>();
-
-                foreach (KeyValuePair<string, StreamClientInstance> pair in clientInstances)
-                {
-                    string[] matchTo;
-                    if (pair.Value.IsRegisteredMatch(registerMatch, out matchTo))
-                    {
-                        KeyValuePair<string, string[]> kvp = new KeyValuePair<string, string[]>(pair.Key, matchTo);
-                        clients.Add(kvp);
-                    }
-                }
-
-                return clients.ToArray();
-            }
-            else return null;
-        }
-
-        public static int SetActionByRegister(string register, string type, object data)
-        {
-            string[] clientIDs = GetClientsByRegister(register);
-
-            foreach (string clientID in clientIDs)
-            {
-                StreamClientInstance clientInstance = clientInstances[clientID];
-                clientInstance.SetAction(type, data);
-            }
-
-            return clientIDs.Length;
-        }
-
-        public static void SetActionByRegister(string register, object data)
-        {
-            SetActionByRegister(register, register, data);
-        }
-
-        public static int SetActionByRegisterMatch(string registerMatch, string type, object data)
-        {
-            KeyValuePair<string, string[]>[] clientIDs = GetClientsByRegisterMatch(registerMatch);
-
-            foreach (KeyValuePair<string, string[]> pair in clientIDs)
-            {
-                string clientID = pair.Key;
-                string[] matches = pair.Value;
-                
-                StreamClientInstance clientInstance = clientInstances[clientID];
-                clientInstance.SetAction(type, data);
-            }
-
-            return clientIDs.Length;
-        }
-
-        public static void SetActionByRegisterMatch(string registerMatch, object data)
-        {
-            KeyValuePair<string, string[]>[] clientIDs = GetClientsByRegisterMatch(registerMatch);
-
-            foreach (KeyValuePair<string, string[]> pair in clientIDs)
-            {
-                string clientID = pair.Key;
-                string[] matches = pair.Value;
-                               
-                StreamClientInstance clientInstance = clientInstances[clientID];
-
-                foreach (string match in matches)
-                {
-                    clientInstance.SetAction(match, data);
-                }
-            }
-        }
-
-        public static void RegisterCallback(string register, OnReceivedCallback method)
-        {
-            if (!registerCallbacks.ContainsKey(register))
-                registerCallbacks.Add(register, method);
-        }
+        #region Fields
+        
+        private static Dictionary<int, ProviderRegister> resourceRegisters = new Dictionary<int, ProviderRegister>();
+
+        private static Dictionary<string, ProviderRegister> serviceRegisters = new Dictionary<string, ProviderRegister>();
 
         #endregion
-
-        #region Server+Client
-
-        #endregion
-
-        #region Client
 
         internal static void Init()
         {
-            Resource.Register("xhr_stream", ResourceTypes.Text, Provider.StreamBeginProcessRequest, Provider.StreamEndProcessRequest)
-                .NoBufferOutput().AllowOrigin("http" + (Settings.SSLAvailable ? "s" : "") + "://" + Settings.PageDomain).AllowCredentials();
-            Resource.Register("xhr_provider", ResourceTypes.JSON, Provider.ProviderBeginProcessRequest, Provider.ProviderEndProcessRequest);
-
-            if (Settings.EnableUI)
-            {
-                Resource.Register("xhr_content_provider", ResourceTypes.JSON, Content.Begin, Content.End);
-            }
+            Resource.Register("xhr_stream", ResourceTypes.Text, StreamBeginProcessRequest, StreamEndProcessRequest).NoBufferOutput().AllowOrigin("http" + (WebSettings.Secure ? "s" : "") + "://" + WebSettings.Domain).AllowCredentials();
+            Resource.Register("xhr_provider", ResourceTypes.JSON, ProviderBeginProcessRequest, ProviderEndProcessRequest);
+            Resource.Register("xhr_content_provider", ResourceTypes.JSON, Content.Begin, Content.End);
         }
-
-        public static string ClientID()
-        {
-            return Params.GetValue("c");
-        }
-
-        private static Dictionary<int, ProviderRegister> resourceRegisters = new Dictionary<int, ProviderRegister>();
-        private static Dictionary<string, ProviderRegister> serviceRegisters = new Dictionary<string, ProviderRegister>();
 
         public static event ProviderClientDisconnectedEventHandler ClientDisconnected;
         
@@ -423,13 +60,13 @@ namespace Aphysoft.Share
                 return;
             }
             
-            if (Service.IsConnected)
+            if (Web.Service.IsConnected)
             {
                 string clientID = Params.GetValue("c", result.Context);
-                string sessionID = Session.ID;
+                string sessionId = Session.Id;
                 bool clientStillConnected = true;
 
-                if (sessionID == null || clientID == null)
+                if (sessionId == null || clientID == null)
                 {
                     try
                     {
@@ -453,7 +90,7 @@ namespace Aphysoft.Share
 
                     if (clientStillConnected)
                     {
-                        StreamServiceMessage message = new StreamServiceMessage(sessionID);
+                        StreamMessage message = new StreamMessage(sessionId);
 
                         //message.httpRequest.UserHostAddress;
                         message.ClientID = clientID;
@@ -462,19 +99,19 @@ namespace Aphysoft.Share
 
                         if (requestHost != null)
                         {
-                            string challengeRequestBaseHost = Settings.StreamBaseSubDomain + "." + Settings.StreamDomain;
-                            if (Settings.StreamBasePort != 0)
-                                challengeRequestBaseHost += ":" + Settings.StreamBasePort;
+                            string challengeRequestBaseHost = "base." + WebSettings.StreamDomain;
+                            //if (Settings.StreamBasePort != 0)
+                            //    challengeRequestBaseHost += ":" + Settings.StreamBasePort;
 
                             if (requestHost == challengeRequestBaseHost)
                                 message.HostSessionIndex = -1;
                             else
                             {
-                                for (int ido = 0; ido < Settings.StreamSubDomains.Length; ido++)
+                                for (int ido = 0; ido < WebSettings.MaxStream; ido++)
                                 {
-                                    string challengeRequestHost = Settings.StreamSubDomains[ido] + "." + Settings.StreamDomain;
-                                    if (Settings.StreamSubPorts[ido] != 0)
-                                        challengeRequestHost += ":" + Settings.StreamSubPorts[ido];
+                                    string challengeRequestHost = "c-" + (ido + 1) + "." + WebSettings.StreamDomain;
+                                    //if (Settings.StreamSubPorts[ido] != 0)
+                                    //    challengeRequestHost += ":" + Settings.StreamSubPorts[ido];
 
                                     if (requestHost == challengeRequestHost)
                                     {
@@ -485,11 +122,11 @@ namespace Aphysoft.Share
                             }
                         }
 
-                        if (Service.Send(message))
+                        if (Web.Service.Send(message))
                         {
                             do
                             {
-                                StreamServiceMessage response = Service.Wait(message);
+                                /*StreamMessage response = OldService.Wait(message);
 
                                 if (!response.IsAborted)
                                 {
@@ -556,7 +193,7 @@ namespace Aphysoft.Share
                                 else
                                 {
                                     // two type                            
-                                    if (Service.IsConnected == false) // if server down
+                                    if (OldService.IsConnected == false) // if server down
                                     {
                                         string hostName = Settings.StreamBaseSubDomain + "." + Settings.StreamDomain;
 
@@ -569,12 +206,14 @@ namespace Aphysoft.Share
                                     else // if page left
                                     {
                                         // tell server that page has been left
-                                        Service.Send(new ClientEndServiceMessage(clientID, sessionID));
+                                        OldService.Send(new ClientEndMessage(clientID, sessionId));
                                         httpResponse.Write("{\"t\":\"pageend\"}\n");
                                     }
 
                                     break;
-                                }
+                                }*/
+
+                                break;
                             }
                             while (true);
                         }
@@ -642,13 +281,13 @@ namespace Aphysoft.Share
                         {
                             #region Change Register
                             string x = Params.GetValue("x");
-                            string c = ClientID();
+                            string c = Params.GetValue("c");
 
                             if (x != null && c != null)
                             {
-                                RegisterServiceMessage m = new RegisterServiceMessage(c, x.Split(StringSplitTypes.Comma, StringSplitOptions.RemoveEmptyEntries));
+                                RegisterMessage m = new RegisterMessage(c, x.Split(StringSplitTypes.Comma, StringSplitOptions.RemoveEmptyEntries));
                                 if (appid == 11) m.Force = true;
-                                Service.Send(m);
+                                //OldService.Send(m);
                             }
                             #endregion
                         }
@@ -710,251 +349,24 @@ namespace Aphysoft.Share
                 }
             }
         }
-        
-        #endregion
     }
     
     public class ProviderClientDisconnectedEventArgs : EventArgs
     {
-        private string sessionID;
+        public string SessionId { get; }
 
-        public string SessionID
+        public ProviderClientDisconnectedEventArgs(string sessionId)
         {
-            get { return sessionID; }
-        }
-
-        public ProviderClientDisconnectedEventArgs(string sessionID)
-        {
-            this.sessionID = sessionID;
+            SessionId = sessionId;
         }
     }
 
     public delegate void ProviderRequestHandler(string data);
 
     public delegate void ProviderClientDisconnectedEventHandler(ProviderClientDisconnectedEventArgs e);
-
-    public class StreamInstanceData
-    {
-        #region Fields
-
-        private string type;
-
-        private object data;        
-
-        #endregion
-
-        #region Properties
-
-        public string Type
-        {
-            get { return type; }
-            set { type = value; }
-        }
-
-        public object Data
-        {
-            get { return data; }
-            set { data = value; }
-        }
-
-        #endregion
-
-        #region Constructor
-
-        public StreamInstanceData(string type, object data)
-        {
-            this.type = type;
-            this.data = data;
-        }
-
-        #endregion
-    }
-
-    public class StreamSessionInstance
-    {
-        #region Fields
-
-        private string sessionID;
-        
-        public string SessionID
-        {
-            get { return sessionID; }
-        }
-        
-        private Dictionary<string, StreamClientInstance> clientInstances;
-
-        public Dictionary<string, StreamClientInstance> ClientInstances
-        {
-            get { return clientInstances; }
-        }
-
-        private string ipAddress;
-
-        public string IPAddress
-        {
-            get { return ipAddress; }
-            set { ipAddress = value; }
-        }
-
-        #endregion
-
-        #region Properties
-        
+    
 
 
-
-        #endregion
-
-        #region Constructors
-
-        public StreamSessionInstance(string sessionID)
-        {
-            clientInstances = new Dictionary<string, StreamClientInstance>();
-
-            this.sessionID = sessionID;
-        }
-
-        #endregion
-
-        #region Methods
-        
-        public int GetAvailableIndex()
-        {
-            int lind = -1;
-
-            foreach (KeyValuePair<string, StreamClientInstance> pair in clientInstances)
-            {
-                StreamClientInstance clientInstance = pair.Value;
-
-                int nind = clientInstance.SessionIndex;
-                if ((nind - lind) > 1)
-                    break;
-
-                lind = nind;
-            }
-
-            return (lind + 1);
-        }   
-
-        #endregion
-    }
-
-    public class StreamClientInstance
-    {
-        #region Fields
-
-        private string clientID;
-
-        private List<string> registers = new List<string>();
-
-        public object registersWaitSync = new object();
-
-        public ManualResetEvent resetEvent = new ManualResetEvent(false);
-
-        private Queue<StreamInstanceData> dataQueue = new Queue<StreamInstanceData>();
-
-        public object dataQueueWaitSync = new object();
-
-        private StreamSessionInstance sessionInstance = null;
-
-        private int sessionIndex;
-
-        #endregion
-
-        #region Properties
-        
-        public StreamSessionInstance SessionInstance
-        {
-            get { return sessionInstance; }
-            set { sessionInstance = value; }
-        }
-
-        public Queue<StreamInstanceData> DataQueue
-        {
-            get { return dataQueue; }
-        }
-
-        public int SessionIndex
-        {
-            get { return sessionIndex; }
-            set { sessionIndex = value; }
-        }
-
-        #endregion
-
-        #region Constructors
-
-        public StreamClientInstance(string clientID)
-        {
-            this.clientID = clientID;
-        }
-
-        #endregion
-
-        #region Methods
-
-        public void SetAction(string type, object data)
-        {
-            lock (dataQueueWaitSync)
-            {
-                DataQueue.Enqueue(new StreamInstanceData(type, data));
-                resetEvent.Set();
-            }
-        }
-
-        public void Register(string register)
-        {
-            lock (registersWaitSync)
-            {
-                if (!registers.Contains(register))
-                    registers.Add(register);
-            }
-        }
-
-        public void RemoveRegister(string register)
-        {
-            lock (registersWaitSync)
-            {
-                if (registers.Contains(register))
-                    registers.Remove(register);
-            }
-        }
-
-        public void RemoveAllRegisters()
-        {
-            lock (registersWaitSync)
-            {
-                registers.Clear();
-            }
-        }
-
-        public bool IsRegistered(string register)
-        {
-            if (registers.Contains(register)) return true;
-            else return false;
-        }
-
-        public bool IsRegisteredMatch(string registerPattern, out string[] matchTo)
-        {
-            bool re = false;
-            List<string> matchTos = new List<string>();
-            
-            foreach (string s in registers)
-            {
-                if (Regex.IsMatch(s, "^" + registerPattern + "$"))
-                {
-                    re = true;
-                    matchTos.Add(s);
-                }
-            }
-
-            matchTo = matchTos.ToArray();
-
-            return re;
-        }
-
-        #endregion
-    }
 
     internal class StreamHeartbeatData
     {
@@ -963,137 +375,19 @@ namespace Aphysoft.Share
         public string t = "heartbeat";
         public string d = "";
         public DateTime serverTime;
-        public string v = Share.Version();
+        public string v = Web.Version();
 
         #endregion
     }
 
-    [Serializable]
-    internal abstract class BaseStreamServiceMessage : SessionServiceMessage
-    {
-        #region Constructor
-        public BaseStreamServiceMessage(string sessionID) : base(sessionID)
-        {
-            
-        }
-        #endregion
-    }
 
-    [Serializable]
-    internal abstract class BaseClientServiceMessage : BaseStreamServiceMessage
-    {
-        #region Constructor
-        public BaseClientServiceMessage(string clientID, string sessionID) : base(sessionID)
-        {
-            ClientID = clientID;
-        }
 
-        #endregion
-    }
 
-    [Serializable]
-    internal class StreamServiceMessage : BaseStreamServiceMessage
-    {
-        #region Fields
 
-        private int hostSessionIndex = -1;
 
-        private bool messageContinue = false;
 
-        private string messageType = null;
 
-        private object messageData = null;
 
-        public int HostSessionIndex
-        {
-            get { return hostSessionIndex; }
-            set { hostSessionIndex = value; }
-        }
-
-        public bool MessageContinue
-        {
-            get { return messageContinue; }
-            set { messageContinue = value; }
-        }
-
-        public string MessageType
-        {
-            get { return messageType; }
-            set { messageType = value; }
-        }
-
-        public object MessageData
-        {
-            get { return messageData; }
-            set { messageData = value; }
-        }
-
-        #endregion
-
-        #region Constructors
-
-        public StreamServiceMessage(string sessionID) : base(sessionID)
-        {
-                
-        }
-
-        public StreamServiceMessage() : base("")
-        {
-
-        }
-
-        #endregion
-    }
-
-    [Serializable]
-    internal class ClientEndServiceMessage : BaseClientServiceMessage
-    {
-        #region Constructors
-
-        public ClientEndServiceMessage(string clientID, string sessionID) : base(clientID, sessionID)
-        {
-        }
-
-        public ClientEndServiceMessage() : base(null, null)
-        {
-
-        }
-
-        #endregion
-    }
-
-    [Serializable]
-    internal class RegisterServiceMessage : BaseClientServiceMessage
-    {
-        #region Fields
-
-        private string[] registers;
-
-        public string[] Registers
-        {
-            get { return registers; }
-            set { registers = value; }
-        }
-
-        private bool force = false;
-
-        public bool Force
-        {
-            get { return force; }
-            set { force = value; }
-        }
-
-        #endregion
-
-        #region Constructors
-
-        public RegisterServiceMessage(string clientID, string[] registers) : base(clientID, null)
-        {
-            this.registers = registers;
-        }
-
-        #endregion
-    }
     
     internal class ProviderRegister
     {

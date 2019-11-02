@@ -1,11 +1,11 @@
-﻿using System;
+﻿using Aphysoft.Share;
+using Jovice;
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
-using System.Text.RegularExpressions;
 
-using Aphysoft.Share;
+using Aveezo;
 
 namespace Center.Providers
 {
@@ -97,12 +97,10 @@ namespace Center.Providers
                 ListHelper.Sort(conjuctions, SortMethods.LengthDescending);      
             }
             #endregion
-            
+
             if (id == 101) // 101 Search
             {
                 #region Search
-
-                Service.Debug("I search");
 
                 string search = Params.GetValue("s").Trim(); // search query
                 string main = Params.GetValue("m");
@@ -149,8 +147,8 @@ namespace Center.Providers
 
                 Result r;
 
-                Database jovice = Jovice.Database;
-                Database center = Share.Database;
+                Database j = Database.Get("JOVICE");
+                Database center = Web.Database;
 
                 if (root != null)
                 {
@@ -185,8 +183,8 @@ namespace Center.Providers
 
                         if (isMain)
                         {
-                            r = jovice.Query("select count(*) from ( " + matchResult.QueryCount + " ) source");
-                            if (r.OK)
+                            r = j.Query("select count(*) from ( " + matchResult.QueryCount + " ) source");
+                            if (r)
                             {
                                 matchResult.ResultCount = r[0][0].ToInt();
                             }
@@ -208,7 +206,7 @@ namespace Center.Providers
                             "select * from (select ROW_NUMBER() over (order by " + sortString + ") as ROWNUM, " + matchResult.RowID + " as ROWID, * from (" +
                             matchResult.Query + ") source) source where ROWNUM > " + (page * pageSize) + " AND ROWNUM <= " + ((page + pageLength) * pageSize);
 
-                        r = jovice.Query(psql);
+                        r = j.Query(psql);                        
 
                         matchResult.Columns = r.ColumnNames;
 
@@ -321,25 +319,59 @@ namespace Center.Providers
 
                     if (token1 != null && token1.Length >= 3)
                     {
-                        // 4700278-0006182119
-                        Column c;
-                        c = jovice.Scalar("select count(*) from Service where SE_SID = {0}", token1);
+                        Column sc, oc;
+                        sc = j.Scalar("select count(*) from Service where SE_SID = {0}", token1);
+                        oc = j.Scalar("select count(*) from ServiceOrder where SO_OID = {0}", token1);
 
-                        if (c.ToInt() > 0)
+                        bool es = false;
+                        if (sc.ToInt() > 0)
                         {
                             exQueries.Add("service with SID " + token1);
-                            exExplainations.Add("Searches service with specified SID.");                           
-                        }
-                        if (token1.Length == 7 && (token1.StartsWith("47") || token1.StartsWith("37")))
-                        {
-                            exQueries.Add("service that SID starts with " + token1);
                             exExplainations.Add("Searches service with specified SID.");
+                            es = true;
                         }
-                        if (token1.Length >= 5 && token1.Length <= 18 && StringHelper.IsAllIsIn(token1, commonSIDCharacters))
+                        if (oc.ToInt() > 0)
                         {
-                            exQueries.Add("service that SID contain " + token1);
-                            exExplainations.Add("Searches all services that the SID includes the specified text.");
+                            exQueries.Add("service with order ID " + token1);
+                            exExplainations.Add("Searches service with specified Order ID.");
+                            es = true;
                         }
+                        if (!es)
+                        {
+                            sc = j.Scalar("select count(*) from Service where SE_SID like '%" + token1 + "%'");
+                            oc = j.Scalar("select count(*) from ServiceOrder where SO_OID like '%" + token1 + "%'");
+
+                            if (sc.ToInt() > 0)
+                            {
+                                exQueries.Add("service with SID contain " + token1);
+                                exExplainations.Add("Searches all services that the SID includes the specified text.");
+                                es = true;
+                            }
+                            if (oc.ToInt() > 0)
+                            {
+                                exQueries.Add("service with order ID contain " + token1);
+                                exExplainations.Add("Searches all services that the Order ID includes the specified text.");
+                                es = true;
+                            }
+                        }
+                        if (!es)
+                        {
+                            sc = j.Scalar("select count(*) from ServiceImmediate where SI_VID = {0}", token1);
+                            
+                            if (sc.ToInt() > 0)
+                            {
+                                exQueries.Add("service with SID " + token1);
+                                exExplainations.Add("Searches service with specified SID.");
+                                es = true;
+                            }
+                        }
+                        // todo, search dwhnas
+
+                        //if (token1.Length >= 5 && token1.Length <= 18 && StringHelper.IsAllIsIn(token1, commonSIDCharacters))
+                        //{
+                        //    exQueries.Add("service that SID contain " + token1);
+                        //    exExplainations.Add("Searches all services that the SID includes the specified text.");
+                        //}
                     }
 
                     #endregion
@@ -349,7 +381,7 @@ namespace Center.Providers
                     if (token1 != null)
                     {
                         Column c;
-                        c = jovice.Scalar("select count(*) from Node where NO_Name = {0} and NO_Active = 1", token1);
+                        c = j.Scalar("select count(*) from Node where NO_Name = {0} and NO_Active = 1", token1);
 
                         if (c.ToInt() > 0)
                         {
@@ -925,8 +957,11 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
             get { return matchRoot; }
         }
 
+        
+
         protected Database jovice = Jovice.Database;
-        protected Database center = Share.Database;
+        protected Database center = Web.Database;
+        protected Database oss = OSS.Database;
 
         #endregion
 

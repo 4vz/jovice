@@ -6,7 +6,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace Center
+using Aveezo;
+
+namespace Jovice
 {
     internal class Assumption
     {
@@ -75,7 +77,7 @@ namespace Center
             Intent.name = name;
 
             Result result;
-            Database share = Share.Database;
+            Database share = Web.Database;
 
             intentReferences.Clear();
 
@@ -95,7 +97,7 @@ namespace Center
                     Update update = share.Update("LanguageIntent");
                     update.Set("LI_DM", dmw);
                     update.Where("LI_ID", row["LI_ID"].ToLong());
-                    batch.Execute(update);
+                    batch.Add(update);
                 }
                 batch.Commit();
             }

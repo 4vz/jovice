@@ -5,7 +5,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace Center
+using Aveezo;
+
+
+namespace Necrow
 {
     internal static class NecrowVirtualization
     {
@@ -91,7 +94,7 @@ namespace Center
         {
             NecrowVirtualization.instance = instance;
 
-            Database jovice = Jovice.Database;
+            Database jovice = Database.Get("JOVICE");
             Result result;
             Batch batch = jovice.Batch();
 
@@ -107,7 +110,7 @@ select NO_Name, LEN(NO_Name) as NO_LEN, PI_Name, LEN(PI_Name) as PI_LEN, PI_Type
 (select NO_Name, NO_ID from Node where NO_Type = 'P' and NO_Active = 1) n left join PEInterface on PI_NO = NO_ID and PI_Type in ('Hu', 'Te', 'Gi', 'Fa', 'Et')
 order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
 ");
-                if (!result.OK) throw new Exception("Virtualization failed");
+                if (!result) throw new Exception("Virtualization failed");
 
                 pePhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string, string, string, string, string>>>>();
                 List<Tuple<string, string, string, string, string, string>> currentPEInterfaces = new List<Tuple<string, string, string, string, string, string>>();
@@ -155,7 +158,7 @@ select NO_Name, LEN(NO_Name) as NO_LEN, MI_Name, LEN(MI_Name) as MI_LEN, MI_Type
 (select NO_Name, NO_ID from Node where NO_Type = 'M' and NO_Active = 1) n left join MEInterface on MI_NO = NO_ID and MI_Type in ('Hu', 'Te', 'Gi', 'Fa', 'Et')
 order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
 ");
-                if (!result.OK) throw new Exception("Virtualization failed");
+                if (!result) throw new Exception("Virtualization failed");
 
                 mePhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>>();
                 List<Tuple<string, string, string, string, string, string, string>> currentMEInterfaces = new List<Tuple<string, string, string, string, string, string, string>>();
@@ -214,7 +217,7 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
             #region Derived Area Connections
 
             result = jovice.Query("select * from DerivedAreaConnection");
-            if (!result.OK) throw new Exception("Virtualization failed");
+            if (!result) throw new Exception("Virtualization failed");
 
             derivedAreaConnections = new Dictionary<string, Tuple<string, string, string, string>>();
             
@@ -419,10 +422,10 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
         {
             aliases = null;
 
-            Result result = Jovice.Database.Query(@"
+            Result result = Database.Get("JOVICE").Query(@"
 select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID order by NA_Name
 ");
-            if (!result.OK) throw new Exception("Virtualization failed");
+            if (!result) throw new Exception("Virtualization failed");
 
             aliases = new Dictionary<string, List<string>>();
 
@@ -445,7 +448,7 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID order by NA_Nam
 
         internal static Tuple<int, int, int> NeighborLoad()
         {
-            Database jovice = Jovice.Database;
+            Database jovice = Database.Get("JOVICE");
             Result result;
             Batch batch = jovice.Batch();
             Insert insert;
@@ -458,7 +461,7 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID order by NA_Nam
                 #region Node Neighbor
 
                 result = jovice.Query("select * from NodeNeighbor");
-                if (!result.OK) throw new Exception("Virtualization failed");
+                if (!result) throw new Exception("Virtualization failed");
 
                 nodeNeighbors = new Dictionary<string, string>();
 
@@ -472,10 +475,10 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID order by NA_Nam
                     else
                     {
                         instance.Event("Duplicated NodeNeighbor " + name + " removed ID " + id);
-                        batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NBInterface where NI_NN = {0})", id);
-                        batch.Execute("update MEInterface set MI_TO_NI = NULL where MI_TO_NI in (select NI_ID from NBInterface where NI_NN = {0})", id);
-                        batch.Execute("delete from NBInterface where NI_NN = {0}", id);
-                        batch.Execute("delete from NodeNeighbor where NN_ID = {0}", id);
+                        batch.Add("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NBInterface where NI_NN = {0})", id);
+                        batch.Add("update MEInterface set MI_TO_NI = NULL where MI_TO_NI in (select NI_ID from NBInterface where NI_NN = {0})", id);
+                        batch.Add("delete from NBInterface where NI_NN = {0}", id);
+                        batch.Add("delete from NodeNeighbor where NN_ID = {0}", id);
                     }
                 }
                 batch.Commit();
@@ -492,7 +495,7 @@ select NN_Name, LEN(NN_Name) as NN_LEN, NI_Name, LEN(NI_Name) as NI_LEN, NI_ID f
 ) n left join NBInterface on NI_NN = NN_ID and NI_Name <> 'UNSPECIFIED'
 order by NN_LEN desc, NN_Name, NI_LEN desc, NI_Name
 ");
-                if (!result.OK) throw new Exception("Virtualization failed");
+                if (!result) throw new Exception("Virtualization failed");
 
                 nnPhysicalInterfaces = new List<Tuple<string, List<Tuple<string, string>>>>();
                 List<Tuple<string, string>> currentNNInterfaces = new List<Tuple<string, string>>();
@@ -533,7 +536,7 @@ order by NN_LEN desc, NN_Name, NI_LEN desc, NI_Name
                 result = jovice.Query(@"
 select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NBInterface on NI_NN = NN_ID and NI_Name = 'UNSPECIFIED'
 ");
-                if (!result.OK) throw new Exception("Virtualization failed");
+                if (!result) throw new Exception("Virtualization failed");
 
                 batch.Begin();
 
@@ -551,10 +554,10 @@ select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NBInterface on NI_NN = 
                             nnUnspecifiedInterfaces.Add(node, unid);
                         else
                         {
-                            batch.Execute("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NBInterface where NI_NN = {0})", id);
-                            batch.Execute("update MEInterface set MI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NBInterface where NI_NN = {0})", id);
-                            batch.Execute("delete from NBInterface where NI_NN = {0}", id);
-                            batch.Execute("delete from NodeNeighbor where NN_ID = {0}", id);
+                            batch.Add("update PEInterface set PI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NBInterface where NI_NN = {0})", id);
+                            batch.Add("update MEInterface set MI_TO_NI = NULL where PI_TO_NI in (select NI_ID from NBInterface where NI_NN = {0})", id);
+                            batch.Add("delete from NBInterface where NI_NN = {0}", id);
+                            batch.Add("delete from NodeNeighbor where NN_ID = {0}", id);
                             instance.Event("Removed duplicated neighbor key: " + node);
                         }
                     }
@@ -567,7 +570,7 @@ select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NBInterface on NI_NN = 
                         insert.Value("NI_NN", id);
                         insert.Value("NI_Name", "UNSPECIFIED");
 
-                        batch.Execute(insert);
+                        batch.Add(insert);
                         nnUnspecifiedInterfaces.Add(node, unid);
 
                         instance.Event("Added missing UNSPECIFIED interface to neighbor node " + node);
@@ -575,7 +578,7 @@ select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NBInterface on NI_NN = 
                 }
 
                 result = batch.Commit();
-                if (!result.OK) throw new Exception("Virtualization failed");
+                if (!result) throw new Exception("Virtualization failed");
 
                 count3 = nnUnspecifiedInterfaces.Count;
 

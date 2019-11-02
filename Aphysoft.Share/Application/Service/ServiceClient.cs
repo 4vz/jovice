@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Aphysoft.Share
 {
-    public abstract class ServiceClient
+    public abstract class OldServiceClient
     {
         #region Fields
 
@@ -82,9 +82,9 @@ namespace Aphysoft.Share
 
                 if (serviceServerAddress != null)
                 {
-                    Service.Client(serviceServerAddress, console);
+                    OldService.Client(serviceServerAddress, console);
 
-                    Service.Connected += delegate (Connection connection)
+                    OldService.Connected += delegate (Connection connection)
                     {
                         connecting = new Timer(new TimerCallback(delegate (object state)
                         {
@@ -97,7 +97,7 @@ namespace Aphysoft.Share
 
                 if (serviceServerAddress != null)
                 {
-                    Service.End();
+                    OldService.End();
                 }
             }));
             instanceThread.Start();

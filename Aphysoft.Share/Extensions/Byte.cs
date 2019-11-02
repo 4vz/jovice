@@ -21,6 +21,14 @@ namespace Aphysoft.Share
             return memcmp(b1, to, new UIntPtr((uint)b1.Length)) == 0;
         }
 
+        public static bool StartsWith(this byte[] b1, byte[] with)
+        {
+            byte[] compare = new byte[with.Length];
+            Buffer.BlockCopy(b1, 0, compare, 0, with.Length);
+
+            return compare.SequenceEqual(with);
+        }
+
         public static string ToHex(this byte[] value)
         {
             var hex = new StringBuilder(value.Length * 2);
@@ -30,6 +38,46 @@ namespace Aphysoft.Share
             }
 
             return hex.ToString();
+        }
+
+        public static void Random(this byte[] b)
+        {
+            Rnd.Bytes(b);
+        }        
+
+        public static byte[] ToArray(this byte b)
+        {
+            return new[] { b };
+        }
+    }
+
+    public static class Bytes
+    {
+        public static readonly byte[] Zero = new byte[] { 0 };
+
+        public static byte[] GetZero(int n)
+        {
+            if (n < 1) return null;
+
+            byte[] b = new byte[n];
+
+            for (int i = 0; i < n; i++)
+            {
+                b[i] = 0;
+            }
+
+            return b;
+        }
+
+        public static readonly byte[] One = new byte[] { 1 };
+
+        public static byte[] BlockCopy(byte[] source, int offset, int length)
+        {
+            byte[] destination = new byte[length];
+
+            Buffer.BlockCopy(source, offset, destination, 0, length);
+
+            return destination;
         }
     }
 }

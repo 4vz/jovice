@@ -230,7 +230,6 @@
     <Compile Include="Service\Client.cs" />
     <Compile Include="Service\Server.cs" />
     <Compile Include="Service\Telegram\Intent.cs" />
-    <None Include="app.config" />
     <None Include="packages.config" />
     <None Include="Service\Telegram\TelegramBot.cs" />
   </ItemGroup>

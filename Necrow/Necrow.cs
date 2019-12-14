@@ -119,7 +119,7 @@ namespace Necrow
     {
         #region Fields
 
-        internal readonly static int Version = 49;
+        internal readonly static int Version = 50;
 
         private Database2 jovice;
         private Database2 oss;

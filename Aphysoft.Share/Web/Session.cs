@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Web;
 
-using Aveezo;
+
 
 namespace Aphysoft.Share
 {
@@ -29,7 +29,7 @@ namespace Aphysoft.Share
 
         #region Fields
 
-        private static Database database = Web.Database;
+        private static Database2 database = Web.Database;
 
         public static Session Current { get; private set; } = null;
 
@@ -84,7 +84,7 @@ namespace Aphysoft.Share
 
                     response.Cookies.Add(cookie);
 
-                    Result newsession = database.ExecuteIdentity(@"
+                    Result2 newsession = database.ExecuteIdentity(@"
 insert into 
 Session(SS_SID, SS_Created, SS_Accessed, SS_UserAgent, SS_IPAddress)
 values({0}, GETUTCDATE(), GETUTCDATE(), {1}, {2})
@@ -108,7 +108,7 @@ values({0}, GETUTCDATE(), GETUTCDATE(), {1}, {2})
             {
                 string sessionId = request.Cookies[CookieSessionId].Value;
 
-                Result session = database.Query(@"
+                Result2 session = database.Query(@"
 select SS_IPAddress from Session where SS_SID = {0}
 ", sessionId);
                 if (session.Count == 1)
@@ -134,7 +134,7 @@ update Session set SS_Accessed = GETUTCDATE() where SS_SID = {0}
                 else
                 {
                     // maybe, browser masih open after this time, insert to database
-                    Result newsession = database.ExecuteIdentity(@"
+                    Result2 newsession = database.ExecuteIdentity(@"
 insert into 
 Session(SS_SID, SS_Created, SS_Accessed, SS_UserAgent, SS_IPAddress)
 values({0}, GETUTCDATE(), GETUTCDATE(), {1}, {2})

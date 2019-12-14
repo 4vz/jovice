@@ -6,8 +6,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-using Aveezo;
-
 namespace Jovice
 {
     internal class Assumption
@@ -76,8 +74,8 @@ namespace Jovice
         {
             Intent.name = name;
 
-            Result result;
-            Database share = Web.Database;
+            Result2 result;
+            Database2 share = Web.Database;
 
             intentReferences.Clear();
 
@@ -88,7 +86,7 @@ namespace Jovice
             {
                 Batch batch = share.Batch();
                 batch.Begin();
-                foreach (Row row in result)
+                foreach (Row2 row in result)
                 {
                     string word = row["LI_Word"].ToString();
                     DoubleMetaphone dm = new DoubleMetaphone(word);
@@ -106,7 +104,7 @@ namespace Jovice
 
             foreach (string intent in intents)
             {
-                Column cmax = share.Scalar("select max(LI_Position) from LanguageIntent where LI_Intent = {0}", intent);
+                Column2 cmax = share.Scalar("select max(LI_Position) from LanguageIntent where LI_Intent = {0}", intent);
                 int max = cmax.ToInt() + 1;
 
                 List<Tuple<string, string>>[] lists = new List<Tuple<string, string>>[max];
@@ -114,7 +112,7 @@ namespace Jovice
 
                 result = share.Query("select LI_Position, LI_Constraint, LI_DM from LanguageIntent where LI_Intent = {0}", intent);
 
-                foreach (Row row in result)
+                foreach (Row2 row in result)
                 {
                     int pos = row["LI_Position"].ToInt();
                     lists[pos].Add(new Tuple<string, string>(row["LI_DM"].ToString(), row["LI_Constraint"].ToString()));

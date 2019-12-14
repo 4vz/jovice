@@ -6,25 +6,23 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-using Aveezo;
-
 namespace Jovice
 {
     public class OSS
     {
-        public static Database Database => Database.Get("NOSSF");
+        public static Database2 Database => Database2.Get("NOSSF");
 
         public static bool RefreshOrder(string sid, string seid, bool newService = false)
         {
             if (sid == null || seid == null) return false;
 
-            Database jovice = Center.Jovice.Database;
-            Database oss = Database;
+            Database2 jovice = Center.Jovice.Database;
+            Database2 oss = Database;
 
             bool ok = false;
 
-            Result nsores = oss.Query(@"
-select ORDER_ID, AM, CUSTACCNTNAME, CUSTACCNTNUM, SERVACCNTNAME, ACTION_CD, ORDER_STATUS, ORDER_CREATED_DATE, LI_PRODUCT_NAME 
+            Result2 nsores = oss.Query(@"
+select ORDER_ID, AM, CUSTACCNTNAME, CUSTACCNTNUM, SERVACCNTNAME, ACTION_CD, ORDER_STATUS, ORDER_CREATED_DATE, LI_PRODUCT_NAME, CUST_SEGMEN
 from DWH_SALES.eas_ncrm_agree_order_line where li_sid = {0}
 order by ORDER_CREATED_DATE asc
 ", sid);
@@ -35,7 +33,7 @@ order by ORDER_CREATED_DATE asc
                 {
                     string scid = null;
 
-                    Row lastRow = nsores.Last();
+                    Row2 lastRow = nsores.Last();
 
                     string customerName = null;
                     string customerAlternateName = null;
@@ -50,7 +48,7 @@ order by ORDER_CREATED_DATE asc
                     customerAccountNumber = lastRow["CUSTACCNTNUM"];
                     serviceProduct = lastRow["LI_PRODUCT_NAME"];
 
-                    if (jovice.Query(out Row curow, "select * from ServiceCustomer where SC_AccountNumber = {0}", customerAccountNumber))
+                    if (jovice.Query(out Row2 curow, "select * from ServiceCustomer where SC_AccountNumber = {0}", customerAccountNumber))
                     {
                         string storedName = curow["SC_Name"];
                         string storedAlternateName = curow["SC_AlternateName"];
@@ -88,13 +86,13 @@ order by ORDER_CREATED_DATE asc
 
                     if (serviceProduct != null)
                     {
-                        if (jovice.Query(out Row sprow, "select * from ServiceProduct where SP_Product = {0}", serviceProduct))
+                        if (jovice.Query(out Row2 sprow, "select * from ServiceProduct where SP_Product = {0}", serviceProduct))
                         {
                             spId = sprow["SP_ID"];
                         }
                         else
                         {
-                            spId = Database.ID();
+                            spId = Database2.ID();
 
                             Insert spi = jovice.Insert("ServiceProduct");
                             spi.Value("SP_ID", spId);
@@ -115,7 +113,7 @@ order by ORDER_CREATED_DATE asc
                         sei.Value("SE_LastCheck", DateTime.UtcNow);
                         sei.Execute();
                     }
-                    else if (jovice.Query(out Row serow, "select * from Service where SE_ID = {0}", seid))
+                    else if (jovice.Query(out Row2 serow, "select * from Service where SE_ID = {0}", seid))
                     {
                         Update seu = jovice.Update("Service");
                         seu.Set("SE_Detail", serviceDetail, serviceDetail != serow["SE_Detail"]);
@@ -126,11 +124,11 @@ order by ORDER_CREATED_DATE asc
                     }
 
                     // ServiceOrder
-                    Dictionary<string, Row> sod = jovice.QueryDictionary("select * from ServiceOrder where SO_SE = {0}", "SO_OID", seid);
+                    Dictionary<string, Row2> sod = jovice.QueryDictionary("select * from ServiceOrder where SO_SE = {0}", "SO_OID", seid);
 
-                    Dictionary<string, Row> sox = new Dictionary<string, Row>();
+                    Dictionary<string, Row2> sox = new Dictionary<string, Row2>();
 
-                    foreach (Row nsorow in nsores)
+                    foreach (Row2 nsorow in nsores)
                     {
                         string oid = nsorow["ORDER_ID"];
 
@@ -145,82 +143,105 @@ order by ORDER_CREATED_DATE asc
                         }
                     }
 
-                    foreach (KeyValuePair<string, Row> soxPair in sox)
+                    foreach (KeyValuePair<string, Row2> soxPair in sox)
                     {
                         string oid = soxPair.Key;
-                        Row soxw = soxPair.Value;
+                        Row2 soxw = soxPair.Value;
+
+                        string status = "N";
+                        switch ((string)soxw["ORDER_STATUS"])
+                        {
+                            case "Failed":
+                                status = "F";
+                                break;
+                            case "Abandoned":
+                                status = "A";
+                                break;
+                            case "In Progress":
+                                status = "I";
+                                break;
+                            case "Cancelled":
+                                status = "L";
+                                break;
+                            case "Pending Cancel":
+                                status = "G";
+                                break;
+                            case "Submitted":
+                                status = "S";
+                                break;
+                            case "Pending":
+                                status = "P";
+                                break;
+                            case "Complete":
+                                status = "C";
+                                break;
+                            default:
+                                status = "N";
+                                break;
+                        }
+
+                        string action = "N";
+                        switch ((string)soxw["ACTION_CD"])
+                        {
+                            case "Add":
+                                action = "A";
+                                break;
+                            case "Delete":
+                                action = "D";
+                                break;
+                            case "-":
+                                action = "N";
+                                break;
+                            case "Update":
+                                action = "U";
+                                break;
+                            case "Suspend":
+                                action = "S";
+                                break;
+                            case "Resume":
+                                action = "R";
+                                break;
+                            default:
+                                action = "N";
+                                break;
+                        }
+
+                        string am = null;
+                        string dam = soxw["AM"];
+                        if (dam != null)
+                        {
+                            string[] fs = dam.Split(StringSplitTypes.Pipe);
+                            am = fs[0].Length > 0 && fs[0].IsOnlyContainsCharacters(Characters.Numeric) ? fs[0] : null;
+                        }
+
+                        DateTime created = soxw["ORDER_CREATED_DATE"].ToDateTime();
+
+                        string csp = null;
+                        string csc = null;
+
+                        string cs = soxw["CUST_SEGMEN"];
+
+                        if (cs != null)
+                        {
+                            string[] cd = cs.Split(StringSplitTypes.Space);
+
+                            if (cd.Length == 2)
+                            {
+                                csp = cd[0];
+                                csc = cd[1];
+                            }
+                            else if (cd.Length == 1 && cd[0] == "UNSEGMENTED")
+                            {
+                                csp = "UNSGMT";
+                            }
+                        }
+                        else
+                        {
+                            csp = "UNSPEC";
+                        }
 
                         if (!sod.ContainsKey(oid))
                         {
-                            DateTime created = soxw["ORDER_CREATED_DATE"].ToDateTime();
-
-                            string status = "N";
-                            switch ((string)soxw["ORDER_STATUS"])
-                            {
-                                case "Failed":
-                                    status = "F";
-                                    break;
-                                case "Abandoned":
-                                    status = "A";
-                                    break;
-                                case "In Progress":
-                                    status = "I";
-                                    break;
-                                case "Cancelled":
-                                    status = "L";
-                                    break;
-                                case "Pending Cancel":
-                                    status = "G";
-                                    break;
-                                case "Submitted":
-                                    status = "S";
-                                    break;
-                                case "Pending":
-                                    status = "P";
-                                    break;
-                                case "Complete":
-                                    status = "C";
-                                    break;
-                                default:
-                                    status = "N";
-                                    break;
-                            }
-
-                            string action = "N";
-                            switch ((string)soxw["ACTION_CD"])
-                            {
-                                case "Add":
-                                    action = "A";
-                                    break;
-                                case "Delete":
-                                    action = "D";
-                                    break;
-                                case "-":
-                                    action = "N";
-                                    break;
-                                case "Update":
-                                    action = "U";
-                                    break;
-                                case "Suspend":
-                                    action = "S";
-                                    break;
-                                case "Resume":
-                                    action = "R";
-                                    break;
-                                default:
-                                    action = "N";
-                                    break;
-                            }
-
-                            string am = null;
-                            string dam = soxw["AM"];
-
-                            if (dam != null)
-                            {
-                                string[] fs = dam.Split(StringSplitTypes.Pipe);
-                                am = fs[0].Length > 0 && fs[0].IsOnlyContainsCharacters(Characters.Numeric) ? fs[0] : null;
-                            }
-
                             Insert soi = jovice.Insert("ServiceOrder");
                             soi.Key("SO_ID");
                             soi.Value("SO_SE", seid);
@@ -229,7 +250,18 @@ order by ORDER_CREATED_DATE asc
                             soi.Value("SO_Action", action);
                             soi.Value("SO_Status", status);
                             soi.Value("SO_AM", am);
+                            soi.Value("SO_Segment", csp);
+                            soi.Value("SO_SubSegment", csc);
                             soi.Execute();
+                        }
+                        else
+                        {
+                            Row2 sodr = sod[oid];
+                            Update sou = jovice.Update("ServiceOrder");
+                            sou.Where("SO_ID", sodr["SO_ID"]);
+                            sou.Set("SO_Segment", csp, sodr["SO_Segment"] != csp);
+                            sou.Set("SO_SubSegment", csc, sodr["SO_SubSegment"] != csc);
+                            sou.Execute();
                         }
                     }
 

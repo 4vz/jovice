@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
+
+
+
 namespace Aphysoft.Share
 {
     public static class Characters
@@ -129,7 +132,7 @@ namespace Aphysoft.Share
             else
             {
                 if (values.Length == 0) return null;
-                else return values[Aphysoft.Share.Rnd.Int(values.Length)];               
+                else return values[Rnd.Int(values.Length)];               
             }
         }
 

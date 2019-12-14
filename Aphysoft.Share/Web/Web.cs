@@ -13,7 +13,7 @@ using System.Configuration;
 using System.Net;
 using System.IO;
 
-using Aveezo;
+
 
 namespace Aphysoft.Share
 {
@@ -27,7 +27,7 @@ namespace Aphysoft.Share
 
         #region Fields
 
-        public static Database Database { get; private set; } = null;
+        public static Database2 Database { get; private set; } = null;
 
         public static Edge Service { get; private set; } = null;
 
@@ -66,8 +66,8 @@ namespace Aphysoft.Share
 
             Start();
 
-            Database = Database.Web();
-            Database.Retry += delegate(object sender, DatabaseExceptionEventArgs e)
+            Database = Database2.Web();
+            Database.Retry += delegate(object sender, DatabaseExceptionEventArgs2 e)
             {
                 if (Service != null && Service.IsConnected)
                 {
@@ -487,7 +487,7 @@ namespace Aphysoft.Share
                                                 ipath++;
                                             }
 
-                                            Result r = Database.Query(@"
+                                            Result2 r = Database.Query(@"
 select AA_ID from [ApiSubscription], [Api], [ApiAccess] where AS_AA = AA_ID and AS_AP = AP_ID and AA_Active = 1 and AP_Name = {0} and AA_Key = {1}", api, apiKey);
 
                                             if (r.Count == 1)

@@ -5,22 +5,22 @@ using System.Diagnostics;
 using System.Text;
 using System.Reflection;
 
-using Aveezo;
+
 
 
 namespace Aphysoft.Share
 {
-    public delegate void DatabaseRetryEventHandler(object sender, DatabaseExceptionEventArgs eventArgs);
+    public delegate void DatabaseRetryEventHandler(object sender, DatabaseExceptionEventArgs2 eventArgs);
 
-    public delegate string QueryDictionaryKeyCallback(Row row);
+    public delegate string QueryDictionaryKeyCallback(Row2 row);
 
-    public delegate void QueryDictionaryDuplicateCallback(Row row);
+    public delegate void QueryDictionaryDuplicateCallback(Row2 row);
 
-    public sealed class Database
+    public sealed class Database2
     {
         #region Fields
 
-        private DatabaseConnection connection;
+        private DatabaseConnection2 connection;
 
         public string TablePrefix { get; } = null;
 
@@ -33,7 +33,7 @@ namespace Aphysoft.Share
 
         public int Timeout { get; set; } = 30;
 
-        public DatabaseExceptionEventArgs LastException { get; private set; } = null;
+        public DatabaseExceptionEventArgs2 LastException { get; private set; } = null;
 
         private DateTime lastConnectionCheck = DateTime.MinValue;
 
@@ -67,7 +67,7 @@ namespace Aphysoft.Share
 
         #region Constructor
 
-        public Database(DatabaseConnection connection, string tablePrefix)
+        public Database2(DatabaseConnection2 connection, string tablePrefix)
         {
             this.connection = connection ?? throw new ArgumentNullException("connection");
 
@@ -78,11 +78,11 @@ namespace Aphysoft.Share
             connection.InitializeDatabase();
         }
 
-        public Database(DatabaseConnection connection) : this(connection, null)
+        public Database2(DatabaseConnection2 connection) : this(connection, null)
         {
         }
 
-        public Database(string connectionString) : this(new SqlServerDatabaseConnection(connectionString), null)
+        public Database2(string connectionString) : this(new SqlServerDatabaseConnection2(connectionString), null)
         {
         }
 
@@ -90,12 +90,12 @@ namespace Aphysoft.Share
 
         #region Methods
 
-        public static implicit operator bool(Database database)
+        public static implicit operator bool(Database2 database)
         {
             return database.IsConnected;
         }
 
-        public OldTable<T> Virtualize<T>() where T : Data
+        public OldTable<T> Virtualize<T>() where T : Data2
         {
             object[] atable = typeof(T).GetCustomAttributes(false);
 
@@ -181,7 +181,7 @@ namespace Aphysoft.Share
 
         public void OnException(Exception e, string sql)
         {
-            DatabaseExceptionEventArgs eventArgs = new DatabaseExceptionEventArgs();
+            DatabaseExceptionEventArgs2 eventArgs = new DatabaseExceptionEventArgs2();
 
             eventArgs.Type = connection.ParseMessage(e.Message);
             eventArgs.Message = e.Message;
@@ -194,7 +194,7 @@ namespace Aphysoft.Share
         {
             if (Retry != null)
             {
-                DatabaseExceptionEventArgs eventArgs = new DatabaseExceptionEventArgs();
+                DatabaseExceptionEventArgs2 eventArgs = new DatabaseExceptionEventArgs2();
 
                 eventArgs.Type = connection.ParseMessage(e.Message);
                 eventArgs.Message = e.Message;
@@ -326,21 +326,21 @@ namespace Aphysoft.Share
 
         }
 
-        public Result Query(string sql, params object[] args)
+        public Result2 Query(string sql, params object[] args)
         {
             string fsql = Format(sql, args);
             return connection.Query(fsql);
         }
 
-        public bool Query(out Result result, string sql, params object[] args)
+        public bool Query(out Result2 result, string sql, params object[] args)
         {
             result = Query(sql, args);
             return result && result > 0;
         }
 
-        public bool Query(out Row row, string sql, params object[] args)
+        public bool Query(out Row2 row, string sql, params object[] args)
         {
-            bool ok = Query(out Result result, sql, args);
+            bool ok = Query(out Result2 result, sql, args);
 
             row = null;
             if (ok)
@@ -354,19 +354,19 @@ namespace Aphysoft.Share
             return ok;
         }
 
-        public Dictionary<string, Row> QueryDictionary(string sql, string key, params object[] args)
+        public Dictionary<string, Row2> QueryDictionary(string sql, string key, params object[] args)
         {
-            return QueryDictionary(sql, key, delegate (Row row) { }, args);
+            return QueryDictionary(sql, key, delegate (Row2 row) { }, args);
         }
 
-        public Dictionary<string, Row> QueryDictionary(string sql, string key, QueryDictionaryDuplicateCallback duplicate, params object[] args)
+        public Dictionary<string, Row2> QueryDictionary(string sql, string key, QueryDictionaryDuplicateCallback duplicate, params object[] args)
         {
-            Result result = Query(sql, args);
+            Result2 result = Query(sql, args);
 
             if (result)
             {
-                Dictionary<string, Row> dictionary = new Dictionary<string, Row>();
-                foreach (Row row in result)
+                Dictionary<string, Row2> dictionary = new Dictionary<string, Row2>();
+                foreach (Row2 row in result)
                 {
                     string dictkey = row[key].ToString();
                     if (!dictionary.ContainsKey(dictkey))
@@ -380,19 +380,19 @@ namespace Aphysoft.Share
                 return null;
         }
 
-        public Dictionary<string, Row> QueryDictionary(string sql, QueryDictionaryKeyCallback keyCreate, params object[] args)
+        public Dictionary<string, Row2> QueryDictionary(string sql, QueryDictionaryKeyCallback keyCreate, params object[] args)
         {
-            return QueryDictionary(sql, keyCreate, delegate (Row row) { }, args);
+            return QueryDictionary(sql, keyCreate, delegate (Row2 row) { }, args);
         }
 
-        public Dictionary<string, Row> QueryDictionary(string sql, QueryDictionaryKeyCallback keyCreate, QueryDictionaryDuplicateCallback duplicate, params object[] args)
+        public Dictionary<string, Row2> QueryDictionary(string sql, QueryDictionaryKeyCallback keyCreate, QueryDictionaryDuplicateCallback duplicate, params object[] args)
         {
-            Result result = Query(sql, args);
+            Result2 result = Query(sql, args);
 
             if (result)
             {
-                Dictionary<string, Row> dictionary = new Dictionary<string, Row>();
-                foreach (Row row in result)
+                Dictionary<string, Row2> dictionary = new Dictionary<string, Row2>();
+                foreach (Row2 row in result)
                 {
                     string key = keyCreate(row);
                     if (!dictionary.ContainsKey(key))
@@ -408,59 +408,59 @@ namespace Aphysoft.Share
 
         public List<string> QueryList(string sql, string key, params object[] args)
         {
-            Result result = Query(sql, args);
+            Result2 result = Query(sql, args);
 
             if (result)
             {
                 List<string> list = new List<string>();
-                foreach (Row row in result) list.Add(row[key].ToString());
+                foreach (Row2 row in result) list.Add(row[key].ToString());
                 return list;
             }
             else
                 return null;
         }
 
-        public Column Scalar(string sql, params object[] args)
+        public Column2 Scalar(string sql, params object[] args)
         {
             string fsql = Format(sql, args);
             return connection.Scalar(fsql);
         }
 
-        public Result Execute(string sql, params object[] args)
+        public Result2 Execute(string sql, params object[] args)
         {
             string fsql = Format(sql, args);
             return connection.Execute(fsql);
         }
 
-        public Result Execute(Insert insert)
+        public Result2 Execute(Insert insert)
         {
             string sql = insert.ToString();
 
-            Result executionResult;
+            Result2 executionResult;
 
             if (!string.IsNullOrEmpty(sql))
                 executionResult = connection.Execute(sql);
             else
-                executionResult = Result.Null;
+                executionResult = Result2.Null;
 
             return executionResult;
         }
 
-        public Result Execute(Update update)
+        public Result2 Execute(Update update)
         {
             string sql = update.ToString();
 
-            Result executionResult;
+            Result2 executionResult;
 
             if (!string.IsNullOrEmpty(sql))
                 executionResult = connection.Execute(sql);
             else
-                executionResult = Result.Null;
+                executionResult = Result2.Null;
 
             return executionResult;
         }
 
-        public Result ExecuteIdentity(string sql, params object[] args)
+        public Result2 ExecuteIdentity(string sql, params object[] args)
         {
             string fsql = Format(sql, args);
             return connection.ExecuteIdentity(fsql);
@@ -475,6 +475,7 @@ namespace Aphysoft.Share
         }
 
         private const string idChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz`1234567890~!@#$^*()_+-=[]{}|;:,./<>?";
+        
         private const int idCharsLen = 89;
 
         public static string ID()
@@ -494,11 +495,11 @@ namespace Aphysoft.Share
 
         #region Instancing
 
-        private static Dictionary<string, Database> instances = new Dictionary<string, Database>();
+        private static Dictionary<string, Database2> instances = new Dictionary<string, Database2>();
 
         private static string system = null;
 
-        public static Database Get(string name)
+        public static Database2 Get(string name)
         {
             if (instances.ContainsKey(name))
             {
@@ -512,11 +513,11 @@ namespace Aphysoft.Share
                 {
                     string databaseType = Apps.Config(name + "_DATABASE_TYPE");
 
-                    Database database = null;
+                    Database2 database = null;
 
                     if (databaseType == null || databaseType == "SQLSERVER")
                     {
-                        database = new Database(new SqlServerDatabaseConnection(config));
+                        database = new Database2(new SqlServerDatabaseConnection2(config));
                     }
                     else if (databaseType == "ORACLE")
                     {
@@ -534,7 +535,7 @@ namespace Aphysoft.Share
                         if (type != null)
                         {
                             ConstructorInfo ctor = type.GetConstructor(new[] { typeof(string) });
-                            database = new Database((DatabaseConnection)ctor.Invoke(new object[] { config }));
+                            database = new Database2((DatabaseConnection2)ctor.Invoke(new object[] { config }));
                         }
                     }
                     else if (databaseType == "MYSQL")
@@ -553,7 +554,7 @@ namespace Aphysoft.Share
                         if (type != null)
                         {
                             ConstructorInfo ctor = type.GetConstructor(new[] { typeof(string) });
-                            database = new Database((DatabaseConnection)ctor.Invoke(new object[] { config }));
+                            database = new Database2((DatabaseConnection2)ctor.Invoke(new object[] { config }));
                         }
                     }
                     else
@@ -573,7 +574,7 @@ namespace Aphysoft.Share
             }
         }
 
-        public static Database Web()
+        public static Database2 Web()
         {
             if (system == null)
             {

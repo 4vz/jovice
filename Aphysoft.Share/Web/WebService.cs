@@ -16,7 +16,7 @@ namespace Aphysoft.Share
 
         private static object instancesWaitSync = new object();
 
-        public static Database Database { get; private set; } = null;
+        public static Database2 Database { get; private set; } = null;
 
         public static Dictionary<string, StreamClientInstance> ClientInstances { get; private set; }
 
@@ -44,7 +44,7 @@ namespace Aphysoft.Share
 
         protected override void OnStart()
         {
-            Database = Database.Web();
+            Database = Database2.Web();
             Database.QueryAttempts = 3;
 
             Database.Execute("update Session set SS_ClientsCount = 0 where SS_ClientsCount > 0");

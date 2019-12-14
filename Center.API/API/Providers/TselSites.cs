@@ -11,7 +11,7 @@ namespace Center.APIs
     {
         public static APIPacket APIRequest(APIAsyncResult result, string[] paths, string apiAccessID)
         {
-            Database j = Jovice.Database;
+            Database2 j = Jovice.Database;
             int count = paths.Length;
 
             if (paths[1] == "search")
@@ -47,7 +47,7 @@ namespace Center.APIs
 
                     if (searchby == "siteid")
                     {
-                        Result r = j.Query(@"
+                        Result2 r = j.Query(@"
 select * from (select ROW_NUMBER() over (order by MI_ID) as ROWNUM, MI_ID as ROWID, * from (
 select MI_ID, MI_Name, NO_Name, NO_Manufacture, MI_Description, NO_TimeStamp, SE_SID, MI_Type
 from MEInterface, Node, Service, ServiceCustomer 
@@ -55,7 +55,7 @@ where SE_SC = SC_ID and SC_Name = 'TELKOMSELSITES' and SE_SID like {0} and MI_SE
 ) source) source where ROWNUM > {1} AND ROWNUM <= {2}
 ", searchpattern, offset, offset + limit);
 
-                        Result rc = j.Query(@"
+                        Result2 rc = j.Query(@"
 select count(*) from (
 select MI_ID
 from MEInterface, Node, Service, ServiceCustomer 
@@ -67,7 +67,7 @@ where SE_SC = SC_ID and SC_Name = 'TELKOMSELSITES' and SE_SID like {0} and MI_SE
 
                         List<TselSitesResultItemAPIPacket> items = new List<TselSitesResultItemAPIPacket>();
 
-                        foreach (Row row in r)
+                        foreach (Row2 row in r)
                         {
                             TselSitesResultItemAPIPacket item = new TselSitesResultItemAPIPacket();
 
@@ -88,7 +88,7 @@ where SE_SC = SC_ID and SC_Name = 'TELKOMSELSITES' and SE_SID like {0} and MI_SE
                     else
                     {
                         //mac
-                        Result r = j.Query(@"
+                        Result2 r = j.Query(@"
 select * from (
 select ROW_NUMBER() over (order by infmi) as ROWNUM, * from (
 select distinct inf.MI_Name as infmi, inf.SE_SID, inf.NO_Name, MA_Mac, inf.NO_Manufacture, inf.MI_Description, inf.NO_TimeStamp, inf.MI_Type 
@@ -103,7 +103,7 @@ source)
 source where ROWNUM > {1} AND ROWNUM <= {2}
 ", searchpattern.ToLower(), offset, offset + limit);
 
-                        Result rc = j.Query(@"
+                        Result2 rc = j.Query(@"
 select count(*) from (
 select distinct inf.MI_Name, inf.SE_SID, inf.NO_Name, MA_Mac from MEMac, MEInterface m, (
 select MI_ID, MI_Name, SE_SID, NO_Name
@@ -115,7 +115,7 @@ where SE_SC = SC_ID and SC_Name = 'TELKOMSELSITES' and MI_SE = SE_ID and MI_NO =
 
                         List<TselSitesResultItemAPIPacket> items = new List<TselSitesResultItemAPIPacket>();
 
-                        foreach (Row row in r)
+                        foreach (Row2 row in r)
                         {
                             TselSitesResultItemAPIPacket item = new TselSitesResultItemAPIPacket();
 
@@ -149,7 +149,7 @@ where SE_SC = SC_ID and SC_Name = 'TELKOMSELSITES' and MI_SE = SE_ID and MI_NO =
 
                 TselSiteAPIPacket packet = new TselSiteAPIPacket();
 
-                Result r = j.Query(@"
+                Result2 r = j.Query(@"
 select MI_ID, MI_Name, NO_Name, NO_Manufacture, MI_Description, NO_TimeStamp, SE_SID, MI_Type
 from MEInterface, Node, Service, ServiceCustomer 
 where SE_SC = SC_ID and SC_Name = 'TELKOMSELSITES' and SE_SID = {0}
@@ -158,7 +158,7 @@ and MI_SE = SE_ID and MI_NO = NO_ID and NO_Active = 1 and MI_Type is not null
 
                 if (r.Count == 1)
                 {
-                    Row row = r[0];
+                    Row2 row = r[0];
 
                     packet.SiteID = row["SE_SID"].ToString();
                     packet.Node = row["NO_Name"].ToString();

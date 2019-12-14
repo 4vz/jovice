@@ -7,6 +7,8 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading;
 
+
+
 namespace Aphysoft.Share
 {
     public abstract class BaseService

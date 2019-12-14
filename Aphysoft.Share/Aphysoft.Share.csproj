@@ -83,6 +83,13 @@
     <Compile Include="Application\Helpers\WebUtilities.cs" />
     <Compile Include="Application\Page\QueryString.cs" />
     <Compile Include="Application\Service\ServiceClient.cs" />
+    <Compile Include="Database\Unmigrated\Column2.cs" />
+    <Compile Include="Database\Unmigrated\Data2.cs" />
+    <Compile Include="Database\Unmigrated\DatabaseException2.cs" />
+    <Compile Include="Database\Unmigrated\Result2.cs" />
+    <Compile Include="Database\Unmigrated\Row2.cs" />
+    <Compile Include="Extensions\Arrays.cs" />
+    <Compile Include="Extensions\StringExtensions.cs" />
     <Compile Include="External\AjaxMin\CommonStrings.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -98,6 +105,7 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>JScript.resx</DependentUpon>
     </Compile>
+    <Compile Include="Util\Rnd.cs" />
     <Compile Include="Web\Message\BaseClientMessage.cs" />
     <Compile Include="Web\Message\BaseStreamMessage.cs" />
     <Compile Include="Web\Message\ClientEndMessage.cs" />
@@ -121,10 +129,9 @@
     <Compile Include="Web\Web.cs" />
     <Compile Include="Class\EventHandler.cs" />
     <Compile Include="Database\Batch.cs" />
-    <Compile Include="Database\DatabaseConnection.cs" />
-    <Compile Include="Database\DatabaseException.cs" />
+    <Compile Include="Database\DatabaseConnection2.cs" />
     <Compile Include="Database\DMLBase.cs" />
-    <Compile Include="Database\SqlServerDatabaseConnection.cs" />
+    <Compile Include="Database\SqlServerDatabaseConnection2.cs" />
     <Compile Include="Database\Table.cs" />
     <Compile Include="Exceptions\AppsException.cs" />
     <Compile Include="Extensions\Drawing\Size.cs" />
@@ -1132,7 +1139,7 @@
     <Compile Include="Core\Html\NameValuePairList.cs" />
     <Compile Include="Core\Marshaling.cs" />
     <Compile Include="Core\Threading\ThreadingHelper.cs" />
-    <Compile Include="Database\Database.cs" />
+    <Compile Include="Database\Database2.cs" />
     <Compile Include="Extensions\Boolean.cs" />
     <Compile Include="Extensions\DateTime.cs" />
     <Compile Include="Extensions\Enum.cs" />
@@ -1176,7 +1183,6 @@
     <Compile Include="Util\Drawing\Svg.cs" />
     <Compile Include="Util\IO.cs" />
     <Compile Include="Util\Is.cs" />
-    <Compile Include="Util\Rnd.cs" />
     <Compile Include="Util\Seek.cs" />
     <Compile Include="Util\Tcp.cs" />
     <Compile Include="Util\Terminal.cs" />
@@ -1206,12 +1212,6 @@
     <Content Include="External\ImageProcessor\Imaging\Filters\ObjectDetection\Resources\haarcascade_frontalface_alt.xml" />
     <Content Include="External\ImageProcessor\Imaging\Filters\ObjectDetection\Resources\haarcascade_frontalface_default.xml" />
     <Content Include="External\ImageProcessor\Imaging\Filters\ObjectDetection\Resources\haarcascade_frontalface_legacy.xml" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\Aveezo\Aveezo.Standard\Aveezo.Standard.csproj">
-      <Project>{72d56be8-07ec-4150-8f88-ee850d7a5846}</Project>
-      <Name>Aveezo.Standard</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

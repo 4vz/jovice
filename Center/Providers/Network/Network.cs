@@ -13,17 +13,17 @@ namespace Center.Providers
     {
         public static ProviderPacket ProviderRequest(ResourceAsyncResult result, int id)
         {
-            Database j = Database.Get("JOVICE");
+            Database2 j = Database2.Get("JOVICE");
 
             if (id == 15001) // Request AR
             {
                 string reqType = Params.GetValue("ia"); // 
                 if (reqType == "G")
                 {
-                    Result r = j.Query("select * from AreaGroup");
+                    Result2 r = j.Query("select * from AreaGroup");
                     NetworkProviderPacket p = new NetworkProviderPacket();
                     List<object[]> points = new List<object[]>();
-                    foreach (Row row in r)
+                    foreach (Row2 row in r)
                     {
                         object[] ob = new object[5];
 
@@ -40,10 +40,10 @@ namespace Center.Providers
                 }
                 else if (reqType == "W")
                 {
-                    Result r = j.Query("select * from AreaWitel");
+                    Result2 r = j.Query("select * from AreaWitel");
                     NetworkProviderPacket p = new NetworkProviderPacket();
                     List<object[]> points = new List<object[]>();
-                    foreach (Row row in r)
+                    foreach (Row2 row in r)
                     {
                         object[] ob = new object[5];
 
@@ -86,9 +86,9 @@ namespace Center.Providers
                                 double latMax = latMin + 2;
                                 if (latMax == 90) latMax = 90.0001;
 
-                                Result r = j.Query("select * from Area where AR_Latitude >= {0} and AR_Latitude < {1} and AR_Longitude >= {2} and AR_Longitude < {3}", latMin, latMax, lngMin, lngMax);
+                                Result2 r = j.Query("select * from Area where AR_Latitude >= {0} and AR_Latitude < {1} and AR_Longitude >= {2} and AR_Longitude < {3}", latMin, latMax, lngMin, lngMax);
                                                                 
-                                foreach (Row row in r)
+                                foreach (Row2 row in r)
                                 {
                                     object[] ob = new object[6];
 
@@ -109,7 +109,7 @@ and aa.AR_ID <> ba.AR_ID
 and aa.AR_Latitude >= {0} and aa.AR_Latitude < {1} and aa.AR_Longitude >= {2} and aa.AR_Longitude < {3}
 ", latMin, latMax, lngMin, lngMax);
 
-                                foreach (Row row in r)
+                                foreach (Row2 row in r)
                                 {
                                     object[] ob = new object[4];
 

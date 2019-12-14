@@ -8,11 +8,9 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Aveezo;
-
 namespace Necrow
 {
-    internal class ServiceCustomerToDatabase : Data
+    internal class ServiceCustomerToDatabase : Data2
     {
         public string Name { get; set; }
 
@@ -49,7 +47,7 @@ namespace Necrow
                 //
                 // ADD SERVICEIMMEDIATE FOR SERVICE THAT HAVE NONE
                 //
-                if (jovice.Query(out Result r2, @"
+                if (jovice.Query(out Result2 r2, @"
 select SE_ID, SE_SID
 from Service
 left join ServiceImmediate on SI_SE = SE_ID
@@ -58,13 +56,13 @@ where SI_ID is null
                 {
                     b.Begin();
 
-                    foreach (Row row2 in r2)
+                    foreach (Row2 row2 in r2)
                     {
-                        Result r21 = jovice.Query("select * from ServiceImmediate where SI_VID = {0}", row2["SE_SID"]);
+                        Result2 r21 = jovice.Query("select * from ServiceImmediate where SI_VID = {0}", row2["SE_SID"]);
 
                         if (r21 > 0)
                         {
-                            foreach (Row row21 in r21)
+                            foreach (Row2 row21 in r21)
                             {
                                 // so this one, update the ServiceImmediate with SI_VID
                                 Update siu = jovice.Update("ServiceImmediate");
@@ -106,7 +104,7 @@ select MC_SI from MECircuit where MC_SI is not null
                 //
                 // DELETE MULTIPLE SERVICEIMMEDIATE VID
                 //
-                if (jovice.Query(out Result r3, @"
+                if (jovice.Query(out Result2 r3, @"
 select SI_SE, SI_ID, RefID, RefTable
 from (
 select si2.SI_SE, si2.SI_ID, COUNT(si2.SI_ID) as refid_count from 
@@ -133,7 +131,7 @@ order by SI_SE, refid_count desc
                     Batch bUpdate = jovice.Batch();
                     Batch bDelete = jovice.Batch();
 
-                    foreach (Row row3 in r3)
+                    foreach (Row2 row3 in r3)
                     {
                         string se = row3["SI_SE"];
                         string si = row3["SI_ID"];
@@ -181,13 +179,13 @@ order by SI_SE, refid_count desc
                     }
 
                     // get all types except TS (Telkomsel Sites)
-                    if (jovice.Query(out Result r4, @"
+                    if (jovice.Query(out Result2 r4, @"
 select top 1000 SI_ID, SI_VID from ServiceImmediate where 
 SI_SE is NULL and (SI_Type in ('AS', 'AB', 'VP', 'VI', 'TA', 'IT') or SI_Type is null) and SI_SE_Check = {0}
 order by newid()
 ", seCheck))
-                    {
-                        foreach (Row row4 in r4)
+                    { 
+                        foreach (Row2 row4 in r4)
                         {
                             string siid = row4["SI_ID"].ToString();
                             string vid = row4["SI_VID"].ToString();
@@ -195,13 +193,13 @@ order by newid()
                             string sesid = null;
                             string seid = null;
 
-                            if (jovice.Query(out Row serow, "select SE_ID from Service where SE_SID = {0}", vid))
+                            if (jovice.Query(out Row2 serow, "select SE_ID from Service where SE_SID = {0}", vid))
                             {
                                 // search from Service
                                 seid = serow["SE_ID"];
                                 sesid = vid;
                             }
-                            else if (jovice.Query(out Row sorow, "select SE_ID, SE_SID from Service, ServiceOrder where SE_ID = SO_SE and SO_OID = {0}", vid))
+                            else if (jovice.Query(out Row2 sorow, "select SE_ID, SE_SID from Service, ServiceOrder where SE_ID = SO_SE and SO_OID = {0}", vid))
                             {
                                 // search from Order
                                 seid = sorow["SE_ID"];
@@ -210,7 +208,7 @@ order by newid()
                             else
                             {
                                 // search using nossf
-                                Result norres = oss.Query("select LI_SID from DWH_SALES.eas_ncrm_agree_order_line where ORDER_ID = {0} and LI_SID is not null and LI_STATUS = 'Complete'", vid);
+                                Result2 norres = oss.Query("select LI_SID from DWH_SALES.eas_ncrm_agree_order_line where ORDER_ID = {0} and LI_SID is not null and LI_STATUS = 'Complete'", vid);
 
                                 if (!norres) break;
 
@@ -223,7 +221,7 @@ order by newid()
                                 }
                                 else
                                 {
-                                    Result nseres = oss.Query("select LI_SID from DWH_SALES.eas_ncrm_agree_order_line where li_sid = {0} and ROWNUM = 1", vid);
+                                    Result2 nseres = oss.Query("select LI_SID from DWH_SALES.eas_ncrm_agree_order_line where li_sid = {0} and ROWNUM = 1", vid);
 
                                     if (!nseres) break;
 
@@ -235,14 +233,14 @@ order by newid()
 
                                 if (csesid != null)
                                 {
-                                    if (jovice.Query(out Row serow2, "select * from Service where SE_SID = {0}", csesid))
+                                    if (jovice.Query(out Row2 serow2, "select * from Service where SE_SID = {0}", csesid))
                                     {
                                         seid = serow2["SE_ID"];
                                     }
                                     else
                                     {
-                                        seid = Database.ID();
-                                        bool ok = OSS.RefreshOrder(sesid, seid, true);
+                                        seid = Database2.ID();
+                                        bool ok = OSS.RefreshOrder(csesid, seid, true);
                                         if (!ok) break;
                                     }
                                     sesid = csesid;
@@ -270,21 +268,20 @@ order by newid()
                     {
                         ossSeLastCheck = DateTime.UtcNow;
 
-                        if (oss.Query(out Result r1, @"
-select distinct LI_SID from DWH_SALES.eas_ncrm_agree_order_line where LI_SID is not null order by DBMS_RANDOM.VALUE"))
+                        if (oss.Query(out Result2 r1, @"select distinct LI_SID from DWH_SALES.eas_ncrm_agree_order_line where LI_SID is not null order by DBMS_RANDOM.VALUE"))
                         {
-                            foreach (Row row1 in r1)
+                            foreach (Row2 row1 in r1)
                             {
                                 string sesid = row1["LI_SID"];
 
-                                Result r11 = jovice.Query("select SE_ID from Service where SE_SID = {0}", sesid);
+                                Result2 r11 = jovice.Query("select SE_ID from Service where SE_SID = {0}", sesid);
 
                                 string sid = null;
                                 bool newService = false;
 
                                 if (r11 == 0)
                                 {
-                                    sid = Database.ID();
+                                    sid = Database2.ID();
                                     newService = true;
                                 }
                                 else

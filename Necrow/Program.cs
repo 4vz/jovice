@@ -8,9 +8,6 @@ using Aphysoft.Share;
 using System.ComponentModel;
 using System.Diagnostics;
 
-using Aveezo;
-using Jovice;
-
 namespace Necrow
 {
     class Program

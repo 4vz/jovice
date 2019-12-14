@@ -10,14 +10,11 @@ using Aphysoft.Share;
 
 using Jovice;
 
-using Aveezo;
-
-
 namespace Necrow
 {
     #region To Database
 
-    class PERouteNameToDatabase : Data
+    class PERouteNameToDatabase : Data2
     {        
         private string name;
 
@@ -84,7 +81,7 @@ namespace Necrow
         }        
     }
 
-    class PEQOSToDatabase : Data
+    class PEQOSToDatabase : Data2
     {
         private string name;
 
@@ -212,7 +209,7 @@ namespace Necrow
 
     }
 
-    class PERouteUseToDatabase : Data
+    class PERouteUseToDatabase : Data2
     {
         private string type;
 
@@ -495,7 +492,7 @@ namespace Necrow
         }
     }
 
-    class PEPrefixListToDatabase : Data
+    class PEPrefixListToDatabase : Data2
     {
         private string name;
 
@@ -506,7 +503,7 @@ namespace Necrow
         }
     }
 
-    class PEPrefixEntryToDatabase : Data
+    class PEPrefixEntryToDatabase : Data2
     {
         private string prefixListID;
 
@@ -589,7 +586,7 @@ namespace Necrow
         }
     }
 
-    class DerivedRouteNetworkToDatabase : Data
+    class DerivedRouteNetworkToDatabase : Data2
     {
         private string ip;
 
@@ -652,14 +649,14 @@ namespace Necrow
 
             string[] lines = null;            
             Batch batch = j.Batch();            
-            Result result;
+            Result2 result;
 
             Dictionary<string, DerivedRouteNetworkToDatabase> routeiplive = new Dictionary<string, DerivedRouteNetworkToDatabase>();
 
             #region VRF
 
             Dictionary<string, PERouteNameToDatabase> routenamelive = new Dictionary<string, PERouteNameToDatabase>();
-            Dictionary<string, Row> routenamedb = j.QueryDictionary("select * from PERouteName where PN_NO = {0}", "PN_Name", nodeID);
+            Dictionary<string, Row2> routenamedb = j.QueryDictionary("select * from PERouteName where PN_NO = {0}", "PN_Name", nodeID);
             if (routenamedb == null) return DatabaseFailure(probe);
             Dictionary<string, List<string>> routetargetlocaldb = new Dictionary<string, List<string>>();
             Dictionary<string, string> routenameroutereference = new Dictionary<string, string>();
@@ -667,7 +664,7 @@ namespace Necrow
             result = j.Query("select * from PERouteName, PERouteTarget where PN_PR = PT_PR and PN_NO = {0}", nodeID);
             if (!result) return DatabaseFailure(probe);
 
-            foreach (Row row in result)
+            foreach (Row2 row in result)
             {
                 string name = row["PN_Name"].ToString();
                 List<string> routeTargets;
@@ -1033,12 +1030,12 @@ namespace Necrow
                 if (!routenamedb.ContainsKey(pair.Key))
                 {
                     Event("VRF Name ADD: " + pair.Key);
-                    li.Id = Database.ID();
+                    li.Id = Database2.ID();
                     routenameinsert.Add(li);
                 }
                 else
                 {
-                    Row db = routenamedb[pair.Key];
+                    Row2 db = routenamedb[pair.Key];
                     List<string> routeTargets = null;
                     if (routetargetlocaldb.ContainsKey(pair.Key)) routeTargets = routetargetlocaldb[pair.Key];
 
@@ -1094,7 +1091,7 @@ namespace Necrow
             // Search/set route targets
             List<PERouteNameToDatabase> routetargetsearch = new List<PERouteNameToDatabase>(routenameinsert);
             foreach (PERouteNameToDatabase u in routenameupdate) { if (u.UpdateRouteTargets) routetargetsearch.Add(u); }
-            Dictionary<int, Result> routesearch = new Dictionary<int, Result>();
+            Dictionary<int, Result2> routesearch = new Dictionary<int, Result2>();
 
             foreach (PERouteNameToDatabase s in routetargetsearch)
             {
@@ -1102,7 +1099,7 @@ namespace Necrow
                 int length = routeTargets.Length;
                 string routeID = null;
 
-                Result r;
+                Result2 r;
 
                 if (!routesearch.ContainsKey(length))
                 {
@@ -1137,7 +1134,7 @@ namespace Necrow
                 if (routeID == null)
                 {
                     Event("VRF Route Targets ADD: " + s.Name);
-                    routeID = Database.ID();
+                    routeID = Database2.ID();
                     routetargetinsert.Add(routeID, routeTargets);
                 }
                 s.RouteID = routeID;
@@ -1166,7 +1163,7 @@ namespace Necrow
                 foreach (string routeTarget in pair.Value)
                 {
                     Insert insert = j.Insert("PERouteTarget");
-                    insert.Value("PT_ID", Database.ID());
+                    insert.Value("PT_ID", Database2.ID());
                     insert.Value("PT_PR", pair.Key);
                     insert.Value("PT_Type", routeTarget[1] == '1');
                     insert.Value("PT_Community", routeTarget.Substring(2));
@@ -1215,7 +1212,7 @@ namespace Necrow
             routenamedb = j.QueryDictionary("select * from PERouteName where PN_NO = {0}", "PN_Name", nodeID);
             if (routenamedb == null) return DatabaseFailure(probe);
 
-            foreach (KeyValuePair<string, Row> pair in routenamedb)
+            foreach (KeyValuePair<string, Row2> pair in routenamedb)
             {
                 string routeid = pair.Value["PN_PR"].ToString();
                 string routenameid = pair.Value["PN_ID"].ToString();
@@ -1228,7 +1225,7 @@ namespace Necrow
             #region QOS
 
             Dictionary<string, PEQOSToDatabase> qoslive = new Dictionary<string, PEQOSToDatabase>();
-            Dictionary<string, Row> qosdb = j.QueryDictionary("select * from PEQOS where PQ_NO = {0}", "PQ_Name", nodeID);
+            Dictionary<string, Row2> qosdb = j.QueryDictionary("select * from PEQOS where PQ_NO = {0}", "PQ_Name", nodeID);
             if (qosdb == null) return DatabaseFailure(probe);
             List<PEQOSToDatabase> qosinsert = new List<PEQOSToDatabase>();
 
@@ -1388,7 +1385,7 @@ namespace Necrow
                     Event("QOS ADD: " + li.Name + " (" + (li.Package == null ? "-" : li.Package) + ", " +
                         (li.Bandwidth == -1 ? "-" : (li.Bandwidth + "K")) + ")");
 
-                    li.Id = Database.ID();
+                    li.Id = Database2.ID();
                     qosinsert.Add(li);
                 }
             }
@@ -1426,7 +1423,7 @@ namespace Necrow
 
             SortedDictionary<string, PEInterfaceToDatabase> interfacelive = new SortedDictionary<string, PEInterfaceToDatabase>();
             List<string> duplicatedinterfaces = new List<string>();
-            Dictionary<string, Row> interfacedb = j.QueryDictionary("select * from PEInterface where PI_NO = {0}", "PI_Name", delegate (Row row) { duplicatedinterfaces.Add(row["PI_ID"].ToString()); }, nodeID);
+            Dictionary<string, Row2> interfacedb = j.QueryDictionary("select * from PEInterface where PI_NO = {0}", "PI_Name", delegate (Row2 row) { duplicatedinterfaces.Add(row["PI_ID"].ToString()); }, nodeID);
             if (interfacedb == null) return DatabaseFailure(probe);
             Dictionary<string, List<string[]>> ipdb = new Dictionary<string, List<string[]>>();
 
@@ -1458,7 +1455,7 @@ from PEInterface, PEInterfaceIP where PP_PI = PI_ID and PI_NO = {0} order by PI_
             if (!result) return DatabaseFailure(probe);
 
             batch.Begin();
-            foreach (Row row in result)
+            foreach (Row2 row in result)
             {
                 string name = row["PI_Name"].ToString();
                 List<string[]> ip = null;
@@ -2836,7 +2833,7 @@ Last input 00:00:00, output 00:00:00
                                 if (tokenTrim.StartsWith("Input: "))
                                 {
                                     string tokenValue = tokenTrim.Substring(7);
-                                    foreach (KeyValuePair<string, Row> pair in qosdb)
+                                    foreach (KeyValuePair<string, Row2> pair in qosdb)
                                     {
                                         if (tokenValue.StartsWith(pair.Key + "-"))
                                         {
@@ -2848,7 +2845,7 @@ Last input 00:00:00, output 00:00:00
                                 else if (tokenTrim.StartsWith("Output: "))
                                 {
                                     string tokenValue = tokenTrim.Substring(8);
-                                    foreach (KeyValuePair<string, Row> pair in qosdb)
+                                    foreach (KeyValuePair<string, Row2> pair in qosdb)
                                     {
                                         if (tokenValue.StartsWith(pair.Key + "-"))
                                         {
@@ -3540,7 +3537,7 @@ Last input 00:00:00, output 00:00:00
                     if (pnid != null)
                     {
                         string pnname = null;
-                        foreach (KeyValuePair<string, Row> pair2 in routenamedb)
+                        foreach (KeyValuePair<string, Row2> pair2 in routenamedb)
                         {
                             string rpnid = pair2.Value["PN_ID"].ToString();
 
@@ -3949,7 +3946,7 @@ Last input 00:00:00, output 00:00:00
                                     li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
                                     result = j.Query("select MI_ID, MI_DOT1Q, MI_TO_MI, MI_TO_PI from MEInterface where MI_MI = {0}", li.TopologyMEInterfaceID);
                                     if (!result) return DatabaseFailure(probe);
-                                    foreach (Row row in result)
+                                    foreach (Row2 row in result)
                                     {
                                         if (!row["MI_DOT1Q"].IsNull)
                                         {
@@ -4011,7 +4008,7 @@ Last input 00:00:00, output 00:00:00
                 {
                     Event("Interface ADD: " + pair.Key);
 
-                    li.Id = Database.ID();
+                    li.Id = Database2.ID();
                     interfaceinsert.Add(li.Name, li);
 
                     // IP
@@ -4026,7 +4023,7 @@ Last input 00:00:00, output 00:00:00
                 }
                 else
                 {
-                    Row db = interfacedb[pair.Key];
+                    Row2 db = interfacedb[pair.Key];
 
                     PEInterfaceToDatabase u = new PEInterfaceToDatabase();
                     u.Id = db["PI_ID"].ToString();
@@ -4394,7 +4391,7 @@ Last input 00:00:00, output 00:00:00
                     int dro = li.RateOutput == -1 ? int.MaxValue : li.RateOutput;
 
                     int qri = int.MaxValue, qro = int.MaxValue;
-                    foreach (KeyValuePair<string, Row> qpair in qosdb)
+                    foreach (KeyValuePair<string, Row2> qpair in qosdb)
                     {
                         string rid = qpair.Value["PQ_ID"];
 
@@ -4416,7 +4413,7 @@ Last input 00:00:00, output 00:00:00
                 }
 
                 // INTERFACE
-                Result ifr = j.Query("select IF_ID, IF_Entry_State, IF_OptimumRate_Input, IF_OptimumRate_Output from Interface where IF_NO = {0} and IF_EquipmentName = {1}", nodeID, li.EquipmentName);
+                Result2 ifr = j.Query("select IF_ID, IF_Entry_State, IF_OptimumRate_Input, IF_OptimumRate_Output from Interface where IF_NO = {0} and IF_EquipmentName = {1}", nodeID, li.EquipmentName);
 
                 if (ifr == 0)
                 {
@@ -4510,7 +4507,7 @@ Last input 00:00:00, output 00:00:00
             Summary("SUBINTERFACE_COUNT_FA_UP", ssubinffaup);
             Summary("SUBINTERFACE_COUNT_FA_UP_UP", ssubinffaupup);
 
-            Dictionary<string, Row> macdb = j.QueryDictionary("select * from PEMac where PA_NO = {0}", delegate (Row row)
+            Dictionary<string, Row2> macdb = j.QueryDictionary("select * from PEMac where PA_NO = {0}", delegate (Row2 row)
             {
                 return row["PA_PN"].ToString() + "_" + row["PA_IP"].ToString();
             }, nodeID);
@@ -4526,7 +4523,7 @@ Last input 00:00:00, output 00:00:00
 
                 string routename = null;
 
-                foreach (KeyValuePair<string, Row> pair2 in routenamedb)
+                foreach (KeyValuePair<string, Row2> pair2 in routenamedb)
                 {
                     if (pair2.Value["PN_ID"].ToString() == li.RouteNameID)
                     {
@@ -4539,12 +4536,12 @@ Last input 00:00:00, output 00:00:00
                 {
                     Event("MAC ADD: " + routename + " " + li.IPAddress + " " + li.MacAddress);
 
-                    li.Id = Database.ID();
+                    li.Id = Database2.ID();
                     macinsert.Add(li);
                 }
                 else
                 {
-                    Row db = macdb[pair.Key];
+                    Row2 db = macdb[pair.Key];
 
                     PEMacToDatabase u = new PEMacToDatabase();
 
@@ -4695,7 +4692,7 @@ Last input 00:00:00, output 00:00:00
                 foreach (string ip in ips)
                 {
                     Insert insert = j.Insert("PEInterfaceIP");
-                    insert.Value("PP_ID", Database.ID());
+                    insert.Value("PP_ID", Database2.ID());
                     insert.Value("PP_PI", pair.Key);
                     string[] ipx = ip.Split(StringSplitTypes.Underscore);
                     insert.Value("PP_IPv6", ipx[0] == "0" ? false : true);
@@ -4724,7 +4721,7 @@ Last input 00:00:00, output 00:00:00
             // DELETE
             batch.Begin();
             List<string> interfacedelete = new List<string>();
-            foreach (KeyValuePair<string, Row> pair in interfacedb)
+            foreach (KeyValuePair<string, Row2> pair in interfacedb)
             {
                 if (!interfacelive.ContainsKey(pair.Key))
                 {
@@ -4805,9 +4802,9 @@ Last input 00:00:00, output 00:00:00
             if (popInterfaces != null)
             {
                 batch.Begin();
-                foreach (KeyValuePair<string, Row> pair in popInterfaces)
+                foreach (KeyValuePair<string, Row2> pair in popInterfaces)
                 {
-                    Row row = pair.Value;
+                    Row2 row = pair.Value;
                     if (row["OO_PI"].IsNull)
                     {
                         if (interfacelive.ContainsKey(pair.Key))
@@ -4863,14 +4860,14 @@ Last input 00:00:00, output 00:00:00
 
             // DELETE
             batch.Begin();
-            foreach (KeyValuePair<string, Row> pair in macdb)
+            foreach (KeyValuePair<string, Row2> pair in macdb)
             {
                 if (!maclive.ContainsKey(pair.Key))
                 {
                     string routename = null;
                     string routenameid = pair.Value["PA_PN"].ToString();
 
-                    foreach (KeyValuePair<string, Row> pair2 in routenamedb)
+                    foreach (KeyValuePair<string, Row2> pair2 in routenamedb)
                     {
                         if (pair2.Value["PN_ID"].ToString() == routenameid)
                         {
@@ -4896,7 +4893,7 @@ Last input 00:00:00, output 00:00:00
             #region ROUTING
 
             Dictionary<string, PERouteUseToDatabase> routeuselive = new Dictionary<string, PERouteUseToDatabase>();
-            Dictionary<string, Row> routeusedb = j.QueryDictionary("select PERouteUse.* from PERouteUse, PERouteName where PU_PN = PN_ID and PN_NO = {0}", delegate (Row row)
+            Dictionary<string, Row2> routeusedb = j.QueryDictionary("select PERouteUse.* from PERouteUse, PERouteName where PU_PN = PN_ID and PN_NO = {0}", delegate (Row2 row)
             {
                 StringBuilder keysb = new StringBuilder();
 
@@ -4961,9 +4958,9 @@ Last input 00:00:00, output 00:00:00
             List<PERouteUseToDatabase> routeuseupdate = new List<PERouteUseToDatabase>();
 
             Dictionary<string, Tuple<PEPrefixListToDatabase, List<PEPrefixEntryToDatabase>>> prefixlistlive = new Dictionary<string, Tuple<PEPrefixListToDatabase, List<PEPrefixEntryToDatabase>>>();
-            Dictionary<string, Row> prefixlistdb = j.QueryDictionary("select * from PEPrefixList where PX_NO = {0}", "PX_Name", nodeID);
+            Dictionary<string, Row2> prefixlistdb = j.QueryDictionary("select * from PEPrefixList where PX_NO = {0}", "PX_Name", nodeID);
             if (prefixlistdb == null) return DatabaseFailure(probe);
-            Dictionary<string, Row> prefixentrydb = j.QueryDictionary("select PX_Name, PEPrefixEntry.* from PEPrefixEntry, PEPrefixList where PY_PX = PX_ID and PX_NO = {0}", delegate (Row row)
+            Dictionary<string, Row2> prefixentrydb = j.QueryDictionary("select PX_Name, PEPrefixEntry.* from PEPrefixEntry, PEPrefixList where PY_PX = PX_ID and PX_NO = {0}", delegate (Row2 row)
             {
                 return row["PX_Name"].ToString() + "_" + row["PY_Network"].ToString() + "_" + row["PY_Sequence"].ToIntShort(-1) + "_" + row["PY_Access"].ToString() + "_" + row["PY_Ge"].ToIntShort(-1) + "_" + row["PY_Le"].ToIntShort(-1);
             }, nodeID);
@@ -6711,12 +6708,12 @@ Last input 00:00:00, output 00:00:00
                 {
                     Event("Prefix-List ADD: " + pair.Key);
 
-                    li.Id = Database.ID();
+                    li.Id = Database2.ID();
                     prefixlistinsert.Add(li);
                 }
                 else
                 {
-                    Row db = prefixlistdb[pair.Key];
+                    Row2 db = prefixlistdb[pair.Key];
 
                     PEPrefixListToDatabase u = new PEPrefixListToDatabase();
                     u.Id = db["PX_ID"].ToString();
@@ -6748,13 +6745,13 @@ Last input 00:00:00, output 00:00:00
 
                         Event("+ " + en.Network + (en.Access != null ? " " + (en.Access == "P" ? "permit" : "deny") : ""));
 
-                        en.Id = Database.ID();
+                        en.Id = Database2.ID();
                         en.PrefixListID = li.Id;
                         prefixentryinsert.Add(en);
                     }
                     else
                     {
-                        Row db = prefixentrydb[key];
+                        Row2 db = prefixentrydb[key];
 
                         PEPrefixEntryToDatabase u = new PEPrefixEntryToDatabase();
                         u.Id = db["PY_ID"].ToString();
@@ -6800,7 +6797,7 @@ Last input 00:00:00, output 00:00:00
                     }
                 }
 
-                foreach (KeyValuePair<string, Row> pair2 in prefixentrydb)
+                foreach (KeyValuePair<string, Row2> pair2 in prefixentrydb)
                 {
                     string key = pair2.Key;
 
@@ -6838,7 +6835,7 @@ Last input 00:00:00, output 00:00:00
                 PERouteUseToDatabase li = pair.Value;
 
                 string info = "UNKNOWN ";
-                foreach (KeyValuePair<string, Row> pair2 in routenamedb)
+                foreach (KeyValuePair<string, Row2> pair2 in routenamedb)
                 {
                     if (pair2.Value["PN_ID"].ToString() == li.RouteNameID)
                     {
@@ -6902,12 +6899,12 @@ Last input 00:00:00, output 00:00:00
 
                     Event("Routing ADD: " + info);
 
-                    li.Id = Database.ID();
+                    li.Id = Database2.ID();
                     routeuseinsert.Add(li);
                 }
                 else
                 {
-                    Row db = routeusedb[pair.Key];
+                    Row2 db = routeusedb[pair.Key];
 
                     PERouteUseToDatabase u = new PERouteUseToDatabase();
                     u.Id = db["PU_ID"].ToString();
@@ -7202,12 +7199,12 @@ Last input 00:00:00, output 00:00:00
 
             // DELETE
             batch.Begin();
-            foreach (KeyValuePair<string, Row> pair in routeusedb)
+            foreach (KeyValuePair<string, Row2> pair in routeusedb)
             {
                 if (!routeuselive.ContainsKey(pair.Key))
                 {
                     string info = "UNKNOWN ";
-                    foreach (KeyValuePair<string, Row> pair2 in routenamedb)
+                    foreach (KeyValuePair<string, Row2> pair2 in routenamedb)
                     {
                         if (pair2.Value["PN_ID"].ToString() == pair.Value["PU_PN"].ToString())
                         {
@@ -7261,7 +7258,7 @@ Last input 00:00:00, output 00:00:00
             List<string> routeipinsertnode = new List<string>();
             List<DerivedRouteNetworkToDatabase> routeipinsert = new List<DerivedRouteNetworkToDatabase>();
             List<DerivedRouteNetworkToDatabase> routeipupdate = new List<DerivedRouteNetworkToDatabase>();
-            Dictionary<string, Row> routeipdb = j.QueryDictionary("select DRNO_ID, DRN_ID, DRN_PR, DRN_IP, DRN_Type, DRN_Private from DerivedRouteNetworkNode, DerivedRouteNetwork where DRNO_NO = {0} and DRNO_DRN = DRN_ID", delegate(Row row)
+            Dictionary<string, Row2> routeipdb = j.QueryDictionary("select DRNO_ID, DRN_ID, DRN_PR, DRN_IP, DRN_Type, DRN_Private from DerivedRouteNetworkNode, DerivedRouteNetwork where DRNO_NO = {0} and DRNO_DRN = DRN_ID", delegate(Row2 row)
             {
                 return row["DRN_PR"].ToString() + "_" + row["DRN_IP"].ToString();
             }, nodeID);
@@ -7314,7 +7311,7 @@ Last input 00:00:00, output 00:00:00
                     if (result.Count == 0)
                     {
                         // theres no
-                        li.Id = Database.ID();
+                        li.Id = Database2.ID();
                         routeipinsert.Add(li);
                         routeipinsertnode.Add(li.Id);
                     }
@@ -7329,7 +7326,7 @@ Last input 00:00:00, output 00:00:00
                 }
                 else
                 {
-                    Row db = routeipdb[pair.Key];
+                    Row2 db = routeipdb[pair.Key];
 
                     DerivedRouteNetworkToDatabase u = new DerivedRouteNetworkToDatabase();
                     u.Id = db["DRN_ID"].ToString();
@@ -7382,7 +7379,7 @@ Last input 00:00:00, output 00:00:00
             foreach (string s in routeipinsertnode)
             {
                 Insert insert = j.Insert("DerivedRouteNetworkNode");
-                insert.Value("DRNO_ID", Database.ID());
+                insert.Value("DRNO_ID", Database2.ID());
                 insert.Value("DRNO_NO", nodeID);
                 insert.Value("DRNO_DRN", s);
 
@@ -7406,7 +7403,7 @@ Last input 00:00:00, output 00:00:00
 
             // DELETE
             batch.Begin();
-            foreach (KeyValuePair<string, Row> pair in routeipdb)
+            foreach (KeyValuePair<string, Row2> pair in routeipdb)
             {
                 if (!routeiplive.ContainsKey(pair.Key))
                 {
@@ -7429,7 +7426,7 @@ Last input 00:00:00, output 00:00:00
                     }
                     else
                     {
-                        foreach (Row row in result)
+                        foreach (Row2 row in result)
                         {
                             string uno = row["DRNO_NO"].ToString();
 
@@ -7454,7 +7451,7 @@ Last input 00:00:00, output 00:00:00
 
             // DELETE Prefix-LIST
             batch.Begin();
-            foreach (KeyValuePair<string, Row> pair in prefixlistdb)
+            foreach (KeyValuePair<string, Row2> pair in prefixlistdb)
             {
                 if (!prefixlistlive.ContainsKey(pair.Key))
                 {
@@ -7470,7 +7467,7 @@ Last input 00:00:00, output 00:00:00
 
             // DELETE QOS
             batch.Begin();
-            foreach (KeyValuePair<string, Row> pair in qosdb)
+            foreach (KeyValuePair<string, Row2> pair in qosdb)
             {
                 if (!qoslive.ContainsKey(pair.Key))
                 {
@@ -7488,7 +7485,7 @@ Last input 00:00:00, output 00:00:00
             // DELETE ROUTE
             batch.Begin();
             List<string> routenamedelete = new List<string>();
-            foreach (KeyValuePair<string, Row> pair in routenamedb)
+            foreach (KeyValuePair<string, Row2> pair in routenamedb)
             {
                 if (!routenamelive.ContainsKey(pair.Key))
                 {
@@ -7514,7 +7511,7 @@ Last input 00:00:00, output 00:00:00
             if (!result) return DatabaseFailure(probe);
 
             List<string> prids = new List<string>();
-            foreach (Row row in result)
+            foreach (Row2 row in result)
             {
                 prids.Add(row["PR_ID"].ToString());
             }

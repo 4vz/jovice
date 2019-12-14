@@ -107,10 +107,6 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Aveezo\Aveezo.Standard\Aveezo.Standard.csproj">
-      <Project>{72d56be8-07ec-4150-8f88-ee850d7a5846}</Project>
-      <Name>Aveezo.Standard</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Aphysoft.Share.Oracle\Aphysoft.Share.Oracle.csproj">
       <Project>{fd7c3c83-1251-4d47-b201-539ad65d279c}</Project>
       <Name>Aphysoft.Share.Oracle</Name>

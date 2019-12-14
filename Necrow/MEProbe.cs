@@ -9,13 +9,11 @@ using System.Globalization;
 
 using Jovice;
 
-using Aveezo;
-
 namespace Necrow
 {
     #region To Database
 
-    class MECustomerToDatabase : Data
+    class MECustomerToDatabase : Data2
     {
         private string customerID;
 
@@ -370,12 +368,12 @@ namespace Necrow
 
             string[] lines = null;
             Batch batch = j.Batch();
-            Result result;
+            Result2 result;
 
             #region ALU-CUSTOMER
 
             Dictionary<string, MECustomerToDatabase> alucustlive = new Dictionary<string, MECustomerToDatabase>();
-            Dictionary<string, Row> alucustdb = null;
+            Dictionary<string, Row2> alucustdb = null;
             List<MECustomerToDatabase> alucustinsert = new List<MECustomerToDatabase>();
             List<MECustomerToDatabase> alucustupdate = new List<MECustomerToDatabase>();
 
@@ -411,7 +409,7 @@ namespace Necrow
                     if (!alucustdb.ContainsKey(pair.Key))
                     {
                         Event("ALU-Customer ADD: " + li.CustomerID);
-                        li.Id = Database.ID();
+                        li.Id = Database2.ID();
                         alucustinsert.Add(li);
                     }
                 }
@@ -459,7 +457,7 @@ namespace Necrow
             Event("Checking QOS");
 
             Dictionary<string, MEQOSToDatabase> qoslive = new Dictionary<string, MEQOSToDatabase>();
-            Dictionary<string, Row> qosdb = j.QueryDictionary("select * from MEQOS where MQ_NO = {0}", delegate (Row row) { return (row["MQ_Type"].ToBool() ? "1" : "0") + "_" + row["MQ_Name"].ToString(); }, nodeID);
+            Dictionary<string, Row2> qosdb = j.QueryDictionary("select * from MEQOS where MQ_NO = {0}", delegate (Row2 row) { return (row["MQ_Type"].ToBool() ? "1" : "0") + "_" + row["MQ_Name"].ToString(); }, nodeID);
             if (qosdb == null) return DatabaseFailure(probe);
             List<MEQOSToDatabase> qosinsert = new List<MEQOSToDatabase>();
             List<MEQOSToDatabase> qosupdate = new List<MEQOSToDatabase>();
@@ -561,12 +559,12 @@ namespace Necrow
                 if (!qosdb.ContainsKey(pair.Key))
                 {
                     Event("QOS ADD: " + pair.Key + ((pair.Value.Bandwidth == -1) ? "" : ("(" + pair.Value.Bandwidth + "K)")));
-                    li.Id = Database.ID();
+                    li.Id = Database2.ID();
                     qosinsert.Add(li);
                 }
                 else
                 {
-                    Row db = qosdb[pair.Key];
+                    Row2 db = qosdb[pair.Key];
 
                     MEQOSToDatabase u = new MEQOSToDatabase();
                     u.Id = db["MQ_ID"].ToString();
@@ -623,7 +621,7 @@ namespace Necrow
 
             #endregion
 
-            qosdb = j.QueryDictionary("select * from MEQOS where MQ_NO = {0}", delegate (Row row) { return (row["MQ_Type"].ToBool() ? "1" : "0") + "_" + row["MQ_Name"].ToString(); }, nodeID);
+            qosdb = j.QueryDictionary("select * from MEQOS where MQ_NO = {0}", delegate (Row2 row) { return (row["MQ_Type"].ToBool() ? "1" : "0") + "_" + row["MQ_Name"].ToString(); }, nodeID);
             if (qosdb == null) return DatabaseFailure(probe);
 
             #endregion
@@ -633,9 +631,9 @@ namespace Necrow
             Event("Checking SDP");
 
             Dictionary<string, MESDPToDatabase> sdplive = new Dictionary<string, MESDPToDatabase>();
-            Dictionary<string, Row> sdpdb = j.QueryDictionary("select * from MESDP where MS_NO = {0}", "MS_SDP", nodeID);
+            Dictionary<string, Row2> sdpdb = j.QueryDictionary("select * from MESDP where MS_NO = {0}", "MS_SDP", nodeID);
             if (sdpdb == null) return DatabaseFailure(probe);
-            Dictionary<string, Row> ipnodedb = j.QueryDictionary("select NO_IP, NO_ID from Node where NO_IP is not null", "NO_IP");
+            Dictionary<string, Row2> ipnodedb = j.QueryDictionary("select NO_IP, NO_ID from Node where NO_IP is not null", "NO_IP");
             if (ipnodedb == null) return DatabaseFailure(probe);
             List<MESDPToDatabase> sdpinsert = new List<MESDPToDatabase>();
             List<MESDPToDatabase> sdpupdate = new List<MESDPToDatabase>();
@@ -823,12 +821,12 @@ namespace Necrow
                 if (!sdpdb.ContainsKey(pair.Key))
                 {
                     Event("SDP ADD: " + pair.Key);
-                    li.Id = Database.ID();
+                    li.Id = Database2.ID();
                     sdpinsert.Add(li);
                 }
                 else
                 {
-                    Row db = sdpdb[pair.Key];
+                    Row2 db = sdpdb[pair.Key];
 
                     MESDPToDatabase u = new MESDPToDatabase();
                     u.Id = db["MS_ID"].ToString();
@@ -949,7 +947,7 @@ namespace Necrow
             Event("Checking Circuit");
 
             SortedDictionary<string, MECircuitToDatabase> circuitlive = new SortedDictionary<string, MECircuitToDatabase>();
-            Dictionary<string, Row> circuitdb = null;
+            Dictionary<string, Row2> circuitdb = null;
             List<MECircuitToDatabase> circuitinsert = new List<MECircuitToDatabase>();
             List<MECircuitToDatabase> circuitupdate = new List<MECircuitToDatabase>();
             List<string[]> hweCircuitMplsL2vc = null;
@@ -970,7 +968,7 @@ namespace Necrow
                 {
                     Event(result.Count + " circuit(s) are found duplicated, began deleting...");
                     List<string> duplicatedvcids = new List<string>();
-                    foreach (Row row in result) duplicatedvcids.Add(row["MC_VCID"].ToString());
+                    foreach (Row2 row in result) duplicatedvcids.Add(row["MC_VCID"].ToString());
                     string duplicatedvcidstr = "'" + string.Join("', '", duplicatedvcids.ToArray()) + "'";
                     j.Execute("update MEInterface set MI_MC = NULL where MI_MC in (select MC_ID from MECircuit where MC_VCID in (" + duplicatedvcidstr + ") and MC_NO = {0})", nodeID);
                     j.Execute("update MEPeer set MP_TO_MC = NULL where MP_TO_MC in (select MC_ID from MECircuit where MC_VCID in (" + duplicatedvcidstr + ") and MC_NO = {0})", nodeID);
@@ -1389,7 +1387,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                         adjacentPeers = new Dictionary<string, List<string>>();
                         if (result)
                         {
-                            foreach (Row row in result)
+                            foreach (Row2 row in result)
                             {
                                 string vcid = row["MP_VCID"].ToString();
                                 string mp = row["MP_ID"].ToString();
@@ -1409,7 +1407,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                     }
 
                     Event("Circuit ADD: " + pair.Key);
-                    li.Id = Database.ID();
+                    li.Id = Database2.ID();
 
                     if (li.VCID != null)
                     {
@@ -1421,7 +1419,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 }
                 else
                 {
-                    Row db = circuitdb[pair.Key];
+                    Row2 db = circuitdb[pair.Key];
 
                     MECircuitToDatabase u = new MECircuitToDatabase();
                     u.Id = db["MC_ID"].ToString();
@@ -1557,9 +1555,9 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
             Dictionary<string, MEPeerToDatabase> peerlive = new Dictionary<string, MEPeerToDatabase>();
             List<string> duplicatedpeers = new List<string>();
-            Dictionary<string, Row> peerdb = j.QueryDictionary("select * from MEPeer, MECircuit, MESDP where MP_MC = MC_ID and MP_MS = MS_ID and MC_NO = {0}", delegate (Row row) {
+            Dictionary<string, Row2> peerdb = j.QueryDictionary("select * from MEPeer, MECircuit, MESDP where MP_MC = MC_ID and MP_MS = MS_ID and MC_NO = {0}", delegate (Row2 row) {
                 return row["MS_SDP"].ToString() + ":" + row["MP_VCID"].ToString();
-            }, delegate (Row row) { duplicatedpeers.Add(row["MP_ID"].ToString()); }, nodeID);
+            }, delegate (Row2 row) { duplicatedpeers.Add(row["MP_ID"].ToString()); }, nodeID);
             if (peerdb == null) return DatabaseFailure(probe);
             List<MEPeerToDatabase> peerinsert = new List<MEPeerToDatabase>();
             List<MEPeerToDatabase> peerupdate = new List<MEPeerToDatabase>();
@@ -1738,12 +1736,12 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                 if (!peerdb.ContainsKey(pair.Key))
                 {
                     Event("Peer ADD: " + pair.Key);
-                    li.Id = Database.ID();
+                    li.Id = Database2.ID();
                     peerinsert.Add(li);
                 }
                 else
                 {
-                    Row db = peerdb[pair.Key];
+                    Row2 db = peerdb[pair.Key];
 
                     MEPeerToDatabase u = new MEPeerToDatabase();
                     u.Id = db["MP_ID"].ToString();
@@ -1829,7 +1827,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
             List<string> peerdelete = new List<string>();
 
             batch.Begin();
-            foreach (KeyValuePair<string, Row> pair in peerdb)
+            foreach (KeyValuePair<string, Row2> pair in peerdb)
             {
                 if (!peerlive.ContainsKey(pair.Key) || pair.Value["MP_MC"].ToString() != peerlive[pair.Key].CircuitID)
                 {
@@ -1862,7 +1860,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
             SortedDictionary<string, MEInterfaceToDatabase> interfacelive = new SortedDictionary<string, MEInterfaceToDatabase>();
             List<string> duplicatedinterfaces = new List<string>();
-            Dictionary<string, Row> interfacedb = j.QueryDictionary("select * from MEInterface where MI_NO = {0}", "MI_Name", delegate (Row row) { duplicatedinterfaces.Add(row["MI_ID"].ToString()); }, nodeID);
+            Dictionary<string, Row2> interfacedb = j.QueryDictionary("select * from MEInterface where MI_NO = {0}", "MI_Name", delegate (Row2 row) { duplicatedinterfaces.Add(row["MI_ID"].ToString()); }, nodeID);
             if (interfacedb == null) return DatabaseFailure(probe);
             SortedDictionary<string, MEInterfaceToDatabase> interfaceinsert = new SortedDictionary<string, MEInterfaceToDatabase>();
             List<MEInterfaceToDatabase> interfaceupdate = new List<MEInterfaceToDatabase>();
@@ -3431,7 +3429,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                         li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
                                         result = j.Query("select PI_ID, PI_DOT1Q, PI_TO_MI from PEInterface where PI_PI = {0}", li.TopologyPEInterfaceID);
                                         if (!result) return DatabaseFailure(probe);
-                                        foreach (Row row in result)
+                                        foreach (Row2 row in result)
                                         {
                                             if (!row["PI_DOT1Q"].IsNull)
                                             {
@@ -3449,7 +3447,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                         li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
                                         result = j.Query("select MI_ID, MI_DOT1Q, MI_TO_MI, MI_TO_PI from MEInterface where MI_MI = {0}", li.TopologyMEInterfaceID);
                                         if (!result) return DatabaseFailure(probe);
-                                        foreach (Row row in result)
+                                        foreach (Row2 row in result)
                                         {
                                             if (!row["MI_DOT1Q"].IsNull)
                                             {
@@ -3519,12 +3517,12 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 {
                     Event("Interface ADD: " + pair.Key);
 
-                    li.Id = Database.ID();
+                    li.Id = Database2.ID();
                     interfaceinsert.Add(li.Name, li);
                 }
                 else
                 {
-                    Row db = interfacedb[pair.Key];
+                    Row2 db = interfacedb[pair.Key];
 
                     MEInterfaceToDatabase u = new MEInterfaceToDatabase();
                     u.Id = db["MI_ID"].ToString();
@@ -3865,7 +3863,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     int dro = li.RateOutput == -1 ? int.MaxValue : li.RateOutput;
                     
                     int qri = int.MaxValue, qro = int.MaxValue;
-                    foreach (KeyValuePair<string, Row> qpair in qosdb)
+                    foreach (KeyValuePair<string, Row2> qpair in qosdb)
                     {
                         string rid = qpair.Value["MQ_ID"];
                         bool rdi = qpair.Value["MQ_Type"];
@@ -3888,7 +3886,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 }
 
                 // INTERFACE
-                Result ifr = j.Query("select IF_ID, IF_Entry_State, IF_OptimumRate_Input, IF_OptimumRate_Output from Interface where IF_NO = {0} and IF_EquipmentName = {1}", nodeID, li.EquipmentName);
+                Result2 ifr = j.Query("select IF_ID, IF_Entry_State, IF_OptimumRate_Input, IF_OptimumRate_Output from Interface where IF_NO = {0} and IF_EquipmentName = {1}", nodeID, li.EquipmentName);
 
                 if (ifr == 0)
                 {
@@ -4132,7 +4130,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             // DELETE
             batch.Begin();
             List<string> interfacedelete = new List<string>();
-            foreach (KeyValuePair<string, Row> pair in interfacedb)
+            foreach (KeyValuePair<string, Row2> pair in interfacedb)
             {
                 if (!interfacelive.ContainsKey(pair.Key))
                 {
@@ -4237,7 +4235,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         if (!existInVir)
                         {
                             // add
-                            string dacID = Database.ID();
+                            string dacID = Database2.ID();
                             result = j.Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
                             if (!result) return DatabaseFailure(probe);
                             if (result.Count == 1)
@@ -4327,7 +4325,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             // CIRCUIT DELETE
             batch.Begin();
             List<string> circuitdelete = new List<string>();
-            foreach (KeyValuePair<string, Row> pair in circuitdb)
+            foreach (KeyValuePair<string, Row2> pair in circuitdb)
             {
                 if (!circuitlive.ContainsKey(pair.Key))
                 {
@@ -4352,7 +4350,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
             // SDP DELETE
             batch.Begin();
-            foreach (KeyValuePair<string, Row> pair in sdpdb)
+            foreach (KeyValuePair<string, Row2> pair in sdpdb)
             {
                 if (!sdplive.ContainsKey(pair.Key))
                 {
@@ -4368,9 +4366,9 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             if (nodeManufacture == alu)
             {
                 batch.Begin();
-                foreach (KeyValuePair<string, Row> pair in alucustdb)
+                foreach (KeyValuePair<string, Row2> pair in alucustdb)
                 {
-                    Row row = pair.Value;
+                    Row2 row = pair.Value;
                     if (!alucustlive.ContainsKey(pair.Key))
                     {
                         Event("ALU-Customer DELETE: " + pair.Key);
@@ -4385,9 +4383,9 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
             // QOS DELETE
             batch.Begin();
-            foreach (KeyValuePair<string, Row> pair in qosdb)
+            foreach (KeyValuePair<string, Row2> pair in qosdb)
             {
-                Row row = pair.Value;
+                Row2 row = pair.Value;
                 if (!qoslive.ContainsKey(pair.Key))
                 {
                     Event("QOS DELETE: " + pair.Key);

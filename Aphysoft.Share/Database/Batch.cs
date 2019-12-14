@@ -1,4 +1,4 @@
-﻿using Aveezo;
+﻿
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -14,7 +14,7 @@ namespace Aphysoft.Share
 
         private List<string> lines = new List<string>();
 
-        private Database database = null;
+        private Database2 database = null;
 
         public int Count
         {
@@ -25,7 +25,7 @@ namespace Aphysoft.Share
 
         #region Constructors
 
-        internal Batch(Database database)
+        internal Batch(Database2 database)
         {
             this.database = database;
         }
@@ -60,10 +60,10 @@ namespace Aphysoft.Share
                 lines.Add(update.ToString());
         }
 
-        public Result Commit()
+        public Result2 Commit()
         {
             int count = lines.Count;
-            Result result = new Result(null);
+            Result2 result = new Result2(null);
 
             Stopwatch elapsed = new Stopwatch();
             elapsed.Restart();
@@ -82,7 +82,7 @@ namespace Aphysoft.Share
 
                     if (index % 25 == 0)
                     {
-                        Result currentResult = database.Execute(batch.ToString());
+                        Result2 currentResult = database.Execute(batch.ToString());
                         if (!currentResult)
                         {
                             result.IsExceptionThrown = true;
@@ -99,7 +99,7 @@ namespace Aphysoft.Share
 
                 if (ok && batch.Length > 0)
                 {
-                    Result currentResult = database.Execute(batch.ToString());
+                    Result2 currentResult = database.Execute(batch.ToString());
                     if (!currentResult)
                         result.IsExceptionThrown = true;
                     else

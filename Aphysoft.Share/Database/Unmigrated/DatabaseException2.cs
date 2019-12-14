@@ -6,14 +6,14 @@ using System.Threading.Tasks;
 
 namespace Aphysoft.Share
 {
-    public enum DatabaseExceptionType
+    public enum DatabaseExceptionType2
     {
         None,
         LoginFailed,
         Timeout
     }
 
-    public class DatabaseExceptionEventArgs : EventArgs
+    public class DatabaseExceptionEventArgs2 : EventArgs
     {
         #region Fields
 
@@ -21,7 +21,7 @@ namespace Aphysoft.Share
 
         public string Message { get; internal set; }
 
-        public DatabaseExceptionType Type { get; internal set; }
+        public DatabaseExceptionType2 Type { get; internal set; }
 
         public bool NoRetry { get; set; } = false;
 
@@ -29,7 +29,7 @@ namespace Aphysoft.Share
 
         #region Constructor
 
-        public DatabaseExceptionEventArgs()
+        public DatabaseExceptionEventArgs2()
         {
 
         }
@@ -37,5 +37,5 @@ namespace Aphysoft.Share
         #endregion
     }
 
-    public delegate void DatabaseExceptionEventHandler(object sender, DatabaseExceptionEventArgs eventArgs);
+    public delegate void DatabaseExceptionEventHandler2(object sender, DatabaseExceptionEventArgs2 eventArgs);
 }

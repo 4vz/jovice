@@ -8,11 +8,9 @@ using System.Threading.Tasks;
 using Aphysoft.Share;
 using System.Data;
 
-using Aveezo;
-
 namespace Aphysoft.Share
 {
-    public class OracleDatabaseConnection : DatabaseConnection
+    public class OracleDatabaseConnection : DatabaseConnection2
     {
         #region Fields
 
@@ -58,11 +56,11 @@ namespace Aphysoft.Share
 
         public override void InitializeDatabase()
         {
-            Result r = Query("SELECT table_name FROM all_tables");
+            Result2 r = Query("SELECT table_name FROM all_tables");
 
             List<string> tables = new List<string>();
 
-            foreach (Row row in r)
+            foreach (Row2 row in r)
             {
                 tables.Add(row["TABLE_NAME"].ToString());
             }
@@ -70,11 +68,11 @@ namespace Aphysoft.Share
             database.UpdateDatabaseTables(tables.ToArray());
         }
 
-        public override DatabaseExceptionType ParseMessage(string message)
+        public override DatabaseExceptionType2 ParseMessage(string message)
         {
             //if (message.IndexOf("login failed") > -1) return DatabaseException.LoginFailed;
             //else if (message.IndexOf("timeout period elapsed") > -1) return DatabaseException.Timeout;
-            return DatabaseExceptionType.None;
+            return DatabaseExceptionType2.None;
         }
 
         public override string Escape(string str)
@@ -114,9 +112,9 @@ namespace Aphysoft.Share
             command.Dispose();
         }
 
-        public override Result Query(string sql)
+        public override Result2 Query(string sql)
         {
-            Result result = new Result(sql);
+            Result2 result = new Result2(sql);
             int attempts = database.QueryAttempts;
 
             using (OracleConnection connection = new OracleConnection(ConnectionString))
@@ -149,13 +147,13 @@ namespace Aphysoft.Share
                             result.Clear();
                             while (reader.Read())
                             {
-                                Row row = new Row();
+                                Row2 row = new Row2();
                                 for (int i = 0; i < reader.FieldCount; i++)
                                 {
                                     string name = names[i];
                                     bool isNull = reader.IsDBNull(i);
                                     object value = reader.GetValue(i);
-                                    row.Add(name, new Column(value, isNull));
+                                    row.Add(name, new Column2(value, isNull));
                                 }
                                 result.Add(row);
                                 if (result.Count >= 200000) break;
@@ -200,9 +198,9 @@ namespace Aphysoft.Share
             return result;
         }
 
-        public override Column Scalar(string sql)
+        public override Column2 Scalar(string sql)
         {
-            Column column = null;
+            Column2 column = null;
             int attempts = database.QueryAttempts;
 
             using (OracleConnection connection = new OracleConnection(ConnectionString))
@@ -223,7 +221,7 @@ namespace Aphysoft.Share
                         try
                         {
                             object data = command.ExecuteScalar();
-                            if (data != null) column = new Column(data, false);
+                            if (data != null) column = new Column2(data, false);
                             doBreak = true;
                         }
                         catch (Exception e)
@@ -258,9 +256,9 @@ namespace Aphysoft.Share
             return column;
         }
 
-        protected override Result Execute(string sql, bool identity)
+        protected override Result2 Execute(string sql, bool identity)
         {
-            Result result = new Result(sql);
+            Result2 result = new Result2(sql);
             int attempts = database.QueryAttempts;
 
             using (OracleConnection connection = new OracleConnection(ConnectionString))

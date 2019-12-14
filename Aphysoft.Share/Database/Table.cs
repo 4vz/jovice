@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using Aveezo;
+
 
 namespace Aphysoft.Share
 {
@@ -37,7 +37,7 @@ namespace Aphysoft.Share
 
 
 
-    public class OldTable<T> : IDictionary<string, T> where T : Data
+    public class OldTable<T> : IDictionary<string, T> where T : Data2
     {
         #region Fields
                

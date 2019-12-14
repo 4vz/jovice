@@ -41,9 +41,9 @@ namespace Athena
             {
                 groups = new Dictionary<string, MessengerGroup>();
 
-                Result r = Athena.Instance.Database.Query("select * from MessengerGroup");
+                Result2 r = Athena.Instance.Database.Query("select * from MessengerGroup");
 
-                foreach (Row ro in r)
+                foreach (Row2 ro in r)
                 {
                     string id = ro["MG_ID"].ToString();
                     long tid = ro["MG_TelegramID"].ToLong(0);
@@ -107,7 +107,7 @@ namespace Athena
 
         public static MessengerGroup CreateByTelegramID(string name, long telegramID)
         {
-            MessengerGroup group = new MessengerGroup() { ID = Database.ID(), TelegramID = telegramID, Name = name };
+            MessengerGroup group = new MessengerGroup() { ID = Database2.ID(), TelegramID = telegramID, Name = name };
 
             Insert i = Athena.Instance.Database.Insert("MessengerGroup");
             i.Value("MG_ID", group.ID);
@@ -185,9 +185,9 @@ namespace Athena
             {
                 users = new Dictionary<string, MessengerUser>();
 
-                Result r = Athena.Instance.Database.Query("select * from MessengerUser");
+                Result2 r = Athena.Instance.Database.Query("select * from MessengerUser");
 
-                foreach (Row ro in r)
+                foreach (Row2 ro in r)
                 {
                     string id = ro["MU_ID"].ToString();
                     string name = ro["MU_Name"].ToString();
@@ -221,7 +221,7 @@ namespace Athena
 
         public static MessengerUser CreateByTelegramID(string name, int telegramID)
         {
-            MessengerUser user = new MessengerUser() { ID = Database.ID(), TelegramID = telegramID, Name = name };
+            MessengerUser user = new MessengerUser() { ID = Database2.ID(), TelegramID = telegramID, Name = name };
 
             Insert i = Athena.Instance.Database.Insert("MessengerUser");
             i.Value("MU_ID", user.ID);

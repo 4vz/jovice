@@ -1,4 +1,4 @@
-﻿using Aveezo;
+﻿
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,7 +11,7 @@ namespace Aphysoft.Share
     {
         #region Fields
 
-        protected Database database;
+        protected Database2 database;
 
         protected string table;
 
@@ -28,7 +28,7 @@ namespace Aphysoft.Share
 
         #region Constructors
 
-        public DMLBase(string table, Database database)
+        public DMLBase(string table, Database2 database)
         {
             this.table = table;
             this.database = database;
@@ -55,7 +55,7 @@ namespace Aphysoft.Share
     {
         #region Constructors
 
-        internal Insert(string table, Database database) : base(table, database)
+        internal Insert(string table, Database2 database) : base(table, database)
         {
         }
 
@@ -70,7 +70,7 @@ namespace Aphysoft.Share
 
         public string Key(string key)
         {
-            string id = Database.ID();
+            string id = Database2.ID();
             Value(key, id);
 
             return id;
@@ -104,7 +104,7 @@ namespace Aphysoft.Share
             return sb.ToString();
         }
 
-        public Result Execute()
+        public Result2 Execute()
         {
             return database.Execute(this);
         }
@@ -116,7 +116,7 @@ namespace Aphysoft.Share
     {
         #region Constructors
 
-        internal Update(string table, Database database) : base(table, database)
+        internal Update(string table, Database2 database) : base(table, database)
         {
         }
 
@@ -166,7 +166,7 @@ namespace Aphysoft.Share
             return sb.ToString();
         }
 
-        public Result Execute()
+        public Result2 Execute()
         {
             return database.Execute(this);
         }

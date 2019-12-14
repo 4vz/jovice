@@ -20,7 +20,7 @@ namespace Athena
 
         public static Athena Instance { get; set; }
 
-        public Database Database { get; private set; } = null;
+        public Database2 Database { get; private set; } = null;
 
         private Dictionary<string, InstallationFile[]> installations = null;
 
@@ -55,7 +55,7 @@ namespace Athena
             Instance = this;
 
             Event("Checking database connection...");
-            Database = Database.Web();
+            Database = Database2.Web();
 
             if (Database)
             {

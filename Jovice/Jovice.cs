@@ -11,7 +11,7 @@ namespace Center
 {
     public static class Jovice
     {
-        public static Database Database => Database.Get("JOVICE");
+        public static Database2 Database => Database2.Get("JOVICE");
     }
 }
 
@@ -19,6 +19,6 @@ namespace Necrow
 {
     public static class Jovice
     {
-        public static Database Database => Database.Get("JOVICE");
+        public static Database2 Database => Database2.Get("JOVICE");
     }
 }

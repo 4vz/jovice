@@ -83,10 +83,6 @@
     <Compile Include="ServiceDiscovery.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Aveezo\Aveezo.Standard\Aveezo.Standard.csproj">
-      <Project>{72d56be8-07ec-4150-8f88-ee850d7a5846}</Project>
-      <Name>Aveezo.Standard</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Aphysoft.Apps\Aphysoft.Apps.csproj">
       <Project>{bd09ee9f-09ce-45da-8cf3-9ee66afe605c}</Project>
       <Name>Aphysoft.Apps</Name>

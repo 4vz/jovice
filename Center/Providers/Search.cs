@@ -145,10 +145,10 @@ namespace Center.Providers
 
                 SearchResultProviderPacket searchResult = null;
 
-                Result r;
+                Result2 r;
 
-                Database j = Database.Get("JOVICE");
-                Database center = Web.Database;
+                Database2 j = Database2.Get("JOVICE");
+                Database2 center = Web.Database;
 
                 if (root != null)
                 {
@@ -212,11 +212,11 @@ namespace Center.Providers
 
                         List<object[]> results = new List<object[]>();
 
-                        foreach (Row row in r)
+                        foreach (Row2 row in r)
                         {
                             List<object> objects = new List<object>();
 
-                            foreach (KeyValuePair<string, Column> column in row)
+                            foreach (KeyValuePair<string, Column2> column in row)
                             {
                                 objects.Add(column.Value.ToObject());
                             }
@@ -319,7 +319,7 @@ namespace Center.Providers
 
                     if (token1 != null && token1.Length >= 3)
                     {
-                        Column sc, oc;
+                        Column2 sc, oc;
                         sc = j.Scalar("select count(*) from Service where SE_SID = {0}", token1);
                         oc = j.Scalar("select count(*) from ServiceOrder where SO_OID = {0}", token1);
 
@@ -380,7 +380,7 @@ namespace Center.Providers
 
                     if (token1 != null)
                     {
-                        Column c;
+                        Column2 c;
                         c = j.Scalar("select count(*) from Node where NO_Name = {0} and NO_Active = 1", token1);
 
                         if (c.ToInt() > 0)
@@ -959,9 +959,9 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
 
         
 
-        protected Database jovice = Jovice.Database;
-        protected Database center = Web.Database;
-        protected Database oss = OSS.Database;
+        protected Database2 jovice = Jovice.Database;
+        protected Database2 center = Web.Database;
+        protected Database2 oss = OSS.Database;
 
         #endregion
 
@@ -969,7 +969,7 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
 
         protected void Root(string phrase)
         {
-            if (matchRoot == null) matchRoot = Database.ID();
+            if (matchRoot == null) matchRoot = Database2.ID();
             Search.Root(matchRoot, phrase);
         }
 

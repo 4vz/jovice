@@ -9,13 +9,11 @@ using System.Threading;
 using System.Text.RegularExpressions;
 using Aphysoft.Share;
 
-using Aveezo;
-
 namespace Necrow
 {
     #region To Database
     
-    internal abstract class StatusToDatabase : Data
+    internal abstract class StatusToDatabase : Data2
     {
         public bool Status { get; set; }
 
@@ -144,7 +142,7 @@ namespace Necrow
         public bool UpdateTrafficOutput { get; set; } = false;
     }
 
-    internal abstract class MacToDatabase : Data
+    internal abstract class MacToDatabase : Data2
     {
         public string MacAddress { get; set; }
 
@@ -157,54 +155,54 @@ namespace Necrow
         public bool UpdateAge { get; set; } = false;
     }
 
-    internal class CustomerToDatabase : Data
+    internal class CustomerToDatabase : Data2
     {
         public string Name { get; set; }
 
         public string CID { get; set; }
     }
 
-    internal class ServiceToDatabase : Data
+    internal class ServiceToDatabase : Data2
     {
         public string VID { get; set; }
 
         public string Type { get; set; }
     }
 
-    [Data("NodeSlot", "NC_ID", "NC")]
-    internal class NodeSlotData : Data
+    [DataAttribute2("NodeSlot", "NC_ID", "NC")]
+    internal class NodeSlotData : Data2
     {
-        [Field("{0}_Slot1", true)]
+        [FieldAttribute2("{0}_Slot1", true)]
         public int? Slot1 { get; set; }
 
-        [Field("{0}_Slot2", true)]
+        [FieldAttribute2("{0}_Slot2", true)]
         public int? Slot2 { get; set; }
 
-        [Field("{0}_Slot3", true)]
+        [FieldAttribute2("{0}_Slot3", true)]
         public int? Slot3 { get; set; }
 
-        [Field("{0}_Type", true)]
+        [FieldAttribute2("{0}_Type", true)]
         public string Type { get; set; }
 
-        [Field("{0}_Board", true)]
+        [FieldAttribute2("{0}_Board", true)]
         public string Board { get; set; }
 
-        [Field("{0}_Info", true)]
+        [FieldAttribute2("{0}_Info", true)]
         public string Info { get; set; }
 
-        [Field("{0}_Serial", true)]
+        [FieldAttribute2("{0}_Serial", true)]
         public string Serial { get; set; }
 
-        [Field("{0}_LastStartUp", true)]
+        [FieldAttribute2("{0}_LastStartUp", true)]
         public DateTime? LastStartUp { get; set; }
 
-        [Field("{0}_Enable", true)]
+        [FieldAttribute2("{0}_Enable", true)]
         public bool? Enable { get; set; }
 
-        [Field("{0}_Protocol", true)]
+        [FieldAttribute2("{0}_Protocol", true)]
         public bool? Protocol { get; set; }
 
-        [Field("{0}_Capacity", true)]
+        [FieldAttribute2("{0}_Capacity", true)]
         public int? Capacity { get; set; }
     }
 
@@ -313,7 +311,7 @@ namespace Necrow
 
         private string outputIdentifier = null;
 
-        private Database j;
+        private Database2 j;
 
         private string nodeID;
         private List<string> nodeRules;
@@ -347,8 +345,8 @@ namespace Necrow
         private readonly string jun = "JUNIPER";
         private readonly string xr = "XR";
 
-        private Dictionary<string, Row> reserves;
-        private Dictionary<string, Row> popInterfaces;
+        private Dictionary<string, Row2> reserves;
+        private Dictionary<string, Row2> popInterfaces;
 
         public bool IsProbing { get; private set; } = false;
 
@@ -377,7 +375,7 @@ namespace Necrow
         {
             this.necrow = necrow;
 
-            j = Database.Get("JOVICE");
+            j = Database2.Get("JOVICE");
 
             Identifier = identifier;
         }
@@ -396,7 +394,7 @@ namespace Necrow
                 necrow.Event(message, name, outputIdentifier);
         }
 
-        private void Event(Result result, EventActions action, EventElements element, bool reportzero)
+        private void Event(Result2 result, EventActions action, EventElements element, bool reportzero)
         {
             int row = result.AffectedRows;
             if (row > 0 || (row >= 0 && reportzero))
@@ -599,11 +597,11 @@ namespace Necrow
                     bool continueProcess = false;
 
                     // lets do this
-                    Result resultNode = j.Query("select * from Node where NO_ID = {0}", nodeID);
+                    Result2 resultNode = j.Query("select * from Node where NO_ID = {0}", nodeID);
 
                     if (resultNode == 1)
                     {
-                        Row node = resultNode[0];
+                        Row2 node = resultNode[0];
 
                         if (node == null)
                         {
@@ -726,7 +724,7 @@ namespace Necrow
                                     idleThread.Start();
 
                                     Batch batch = j.Batch();
-                                    Result result;
+                                    Result2 result;
                                     batch.Begin();
 
                                     //// RESERVES
@@ -742,9 +740,9 @@ namespace Necrow
                                     // POP
                                     if (nodeType == "P")
                                     {
-                                        popInterfaces = new Dictionary<string, Row>();
+                                        popInterfaces = new Dictionary<string, Row2>();
                                         result = j.Query("select * from POP where UPPER(OO_NO_Name) = {0}", NodeName);
-                                        foreach (Row row in result)
+                                        foreach (Row2 row in result)
                                         {
                                             string storedID = row["OO_ID"].ToString();
                                             string interfaceName = row["OO_PI_Name"].ToString();
@@ -1575,7 +1573,7 @@ namespace Necrow
 #endif
                 Insert insert;
                 Update update;
-                Result result;
+                Result2 result;
                 Batch batch = j.Batch();
 
                 update = j.Update("Node");
@@ -1604,7 +1602,7 @@ namespace Necrow
                 Dictionary<string, Tuple<string, string>> dbsummaries = new Dictionary<string, Tuple<string, string>>();
 
                 batch.Begin();
-                foreach (Row row in result)
+                foreach (Row2 row in result)
                 {
                     string key = row["NS_Key"].ToString();
                     string id = row["NS_ID"].ToString();
@@ -1625,7 +1623,7 @@ namespace Necrow
 
                     if (db == null)
                     {
-                        string id = Database.ID();
+                        string id = Database2.ID();
 
                         insert = j.Insert("NodeSummary");
                         insert.Value("NS_ID", id);
@@ -1748,14 +1746,14 @@ namespace Necrow
             return true;
         }
 
-        private ProbeProcessResult Enter(Row row, string probeProgressID, bool fromDeepNodeQueue, out bool continueProcess)
+        private ProbeProcessResult Enter(Row2 row, string probeProgressID, bool fromDeepNodeQueue, out bool continueProcess)
         {
             bool prioritizeProcess = false;
             ProbeProcessResult probe = new ProbeProcessResult();
             string[] lines = null;
 
             Batch batch = j.Batch();
-            Result result = null;
+            Result2 result = null;
 
             continueProcess = false;
 
@@ -1893,7 +1891,7 @@ namespace Necrow
                             Event("Node " + NodeName + " has changed to " + hostName);
                             if (!NecrowVirtualization.AliasExists(NodeName))
                             {
-                                j.Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})", Database.ID(), nodeID, NodeName);
+                                j.Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})", Database2.ID(), nodeID, NodeName);
                                 NecrowVirtualization.AliasLoad();
                             }
 
@@ -2722,7 +2720,7 @@ namespace Necrow
 
 
                 Dictionary<string, NodeSlotData> slotlive = new Dictionary<string, NodeSlotData>();
-                Dictionary<string, Row> slotdb = j.QueryDictionary("select * from NodeSlot where NC_NO = {0}", delegate (Row slotr)
+                Dictionary<string, Row2> slotdb = j.QueryDictionary("select * from NodeSlot where NC_NO = {0}", delegate (Row2 slotr)
                 {
 
                     return slotr["NC_Slot1"].ToString() + "-" + slotr["NC_Slot2"].ToString("") + "-" + slotr["NC_Slot3"].ToString("");
@@ -3305,12 +3303,12 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                     {
                         Event("Slot ADD: " + pair.Key);
 
-                        li.Id = Database.ID();
+                        li.Id = Database2.ID();
                         slotinsert.Add(li);
                     }
                     else
                     {
-                        Row db = slotdb[pair.Key];
+                        Row2 db = slotdb[pair.Key];
 
                         if (li.Update(out NodeSlotData u, db))
                         {
@@ -3375,7 +3373,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
 
                 // SDP DELETE
                 batch.Begin();
-                foreach (KeyValuePair<string, Row> pair in slotdb)
+                foreach (KeyValuePair<string, Row2> pair in slotdb)
                 {
                     if (!slotlive.ContainsKey(pair.Key))
                     {
@@ -4204,7 +4202,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
         private void ServiceImmediateDiscovery<T>(SortedDictionary<string, T> liveEntries) where T : ServiceBaseToDatabase
         {
             Batch batch = j.Batch();
-            Result result;
+            Result2 result;
 
             List<ServiceToDatabase> serviceinsert = new List<ServiceToDatabase>();
             List<ServiceToDatabase> serviceupdate = new List<ServiceToDatabase>();
@@ -4242,7 +4240,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
 
                             li.ServiceVID = vid;
 
-                            Result rsi = j.Query("select * from ServiceImmediate where SI_VID = {0} order by SI_SE_Check desc, SI_SE desc, SI_ID desc", vid);
+                            Result2 rsi = j.Query("select * from ServiceImmediate where SI_VID = {0} order by SI_SE_Check desc, SI_SE desc, SI_ID desc", vid);
 
                             if (rsi > 0)
                             {
@@ -4265,7 +4263,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                             }
                             else
                             {
-                                s_id = Database.ID();
+                                s_id = Database2.ID();
 
                                 Event("Service ADD: " + vid);
                                 ServiceToDatabase c = new ServiceToDatabase
@@ -4440,7 +4438,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
 
             bool done = false;
 
-            Result result;
+            Result2 result;
             Batch batch = j.Batch();
             Insert insert;
 
@@ -4529,7 +4527,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                                             // find pi child
                                             li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
                                             result = j.Query("select PI_ID, PI_DOT1Q, PI_TO_MI from PEInterface where PI_PI = {0}", mi.TopologyPEInterfaceID);
-                                            foreach (Row row in result)
+                                            foreach (Row2 row in result)
                                             {
                                                 if (!row["PI_DOT1Q"].IsNull)
                                                 {
@@ -4642,7 +4640,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                                         // find mi child
                                         li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
                                         result = j.Query("select MI_ID, MI_DOT1Q, MI_TO_MI, MI_TO_PI from MEInterface where MI_MI = {0}", li.TopologyMEInterfaceID);
-                                        foreach (Row row in result)
+                                        foreach (Row2 row in result)
                                         {
                                             if (!row["MI_DOT1Q"].IsNull)
                                             {
@@ -4744,14 +4742,14 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                         batch.Begin();
 
                         // insert neighbor node
-                        neighborNodeID = Database.ID();
+                        neighborNodeID = Database2.ID();
                         insert = j.Insert("NodeNeighbor");
                         insert.Value("NN_ID", neighborNodeID);
                         insert.Value("NN_Name", findNeighborNode);
                         batch.Add(insert);
 
                         // insert neighbor interface unspecified
-                        string unspecifiedID = Database.ID();
+                        string unspecifiedID = Database2.ID();
                         insert = j.Insert("NBInterface");
                         insert.Value("NI_ID", unspecifiedID);
                         insert.Value("NI_NN", neighborNodeID);
@@ -4809,7 +4807,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                         if (!exists)
                         {
                             // new interface under neighborNode
-                            string interfaceID = Database.ID();
+                            string interfaceID = Database2.ID();
                             insert = j.Insert("NBInterface");
                             insert.Value("NI_ID", interfaceID);
                             insert.Value("NI_NN", neighborNodeID);

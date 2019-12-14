@@ -13,11 +13,11 @@ namespace Center.Providers
     {
         public static ProviderPacket ProviderRequest(ResourceAsyncResult result, int id)
         {
-            Database j = Database.Get("JOVICE");
+            Database2 j = Database2.Get("JOVICE");
 
             if (id == 5001) // 2001 Main Statistics
             {
-                Result res;
+                Result2 res;
 
                 ProviderStatistics r = new ProviderStatistics();
                 

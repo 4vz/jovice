@@ -5,15 +5,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using Aveezo;
+
 
 namespace Aphysoft.Share
 {
-    public abstract class DatabaseConnection
+    public abstract class DatabaseConnection2
     {
         #region Fields
 
-        public Database database;
+        public Database2 database;
 
         protected Stopwatch stopwatch;
 
@@ -25,7 +25,7 @@ namespace Aphysoft.Share
 
         #region Constructor
 
-        public DatabaseConnection(string connectionString)
+        public DatabaseConnection2(string connectionString)
         {
             stopwatch = new Stopwatch();
 
@@ -36,7 +36,7 @@ namespace Aphysoft.Share
 
         #region Virtuals
 
-        public virtual DatabaseExceptionType ParseMessage(string message) { return DatabaseExceptionType.None; }
+        public virtual DatabaseExceptionType2 ParseMessage(string message) { return DatabaseExceptionType2.None; }
 
         public virtual bool IsConnected() { throw new NotImplementedException(); }
 
@@ -46,11 +46,11 @@ namespace Aphysoft.Share
 
         public virtual string Format(DateTime dateTime) { throw new NotImplementedException(); }
 
-        public virtual Result Query(string sql) { throw new NotImplementedException(); }
+        public virtual Result2 Query(string sql) { throw new NotImplementedException(); }
 
-        public virtual Column Scalar(string sql) { throw new NotImplementedException(); }
+        public virtual Column2 Scalar(string sql) { throw new NotImplementedException(); }
 
-        protected virtual Result Execute(string sql, bool identity) { throw new NotImplementedException(); }
+        protected virtual Result2 Execute(string sql, bool identity) { throw new NotImplementedException(); }
 
         public virtual int Cancel() { throw new NotImplementedException(); }
 
@@ -58,9 +58,9 @@ namespace Aphysoft.Share
 
         #region Methods
 
-        public Result Execute(string sql) { return Execute(sql, false); }
+        public Result2 Execute(string sql) { return Execute(sql, false); }
 
-        public Result ExecuteIdentity(string sql) { return Execute(sql, true); }
+        public Result2 ExecuteIdentity(string sql) { return Execute(sql, true); }
 
         #endregion
     }

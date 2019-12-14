@@ -63,7 +63,7 @@ namespace Center
             List<object> routeType = new List<object>();
             List<object> ipd = new List<object>();
 
-            Result r = Result.Null, r2 = Result.Null, r3 = Result.Null;
+            Result2 r = Result2.Null, r2 = Result2.Null, r3 = Result2.Null;
             string piIndex0MI1 = null;
 
             if (piMatch != null)
@@ -196,7 +196,7 @@ order by d.NO_Active desc, XPI_Name desc, cmc.MC_Status desc, cmc.MC_Protocol de
                 }
 
                 int piIndex = 0;
-                foreach (Row row in r)
+                foreach (Row2 row in r)
                 {
                     if (piIndex == 0 || piIndex == 1)
                     {
@@ -342,7 +342,7 @@ where PU_PI = {0}
                             {
                                 List<object> routes = new List<object>();
 
-                                foreach (Row row2 in r2)
+                                foreach (Row2 row2 in r2)
                                 {
                                     string type = row2["PU_Type"].ToString();
                                     routes.Add(type);
@@ -458,12 +458,12 @@ where a.MI_ID = {0} and a.MI_NO = NO_ID
 ", piToMi);
                             if (r2.Count > 0)
                             {
-                                Row row2 = r2[0];
+                                Row2 row2 = r2[0];
                                 topologyLocalAccess = row2["NO_AR"].ToString();
                             }
                             if (r2.Count == 1)
                             {
-                                Row row2 = r2[0];
+                                Row2 row2 = r2[0];
 
                                 topologyLocalAccess = null;
 
@@ -555,7 +555,7 @@ where a.MP_MC = {0} order by a.MP_TO_MC desc
 ", miMC);
                             if (r2.Count > 0)
                             {
-                                Row row2 = r2[0];
+                                Row2 row2 = r2[0];
 
                                 string mpToMC = row2["MP_TO_MC"].ToString();
 
@@ -688,7 +688,7 @@ where a.MI_MC = {0} and a.MI_NO = n.NO_ID
 
                             if (r2.Count > 0)
                             {
-                                Row row2 = r2[0];
+                                Row2 row2 = r2[0];
                                 topologyElementCurrent = new List<object>();
                                 topologyElementCurrent.Add("MI1");//0
                                 //--
@@ -742,7 +742,7 @@ where m.MI_MI = {0} and m.MI_Aggregator is not null", row2["MI2_ID"].ToString())
                                     List<object> io13 = new List<object>();
                                     List<object> io17 = new List<object>();
 
-                                    foreach (Row row3 in r3)
+                                    foreach (Row2 row3 in r3)
                                     {
                                         io11.Add(row3["MI_Name"].ToString());
                                         io12.Add(row3["MI_Description"].ToString());
@@ -851,7 +851,7 @@ where PA_PI = {0}
 ", piid);
                             Dictionary<string, string> ipmac = new Dictionary<string, string>();
 
-                            foreach (Row row2 in r2)
+                            foreach (Row2 row2 in r2)
                             {
                                 string mip = row2["PA_IP"].ToString();
                                 string mac = row2["PA_MAC"].ToString();
@@ -943,7 +943,7 @@ left join AreaWitel on AR_AW = AW_ID
 left join AreaGroup on AW_AG = AG_ID
 where AR_ID = {0}
 ", topologyLocalAccess);
-                            Row rowla = r[0];
+                            Row2 rowla = r[0];
 
                             topologyLocalAccess = "STO " + rowla["AR_Name"].ToString().Trim() + ", WITEL " + rowla["AW_Name"].ToString().Trim() + ", " + rowla["AG_Name"].ToString().Trim();
                         }
@@ -1055,14 +1055,14 @@ n.NO_AR = ar.AR_ID and ar.AR_AW = aw.AW_ID
                     int qoutput = 0;
                     int rinput = 0;
                     int routput = 0;
-                    Row row = r[0];
+                    Row2 row = r[0];
                     mcID = row["MC_ID"].ToString();
                     localSID = row["SE_SID"].ToString();
 
                     if (detail == null && row["NO_Manufacture"] == "ALCATEL-LUCENT")
                         detail = row["MC_Description"];
 
-                    Column c;
+                    Column2 c;
                     c = Jovice.Database.Scalar("select count(MI_ID) from MEInterface where MI_MC = {0}", mcID);
                     int cint = c.ToInt();
                     c = Jovice.Database.Scalar("select count(MP_ID) from MEPeer where MP_MC = {0}", mcID);
@@ -1107,7 +1107,7 @@ m.MI_MI = {0} and m.MI_Aggregator is not null", row["MI2_ID"].ToString());
                                 List<object> iolNNName = new List<object>();
                                 List<object> iolNIName = new List<object>();
 
-                                foreach (Row row2 in r2)
+                                foreach (Row2 row2 in r2)
                                 {
                                     iolName.Add(row2["MI_Name"].ToString());
                                     iolDesc.Add(row2["MI_Description"].ToString());
@@ -1236,7 +1236,7 @@ left join MEPeer p2 on c.MC_ID = p2.MP_MC
 where p.MP_MC = {0}
 order by p2.MP_TO_MC desc
 ", mcID);
-                            Row row2 = r2[0];
+                            Row2 row2 = r2[0];
 
                             if (r2.Count > 1)
                             {
@@ -1407,7 +1407,7 @@ where m.MI_MI = {0} and m.MI_Aggregator is not null", row2["MI2_ID"].ToString())
                                         List<object> iolNNName = new List<object>();
                                         List<object> iolNIName = new List<object>();
 
-                                        foreach (Row row3 in r3)
+                                        foreach (Row2 row3 in r3)
                                         {
                                             io1Name.Add(row3["MI_Name"].ToString());
                                             io1Desc.Add(row3["MI_Description"].ToString());
@@ -1510,7 +1510,7 @@ where a.MI_MC = {0} and a.MI_ID <> {1}
                                 {
                                     #region MI1
 
-                                    Row row2 = r2[0];
+                                    Row2 row2 = r2[0];
                                     topologyElementCurrent = new List<object>();
                                     topologyElementCurrent.Add("MI1");//0
                                     //--
@@ -1564,7 +1564,7 @@ where m.MI_MI = {0} and m.MI_Aggregator is not null", row2["MI2_ID"].ToString())
                                         List<object> io1NN = new List<object>();
                                         List<object> io1NI = new List<object>();
 
-                                        foreach (Row row3 in r3)
+                                        foreach (Row2 row3 in r3)
                                         {
                                             io1Name.Add(row3["MI_Name"].ToString());
                                             io1Desc.Add(row3["MI_Description"].ToString());
@@ -1690,7 +1690,7 @@ left join AreaWitel on AR_AW = AW_ID
 left join AreaGroup on AW_AG = AG_ID
 where AR_ID = {0}
 ", topologyLocalAccess);
-                        Row rowla = r[0];
+                        Row2 rowla = r[0];
 
                         topologyLocalAccess = "STO " + rowla["AR_Name"].ToString().Trim() + ", WITEL " + rowla["AW_Name"].ToString().Trim() + ", " + rowla["AG_Name"].ToString().Trim();
                     }
@@ -1742,7 +1742,7 @@ where AR_ID = {0}
                 if (DateTime.UtcNow - seLastCheck > TimeSpan.FromHours(1))
                     OSS.RefreshOrder(sid, seID);
 
-                foreach (Row ro in Jovice.Database.Query("select * from ServiceOrder where SO_SE = {0} order by SO_Created desc", seID))
+                foreach (Row2 ro in Jovice.Database.Query("select * from ServiceOrder where SO_SE = {0} order by SO_Created desc", seID))
                 {
                     List<object> orderData = new List<object>();
 
@@ -1772,7 +1772,7 @@ where AR_ID = {0}
 
                         if (dvrf != null)
                         {
-                            Result vr = Jovice.Database.Query(@"select SC_Name, count(SC_NAME) as NameCount
+                            Result2 vr = Jovice.Database.Query(@"select SC_Name, count(SC_NAME) as NameCount
  from PEInterface, PERouteName, ServiceImmediate, Service, ServiceCustomer
  where PN_Name = {0} and PI_PN = PN_ID and PI_SI = SI_ID and SI_SE = SE_ID and SE_SC = SC_ID
  group by SC_Name, SC_AccountNumber
@@ -1801,7 +1801,7 @@ where AR_ID = {0}
                             cid = cid.PadLeft(10, '0');
                         }
 
-                        Result cr = Jovice.Database.Query("select * from ServiceCustomer where SC_AccountNumber = {0}", cid);
+                        Result2 cr = Jovice.Database.Query("select * from ServiceCustomer where SC_AccountNumber = {0}", cid);
 
                         if (cr == 1)
                         {

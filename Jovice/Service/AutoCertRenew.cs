@@ -11,8 +11,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Aveezo;
-
 namespace Jovice
 {
     public static class AutoCertRenew
@@ -29,8 +27,8 @@ namespace Jovice
         
         private static void Check()
         {
-            Database s = Web.Database;
-            Result r = s.Query("select * from DomainController");
+            Database2 s = Web.Database;
+            Result2 r = s.Query("select * from DomainController");
 
             string probeHost = null;
             string probeUser = null;
@@ -75,7 +73,7 @@ namespace Jovice
             ServerManager managerCheck = null;
             SiteCollection sitesCheck = null;
 
-            foreach (Row row in r)
+            foreach (Row2 row in r)
             {
                 string id = row["DC_ID"].ToString();
                 string domain = row["DC_Domain"].ToString();

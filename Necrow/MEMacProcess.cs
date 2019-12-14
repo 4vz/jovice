@@ -7,9 +7,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using Aveezo;
-
-
 namespace Necrow
 {
     #region To Database
@@ -60,14 +57,14 @@ namespace Necrow
 
             string[] lines = null;
             Batch batch = j.Batch();
-            Result result;
+            Result2 result;
 
             #region MAC
 
             Event("Checking Mac");
 
             Dictionary<string, MEMacToDatabase> maclive = new Dictionary<string, MEMacToDatabase>();
-            Dictionary<string, Row> macdb = j.QueryDictionary("select * from MEMac where MA_NO = {0}", delegate (Row row) {
+            Dictionary<string, Row2> macdb = j.QueryDictionary("select * from MEMac where MA_NO = {0}", delegate (Row2 row) {
                 string peerID = row["MA_MP"].ToString();
                 string interfaceID = row["MA_MI"].ToString();
                 if (peerID != null) return row["MA_MAC"].ToString() + "_" + peerID;
@@ -77,16 +74,16 @@ namespace Necrow
             List<MEMacToDatabase> macupdate = new List<MEMacToDatabase>();
             
             // circuits
-            Dictionary<string, Row> circuitdb = null;
+            Dictionary<string, Row2> circuitdb = null;
             if (nodeManufacture == alu) circuitdb = j.QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_VCID", nodeID);
             else if (nodeManufacture == hwe) circuitdb = j.QueryDictionary("select * from MECircuit where MC_NO = {0}", "MC_Description", nodeID);
             if (circuitdb == null) return DatabaseFailure(probe);
 
             // peers
             List<string> duplicatedpeers = new List<string>();
-            Dictionary<string, Row> peerdb = j.QueryDictionary("select * from MEPeer, MECircuit, MESDP where MP_MC = MC_ID and MP_MS = MS_ID and MC_NO = {0}", delegate (Row row) {
+            Dictionary<string, Row2> peerdb = j.QueryDictionary("select * from MEPeer, MECircuit, MESDP where MP_MC = MC_ID and MP_MS = MS_ID and MC_NO = {0}", delegate (Row2 row) {
                 return row["MS_SDP"].ToString() + ":" + row["MP_VCID"].ToString();
-            }, delegate (Row row) { duplicatedpeers.Add(row["MP_ID"].ToString()); }, nodeID);
+            }, delegate (Row2 row) { duplicatedpeers.Add(row["MP_ID"].ToString()); }, nodeID);
             if (peerdb == null) return DatabaseFailure(probe);
             if (duplicatedpeers.Count > 0)
             {
@@ -99,7 +96,7 @@ namespace Necrow
 
             // interfaces
             List<string> duplicatedinterfaces = new List<string>();
-            Dictionary<string, Row> interfacedb = j.QueryDictionary("select * from MEInterface where MI_NO = {0}", "MI_Name", delegate (Row row) { duplicatedinterfaces.Add(row["MI_ID"].ToString()); }, nodeID);
+            Dictionary<string, Row2> interfacedb = j.QueryDictionary("select * from MEInterface where MI_NO = {0}", "MI_Name", delegate (Row2 row) { duplicatedinterfaces.Add(row["MI_ID"].ToString()); }, nodeID);
             if (interfacedb == null) return DatabaseFailure(probe);
             if (duplicatedinterfaces.Count > 0)
             {
@@ -300,12 +297,12 @@ namespace Necrow
 
                 if (!macdb.ContainsKey(pair.Key))
                 {
-                    li.Id = Database.ID();
+                    li.Id = Database2.ID();
                     macinsert.Add(li);
                 }
                 else
                 {
-                    Row db = macdb[pair.Key];
+                    Row2 db = macdb[pair.Key];
 
                     MEMacToDatabase u = new MEMacToDatabase();
                     u.Id = db["MA_ID"].ToString();
@@ -373,7 +370,7 @@ namespace Necrow
 
             // DELETE
             batch.Begin();
-            foreach (KeyValuePair<string, Row> pair in macdb)
+            foreach (KeyValuePair<string, Row2> pair in macdb)
             {
                 if (!maclive.ContainsKey(pair.Key))
                 {

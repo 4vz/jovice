@@ -10,9 +10,6 @@ using Aphysoft.Share;
 using System.Net;
 using Jovice;
 
-using Aveezo;
-
-
 namespace Necrow
 {
     public class ProbeProperties
@@ -124,8 +121,8 @@ namespace Necrow
 
         internal readonly static int Version = 49;
 
-        private Database jovice;
-        private Database oss;
+        private Database2 jovice;
+        private Database2 oss;
 
         private Queue<Tuple<string, ProbeRequestData>> prioritize = new Queue<Tuple<string, ProbeRequestData>>();        
 
@@ -223,11 +220,11 @@ namespace Necrow
 
         internal void DisableNode(string nodeID)
         {            
-            Result result = jovice.Query("select NO_Name from Node where NO_ID = {0}", nodeID);
+            Result2 result = jovice.Query("select NO_Name from Node where NO_ID = {0}", nodeID);
 
             if (result.Count == 1)
             {
-                Row row = result[0];
+                Row2 row = result[0];
 
                 string nodeName = row["NO_Name"].ToString();
 
@@ -251,7 +248,7 @@ namespace Necrow
 
         internal void UpdateManufacture(string nodeID, string manufacture)
         {
-            Result result = jovice.Query("select NO_Name from Node where NO_ID = {0}", nodeID);
+            Result2 result = jovice.Query("select NO_Name from Node where NO_ID = {0}", nodeID);
 
             if (result.Count == 1)
             {
@@ -270,7 +267,7 @@ namespace Necrow
      
         private void DatabaseCheck()
         {
-            Result result;
+            Result2 result;
             Batch batch = jovice.Batch();
 
             #region Upper case node name
@@ -281,7 +278,7 @@ namespace Necrow
             string[] nodeManufactures = new string[] { "CISCO", "HUAWEI", "ALCATEL-LUCENT", "JUNIPER", "TELLABS" };
 
             batch.Begin();
-            foreach (Row row in result)
+            foreach (Row2 row in result)
             {
                 string id = row["NO_ID"].ToString();
 
@@ -338,7 +335,7 @@ namespace Necrow
                 Event($"Removing {result} duplicated neighbor nodes...");
 
                 batch.Begin();
-                foreach (Row row in result)
+                foreach (Row2 row in result)
                 {
                     string nnid = row["NN_ID"].ToString();
                     batch.Add("update MEInterface set MI_TO_NI = NULL where MI_TO_NI in (select NI_ID from NBInterface where NI_NN = {0})", nnid);
@@ -368,7 +365,7 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
                 Event("Removing " + result.Count + " unused interfaces on Node Neighbors...");
 
                 batch.Begin();
-                foreach (Row row in result)
+                foreach (Row2 row in result)
                 {
                     string ni = row["NI_ID"].ToString();
 
@@ -413,7 +410,7 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
                     supportedVersions.Add(new Tuple<string, string, string>(manufacture, version, subVersion));
 
                     Insert insert = jovice.Insert("NodeSupport");
-                    insert.Value("NT_ID", Database.ID());
+                    insert.Value("NT_ID", Database2.ID());
                     insert.Value("NT_Manufacture", manufacture);
                     insert.Value("NT_Version", version);
                     insert.Value("NT_SubVersion", subVersion);
@@ -463,7 +460,7 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
 
                     progressID = qualifiedList[0].Item1;
 
-                    Column noc = jovice.Scalar(@"select XP_NO from ProbeProgress where XP_ID = {0}", progressID);
+                    Column2 noc = jovice.Scalar(@"select XP_NO from ProbeProgress where XP_ID = {0}", progressID);
 
                     pendingList.Remove(progressID);
 
@@ -509,28 +506,28 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
 
                         List<string> queueNodeIDs = new List<string>();
 
-                        Result nres = jovice.Query(@"
+                        Result2 nres = jovice.Query(@"
 select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T') and NO_TimeStamp is null and NO_LastConfiguration is null                        
 ");
-                        Result mres = jovice.Query(@"
+                        Result2 mres = jovice.Query(@"
 select a.NO_ID, a.NO_Name, CASE WHEN a.span < 0 then 0 else a.span end as span from (
 select NO_ID, NO_Name, NO_Type, NO_LastConfiguration, DateDiff(hour, NO_LastConfiguration, NO_TimeStamp) as span, DATEDIFF(hour, NO_TimeStamp, GETUTCDATE()) as span_now
 from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T') and NO_TimeStamp is not null and NO_LastConfiguration is not null
 ) a
 order by span asc, a.NO_LastConfiguration asc
 ");
-                        Result sres = jovice.Query(@"
+                        Result2 sres = jovice.Query(@"
 select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T') and NO_TimeStamp is not null and NO_LastConfiguration is null                        
 ");
 
-                        foreach (Row row in nres) queueNodeIDs.Add(row["NO_ID"].ToString());
-                        foreach (Row row in mres)
+                        foreach (Row2 row in nres) queueNodeIDs.Add(row["NO_ID"].ToString());
+                        foreach (Row2 row in mres)
                         {
                             string add = row["NO_ID"].ToString();
                             if (!queueNodeIDs.Contains(add))
                                 queueNodeIDs.Add(add);
                         }
-                        foreach (Row row in sres)
+                        foreach (Row2 row in sres)
                         {
                             string add = row["NO_ID"].ToString();
                             if (!queueNodeIDs.Contains(add))
@@ -539,7 +536,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T') and NO
 
                         long queueIndex;
                         
-                        Result result = jovice.Query("select top 1 XP_Queue from ProbeProgress order by XP_Queue desc");
+                        Result2 result = jovice.Query("select top 1 XP_Queue from ProbeProgress order by XP_Queue desc");
                         if (result.Count > 0) queueIndex = result[0]["XP_Queue"].ToLong() + 1;
                         else queueIndex = 1;
 
@@ -561,7 +558,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T') and NO
 
                             if (!existInDeep)
                             {
-                                string newProgressID = Database.ID();
+                                string newProgressID = Database2.ID();
 
                                 Insert insert = jovice.Insert("ProbeProgress");
                                 insert.Value("XP_ID", newProgressID);
@@ -765,9 +762,9 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T') and NO
 
             jovice = Jovice.Database;
 
-            jovice.Retry += delegate (object sender, DatabaseExceptionEventArgs eventArgs)
+            jovice.Retry += delegate (object sender, DatabaseExceptionEventArgs2 eventArgs)
             {
-                if (eventArgs.Type == DatabaseExceptionType.Timeout)
+                if (eventArgs.Type == DatabaseExceptionType2.Timeout)
                     Event("Database query has timed out, retrying");
                 else
                 {
@@ -782,7 +779,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T') and NO
             oss = OSS.Database;
 
             Batch batch;
-            Result result;
+            Result2 result;
             
             // Handlers
             //Service.Register(typeof(ServerNecrowServiceMessage), NecrowServiceMessageHandler);
@@ -838,7 +835,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T') and NO
 
                 List<string> progressRemove = new List<string>();
 
-                foreach (Row xp in jovice.Query("select * from ProbeProgress order by XP_Queue asc"))
+                foreach (Row2 xp in jovice.Query("select * from ProbeProgress order by XP_Queue asc"))
                 {
                     string progressID = xp["XP_ID"].ToString();
                     string noid = xp["XP_NO"].ToString();
@@ -907,11 +904,11 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T') and NO
                 // SUPPORTED VERSION
                 if (supportedVersions == null)
                 {
-                    Result sver = jovice.Query("select * from NodeSupport");
+                    Result2 sver = jovice.Query("select * from NodeSupport");
 
                     supportedVersions = new List<Tuple<string, string, string>>();
 
-                    foreach (Row sve in sver)
+                    foreach (Row2 sve in sver)
                     {
                         supportedVersions.Add(new Tuple<string, string, string>(sve["NT_Manufacture"].ToString(), sve["NT_Version"].ToString(), sve["NT_SubVersion"].ToString()));
                     }
@@ -926,7 +923,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T') and NO
                 result = jovice.Query("select * from Node");
                 KeeperNode = new Dictionary<string, Dictionary<string, object>>();
 
-                foreach (Row row in result)
+                foreach (Row2 row in result)
                 {
                     Dictionary<string, object> values = new Dictionary<string, object>();
                     KeeperNode.Add(row["NO_ID"].ToString(), values);
@@ -953,7 +950,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T') and NO
 
                     if (result.Count == 1)
                     {
-                        Row r = result[0];
+                        Row2 r = result[0];
                         Event("TEST MODE ENABLED: " + r["NO_Name"].ToString());
                         TestNode = r["NO_ID"].ToString();
                     }
@@ -979,7 +976,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T') and NO
                             result = jovice.Query("select * from Node");
 
                             batch.Begin();
-                            foreach (Row row in result)
+                            foreach (Row2 row in result)
                             {
                                 string id = row["NO_ID"].ToString();
 
@@ -1020,7 +1017,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T') and NO
 
                         result = jovice.Query("select * from ProbeConfiguration");
 
-                        foreach (Row row in result)
+                        foreach (Row2 row in result)
                         {
                             string key = row["XC_Key"].ToString();
                             string value = row["XC_Value"].ToString();
@@ -1033,7 +1030,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T') and NO
 
                         List<string> userAccessIDs = new List<string>();
 
-                        foreach (Row row in result)
+                        foreach (Row2 row in result)
                         {
                             string id = row["XU_ID"].ToString();
 
@@ -1266,10 +1263,10 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T') and NO
                 {
                     switch (jovice.LastException.Type)
                     {
-                        case DatabaseExceptionType.LoginFailed:
+                        case DatabaseExceptionType2.LoginFailed:
                             failType = "Login Failed";
                             break;
-                        case DatabaseExceptionType.Timeout:
+                        case DatabaseExceptionType2.Timeout:
                             failType = "Connection Timeout";
                             break;
                         default:

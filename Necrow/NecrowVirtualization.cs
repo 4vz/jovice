@@ -5,9 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-using Aveezo;
-
-
 namespace Necrow
 {
     internal static class NecrowVirtualization
@@ -94,8 +91,8 @@ namespace Necrow
         {
             NecrowVirtualization.instance = instance;
 
-            Database jovice = Database.Get("JOVICE");
-            Result result;
+            Database2 jovice = Database2.Get("JOVICE");
+            Result2 result;
             Batch batch = jovice.Batch();
 
             string currentNode;
@@ -118,7 +115,7 @@ order by NO_LEN desc, NO_Name, PI_LEN desc, PI_Name
                 currentNode = null;
                 count = 0;
 
-                foreach (Row row in result)
+                foreach (Row2 row in result)
                 {
                     string node = row["NO_Name"].ToString();
 
@@ -166,7 +163,7 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
                 currentNode = null;
                 count = 0;
 
-                foreach (Row row in result)
+                foreach (Row2 row in result)
                 {
                     string node = row["NO_Name"].ToString();
 
@@ -221,7 +218,7 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
 
             derivedAreaConnections = new Dictionary<string, Tuple<string, string, string, string>>();
             
-            foreach (Row row in result)
+            foreach (Row2 row in result)
             {
                 string id = row["DAC_ID"].ToString();
                 string ar1 = row["DAC_AR_1"].ToString();
@@ -422,7 +419,7 @@ order by NO_LEN desc, NO_Name, MI_LEN desc, MI_Name
         {
             aliases = null;
 
-            Result result = Database.Get("JOVICE").Query(@"
+            Result2 result = Database2.Get("JOVICE").Query(@"
 select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID order by NA_Name
 ");
             if (!result) throw new Exception("Virtualization failed");
@@ -431,7 +428,7 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID order by NA_Nam
 
             int count = 0;
 
-            foreach (Row row in result)
+            foreach (Row2 row in result)
             {
                 string noName = row["NO_Name"].ToString();
 
@@ -448,8 +445,8 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID order by NA_Nam
 
         internal static Tuple<int, int, int> NeighborLoad()
         {
-            Database jovice = Database.Get("JOVICE");
-            Result result;
+            Database2 jovice = Database2.Get("JOVICE");
+            Result2 result;
             Batch batch = jovice.Batch();
             Insert insert;
 
@@ -466,7 +463,7 @@ select NO_Name, NA_Name from Node, NodeAlias where NA_NO = NO_ID order by NA_Nam
                 nodeNeighbors = new Dictionary<string, string>();
 
                 batch.Begin();
-                foreach (Row row in result)
+                foreach (Row2 row in result)
                 {
                     string name = row["NN_Name"].ToString();
                     string id = row["NN_ID"].ToString();
@@ -503,7 +500,7 @@ order by NN_LEN desc, NN_Name, NI_LEN desc, NI_Name
                 currentNode = null;
                 count2 = 0;
 
-                foreach (Row row in result)
+                foreach (Row2 row in result)
                 {
                     string node = row["NN_Name"].ToString();
 
@@ -542,7 +539,7 @@ select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NBInterface on NI_NN = 
 
                 nnUnspecifiedInterfaces = new Dictionary<string, string>();
 
-                foreach (Row row in result)
+                foreach (Row2 row in result)
                 {
                     string id = row["NN_ID"].ToString();
                     string node = row["NN_Name"].ToString();
@@ -563,7 +560,7 @@ select NN_ID, NN_Name, NI_ID from NodeNeighbor left join NBInterface on NI_NN = 
                     }
                     else
                     {
-                        unid = Database.ID();
+                        unid = Database2.ID();
 
                         insert = jovice.Insert("NBInterface");
                         insert.Value("NI_ID", unid);

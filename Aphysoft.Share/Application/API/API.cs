@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 
-using Aveezo;
+
 
 namespace Aphysoft.Share
 {
@@ -25,11 +25,11 @@ namespace Aphysoft.Share
 
         internal static void Init()
         {
-            Database share = Web.Database;
+            Database2 share = Web.Database;
 
-            Dictionary<string, Row> rapi = share.QueryDictionary("select * from [Api]", "AP_Name");
+            Dictionary<string, Row2> rapi = share.QueryDictionary("select * from [Api]", "AP_Name");
 
-            foreach (KeyValuePair<string, Row> pair in rapi)
+            foreach (KeyValuePair<string, Row2> pair in rapi)
             {
                 api.Add(pair.Key, pair.Value["AP_ID"].ToString());
                 apiRegisters.Add(pair.Key, null);

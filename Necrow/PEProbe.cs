@@ -1417,7 +1417,7 @@ namespace Necrow
             qosdb = j.QueryDictionary("select * from PEQOS where PQ_NO = {0}", "PQ_Name", nodeID);
             if (qosdb == null) return DatabaseFailure(probe);
 
-            #endregion
+            #endregion  
 
             #region INTERFACE
 

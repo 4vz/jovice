@@ -345,6 +345,8 @@ namespace Necrow
         private readonly string jun = "JUNIPER";
         private readonly string xr = "XR";
 
+        private readonly string fho = "FIBERHOME";
+
         private Dictionary<string, Row2> reserves;
         private Dictionary<string, Row2> popInterfaces;
 
@@ -1407,11 +1409,23 @@ namespace Necrow
         {
             bool connectSuccess = false;
 
-            string user = tacacUser;
-            string pass = tacacPassword;
+            string user, pass, thost;
+
+            if (nodeType == "F")
+            {
+                user = "740289";
+                pass = "1992Readone";
+                thost = nodeIP;
+            }
+            else
+            {
+                user = tacacUser;
+                pass = tacacPassword;
+                thost = host;
+            }
 
             Event("Connecting with Telnet... (" + user + "@" + host + ")");
-            SendLine("telnet " + host);
+            SendLine("telnet " + thost);
 
             ExpectResult expect = Expect("ogin:", "sername:");
 
@@ -1700,17 +1714,24 @@ namespace Necrow
         {
             if (nodeManufacture == null)
             {
-                SendLine("show clock");
-
-                WaitUntilEndsWith(new string[] { "#", ">" });
-
-                if (LastOutput.IndexOf("syntax error, expecting") > -1) nodeManufacture = jun;
-                else if (LastOutput.IndexOf("Unrecognized command") > -1) nodeManufacture = hwe;
-                else if (LastOutput.IndexOf("Invalid parameter") > -1) nodeManufacture = alu;
-
-                if (nodeManufacture == null)
+                if (nodeType == "F")
                 {
-                    nodeManufacture = cso;
+                    nodeManufacture = fho;
+                }
+                else
+                {
+                    SendLine("show clock");
+
+                    WaitUntilEndsWith(new string[] { "#", ">" });
+
+                    if (LastOutput.IndexOf("syntax error, expecting") > -1) nodeManufacture = jun;
+                    else if (LastOutput.IndexOf("Unrecognized command") > -1) nodeManufacture = hwe;
+                    else if (LastOutput.IndexOf("Invalid parameter") > -1) nodeManufacture = alu;
+
+                    if (nodeManufacture == null)
+                    {
+                        nodeManufacture = cso;
+                    }
                 }
             }
 
@@ -1817,155 +1838,16 @@ namespace Necrow
             if (nodeIP != null) Event("Host IP: " + nodeIP);
 
             Event("Checking host IP");
-            string resolvedIP = ResolveHostName(NodeName, false);
 
-            if (nodeIP == null)
+            if (nodeType == "P" || nodeType == "M" || nodeType == "T")
             {
-                if (resolvedIP == null)
+                string resolvedIP = ResolveHostName(NodeName, false);
+
+                if (nodeIP == null)
                 {
-                    Event("Hostname is unresolved");
-
-                    if (previousRemark == "UNRESOLVED1" && deltaTimeStamp > TimeSpan.FromHours(2))
+                    if (resolvedIP == null)
                     {
-                        Update(UpdateTypes.Remark, "UNRESOLVED2");
-                        necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(22));
-                    }
-                    else if (previousRemark == "UNRESOLVED2" && deltaTimeStamp > TimeSpan.FromHours(24))
-                    {
-                        Update(UpdateTypes.Remark, "UNRESOLVED3");
-                        necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
-                    }
-                    else if (previousRemark == "UNRESOLVED3" && deltaTimeStamp > TimeSpan.FromHours(48))
-                    {
-                        Update(UpdateTypes.Remark, "UNRESOLVED4");
-                        necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
-                    }
-                    else if (previousRemark == "UNRESOLVED4" && deltaTimeStamp > TimeSpan.FromHours(72))
-                    {
-                        Update(UpdateTypes.Remark, "UNRESOLVED5");
-                        necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
-                    }
-                    else if (previousRemark == "UNRESOLVED5" && deltaTimeStamp > TimeSpan.FromHours(96))
-                    {
-                        Update(UpdateTypes.Remark, "UNRESOLVED6");
-                        necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(72));
-                    }
-                    else if (previousRemark == "UNRESOLVED6" && deltaTimeStamp > TimeSpan.FromHours(168))
-                    {
-                        Update(UpdateTypes.Remark, "UNRESOLVED");
-                        necrow.DisableNode(nodeID);
-                    }
-                    else if (previousRemark == null || !previousRemark.StartsWith("UNRESOLVED"))
-                    {
-                        Update(UpdateTypes.Remark, "UNRESOLVED1");
-                        necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(2));
-                    }
-                    else Update(UpdateTypes.Remark, previousRemark);
-
-                    Save();
-                    return probe;
-                }
-                else
-                {
-                    Event("Resolved Host IP: " + resolvedIP);
-                    nodeIP = resolvedIP;
-                    Update(UpdateTypes.IP, nodeIP);
-                }
-            }
-            else
-            {
-                if (resolvedIP == null)
-                {
-                    Event("Hostname is unresolved");
-
-                    // reverse ip?
-                    Event("Resolving by reverse host name");
-                    string hostName = ResolveHostName(nodeIP, true);
-
-                    if (hostName != null)
-                    {
-                        result = j.Query("select * from Node where NO_Name = {0}", hostName);
-
-                        if (result.Count == 0)
-                        {
-                            Event("Node " + NodeName + " has changed to " + hostName);
-                            if (!NecrowVirtualization.AliasExists(NodeName))
-                            {
-                                j.Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})", Database2.ID(), nodeID, NodeName);
-                                NecrowVirtualization.AliasLoad();
-                            }
-
-                            Update(UpdateTypes.Name, hostName);
-
-                            // Update interface virtualizations
-                            if (nodeType == "P" || nodeType == "T")
-                            {
-                                Tuple<string, List<Tuple<string, string, string, string, string, string>>> changeThis = null;
-                                List<Tuple<string, string, string, string, string, string>> interfaces = null;
-                                lock (NecrowVirtualization.PESync)
-                                {
-                                    foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> entry in NecrowVirtualization.PEPhysicalInterfaces)
-                                    {
-                                        if (entry.Item1 == NodeName)
-                                        {
-                                            changeThis = entry;
-                                            break;
-                                        }
-                                    }
-                                    if (changeThis != null)
-                                    {
-                                        NecrowVirtualization.PEPhysicalInterfaces.Remove(changeThis);
-                                        interfaces = changeThis.Item2;
-                                    }
-                                    else interfaces = new List<Tuple<string, string, string, string, string, string>>();
-
-                                    NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(hostName, interfaces));
-                                    NecrowVirtualization.PEPhysicalInterfacesSort();
-                                }
-                            }
-                            else if (nodeType == "M")
-                            {
-                                Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> changeThis = null;
-                                List<Tuple<string, string, string, string, string, string, string>> interfaces = null;
-                                lock (NecrowVirtualization.MESync)
-                                {
-                                    foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> entry in NecrowVirtualization.MEPhysicalInterfaces)
-                                    {
-                                        if (entry.Item1 == NodeName)
-                                        {
-                                            changeThis = entry;
-                                            break;
-                                        }
-                                    }
-                                    if (changeThis != null)
-                                    {
-                                        NecrowVirtualization.MEPhysicalInterfaces.Remove(changeThis);
-                                        interfaces = changeThis.Item2;
-                                    }
-                                    else interfaces = new List<Tuple<string, string, string, string, string, string, string>>();
-
-                                    NecrowVirtualization.MEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(hostName, interfaces));
-                                    NecrowVirtualization.MEPhysicalInterfacesSort();
-                                }
-                            }
-
-                            NodeName = hostName;
-                        }
-                        else
-                        {
-                            Event("Node " + NodeName + " has new name " + hostName + ". " + hostName + " is already exists.");
-                            Event("Mark this node as inactive");
-
-                            Update(UpdateTypes.Remark, "NAMECONFLICTED");
-                            necrow.DisableNode(nodeID);
-
-                            Save();
-                            return probe;
-                        }
-                    }
-                    else
-                    {
-                        Event("Hostname has become unresolved");
+                        Event("Hostname is unresolved");
 
                         if (previousRemark == "UNRESOLVED1" && deltaTimeStamp > TimeSpan.FromHours(2))
                         {
@@ -2007,12 +1889,165 @@ namespace Necrow
                         Save();
                         return probe;
                     }
+                    else
+                    {
+                        Event("Resolved Host IP: " + resolvedIP);
+                        nodeIP = resolvedIP;
+                        Update(UpdateTypes.IP, nodeIP);
+                    }
                 }
-                else if (nodeIP != resolvedIP)
+                else
                 {
-                    Event("Host IP has changed to: " + resolvedIP);
-                    Update(UpdateTypes.IP, resolvedIP);
-                    nodeIP = resolvedIP;
+                    if (resolvedIP == null)
+                    {
+                        Event("Hostname is unresolved");
+
+                        // reverse ip?
+                        Event("Resolving by reverse host name");
+                        string hostName = ResolveHostName(nodeIP, true);
+
+                        if (hostName != null)
+                        {
+                            result = j.Query("select * from Node where NO_Name = {0}", hostName);
+
+                            if (result.Count == 0)
+                            {
+                                Event("Node " + NodeName + " has changed to " + hostName);
+                                if (!NecrowVirtualization.AliasExists(NodeName))
+                                {
+                                    j.Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})", Database2.ID(), nodeID, NodeName);
+                                    NecrowVirtualization.AliasLoad();
+                                }
+
+                                Update(UpdateTypes.Name, hostName);
+
+                                // Update interface virtualizations
+                                if (nodeType == "P" || nodeType == "T")
+                                {
+                                    Tuple<string, List<Tuple<string, string, string, string, string, string>>> changeThis = null;
+                                    List<Tuple<string, string, string, string, string, string>> interfaces = null;
+                                    lock (NecrowVirtualization.PESync)
+                                    {
+                                        foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> entry in NecrowVirtualization.PEPhysicalInterfaces)
+                                        {
+                                            if (entry.Item1 == NodeName)
+                                            {
+                                                changeThis = entry;
+                                                break;
+                                            }
+                                        }
+                                        if (changeThis != null)
+                                        {
+                                            NecrowVirtualization.PEPhysicalInterfaces.Remove(changeThis);
+                                            interfaces = changeThis.Item2;
+                                        }
+                                        else interfaces = new List<Tuple<string, string, string, string, string, string>>();
+
+                                        NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(hostName, interfaces));
+                                        NecrowVirtualization.PEPhysicalInterfacesSort();
+                                    }
+                                }
+                                else if (nodeType == "M")
+                                {
+                                    Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> changeThis = null;
+                                    List<Tuple<string, string, string, string, string, string, string>> interfaces = null;
+                                    lock (NecrowVirtualization.MESync)
+                                    {
+                                        foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> entry in NecrowVirtualization.MEPhysicalInterfaces)
+                                        {
+                                            if (entry.Item1 == NodeName)
+                                            {
+                                                changeThis = entry;
+                                                break;
+                                            }
+                                        }
+                                        if (changeThis != null)
+                                        {
+                                            NecrowVirtualization.MEPhysicalInterfaces.Remove(changeThis);
+                                            interfaces = changeThis.Item2;
+                                        }
+                                        else interfaces = new List<Tuple<string, string, string, string, string, string, string>>();
+
+                                        NecrowVirtualization.MEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(hostName, interfaces));
+                                        NecrowVirtualization.MEPhysicalInterfacesSort();
+                                    }
+                                }
+
+                                NodeName = hostName;
+                            }
+                            else
+                            {
+                                Event("Node " + NodeName + " has new name " + hostName + ". " + hostName + " is already exists.");
+                                Event("Mark this node as inactive");
+
+                                Update(UpdateTypes.Remark, "NAMECONFLICTED");
+                                necrow.DisableNode(nodeID);
+
+                                Save();
+                                return probe;
+                            }
+                        }
+                        else
+                        {
+                            Event("Hostname has become unresolved");
+
+                            if (previousRemark == "UNRESOLVED1" && deltaTimeStamp > TimeSpan.FromHours(2))
+                            {
+                                Update(UpdateTypes.Remark, "UNRESOLVED2");
+                                necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(22));
+                            }
+                            else if (previousRemark == "UNRESOLVED2" && deltaTimeStamp > TimeSpan.FromHours(24))
+                            {
+                                Update(UpdateTypes.Remark, "UNRESOLVED3");
+                                necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
+                            }
+                            else if (previousRemark == "UNRESOLVED3" && deltaTimeStamp > TimeSpan.FromHours(48))
+                            {
+                                Update(UpdateTypes.Remark, "UNRESOLVED4");
+                                necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
+                            }
+                            else if (previousRemark == "UNRESOLVED4" && deltaTimeStamp > TimeSpan.FromHours(72))
+                            {
+                                Update(UpdateTypes.Remark, "UNRESOLVED5");
+                                necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
+                            }
+                            else if (previousRemark == "UNRESOLVED5" && deltaTimeStamp > TimeSpan.FromHours(96))
+                            {
+                                Update(UpdateTypes.Remark, "UNRESOLVED6");
+                                necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(72));
+                            }
+                            else if (previousRemark == "UNRESOLVED6" && deltaTimeStamp > TimeSpan.FromHours(168))
+                            {
+                                Update(UpdateTypes.Remark, "UNRESOLVED");
+                                necrow.DisableNode(nodeID);
+                            }
+                            else if (previousRemark == null || !previousRemark.StartsWith("UNRESOLVED"))
+                            {
+                                Update(UpdateTypes.Remark, "UNRESOLVED1");
+                                necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(2));
+                            }
+                            else Update(UpdateTypes.Remark, previousRemark);
+
+                            Save();
+                            return probe;
+                        }
+                    }
+                    else if (nodeIP != resolvedIP)
+                    {
+                        Event("Host IP has changed to: " + resolvedIP);
+                        Update(UpdateTypes.IP, resolvedIP);
+                        nodeIP = resolvedIP;
+                    }
+                }
+            }
+            else if (nodeType == "F")
+            {
+                if (nodeIP == null)
+                {
+                    Update(UpdateTypes.Remark, "UNRESOLVED");
+                    necrow.DisableNode(nodeID);
+                    Save();
+                    return probe;
                 }
             }
 
@@ -2307,6 +2342,12 @@ namespace Necrow
 
                 string[] linex = lastLine.Split(new char[] { '@' }, StringSplitOptions.RemoveEmptyEntries);
                 terminal = linex[1];
+            }
+            else if (nodeManufacture == fho)
+            {
+                lines = LastOutput.Split('\n');
+                string lastLine = lines[lines.Length - 1];
+                terminal = lastLine;
             }
 
             terminal = terminal.Trim();
@@ -2612,6 +2653,12 @@ namespace Necrow
                         break;
                     }
                 }
+
+                #endregion
+            }
+            else if (nodeManufacture == fho)
+            {
+                #region fho
 
                 #endregion
             }

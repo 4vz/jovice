@@ -15,7 +15,7 @@ namespace Necrow
         static void Main(string[] args)
         {
 #if DEBUG
-            Apps.Service(new Necrow("ME-D2-SPU", ProbeTypes.Deep));
+            Apps.Service(new Necrow("PE3-D2-CKA-VPN", ProbeTypes.Deep));
 #else
             Apps.Service(new Necrow());
 #endif

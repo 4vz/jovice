@@ -7,14 +7,14 @@ namespace Necrow.Probe
     {
         static void Main(string[] args)
         {
-            Database d = new Database("Data Source=localhost;Initial Catalog=jovice;User ID=development;Password=development;async=true", DatabaseType.SqlServer);
+            //Database d = new Database("Data Source=localhost;Initial Catalog=jovice;User ID=development;Password=development;async=true", DatabaseType.SqlServer);
+
+
+
+
+            //dResult co = d.Query("sda");
 
             
-       
-            while (d.Query("select * from Node", out string de))
-            {
-
-            }
 
 
 

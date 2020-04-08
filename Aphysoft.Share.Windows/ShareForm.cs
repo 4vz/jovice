@@ -14,9 +14,6 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 
 using Aphysoft.Share;
-using ImageProcessor;
-using Svg;
-using Svg.Pathing;
 
 namespace Aphysoft.Share
 {

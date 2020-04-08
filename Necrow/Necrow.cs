@@ -119,7 +119,7 @@ namespace Necrow
     {
         #region Fields
 
-        internal readonly static int Version = 50;
+        internal readonly static int Version = 51;
 
         private Database2 jovice;
         private Database2 oss;
@@ -507,17 +507,17 @@ where NI_Name <> 'UNSPECIFIED' and MI_ID is null and PI_ID is null
                         List<string> queueNodeIDs = new List<string>();
 
                         Result2 nres = jovice.Query(@"
-select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T') and NO_TimeStamp is null and NO_LastConfiguration is null                        
+select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T', 'F') and NO_TimeStamp is null and NO_LastConfiguration is null                        
 ");
                         Result2 mres = jovice.Query(@"
 select a.NO_ID, a.NO_Name, CASE WHEN a.span < 0 then 0 else a.span end as span from (
 select NO_ID, NO_Name, NO_Type, NO_LastConfiguration, DateDiff(hour, NO_LastConfiguration, NO_TimeStamp) as span, DATEDIFF(hour, NO_TimeStamp, GETUTCDATE()) as span_now
-from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T') and NO_TimeStamp is not null and NO_LastConfiguration is not null
+from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T', 'F') and NO_TimeStamp is not null and NO_LastConfiguration is not null
 ) a
 order by span asc, a.NO_LastConfiguration asc
 ");
                         Result2 sres = jovice.Query(@"
-select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T') and NO_TimeStamp is not null and NO_LastConfiguration is null                        
+select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T', 'F') and NO_TimeStamp is not null and NO_LastConfiguration is null                        
 ");
 
                         foreach (Row2 row in nres) queueNodeIDs.Add(row["NO_ID"].ToString());

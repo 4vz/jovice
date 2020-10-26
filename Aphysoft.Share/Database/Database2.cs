@@ -22,6 +22,8 @@ namespace Aphysoft.Share
 
         private DatabaseConnection2 connection;
 
+        public string ConnectionString => connection.ConnectionString;
+        
         public string TablePrefix { get; } = null;
 
         private string[] databaseTables = new string[] { };
@@ -553,6 +555,7 @@ namespace Aphysoft.Share
 
                         if (type != null)
                         {
+                            
                             ConstructorInfo ctor = type.GetConstructor(new[] { typeof(string) });
                             database = new Database2((DatabaseConnection2)ctor.Invoke(new object[] { config }));
                         }

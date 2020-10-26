@@ -137,7 +137,7 @@ namespace Aphysoft.Share
             {
                 IsStarted = true;
 
-                new Thread(new ThreadStart(delegate ()
+                new Thread(new ThreadStart(() =>
                 {
                     OnStarting();
 

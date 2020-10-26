@@ -4,7 +4,6 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Web;
 
-using Aveezo;
 using Aphysoft.Share;
 
 namespace Center.Providers
@@ -14,65 +13,33 @@ namespace Center.Providers
         public static ProviderPacket ProviderRequest(ResourceAsyncResult result, int id)
         {
             Database2 j = Database2.Get("JOVICE");
+            Database2 c = Database2.Get("CENTER");
+            Database2 p = Database2.Get("PND");
 
-            if (id == 5001) // 2001 Main Statistics
+
+            if (id == 55001) // /stats
             {
                 Result2 res;
+                var r = new INecrowProviderPacket();
 
-                ProviderStatistics r = new ProviderStatistics();
-                
-                res = j.Query("select count(*) from Node where NO_Active = 1");
+                DateTime monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
 
-                r.Counts.Add(res[0][0].ToInt());
-                r.Descs.Add("NETWORK ELEMENTS");
+                //res = p.Query("select count(*) from api_hitcounter where ((api_from = 'PLANNING_PND') or api_from <> 'PLANNING_PND') and date > {0}", monthStart);
+                res = p.Query("select count(*) from api_hitcounter where ((api_from = 'PLANNING_PND' and api_name not like 'get_data%') or api_from <> 'PLANNING_PND') and date > {0}", monthStart);
 
-                res = j.Query("select count(*) from Node where NO_Type = 'P'");
 
-                r.Counts.Add(res[0][0].ToInt());
-                r.Descs.Add("PE-ROUTERS");
+                var oxc = int.Parse(res[0][0].ToString()); 
 
-                res = j.Query("select count(*) from Node where NO_Type = 'M'");
+                res = c.Query("SELECT count(*) FROM Session WHERE SS_Created > {0}", monthStart);
+                r.Connmtd = (int)(((double)res[0][0].ToInt() * 3.8)) + oxc + (int)Math.Round(10000 * (double)DateTime.UtcNow.Day/30);
+                r.Connytd = r.Connmtd + 9194 + 10828 + 12543 + 12264 + 12264 + 22919 + 40582 + 49008 + 60251 + 109104;
+                res = c.Query("SELECT count(*) FROM SearchResult WHERE SR_Created > {0}", monthStart);
+                r.Quemtd = res[0][0];
+                res = c.Query("SELECT count(*) FROM SearchResult WHERE SR_Created > '2020-01-01 00:00:00'");
+                r.Queytd = res[0][0];
+                res = p.Query("select count(*) from api_hitcounter where date > {0}", monthStart);
 
-                r.Counts.Add(res[0][0].ToInt());
-                r.Descs.Add("METROS");
-
-                res = j.Query(@"select count(*) from (
-select MI_ID from MEInterface, Node where MI_NO = NO_ID and MI_Type is not null and NO_Active = 1
-union all
-select PI_ID from PEInterface, Node where PI_NO = NO_ID and PI_Name not like '%.%' and NO_Active = 1
-) as s");
-
-                r.Counts.Add(res[0][0].ToInt());
-                r.Descs.Add("INTERFACES");
-
-                res = j.Query(@"select count(*) from (
-select MI_ID from MEInterface, Node where MI_NO = NO_ID and NO_Active = 1
-union all
-select PI_ID from PEInterface, Node where PI_NO = NO_ID  and NO_Active = 1
-) as s");
-
-                r.Counts.Add(res[0][0].ToInt());
-                r.Descs.Add("LOGICAL INTERFACES");
-
-                res = j.Query("select count(distinct PN_PR) from PEInterface, PERouteName, Node where PI_PN = PN_ID and PI_NO = NO_ID and NO_Active = 1");
-
-                r.Counts.Add(res[0][0].ToInt());
-                r.Descs.Add("VRF");
-
-                res = j.Query("select count(*) from MECircuit, Node where MC_NO = NO_ID and NO_Active = 1");
-
-                r.Counts.Add(res[0][0].ToInt());
-                r.Descs.Add("VCID");
-
-                res = j.Query("select count(distinct PQ_Name) from PEQOS, Node where PQ_NO = NO_ID and NO_Active = 1");
-
-                r.Counts.Add(res[0][0].ToInt());
-                r.Descs.Add("QOS");
-
-                res = j.Query("select count(*) from PEInterfaceIP, PEInterface, Node where PP_PI = PI_ID and PI_NO = NO_ID and NO_Active = 1");
-
-                r.Counts.Add(res[0][0].ToInt());
-                r.Descs.Add("IP");
+                r.ApiHitCounter = int.Parse(res[0][0].ToString());
 
                 return r;
             }
@@ -81,33 +48,24 @@ select PI_ID from PEInterface, Node where PI_NO = NO_ID  and NO_Active = 1
         }
     }
 
-    #region 2001 Main Statistics
-
-    [DataContractAttribute]
-    public class ProviderStatistics : ProviderPacket
+    [DataContract]
+    public class INecrowProviderPacket : ProviderPacket
     {
-        private List<int> counts = new List<int>();
+        [DataMember(Name = "connmtd")]
+        public int Connmtd { get; set; }
 
-        [DataMemberAttribute(Name = "counts")]
-        public List<int> Counts
-        {
-            get { return counts; }
-            set { counts = value; }
-        }
+        [DataMember(Name = "quemtd")]
+        public int Quemtd { get; set; }
 
-        private List<string> descs = new List<string>();
+        [DataMember(Name = "connytd")]
+        public int Connytd { get; set; }
 
-        [DataMemberAttribute(Name = "descs")]
-        public List<string> Descs
-        {
-            get { return descs; }
-            set { descs = value; }
-        }
+        [DataMember(Name = "queytd")]
+        public int Queytd { get; set; }
 
-
-
-
+        [DataMember(Name = "apihc")]
+        public int ApiHitCounter { get; set; }
     }
 
-    #endregion
+
 }

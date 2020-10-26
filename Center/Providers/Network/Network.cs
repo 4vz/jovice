@@ -5,8 +5,6 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Web;
 
-using Aveezo;
-
 namespace Center.Providers
 {
     public static class Network

@@ -28,22 +28,6 @@ namespace Necrow
     {
         #region Topology
         
-        private string topologyPEInterfaceID = null;
-
-        public string TopologyPEInterfaceID
-        {
-            get { return topologyPEInterfaceID; }
-            set { topologyPEInterfaceID = value; }
-        }
-
-        private bool updateTopologyPEInterfaceID = false;
-
-        public bool UpdateTopologyPEInterfaceID
-        {
-            get { return updateTopologyPEInterfaceID; }
-            set { updateTopologyPEInterfaceID = value; }
-        }
-        
         private MEInterfaceToDatabase[] aggrChilds = null;
 
         public MEInterfaceToDatabase[] AggrChilds
@@ -3409,8 +3393,6 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                     }
                                 }
 
-
-
                                 // jika child ga nyambung, coba orang tua
                                 //if (childNeighborParentID == null)
                                 //{
@@ -3427,7 +3409,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
                                         // query lawan
                                         li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
-                                        result = j.Query("select PI_ID, PI_DOT1Q, PI_TO_MI from PEInterface where PI_PI = {0}", li.TopologyPEInterfaceID);
+                                        result = j.Query("select PI_ID, PI_DOT1Q, PI_TO_MI, PI_TO_PI from PEInterface where PI_PI = {0}", li.TopologyPEInterfaceID);
                                         if (!result) return DatabaseFailure(probe);
                                         foreach (Row2 row in result)
                                         {
@@ -3435,7 +3417,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                             {
                                                 int dot1q = row["PI_DOT1Q"].ToIntShort();
                                                 if (!li.ChildrenNeighbor.ContainsKey(dot1q)) li.ChildrenNeighbor.Add(dot1q,
-                                                    new Tuple<string, string, string>(row["PI_ID"].ToString(), row["PI_TO_MI"].ToString(), null));
+                                                    new Tuple<string, string, string>(row["PI_ID"].ToString(), row["PI_TO_MI"].ToString(), row["PI_TO_PI"].ToString()));
                                             }
                                         }
                                     }

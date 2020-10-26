@@ -9,8 +9,6 @@ using System.Text;
 using System.Net;
 using Jovice;
 
-using Aveezo;
-
 namespace Center.Providers
 {
     public class ServiceSearchMatch : SearchMatch

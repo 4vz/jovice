@@ -107,6 +107,10 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Aphysoft.Share.MySql\Aphysoft.Share.MySql.csproj">
+      <Project>{1ee4322e-ad76-4917-9826-68fc816f7602}</Project>
+      <Name>Aphysoft.Share.MySql</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Aphysoft.Share.Oracle\Aphysoft.Share.Oracle.csproj">
       <Project>{fd7c3c83-1251-4d47-b201-539ad65d279c}</Project>
       <Name>Aphysoft.Share.Oracle</Name>
@@ -140,6 +144,7 @@
     <None Include="View\Satellite\PNG\dish.png" />
     <None Include="View\Satellite\PNG\sine1.png" />
     <None Include="View\coba.js" />
+    <None Include="View\stats.js" />
     <Content Include="Web.config">
       <SubType>Designer</SubType>
     </Content>

@@ -6,7 +6,6 @@ using System.Linq;
 using System.Net;
 using System.Web;
 
-using Aveezo;
 using Jovice;
 
 namespace Center

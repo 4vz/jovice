@@ -134,6 +134,22 @@ namespace Necrow
             set { updateNeighborCheckMITOPI = value; }
         }
 
+        private string neighborCheckPITOPI = null;
+
+        public string NeighborCheckPITOPI
+        {
+            get { return neighborCheckPITOPI; }
+            set { neighborCheckPITOPI = value; }
+        }
+
+        private bool updateNeighborCheckPITOPI = false;
+
+        public bool UpdateNeighborCheckPITOPI
+        {
+            get { return updateNeighborCheckPITOPI; }
+            set { updateNeighborCheckPITOPI = value; }
+        }
+
         private string routeNameID;
 
         public string RouteNameID
@@ -2646,11 +2662,14 @@ Last input 00:00:00, output 00:00:00
                 int ipv6SecondaryAddressCtr = 1;
                 string additionalSecondary = null;
 
+                bool foundPhysicalInterface = false;
+
                 foreach (string line in lines)
                 {
                     string lineTrim = line.Trim();
                     if (line.StartsWith("Physical interface: "))
                     {
+                        foundPhysicalInterface = true;
                         string[] splits = line.Substring(19).Trim().Split(StringSplitTypes.Comma);
 
                         if (splits.Length == 3)
@@ -2673,231 +2692,237 @@ Last input 00:00:00, output 00:00:00
                                 ipv6SecondaryAddressCtr = 1;
                                 additionalSecondary = null;
 
+                                //if (nif.Name == "Te0/1/1")
+                                //    Event("Debug");
+                                //
                                 interfacelive.Add(current.Name, current);
                             }
                             else current = null;
                         }
                     }
-                    else if (line.StartsWith("  Logical interface "))
+                    else if (foundPhysicalInterface)
                     {
-                        string ifname = line.Substring(20, line.IndexOf(' ', 20) - 20);
-                        NetworkInterface nif = NetworkInterface.Parse(ifname, nodeManufacture);
-                        if (nif != null)
+                        if (line.StartsWith("  Logical interface "))
                         {
-                            current = new PEInterfaceToDatabase();
-                            current.Name = nif.Name;
-
-                            if (subifStatProt.ContainsKey(nif.Name))
+                            string ifname = line.Substring(20, line.IndexOf(' ', 20) - 20);
+                            NetworkInterface nif = NetworkInterface.Parse(ifname, nodeManufacture);
+                            if (nif != null)
                             {
-                                current.Enable = subifStatProt[nif.Name].Item1;
-                                current.Status = current.Enable;
-                                current.Protocol = subifStatProt[nif.Name].Item2;
-                            }
+                                current = new PEInterfaceToDatabase();
+                                current.Name = nif.Name;
 
-                            physicalInterface = false;
-                            collectAddress = false;
-                            ipv4SecondaryAddressCtr = 1;
-                            ipv6SecondaryAddressCtr = 1;
-                            additionalSecondary = null;
-
-                            interfacelive.Add(current.Name, current);
-                        }
-                        else current = null;
-                    }
-                    else if (current != null)
-                    {
-                        if (lineTrim.StartsWith("Description:"))
-                        {
-                            //Description: IPTV MULTICAST TRAFFIC
-                            //01234567890123456789
-                            current.Description = lineTrim.Substring(13);
-                        }
-                        else if (lineTrim.StartsWith("Flags:"))
-                        {
-                            //SNMP-Traps 0x4000 VLAN-Tag [ 0x8100.1002 ]  Encapsulation: ENET2
-                            string lineValue = lineTrim.Substring(7);
-                            int vtag = lineValue.IndexOf("VLAN-Tag");
-                            if (vtag > -1)
-                            {
-                                string vtags = lineValue.Substring(vtag);
-                                int vtagdot = vtags.IndexOf('.');
-                                if (vtagdot > -1)
+                                if (subifStatProt.ContainsKey(nif.Name))
                                 {
-                                    string vlanid = vtags.Substring(vtagdot + 1, vtags.IndexOf(' ', vtagdot) - vtagdot - 1);
-                                    int dot1q;
-                                    if (int.TryParse(vlanid, out dot1q))
-                                    {
-                                        if (dot1q > 0)
-                                            current.Dot1Q = dot1q;
-                                    }
+                                    current.Enable = subifStatProt[nif.Name].Item1;
+                                    current.Status = current.Enable;
+                                    current.Protocol = subifStatProt[nif.Name].Item2;
                                 }
+
+                                physicalInterface = false;
+                                collectAddress = false;
+                                ipv4SecondaryAddressCtr = 1;
+                                ipv6SecondaryAddressCtr = 1;
+                                additionalSecondary = null;
+
+                                interfacelive.Add(current.Name, current);
                             }
+                            else current = null;
                         }
-                        else if (lineTrim.StartsWith("Link-level type") && physicalInterface && !current.Name.StartsWith("Ag"))
+                        else if (current != null)
                         {
-                            // Link-level type: Ethernet, MTU: 9014, Speed: 10Gbps, BPDU Error: None
-                            string[] tokens = lineTrim.Split(StringSplitTypes.Comma);
-                            foreach (string token in tokens)
+                            if (lineTrim.StartsWith("Description:"))
                             {
-                                string[] pair = token.Trim().Split(new char[] { ':' });
-                                if (pair.Length == 2)
-                                {
-                                    string key = pair[0].Trim();
-                                    string value = pair[1].Trim().ToLower();
-
-                                    if (key == "Speed")
-                                    {
-                                        if (value == "10gbps") current.InterfaceType = "Te";
-                                        else if (value == "1g" || value == "1gbps" || value == "1000m" || value == "1000mbps") current.InterfaceType = "Gi";
-                                        else if (value == "100m" || value == "100mbps") current.InterfaceType = "Fa";
-                                        else if (value == "10m" || value == "10mbps") current.InterfaceType = "Et";
-                                        break;
-                                    }
-                                }
+                                //Description: IPTV MULTICAST TRAFFIC
+                                //01234567890123456789
+                                current.Description = lineTrim.Substring(13);
                             }
-                        }
-                        else if (lineTrim.StartsWith("Addresses,")) collectAddress = true;
-                        else if (lineTrim.StartsWith("Destination:"))
-                        {                            
-                            string[] tokens = lineTrim.Split(StringSplitTypes.Comma, StringSplitOptions.RemoveEmptyEntries);
-                            // Destination: 10.1.3.36/30, Local: 10.1.3.37
-                            if (tokens.Length >= 2)
+                            else if (lineTrim.StartsWith("Flags:"))
                             {
-                                string dest = tokens[0].Trim();
-                                string locl = tokens[1].Trim();
-
-                                if (dest.IndexOf('/') > -1)
+                                //SNMP-Traps 0x4000 VLAN-Tag [ 0x8100.1002 ]  Encapsulation: ENET2
+                                string lineValue = lineTrim.Substring(7);
+                                int vtag = lineValue.IndexOf("VLAN-Tag");
+                                if (vtag > -1)
                                 {
-                                    string[] slashs = dest.Split(new char[] { '/' });
-                                    if (slashs.Length == 2)
+                                    string vtags = lineValue.Substring(vtag);
+                                    int vtagdot = vtags.IndexOf('.');
+                                    if (vtagdot > -1)
                                     {
-                                        int slash = -1;
-                                        if (!int.TryParse(slashs[1], out slash)) slash = -1;
-                                        if (slash > -1)
+                                        string vlanid = vtags.Substring(vtagdot + 1, vtags.IndexOf(' ', vtagdot) - vtagdot - 1);
+                                        int dot1q;
+                                        if (int.TryParse(vlanid, out dot1q))
                                         {
-                                            string[] locals = locl.Split(new char[] { ':' }, 2);
-                                            if (locals.Length == 2)
-                                            {
-                                                string iplocal = locals[1].Trim() + "/" + slash;
-                                                if (current.IP == null) current.IP = new List<string>();
+                                            if (dot1q > 0)
+                                                current.Dot1Q = dot1q;
+                                        }
+                                    }
+                                }
+                            }
+                            else if (lineTrim.StartsWith("Link-level type") && physicalInterface && !current.Name.StartsWith("Ag"))
+                            {
+                                // Link-level type: Ethernet, MTU: 9014, Speed: 10Gbps, BPDU Error: None
+                                string[] tokens = lineTrim.Split(StringSplitTypes.Comma);
+                                foreach (string token in tokens)
+                                {
+                                    string[] pair = token.Trim().Split(new char[] { ':' });
+                                    if (pair.Length == 2)
+                                    {
+                                        string key = pair[0].Trim();
+                                        string value = pair[1].Trim().ToLower();
 
-                                                if (collectAddress == false)
+                                        if (key == "Speed")
+                                        {
+                                            if (value == "10gbps") current.InterfaceType = "Te";
+                                            else if (value == "1g" || value == "1gbps" || value == "1000m" || value == "1000mbps") current.InterfaceType = "Gi";
+                                            else if (value == "100m" || value == "100mbps") current.InterfaceType = "Fa";
+                                            else if (value == "10m" || value == "10mbps") current.InterfaceType = "Et";
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            else if (lineTrim.StartsWith("Addresses,")) collectAddress = true;
+                            else if (lineTrim.StartsWith("Destination:"))
+                            {
+                                string[] tokens = lineTrim.Split(StringSplitTypes.Comma, StringSplitOptions.RemoveEmptyEntries);
+                                // Destination: 10.1.3.36/30, Local: 10.1.3.37
+                                if (tokens.Length >= 2)
+                                {
+                                    string dest = tokens[0].Trim();
+                                    string locl = tokens[1].Trim();
+
+                                    if (dest.IndexOf('/') > -1)
+                                    {
+                                        string[] slashs = dest.Split(new char[] { '/' });
+                                        if (slashs.Length == 2)
+                                        {
+                                            int slash = -1;
+                                            if (!int.TryParse(slashs[1], out slash)) slash = -1;
+                                            if (slash > -1)
+                                            {
+                                                string[] locals = locl.Split(new char[] { ':' }, 2);
+                                                if (locals.Length == 2)
                                                 {
-                                                    // store ip to
-                                                    additionalSecondary = iplocal;
-                                                }
-                                                else
-                                                {
-                                                    if (iplocal.IndexOf(':') > -1)
+                                                    string iplocal = locals[1].Trim() + "/" + slash;
+                                                    if (current.IP == null) current.IP = new List<string>();
+
+                                                    if (collectAddress == false)
                                                     {
-                                                        current.IP.Add("1_" + ipv6SecondaryAddressCtr + "_" + iplocal);
-                                                        ipv6SecondaryAddressCtr++;
+                                                        // store ip to
+                                                        additionalSecondary = iplocal;
                                                     }
                                                     else
                                                     {
-                                                        current.IP.Add("0_" + ipv4SecondaryAddressCtr + "_" + iplocal);
-                                                        ipv4SecondaryAddressCtr++;
-                                                    }                                        
-
-                                                    if (additionalSecondary != null)
-                                                    {
-                                                        if (additionalSecondary.IndexOf(':') > -1)
+                                                        if (iplocal.IndexOf(':') > -1)
                                                         {
-                                                            current.IP.Add("1_" + ipv6SecondaryAddressCtr + "_" + additionalSecondary);
+                                                            current.IP.Add("1_" + ipv6SecondaryAddressCtr + "_" + iplocal);
                                                             ipv6SecondaryAddressCtr++;
                                                         }
                                                         else
                                                         {
-                                                            current.IP.Add("0_" + ipv4SecondaryAddressCtr + "_" + additionalSecondary);
+                                                            current.IP.Add("0_" + ipv4SecondaryAddressCtr + "_" + iplocal);
                                                             ipv4SecondaryAddressCtr++;
                                                         }
-                                                        additionalSecondary = null;
+
+                                                        if (additionalSecondary != null)
+                                                        {
+                                                            if (additionalSecondary.IndexOf(':') > -1)
+                                                            {
+                                                                current.IP.Add("1_" + ipv6SecondaryAddressCtr + "_" + additionalSecondary);
+                                                                ipv6SecondaryAddressCtr++;
+                                                            }
+                                                            else
+                                                            {
+                                                                current.IP.Add("0_" + ipv4SecondaryAddressCtr + "_" + additionalSecondary);
+                                                                ipv4SecondaryAddressCtr++;
+                                                            }
+                                                            additionalSecondary = null;
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
                                     }
                                 }
-                            }
 
-                            collectAddress = false;
-                        }
-                        else if (lineTrim.StartsWith("Policer: "))
-                        {
-                            //Input: Limit_Rate_10M-ge-0/0/0.140-inet-i, Output: Limit_Rate_10M-ge-0/0/0.140-inet-o
-                            string lineValue = lineTrim.Substring(9);
-                            string[] tokens = lineValue.Split(StringSplitTypes.Comma);
-                            foreach (string token in tokens)
+                                collectAddress = false;
+                            }
+                            else if (lineTrim.StartsWith("Policer: "))
                             {
-                                string tokenTrim = token.Trim();
-                                if (tokenTrim.StartsWith("Input: "))
+                                //Input: Limit_Rate_10M-ge-0/0/0.140-inet-i, Output: Limit_Rate_10M-ge-0/0/0.140-inet-o
+                                string lineValue = lineTrim.Substring(9);
+                                string[] tokens = lineValue.Split(StringSplitTypes.Comma);
+                                foreach (string token in tokens)
                                 {
-                                    string tokenValue = tokenTrim.Substring(7);
-                                    foreach (KeyValuePair<string, Row2> pair in qosdb)
+                                    string tokenTrim = token.Trim();
+                                    if (tokenTrim.StartsWith("Input: "))
                                     {
-                                        if (tokenValue.StartsWith(pair.Key + "-"))
+                                        string tokenValue = tokenTrim.Substring(7);
+                                        foreach (KeyValuePair<string, Row2> pair in qosdb)
                                         {
-                                            current.InputQOSID = pair.Value["PQ_ID"].ToString();
-                                            break;
+                                            if (tokenValue.StartsWith(pair.Key + "-"))
+                                            {
+                                                current.InputQOSID = pair.Value["PQ_ID"].ToString();
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    else if (tokenTrim.StartsWith("Output: "))
+                                    {
+                                        string tokenValue = tokenTrim.Substring(8);
+                                        foreach (KeyValuePair<string, Row2> pair in qosdb)
+                                        {
+                                            if (tokenValue.StartsWith(pair.Key + "-"))
+                                            {
+                                                current.OutputQOSID = pair.Value["PQ_ID"].ToString();
+                                                break;
+                                            }
                                         }
                                     }
                                 }
-                                else if (tokenTrim.StartsWith("Output: "))
+                            }
+                            else if (lineTrim.StartsWith("Last flapped") && !current.Name.StartsWith("Ag"))
+                            {
+                                //Last flapped   : 2016-11-08 14:33:30 WIT (9w0d 09:00 ago)
+                                //                 0123456789 01234567
+                                //012345678901234567890123456789
+                                string value = lineTrim.Substring(lineTrim.IndexOf(':') + 2);
+                                string[] tokens = value.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                                string date = tokens[0];
+                                string time = tokens[1];
+
+                                if (current.Protocol == false)
                                 {
-                                    string tokenValue = tokenTrim.Substring(8);
-                                    foreach (KeyValuePair<string, Row2> pair in qosdb)
+                                    int year, month, day;
+                                    int hour, min, sec;
+                                    if (int.TryParse(date.Substring(0, 4), out year) &&
+                                        int.TryParse(date.Substring(5, 2), out month) &&
+                                        int.TryParse(date.Substring(8, 2), out day) &&
+                                        int.TryParse(time.Substring(0, 2), out hour) &&
+                                        int.TryParse(time.Substring(3, 2), out min) &&
+                                        int.TryParse(time.Substring(6, 2), out sec))
                                     {
-                                        if (tokenValue.StartsWith(pair.Key + "-"))
-                                        {
-                                            current.OutputQOSID = pair.Value["PQ_ID"].ToString();
-                                            break;
-                                        }
+                                        current.LastDown = (new DateTime(year, month, day, hour, min, sec)) - nodeTimeOffset;
                                     }
                                 }
+                                else
+                                    current.LastDown = null;
+
                             }
-                        }
-                        else if (lineTrim.StartsWith("Last flapped") && !current.Name.StartsWith("Ag"))
-                        {
-                            //Last flapped   : 2016-11-08 14:33:30 WIT (9w0d 09:00 ago)
-                            //                 0123456789 01234567
-                            //012345678901234567890123456789
-                            string value = lineTrim.Substring(lineTrim.IndexOf(':') + 2);
-                            string[] tokens = value.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-                            string date = tokens[0];
-                            string time = tokens[1];
-
-                            if (current.Protocol == false)
+                            else if (lineTrim.StartsWith("Current address:"))
                             {
-                                int year, month, day;
-                                int hour, min, sec;
-                                if (int.TryParse(date.Substring(0, 4), out year) &&
-                                    int.TryParse(date.Substring(5, 2), out month) &&
-                                    int.TryParse(date.Substring(8, 2), out day) &&
-                                    int.TryParse(time.Substring(0, 2), out hour) &&
-                                    int.TryParse(time.Substring(3, 2), out min) &&
-                                    int.TryParse(time.Substring(6, 2), out sec))
-                                {
-                                    current.LastDown = (new DateTime(year, month, day, hour, min, sec)) - nodeTimeOffset;
-                                }
-                            }
-                            else
-                                current.LastDown = null;
+                                //  Current address: 00:17:cb:a5:d4:1f, Hardware address: 00:17:cb:a5:d4:1f
+                                //                                      01234567890
+                                string[] tokads = lineTrim.Split(StringSplitTypes.Comma, StringSplitOptions.RemoveEmptyEntries);
 
-                        }
-                        else if (lineTrim.StartsWith("Current address:"))
-                        {
-                            //  Current address: 00:17:cb:a5:d4:1f, Hardware address: 00:17:cb:a5:d4:1f
-                            //                                      01234567890
-                            string[] tokads = lineTrim.Split(StringSplitTypes.Comma, StringSplitOptions.RemoveEmptyEntries);
-
-                            if (tokads.Length == 2)
-                            {
-                                string adds = tokads[1].Trim();
-                                string[] tokadds = adds.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
-                                if (tokadds.Length == 3)
+                                if (tokads.Length == 2)
                                 {
-                                    string mac = tokadds[2];
-                                    if (!physicalmac.ContainsKey(current.Name)) physicalmac.Add(current.Name, mac);
+                                    string adds = tokads[1].Trim();
+                                    string[] tokadds = adds.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+                                    if (tokadds.Length == 3)
+                                    {
+                                        string mac = tokadds[2];
+                                        if (!physicalmac.ContainsKey(current.Name)) physicalmac.Add(current.Name, mac);
+                                    }
                                 }
                             }
                         }
@@ -3611,7 +3636,9 @@ Last input 00:00:00, output 00:00:00
                                                 li.IPAddress = ip;
                                                 li.MacAddress = ma.ColonAddress;
 
-                                                maclive.Add(li.RouteNameID + "_" + li.IPAddress, li);
+                                                string vrid = li.RouteNameID + "_" + li.IPAddress;
+                                                if (!maclive.ContainsKey(vrid))
+                                                    maclive.Add(vrid, li);
 
                                             }
                                         }
@@ -3833,11 +3860,11 @@ Last input 00:00:00, output 00:00:00
                 }
             }
 
-            List<Tuple<string, string, string, string, string, string>> vPEPhysicalInterfaces = null;
+            List<Tuple<string, string, string, string, string, string, string>> vPEPhysicalInterfaces = null;
             bool vExists = false;
             lock (NecrowVirtualization.PESync)
             {
-                foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> v in NecrowVirtualization.PEPhysicalInterfaces)
+                foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> v in NecrowVirtualization.PEPhysicalInterfaces)
                 {
                     if (v.Item1 == NodeName)
                     {
@@ -3847,8 +3874,8 @@ Last input 00:00:00, output 00:00:00
                 }
                 if (!vExists)
                 {
-                    vPEPhysicalInterfaces = new List<Tuple<string, string, string, string, string, string>>();
-                    NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(NodeName, vPEPhysicalInterfaces));
+                    vPEPhysicalInterfaces = new List<Tuple<string, string, string, string, string, string, string>>();
+                    NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(NodeName, vPEPhysicalInterfaces));
                     NecrowVirtualization.PEPhysicalInterfacesSort(true);
                 }
             }
@@ -3900,6 +3927,9 @@ Last input 00:00:00, output 00:00:00
                             li.ParentID = interfaceinsert[parentPort].Id;
                     }
 
+                    if (li.Name == "Ag1")
+                        Event("Yea");
+
                     if (!inf.IsSubInterface)
                     {
                         if (inftype == "Ag")
@@ -3920,6 +3950,8 @@ Last input 00:00:00, output 00:00:00
                                 // cari neighbor per anak
                                 // jika setiap anak memiliki neighbor YANG PARENT IDNYA TIDAK NULL DAN SAMA, maka set ke adjacentParentID
                                 string childNeighborParentID = null;
+                                int neighborType = 0; // 1: PE, 2: ME
+
                                 foreach (PEInterfaceToDatabase pi in li.AggrChilds)
                                 {
                                     FindPhysicalNeighbor(pi); // find topology anaknya dulu
@@ -3929,7 +3961,13 @@ Last input 00:00:00, output 00:00:00
                                         childNeighborParentID = null;
                                         break;
                                     }
-                                    else if (childNeighborParentID == null) childNeighborParentID = pi.AggrNeighborParentID;
+                                    else if (childNeighborParentID == null)
+                                    {
+                                        childNeighborParentID = pi.AggrNeighborParentID;
+
+                                        if (pi.TopologyPEInterfaceID != null) neighborType = 1;
+                                        else if (pi.TopologyMEInterfaceID != null) neighborType = 2;
+                                    }
                                     else if (childNeighborParentID != pi.AggrNeighborParentID)
                                     {
                                         childNeighborParentID = null;
@@ -3937,22 +3975,50 @@ Last input 00:00:00, output 00:00:00
                                     }
                                 }
 
+                                // jika child ga nyambung, coba orang tua
+                                if (childNeighborParentID == null)
+                                {
+                                    FindPhysicalNeighbor(li);
+                                }
+
                                 // adjacentParentID adalah parentID (aggr) dari lawannya interface aggr ini di ME.
                                 if (childNeighborParentID != null)
                                 {
-                                    li.TopologyMEInterfaceID = childNeighborParentID;
-
-                                    // query lawan
-                                    li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
-                                    result = j.Query("select MI_ID, MI_DOT1Q, MI_TO_MI, MI_TO_PI from MEInterface where MI_MI = {0}", li.TopologyMEInterfaceID);
-                                    if (!result) return DatabaseFailure(probe);
-                                    foreach (Row2 row in result)
+                                    // if topology to PE
+                                    if (neighborType == 1)
                                     {
-                                        if (!row["MI_DOT1Q"].IsNull)
+                                        li.TopologyPEInterfaceID = childNeighborParentID;
+
+                                        // query lawan
+                                        li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
+                                        result = j.Query("select PI_ID, PI_DOT1Q, PI_TO_MI, PI_TO_PI from PEInterface where PI_PI = {0}", li.TopologyPEInterfaceID);
+                                        if (!result) return DatabaseFailure(probe);
+                                        foreach (Row2 row in result)
                                         {
-                                            int dot1q = row["MI_DOT1Q"].ToIntShort();
-                                            if (!li.ChildrenNeighbor.ContainsKey(dot1q)) li.ChildrenNeighbor.Add(dot1q, 
-                                                new Tuple<string, string, string>(row["MI_ID"].ToString(), row["MI_TO_MI"].ToString(), row["MI_TO_PI"].ToString()));
+                                            if (!row["PI_DOT1Q"].IsNull)
+                                            {
+                                                int dot1q = row["PI_DOT1Q"].ToIntShort();
+                                                if (!li.ChildrenNeighbor.ContainsKey(dot1q)) li.ChildrenNeighbor.Add(dot1q,
+                                                    new Tuple<string, string, string>(row["PI_ID"].ToString(), row["PI_TO_MI"].ToString(), row["PI_TO_PI"].ToString()));
+                                            }
+                                        }
+                                    }
+                                    else if (neighborType == 2) // to ME
+                                    {
+                                        li.TopologyMEInterfaceID = childNeighborParentID;
+
+                                        // query lawan
+                                        li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
+                                        result = j.Query("select MI_ID, MI_DOT1Q, MI_TO_MI, MI_TO_PI from MEInterface where MI_MI = {0}", li.TopologyMEInterfaceID);
+                                        if (!result) return DatabaseFailure(probe);
+                                        foreach (Row2 row in result)
+                                        {
+                                            if (!row["MI_DOT1Q"].IsNull)
+                                            {
+                                                int dot1q = row["MI_DOT1Q"].ToIntShort();
+                                                if (!li.ChildrenNeighbor.ContainsKey(dot1q)) li.ChildrenNeighbor.Add(dot1q,
+                                                    new Tuple<string, string, string>(row["MI_ID"].ToString(), row["MI_TO_MI"].ToString(), row["MI_TO_PI"].ToString()));
+                                            }
                                         }
                                     }
                                 }
@@ -3992,9 +4058,16 @@ Last input 00:00:00, output 00:00:00
                                     if (parent.ChildrenNeighbor.ContainsKey(dot1q))
                                     {
                                         Tuple<string, string, string> parentChildrenNeighbor = parent.ChildrenNeighbor[dot1q];
-
-                                        li.TopologyMEInterfaceID = parentChildrenNeighbor.Item1;
-                                        li.NeighborCheckMITOPI = parentChildrenNeighbor.Item3;
+                                        if (parent.TopologyPEInterfaceID != null) // berarti lawannya PE
+                                        {
+                                            li.TopologyPEInterfaceID = parentChildrenNeighbor.Item1;
+                                            li.NeighborCheckPITOPI = parentChildrenNeighbor.Item3;
+                                        }
+                                        else // lawannya ME (aslinya)
+                                        {
+                                            li.TopologyMEInterfaceID = parentChildrenNeighbor.Item1;
+                                            li.NeighborCheckMITOPI = parentChildrenNeighbor.Item3;
+                                        }
                                     }
                                 }
                             }
@@ -4003,6 +4076,11 @@ Last input 00:00:00, output 00:00:00
                 }
 
                 li.EquipmentName = NetworkInterface.EquipmentName(nodeManufacture + (nodeManufacture == cso && nodeVersion == xr ? "XR" : ""), li.Name);
+
+                if (li.EquipmentName == null)
+                {
+                    Event("Debug");
+                }
 
                 if (!interfacedb.ContainsKey(pair.Key))
                 {
@@ -4052,6 +4130,20 @@ Last input 00:00:00, output 00:00:00
                         u.UpdateNeighborCheckMITOPI = true;
                         u.TopologyMEInterfaceID = li.TopologyMEInterfaceID;
                         UpdateInfo(updateinfo, "neighbor-mi-to-pi", li.NeighborCheckMITOPI, u.Id, true);
+                    }
+                    if (db["PI_TO_PI"].ToString() != li.TopologyPEInterfaceID)
+                    {
+                        update = true;
+                        u.UpdateTopologyPEInterfaceID = true;
+                        u.TopologyPEInterfaceID = li.TopologyPEInterfaceID;
+                        UpdateInfo(updateinfo, "pi-to-pi", db["PI_TO_PI"].ToString(), li.TopologyPEInterfaceID, true);
+                    }
+                    else if (li.TopologyPEInterfaceID != null && li.NeighborCheckPITOPI != u.Id)
+                    {
+                        update = true;
+                        u.UpdateNeighborCheckPITOPI = true;
+                        u.TopologyPEInterfaceID = li.TopologyPEInterfaceID;
+                        UpdateInfo(updateinfo, "neighbor-pi-to-pi", li.NeighborCheckPITOPI, u.Id, true);
                     }
                     if (db["PI_TO_NI"].ToString() != li.TopologyNBInterfaceID)
                     {
@@ -4579,7 +4671,9 @@ Last input 00:00:00, output 00:00:00
             
             // ADD
             batch.Begin();
+            List<Tuple<string, string>> interfaceTopologyPIUpdate = new List<Tuple<string, string>>();
             List<Tuple<string, string>> interfaceTopologyMIUpdate = new List<Tuple<string, string>>();
+
             foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfaceinsert)
             {
                 PEInterfaceToDatabase s = pair.Value;
@@ -4615,6 +4709,7 @@ Last input 00:00:00, output 00:00:00
                 insert.Value("PI_Summary_SubInterfaceCount", s.SubInterfaceCount.Nullable(-1));
                 batch.Add(insert);
 
+                interfaceTopologyPIUpdate.Add(new Tuple<string, string>(s.TopologyPEInterfaceID, s.Id));
                 interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.Id));
                 if (s.IP != null) ipinsert.Add(s.Id, s.IP);
             }
@@ -4636,6 +4731,15 @@ Last input 00:00:00, output 00:00:00
                 else if (s.UpdateNeighborCheckMITOPI)
                 {
                     interfaceTopologyMIUpdate.Add(new Tuple<string, string>(s.TopologyMEInterfaceID, s.Id));
+                }
+                if (s.UpdateTopologyPEInterfaceID)
+                {
+                    update.Set("PI_TO_PI", s.TopologyPEInterfaceID);
+                    interfaceTopologyPIUpdate.Add(new Tuple<string, string>(s.TopologyPEInterfaceID, s.Id));
+                }
+                else if (s.UpdateNeighborCheckPITOPI)
+                {
+                    interfaceTopologyPIUpdate.Add(new Tuple<string, string>(s.TopologyPEInterfaceID, s.Id));
                 }
                 update.Set("PI_IF", s.InterfaceID, s.UpdateInterfaceID);
                 update.Set("PI_TO_NI", s.TopologyNBInterfaceID, s.UpdateTopologyNBInterfaceID);
@@ -4676,10 +4780,16 @@ Last input 00:00:00, output 00:00:00
             batch.Begin();
             foreach (Tuple<string, string> tuple in interfaceTopologyMIUpdate)
             {
-                if (tuple.Item1 != null)
-                    batch.Add("update MEInterface set MI_TO_PI = {0} where MI_ID = {1}", tuple.Item2, tuple.Item1);
+                if (tuple.Item1 != null) batch.Add("update MEInterface set MI_TO_PI = {0} where MI_ID = {1}", tuple.Item2, tuple.Item1);
+                else batch.Add("update MEInterface set MI_TO_PI = NULL where MI_TO_PI = {0}", tuple.Item2);
+            }
+            foreach (Tuple<string, string> tuple in interfaceTopologyPIUpdate)
+            {
+                if (tuple.Item1 != null) batch.Add("update PEInterface set PI_TO_PI = {0} where PI_ID = {1}", tuple.Item2, tuple.Item1);
                 else
-                    batch.Add("update MEInterface set MI_TO_PI = NULL where MI_TO_PI = {0}", tuple.Item2);
+                {
+                    batch.Add("update PEInterface set PI_TO_PI = NULL where PI_TO_PI = {0}", tuple.Item2);
+                }
             }
             result = batch.Commit();
             if (!result) return DatabaseFailure(probe);
@@ -4731,6 +4841,7 @@ Last input 00:00:00, output 00:00:00
 
                     batch.Add("delete from PEMac where PA_PI = {0}", id);
                     batch.Add("update MEInterface set MI_TO_PI = NULL where MI_TO_PI = {0}", id);
+                    batch.Add("update PEInterface set PI_TO_PI = NULL where PI_TO_PI = {0}", id);
                     batch.Add("update PERoute set PR_PI = NULL where PR_PI = {0}", id);
                     batch.Add("update PEInterface set PI_PI = NULL where PI_PI = {0}", id);
 
@@ -4749,7 +4860,7 @@ Last input 00:00:00, output 00:00:00
             foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
             {
                 PEInterfaceToDatabase li = pair.Value;
-                vPEPhysicalInterfaces.Add(new Tuple<string, string, string, string, string, string>(li.Name, li.Description, li.Id, li.InterfaceType, li.ParentID, li.TopologyMEInterfaceID));
+                vPEPhysicalInterfaces.Add(new Tuple<string, string, string, string, string, string, string>(li.Name, li.Description, li.Id, li.InterfaceType, li.ParentID, li.TopologyMEInterfaceID, li.TopologyPEInterfaceID));
             }
             NecrowVirtualization.PEPhysicalInterfacesSort(vPEPhysicalInterfaces);
 
@@ -4982,6 +5093,7 @@ Last input 00:00:00, output 00:00:00
                 {
                     #region xr
 
+                    string currentRouterID = null;
                     string currentRouteNameID = null;
                     string currentNeighbor = null;
                     string currentRemoteAS = null;
@@ -5546,6 +5658,7 @@ Last input 00:00:00, output 00:00:00
                     #region EIGRP
                     if (Request("sh run router eigrp", out lines, probe)) return probe;
 
+                    currentRouterID = null;
                     currentRouteNameID = null;
                     currentInterface = null;
 
@@ -5554,7 +5667,12 @@ Last input 00:00:00, output 00:00:00
                         string linetrim = line.Trim();
                         if (linetrim.Length > 0)
                         {
-                            if (linetrim.StartsWith("vrf "))
+                            if (linetrim.StartsWith("router eigrp "))
+                            {
+                                string routerID = linetrim.Substring(13);
+                                currentRouterID = routerID;
+                            }
+                            else if (linetrim.StartsWith("vrf "))
                             {
                                 string vrfname = linetrim.Substring(4);
                                 if (routenamedb.ContainsKey(vrfname) && routenamelive.ContainsKey(vrfname))
@@ -5591,7 +5709,7 @@ Last input 00:00:00, output 00:00:00
                                         else if (currentInterface != null)
                                             i.InterfaceGone = currentInterface;
 
-                                        string key = currentRouteNameID + "_E_" + (interfaceID != null ? interfaceID : currentInterface != null ? currentInterface : "");
+                                        string key = currentRouterID + "_" + currentRouteNameID + "_E_" + (interfaceID != null ? interfaceID : currentInterface != null ? currentInterface : "");
                                         routeuselive.Add(key, i);
 
                                         currentInterface = null;
@@ -7543,7 +7661,7 @@ Last input 00:00:00, output 00:00:00
 
         private DateTime? ParseLastInput(string lastInput)
         {
-            if (lastInput == "never") return null;
+            if (lastInput == "never" || lastInput == "Unknown") return null;
             else if (lastInput.IndexOf(":") > -1)
             {
                 //0:00:00

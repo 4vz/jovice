@@ -26,6 +26,7 @@ namespace Aphysoft.Share
 
             StringBuilder sb = new StringBuilder();
             MD5 md5 = new MD5CryptoServiceProvider();
+            
 
             byte[] result = md5.ComputeHash(input);
 

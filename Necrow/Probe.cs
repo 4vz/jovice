@@ -99,6 +99,10 @@ namespace Necrow
 
         public bool UpdateParentID { get; set; } = false;
 
+        public string TopologyPEInterfaceID { get; set; } = null;
+
+        public bool UpdateTopologyPEInterfaceID { get; set; } = false;
+
         public string TopologyMEInterfaceID { get; set; } = null;
 
         public bool UpdateTopologyMEInterfaceID { get; set; } = false;
@@ -1179,6 +1183,12 @@ namespace Necrow
 
             int aluError = 0;
 
+            if (nodeManufacture == jun)
+            {
+                SendLine("");
+                Thread.Sleep(2000);
+            }
+
             while (requestLoop)
             {
                 ClearOutput();
@@ -1924,11 +1934,11 @@ namespace Necrow
                                 // Update interface virtualizations
                                 if (nodeType == "P" || nodeType == "T")
                                 {
-                                    Tuple<string, List<Tuple<string, string, string, string, string, string>>> changeThis = null;
-                                    List<Tuple<string, string, string, string, string, string>> interfaces = null;
+                                    Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> changeThis = null;
+                                    List<Tuple<string, string, string, string, string, string, string>> interfaces = null;
                                     lock (NecrowVirtualization.PESync)
                                     {
-                                        foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> entry in NecrowVirtualization.PEPhysicalInterfaces)
+                                        foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> entry in NecrowVirtualization.PEPhysicalInterfaces)
                                         {
                                             if (entry.Item1 == NodeName)
                                             {
@@ -1941,9 +1951,9 @@ namespace Necrow
                                             NecrowVirtualization.PEPhysicalInterfaces.Remove(changeThis);
                                             interfaces = changeThis.Item2;
                                         }
-                                        else interfaces = new List<Tuple<string, string, string, string, string, string>>();
+                                        else interfaces = new List<Tuple<string, string, string, string, string, string, string>>();
 
-                                        NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string>>>(hostName, interfaces));
+                                        NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(hostName, interfaces));
                                         NecrowVirtualization.PEPhysicalInterfacesSort();
                                     }
                                 }
@@ -2748,6 +2758,11 @@ namespace Necrow
             else if (nodeManufacture == jun)
             {
                 if (Request("set cli screen-length 0", out lines, probe)) return probe;
+
+                foreach (string line in lines)
+                {
+                    Event(line);
+                }
             }
 
             #endregion
@@ -3288,9 +3303,8 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                     #region jun
                     //Model: mx960
                     //Junos: 16.1R4-S1.3
-
                     if (Request("show version | match \"Junos:|JUNOS Base OS boot|Model\"", out lines, probe)) return probe;
-
+                    
                     foreach (string line in lines)
                     {
                         if (line.StartsWith("JUNOS Base OS boot"))
@@ -4491,114 +4505,113 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
 
             #region TO_PI
 
-            if (li.GetType() == typeof(MEInterfaceToDatabase))
+            string neighborPEName = null;
+            string neighborPEPart = null;
+            List<Tuple<string, string, string, string, string, string, string>> currentNeighborPEInterfaces = null;
+
+            lock (NecrowVirtualization.PESync)
             {
-                MEInterfaceToDatabase mi = (MEInterfaceToDatabase)li;
-
-                string neighborPEName = null;
-                string neighborPEPart = null;
-                List<Tuple<string, string, string, string, string, string>> currentNeighborPEInterfaces = null;
-
-                lock (NecrowVirtualization.PESync)
+                foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> pe in NecrowVirtualization.PEPhysicalInterfaces)
                 {
-                    foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> pe in NecrowVirtualization.PEPhysicalInterfaces)
+                    neighborPEName = pe.Item1;
+                    currentNeighborPEInterfaces = pe.Item2;
+                    neighborPEPart = FindNeighborPart(description, neighborPEName);
+                    if (neighborPEPart != null) 
+                        break;
+                }
+                if (neighborPEPart == null)
+                {
+                    foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> pe in NecrowVirtualization.PEPhysicalInterfaces)
                     {
                         neighborPEName = pe.Item1;
                         currentNeighborPEInterfaces = pe.Item2;
-                        neighborPEPart = FindNeighborPart(description, neighborPEName);
+                        neighborPEPart = FindNeighborPartUsingAlias(description, neighborPEName);
                         if (neighborPEPart != null) break;
                     }
-                    if (neighborPEPart == null)
+                }
+            }
+            if (neighborPEPart != null)
+            {
+                Tuple<string, string, string, string, string, string, string> matchedInterface = null;
+
+                #region Find Interface
+
+                int leftMostFinding = neighborPEPart.Length;
+
+                foreach (Tuple<string, string, string, string, string, string, string> currentNBInterface in currentNeighborPEInterfaces)
+                {
+                    string neighborInterfaceName = currentNBInterface.Item1;
+                    string neighborInterfaceType = currentNBInterface.Item4;
+                    string neighborInterfacePort = neighborInterfaceName.Substring(2);
+
+                    foreach (string test in GenerateTestInterface(neighborInterfaceType, neighborInterfacePort))
                     {
-                        foreach (Tuple<string, List<Tuple<string, string, string, string, string, string>>> pe in NecrowVirtualization.PEPhysicalInterfaces)
+                        int pos = neighborPEPart.IndexOf(test);
+
+                        if (pos > -1 && pos < leftMostFinding)
                         {
-                            neighborPEName = pe.Item1;
-                            currentNeighborPEInterfaces = pe.Item2;
-                            neighborPEPart = FindNeighborPartUsingAlias(description, neighborPEName);
-                            if (neighborPEPart != null) break;
+                            leftMostFinding = pos;
+                            matchedInterface = currentNBInterface;
                         }
                     }
                 }
-                if (neighborPEPart != null)
+
+                #endregion
+
+                if (matchedInterface != null)
                 {
-                    Tuple<string, string, string, string, string, string> matchedInterface = null;
+                    #region Crosscheck with matched interface description
 
-                    #region Find Interface
+                    string matchedDescription = CleanDescription(matchedInterface.Item2, neighborPEName);
 
-                    int leftMostFinding = neighborPEPart.Length;
-
-                    foreach (Tuple<string, string, string, string, string, string> currentNBInterface in currentNeighborPEInterfaces)
+                    if (matchedDescription != null)
                     {
-                        string neighborInterfaceName = currentNBInterface.Item1;
-                        string neighborInterfaceType = currentNBInterface.Item4;
-                        string neighborInterfacePort = neighborInterfaceName.Substring(2);
+                        string matchedNeighborPart = FindNeighborPart(matchedDescription, NodeName);
 
-                        foreach (string test in GenerateTestInterface(neighborInterfaceType, neighborInterfacePort))
+                        if (matchedNeighborPart != null) // at least we can find me name or the alias in pi description
                         {
-                            int pos = neighborPEPart.IndexOf(test);
-
-                            if (pos > -1 && pos < leftMostFinding)
+                            foreach (string test in GenerateTestInterface(interfaceType, interfacePort))
                             {
-                                leftMostFinding = pos;
-                                matchedInterface = currentNBInterface;
+                                if (matchedNeighborPart.IndexOf(test) > -1)
+                                {
+                                    li.TopologyPEInterfaceID = matchedInterface.Item3;
+                                    if (li.GetType() == typeof(PEInterfaceToDatabase))
+                                        ((PEInterfaceToDatabase)li).NeighborCheckMITOPI = matchedInterface.Item7;
+                                    else
+                                        ((MEInterfaceToDatabase)li).NeighborCheckMITOMI = matchedInterface.Item6;
+
+                                    // anak agregator ga mgkn punya anak sendiri
+                                    // daftar parentnya juga untuk ditangkap di aggr pencari anak
+                                    if (li.Aggr != -1) li.AggrNeighborParentID = matchedInterface.Item5;
+                                    else
+                                    {
+                                        // find pi child
+                                        li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
+                                        result = j.Query("select PI_ID, PI_DOT1Q, PI_TO_MI from PEInterface where PI_PI = {0}", li.TopologyPEInterfaceID);
+                                        foreach (Row2 row in result)
+                                        {
+                                            if (!row["PI_DOT1Q"].IsNull)
+                                            {
+                                                int dot1q = row["PI_DOT1Q"].ToIntShort();
+                                                if (!li.ChildrenNeighbor.ContainsKey(dot1q)) li.ChildrenNeighbor.Add(dot1q,
+                                                    new Tuple<string, string, string>(row["PI_ID"].ToString(), row["PI_TO_MI"].ToString(), null));
+                                            }
+                                        }
+                                    }
+
+                                    break;
+                                }
                             }
                         }
                     }
 
                     #endregion
-
-                    if (matchedInterface != null)
-                    {
-                        #region Crosscheck with matched interface description
-
-                        string matchedDescription = CleanDescription(matchedInterface.Item2, neighborPEName);
-
-                        if (matchedDescription != null)
-                        {
-                            string matchedNeighborPart = FindNeighborPart(matchedDescription, NodeName);
-
-                            if (matchedNeighborPart != null) // at least we can find me name or the alias in pi description
-                            {
-                                foreach (string test in GenerateTestInterface(interfaceType, interfacePort))
-                                {
-                                    if (matchedNeighborPart.IndexOf(test) > -1)
-                                    {
-                                        mi.TopologyPEInterfaceID = matchedInterface.Item3;
-                                        mi.NeighborCheckPITOMI = matchedInterface.Item6;
-
-                                        // anak agregator ga mgkn punya anak sendiri
-                                        // daftar parentnya juga untuk ditangkap di aggr pencari anak
-                                        if (li.Aggr != -1) li.AggrNeighborParentID = matchedInterface.Item5;
-                                        else
-                                        {
-                                            // find pi child
-                                            li.ChildrenNeighbor = new Dictionary<int, Tuple<string, string, string>>();
-                                            result = j.Query("select PI_ID, PI_DOT1Q, PI_TO_MI from PEInterface where PI_PI = {0}", mi.TopologyPEInterfaceID);
-                                            foreach (Row2 row in result)
-                                            {
-                                                if (!row["PI_DOT1Q"].IsNull)
-                                                {
-                                                    int dot1q = row["PI_DOT1Q"].ToIntShort();
-                                                    if (!li.ChildrenNeighbor.ContainsKey(dot1q)) li.ChildrenNeighbor.Add(dot1q, 
-                                                        new Tuple<string, string, string>(row["PI_ID"].ToString(), row["PI_TO_MI"].ToString(), null));
-                                                }
-                                            }
-                                        }
-
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-
-                        #endregion
-                    }
-
-                    done = true;
                 }
 
-                if (done) return;
+                done = true;
             }
+
+            if (done) return;
 
             #endregion
 

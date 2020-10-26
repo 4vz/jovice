@@ -19,7 +19,7 @@ namespace Aphysoft.Share
 
         protected bool cancelling = false;
 
-        protected string ConnectionString { get; set; }
+        public string ConnectionString { get; set; }
 
         #endregion
 

@@ -119,7 +119,7 @@ namespace Necrow
     {
         #region Fields
 
-        internal readonly static int Version = 51;
+        internal readonly static int Version = 54;
 
         private Database2 jovice;
         private Database2 oss;
@@ -780,11 +780,11 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T', 'F') a
 
             Batch batch;
             Result2 result;
-            
+
             // Handlers
             //Service.Register(typeof(ServerNecrowServiceMessage), NecrowServiceMessageHandler);
 
-            Event("Checking Jovice Database connection... ");
+            Event("Checking Jovice Database connection: " + jovice.ConnectionString);
 
             if (jovice)
             {
@@ -819,7 +819,7 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T', 'F') a
                 #region Etc
 
                 InterfaceTestPrefixes = new Dictionary<string, string[]>();
-                InterfaceTestPrefixes.Add("Hu", new string[] { "H", "HU", "GI", "GE" });
+                InterfaceTestPrefixes.Add("Hu", new string[] { "H", "HU", "GI", "GE", "100GE" });
                 InterfaceTestPrefixes.Add("Te", new string[] { "T", "TE", "TENGIGE", "GI", "GE", "XE" }); // kadang Te-gig direfer sebagai Gi dammit people
                 InterfaceTestPrefixes.Add("Gi", new string[] { "G", "GI", "GE", "GIGAE", "GIGABITETHERNET", "TE" }); // kadang Te-gig direfer sebagai Gi dammit people
                 InterfaceTestPrefixes.Add("Fa", new string[] { "F", "FA", "FE", "FASTE" });

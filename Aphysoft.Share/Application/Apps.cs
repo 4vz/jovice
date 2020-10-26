@@ -65,7 +65,6 @@ namespace Aphysoft.Share
                 }
                 return console.Value;
             }
-
         }
                 
         public static void Console(object message, bool newLine = true)
@@ -212,6 +211,9 @@ namespace Aphysoft.Share
                     File.WriteAllText(configFile, plainConfig);
                     data = File.ReadAllBytes(configFile);
                 }
+
+
+
             }
             else return false;
 

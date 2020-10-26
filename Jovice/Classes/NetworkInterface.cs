@@ -431,6 +431,7 @@ namespace Jovice
                     else if (depan == "Fa") type = "fe-";
                     else if (depan == "Gi") type = "ge-";
                     else if (depan == "Te") type = "xe-";
+                    else if (depan == "Hu") type = "et-";
 
                     last = port + (channel != null ? ":" + channel : "") + (logical != null ? "." + logical : "");
                 }

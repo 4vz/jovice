@@ -33,6 +33,8 @@ namespace Center
 
             Content.Register("main", Resources.ResourceManager, "main", "~/View/main.js", "/");
             Content.Register("search", Resources.ResourceManager, "search", "~/View/search.js", "/search:true");
+            Content.Register("stats", Resources.ResourceManager, "stats", "~/View/stats.js", "/stats");
+            
 
             #endregion
 
@@ -54,6 +56,7 @@ namespace Center
 
             Provider.Register(15001, Providers.Network.ProviderRequest); // network map
             Provider.Register(101, Providers.Search.ProviderRequest); // Search
+            Provider.Register(55001, Providers.Statistics.ProviderRequest); // Stats
 
             #endregion
 
@@ -62,6 +65,7 @@ namespace Center
             Content.Register("developers", DevelopersResources.ResourceManager, "developers", "~/View/Developers/developers.js", "/developers::Center Developers");
 
             #endregion
+
             Resource.Register("satellite_png_dish", ResourceTypes.PNG, SatelliteResources.ResourceManager, "png_dish", "~/View/Satellite/PNG/dish.png");
             Resource.Register("satellite_png_sine1", ResourceTypes.PNG, SatelliteResources.ResourceManager, "png_sine1", "~/View/Satellite/PNG/sine1.png");
 

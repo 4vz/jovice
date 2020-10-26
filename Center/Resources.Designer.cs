@@ -19,7 +19,7 @@ namespace Center {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "15.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "16.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class Resources {
@@ -150,7 +150,7 @@ namespace Center {
         ///
         ///
         ///    $$.script(&quot;search_jovice_service&quot;, function (b, r, f, p, t) {
-        ///                
+        ///
         ///        //--- match properties
         ///        /*
         ///        f.setButton(function () {
@@ -161,7 +161,7 @@ namespace Center {
         ///                    serviceType: r.serviceType.text(),
         ///                    entries: t.entries
         ///                },
-        ///       [rest of string was truncated]&quot;;.
+        ///                leave: [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string jovice_search_service {
             get {
@@ -200,21 +200,25 @@ namespace Center {
         /// <summary>
         ///   Looks up a localized string similar to (function () {
         ///
-        ///    var page;
+        ///    var warnaTextHeading = &quot;#440044&quot;;
         ///
         ///    $$.page(&quot;main&quot;, {
         ///        init: function (p) {
         ///            page = center.init(p);
         ///
-        ///            
+        ///            var heading = $$.box(page)({
+        ///                color: warnaTextHeading
+        ///            });
         ///
-        ///            p.done();
-        ///        },
-        ///        start: function (p) {
-        ///            p.done();
-        ///        }
-        ///    });
-        ///})();.
+        ///            var icondragonball = $$.svg(&quot;asdasdasdasdadasdasdasd&quot;)({
+        ///                x: 50,
+        ///                y: 20,
+        ///                color: &quot;red&quot;
+        ///            });
+        ///
+        ///            icondragonball.x(50);
+        ///            icondragonball.y(20);
+        ///            icondragonb [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string main {
             get {
@@ -245,6 +249,22 @@ namespace Center {
         internal static string search {
             get {
                 return ResourceManager.GetString("search", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 
+        ///(function () {
+        ///
+        ///    $$.page(&quot;coba&quot;, {
+        ///
+        ///        init: function (p) {
+        ///
+        ///            var satVect = &quot;M609.6,316.6l-14-64.6c-0.4-1.9-2.3-3-4.1-2.6l-252.3,62.4c-1.9,0.5-3,2.3-2.6,4.2l2.3,10l-23.2,5.1l-24.1,15.2l-0.8-2.2h1.3v-3.2	h-2.3l-1.1-2.3l-3.2-3l-6.6-14.2l1.9-1.1l-1.3-3.2h-2l-1.1-2.1l-5,3.9c-1.3-0.4-2.9-0.7-3.6-0.1v-1.3c0,0,2-0.4,1.4-2.5l3.8-1.7	l-3.5-16.8c4.4-0.7,8.2-3,10.6-6.7c5-7.8,1.8-18.8-7.3-24.7c-9-5.9-20.4-4.4-25.5,3.3c-5,7.8-1.8,18.8,7.3,24.7	c4,2.6,8.5,3.8,12.7,3.5l3.1,15.7l-1.9,0.5c0,0-2.5- [rest of string was truncated]&quot;;.
+        /// </summary>
+        internal static string stats {
+            get {
+                return ResourceManager.GetString("stats", resourceCulture);
             }
         }
         

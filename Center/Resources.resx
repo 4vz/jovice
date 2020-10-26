@@ -142,6 +142,9 @@
   <data name="search" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>view\search.js;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
+  <data name="stats" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>view\stats.js;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
+  </data>
   <data name="user_signin" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>view\user\signin.js;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>

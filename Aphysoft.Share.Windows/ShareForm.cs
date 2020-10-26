@@ -156,7 +156,7 @@ namespace Aphysoft.Share
         //Windows XP does not have dwmapi.dll
         //also, This corrupts the designer... 
         //so i used the Release/Debug configuration
-        private bool IsCompositionEnabled()
+        private bool IsCompositionEnabled() 
         {
             if (!DesignMode)
                 return File.Exists(Environment.SystemDirectory + "\\dwmapi.dll")

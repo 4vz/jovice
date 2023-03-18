@@ -8,6 +8,7 @@ using Aphysoft.Share;
 using System.Globalization;
 
 using Jovice;
+using System.Net;
 
 namespace Necrow
 {
@@ -116,6 +117,17 @@ namespace Necrow
         {
             get { return updateInfo; }
             set { updateInfo = value; }
+        }
+    }
+
+    class MEQOSPolicyToDatabase : Data2
+    {
+        private string name;
+
+        public string Name
+        {
+            get { return name; }
+            set { name = value; }
         }
     }
 
@@ -446,6 +458,11 @@ namespace Necrow
             List<MEQOSToDatabase> qosinsert = new List<MEQOSToDatabase>();
             List<MEQOSToDatabase> qosupdate = new List<MEQOSToDatabase>();
 
+            Dictionary<string, MEQOSPolicyToDatabase> policylive = new Dictionary<string, MEQOSPolicyToDatabase>();
+            Dictionary<string, Row2> policydb = j.QueryDictionary("select * from MEQOSPolicy where MQP_NO = {0}", "MQP_Name", nodeID);
+            if (policydb == null) return DatabaseFailure(probe);
+            List<MEQOSPolicyToDatabase> policyinsert = new List<MEQOSPolicyToDatabase>();
+
             #region Live
 
             if (nodeManufacture == alu)
@@ -487,6 +504,31 @@ namespace Necrow
                     MEQOSToDatabase li = pair.Value;
                     AlcatelLucentQOS ni = AlcatelLucentQOS.Parse(li.Name);
                     li.Bandwidth = ni.Bandwidth;
+                }
+
+                if (Request("show qos scheduler-policy", out lines, probe)) return probe;
+
+                bool capture = false;
+                foreach (string line in lines)
+                {
+                    if (capture)
+                    {
+                        var st = line.Trim();
+
+                        if (line.StartsWith("==="))
+                        {
+                            break;
+                        }
+
+                        MEQOSPolicyToDatabase qp = new MEQOSPolicyToDatabase();
+                        qp.Name = st;
+                        policylive.Add(st, qp);
+
+                    }
+                    else if (line.StartsWith("---"))
+                    {
+                        capture = true;
+                    }
                 }
 
                 #endregion
@@ -570,6 +612,22 @@ namespace Necrow
                     }
                 }
             }
+
+            foreach (KeyValuePair<string, MEQOSPolicyToDatabase> pair in policylive)
+            {
+                MEQOSPolicyToDatabase li = pair.Value;
+                if (!policydb.ContainsKey(pair.Key))
+                {
+                    Event("QOS Policy ADD: " + pair.Key);
+                    li.Id = Database2.ID();
+                    policyinsert.Add(li);
+                }
+                else
+                {
+                }
+            }
+
+
             #endregion
 
             #region Execute
@@ -607,6 +665,21 @@ namespace Necrow
 
             qosdb = j.QueryDictionary("select * from MEQOS where MQ_NO = {0}", delegate (Row2 row) { return (row["MQ_Type"].ToBool() ? "1" : "0") + "_" + row["MQ_Name"].ToString(); }, nodeID);
             if (qosdb == null) return DatabaseFailure(probe);
+
+
+            // ADD
+            batch.Begin();
+            foreach (MEQOSPolicyToDatabase s in policyinsert)
+            {
+                Insert insert = j.Insert("MEQOSPolicy");
+                insert.Value("MQP_ID", s.Id);
+                insert.Value("MQP_NO", nodeID);
+                insert.Value("MQP_Name", s.Name);
+                batch.Add(insert);
+            }
+            result = batch.Commit();
+            if (!result) return DatabaseFailure(probe);
+            Event(result, EventActions.Add, EventElements.QOS, false);
 
             #endregion
 
@@ -737,7 +810,9 @@ namespace Necrow
                         {
                             farend = linex[1].Trim();
 
-                            if (!sdplive.ContainsKey(farend))
+                            bool isip = IPAddress.TryParse(farend, out IPAddress farendipaddress);
+
+                            if (!sdplive.ContainsKey(farend) && isip)
                             {
                                 MESDPToDatabase d = new MESDPToDatabase();
                                 d.SDP = farend;
@@ -1591,7 +1666,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                         if (sdpdb.ContainsKey(sdpvcid[0])) c.SDPID = sdpdb[c.SDP]["MS_ID"].ToString();
                                         else c.SDPID = null;
 
-                                        c.Type = linex[2][0] + "";                                        
+                                        c.Type = linex[2][0] + "";
                                         c.Protocol = linex[4] == "Up";
 
                                         if (c.CircuitID != null && c.SDPID != null)
@@ -1819,7 +1894,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
                     string mpID = pair.Value["MP_ID"].ToString();
                     peerdelete.Add(mpID);
-                    batch.Add("update MEMac set MA_MP = NULL where MA_MP = {0}", mpID);             
+                    batch.Add("update MEMac set MA_MP = NULL where MA_MP = {0}", mpID);
                 }
             }
             result = batch.Commit();
@@ -1934,7 +2009,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
 
                 if (Request("show port", out lines, probe)) return probe;
 
-                
+
                 //4/2/11      Up    Yes  Up      9212 9212    - accs null xcme   GIGE-LX  10KM
                 //0           1     2    3       4    5       6 7    8    9      10       11
                 //4/2/12      Up    Yes  Link Up 9212 9212    2 netw null xcme   GIGE-LX  10KM
@@ -2047,7 +2122,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                                         {
                                             interfacelive[portex].InterfaceType = ity;
                                         }
-                                        
+
                                         //3/1/1       Up    Yes  Up      9212 9212    - accs dotq xcme   GIGE-LX  10KM
                                         //4/2/12      Up    Yes  Link Up 9212 9212    2 netw null xcme   GIGE-LX  10KM
 
@@ -2173,7 +2248,7 @@ intf2: GigabitEthernet8/0/3.2463 (up), access-port: false
                         }
                     }
                 }
-                
+
                 if (nodeVersion.StartsWith("TiMOS-B")) // sementara TiMOS-B ga bisa dapet deskripsi
                 {
                     if (Request("show service sap-using", out lines, probe)) return probe;
@@ -2511,6 +2586,68 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
                     //if (Request("show router interface detail", out lines, probe)) return probe;
                 }
+
+                Dictionary<string, string> routerinterfaces = new Dictionary<string, string>();
+
+
+                // additional data
+                if (Request("show router interface exclude-services | match Network", out lines, probe)) return probe;
+                /*
+0123456789012345678901234567890123456789012345678901234567890123456789
+          1         2         3         4         5         6    
+dummy-to-bks9                    Up          Down/--     Network n/a
+system                           Up          Up/--       Network system
+to-me-d2-spu                     Up          Up/--       Network 4/2/1
+to-me9-d2-bks                    Up          Up/--       Network lag-30
+to-me9-d2-jt                     Up          Up/--       Network lag-32
+
+                 */
+                foreach (var line in lines)
+                {
+                    if (line.Length > 0)
+                    {
+                        string[] tokens = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                        if (tokens.Length >= 5)
+                        {
+                            routerinterfaces.Add(tokens[0], tokens[4]);
+                        }
+                    }
+                }
+
+                if (Request("show router ospf neighbor", out lines, probe)) return probe;
+
+                foreach (var line in lines)
+                {
+                    if (line.Length > 0)
+                    {
+                        string[] tokens = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                        if (tokens.Length == 6)
+                        {
+                            if (tokens[0].Length > 0)
+                            {
+                                if (routerinterfaces.ContainsKey(tokens[0]))
+                                {
+                                    var stport = routerinterfaces[tokens[0]];
+
+                                    string mainname = null;
+
+                                    if (stport.Length > 4 && stport.StartsWith("lag-")) mainname = "Ag" + stport.Substring(4);
+                                    else if (char.IsDigit(stport[0])) mainname = "Ex" + stport;
+
+                                    if (mainname != null && interfacelive.ContainsKey(mainname))
+                                    {
+                                        if (ipnodedb.ContainsKey(tokens[1]))
+                                            interfacelive[mainname].TopologyNOID = ipnodedb[tokens[1]]["NO_ID"].ToString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+
                 #endregion
             }
             else if (nodeManufacture == hwe)
@@ -2822,7 +2959,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         if (aggr > -1 && line.StartsWith(" "))
                         {
                             if (!poe.StartsWith("Eth-Trunk"))
-                            {                                
+                            {
                                 if (inf != null)
                                 {
                                     string normal = NetworkInterface.HuaweiName(inf);
@@ -2868,7 +3005,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             if (interfacelive.ContainsKey(ifname) && !inf.IsSubInterface)
                             {
                                 MEInterfaceToDatabase ive = interfacelive[ifname];
-                                
+
                                 if (ive.Status == false && inf.Type != ive.InterfaceType)
                                 {
                                     ive.InterfaceType = inf.Type;
@@ -3238,6 +3375,58 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                     }
                 }
 
+
+                // additional data
+                if (Request("display ospf peer | in Router ID|interface", out lines, probe)) return probe;
+
+
+ //               Area 0.0.0.80 interface 172.31.43.17 (Eth-Trunk209)'s neighbors
+ //Router ID: 172.31.63.136        Address: 172.31.43.18      GR State: Normal
+ //012345678901
+
+                string einf = null;
+                string target = null;
+                
+                foreach (var line in lines)
+                {
+                    var linet = line.Trim();
+
+                    if (linet.Length > 0)
+                    {
+                        if (linet.StartsWith("Area "))
+                        {
+                            var xda = linet.IndexOf("(");
+                            if (xda > -1)
+                            {
+                                var yda = linet.IndexOf(")", xda);
+                                var ifname = linet.Substring(xda + 1, yda - xda - 1);
+
+                                NetworkInterface nif = NetworkInterface.Parse(ifname);
+
+                                if (nif != null && interfacelive.ContainsKey(nif.Name))
+                                {
+                                    einf = nif.Name;
+                                }
+                            }
+                        }
+                        else if (einf != null && linet.StartsWith("Router ID:"))
+                        {
+                            if (linet.Length > 13)
+                            {
+                                var kx = linet.Substring(11);
+                                var spaceafter = kx.IndexOf(' ');
+                                var ip = kx.Substring(0, spaceafter);
+
+
+                                if (ipnodedb.ContainsKey(ip))
+                                    interfacelive[einf].TopologyNOID = ipnodedb[ip]["NO_ID"].ToString();
+                            }
+
+                            einf = null;
+                        }
+                    }
+                }
+
                 #endregion
             }
 
@@ -3320,7 +3509,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
 
                 NetworkInterface inf = NetworkInterface.Parse(li.Name);
                 string parentPort = null;
-
+               
                 // TOPOLOGY
                 if (inf != null)
                 {
@@ -3343,11 +3532,6 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         else if (interfaceinsert.ContainsKey(parentPort)) // cek di interface yg baru
                             li.ParentID = interfaceinsert[parentPort].Id;
                     }
-
-                    //if (inf.Name == "Ex10/1/6")
-                    ///{
-                        //Event("Debug");
-                    //}
 
                     if (!inf.IsSubInterface)
                     {
@@ -3399,6 +3583,30 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                                 //    FindPhysicalNeighbor(li);
                                 //}
 
+                                // jika ME, gunakan MI_TO_NO
+                                if (childNeighborParentID == null)
+                                {
+                                    if (li.TopologyNOID != null)
+                                    {
+                                        result = j.Query("select MI_ID, MI_Description from MEInterface where MI_NO = {0} and MI_TO_NO = {1}", li.TopologyNOID, nodeID);
+
+                                        if (result.Count == 1)
+                                        {
+                                            li.TopologyMEInterfaceID = result[0]["MI_ID"].ToString();
+                                        }
+                                        else if (result.Count > 1)
+                                        {
+                                            foreach (var row in result)
+                                            {
+                                                var idesc = row["MI_Description"].ToString();
+                                                var iid = row["MI_ID"].ToString();
+
+                                                //string cdesc = CleanDescription(idesc, neighborMEName);
+                                            }
+                                        }
+                                    }
+                                }
+
                                 // adjacentParentID adalah parentID (aggr) dari lawannya interface aggr ini di PE.
                                 if (childNeighborParentID != null)
                                 {
@@ -3443,7 +3651,10 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                             }
                         }
                         else
+                        {
                             FindPhysicalNeighbor(li);
+
+                        }
                     }
                     else if (li.ParentID != null) // subif dan anak aggregate
                     {
@@ -3554,6 +3765,13 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         u.UpdateTopologyNBInterfaceID = true;
                         u.TopologyNBInterfaceID = li.TopologyNBInterfaceID;
                         UpdateInfo(updateinfo, "mi-to-ni", db["MI_TO_NI"].ToString(), li.TopologyNBInterfaceID, true);
+                    }
+                    if (db["MI_TO_NO"].ToString() != li.TopologyNOID)
+                    {
+                        update = true;
+                        u.UpdateTopologyNOID = true;
+                        u.TopologyNOID = li.TopologyNOID;
+                        UpdateInfo(updateinfo, "mi-to-no", db["MI_TO_NO"].ToString(), li.TopologyNOID, true);
                     }
                     if (db["MI_Description"].ToString() != li.Description)
                     {
@@ -3754,6 +3972,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             }
 
             // NECROW 3.0
+            /*
             foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
             {
                 MEInterfaceToDatabase li = pair.Value;
@@ -3843,7 +4062,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 {
                     int dri = li.RateInput == -1 ? int.MaxValue : li.RateInput;
                     int dro = li.RateOutput == -1 ? int.MaxValue : li.RateOutput;
-                    
+
                     int qri = int.MaxValue, qro = int.MaxValue;
                     foreach (KeyValuePair<string, Row2> qpair in qosdb)
                     {
@@ -3928,7 +4147,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                         }
                     }
                 }
-            }
+            }*/
 
             Summary("INTERFACE_COUNT", sinf);
             Summary("INTERFACE_COUNT_UP", sinfup);
@@ -4003,6 +4222,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 insert.Value("MI_TO_PI", s.TopologyPEInterfaceID);
                 insert.Value("MI_TO_MI", s.TopologyMEInterfaceID);
                 insert.Value("MI_TO_NI", s.TopologyNBInterfaceID);
+                insert.Value("MI_TO_NO", s.TopologyNOID);
                 insert.Value("MI_LastDown", s.LastDown);
                 insert.Value("MI_Percentage_TrafficInput", s.TrafficInput.Nullable(-1));
                 insert.Value("MI_Percentage_TrafficOutput", s.TrafficInput.Nullable(-1));
@@ -4067,6 +4287,7 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
                 update.Set("MI_Encapsulation", s.Encapsulation.Nullable('-'), s.UpdateEncapsulation);
                 update.Set("MI_Info", s.Info, s.UpdateInfo);
                 update.Set("MI_LastDown", s.LastDown, s.UpdateLastDown);
+                update.Set("MI_TO_NO", s.TopologyNOID, s.UpdateTopologyNOID);
                 update.Set("MI_Percentage_TrafficInput", s.TrafficInput.Nullable(-1), s.UpdateTrafficInput);
                 update.Set("MI_Percentage_TrafficOutput", s.TrafficOutput.Nullable(-1), s.UpdateTrafficOutput);
                 update.Set("MI_Summary_CIRConfigTotalInput", s.CirConfigTotalInput.Nullable(-1), s.UpdateCirConfigTotalInput);
@@ -4146,121 +4367,124 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             Event(result, EventActions.Delete, EventElements.Interface, false);
 
             // AREA CONNECTIONS
-            lock (NecrowVirtualization.DACSync)
+            if (nodeAreaID != null)
             {
-                batch.Begin();
-
-                List<string> remove = new List<string>();
-                List<Tuple<string, Tuple<string, string, string, string>>> add = new List<Tuple<string, Tuple<string, string, string, string>>>();
-
-                foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
+                lock (NecrowVirtualization.DACSync)
                 {
-                    MEInterfaceToDatabase li = pair.Value;
+                    batch.Begin();
 
-                    if (((li.ParentID != null && li.Aggr != -1) || li.ParentID == null) && li.TopologyMEInterfaceID != null)
+                    List<string> remove = new List<string>();
+                    List<Tuple<string, Tuple<string, string, string, string>>> add = new List<Tuple<string, Tuple<string, string, string, string>>>();
+
+                    foreach (KeyValuePair<string, MEInterfaceToDatabase> pair in interfacelive)
                     {
-                        // fisik (biasa atau anak aggregator)
-                        string interfaceID = li.Id;
-                        bool existInVir = false;
+                        MEInterfaceToDatabase li = pair.Value;
 
-                        foreach (KeyValuePair<string, Tuple<string, string, string, string>> pair2 in NecrowVirtualization.DerivedAreaConnections)
+                        if (((li.ParentID != null && li.Aggr != -1) || li.ParentID == null) && li.TopologyMEInterfaceID != null)
                         {
-                            Tuple<string, string, string, string> dacEntry = pair2.Value;
+                            // fisik (biasa atau anak aggregator)
+                            string interfaceID = li.Id;
+                            bool existInVir = false;
 
-                            if (dacEntry.Item3 == interfaceID)
+                            foreach (KeyValuePair<string, Tuple<string, string, string, string>> pair2 in NecrowVirtualization.DerivedAreaConnections)
                             {
-                                existInVir = true;
-                                if (dacEntry.Item4 != li.TopologyMEInterfaceID)
-                                {
-                                    // gak bener ini, update!
-                                    remove.Add(pair2.Key);
-                                    result = j.Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
-                                    if (!result) return DatabaseFailure(probe);
-                                    if (result.Count == 1)
-                                    {
-                                        string topologyAreaID = result[0]["NO_AR"].ToString();
-                                        add.Add(new Tuple<string, Tuple<string, string, string, string>>(pair2.Key, new Tuple<string, string, string, string>(nodeAreaID, topologyAreaID, interfaceID, li.TopologyMEInterfaceID)));
-                                        Update update = j.Update("DerivedAreaConnection");
-                                        update.Where("DAC_ID", pair2.Key);
-                                        update.Set("DAC_AR_2", topologyAreaID);
-                                        update.Set("DAC_MI_2", li.TopologyMEInterfaceID);
-                                        batch.Add(update);
-                                    }
-                                }
-                                break;
-                            }
-                            else if (dacEntry.Item4 == interfaceID)
-                            {
-                                existInVir = true;
-                                if (dacEntry.Item3 != li.TopologyMEInterfaceID)
-                                {
-                                    // gak bener ini, update!
-                                    remove.Add(pair2.Key);
-                                    result = j.Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
-                                    if (!result) return DatabaseFailure(probe);
-                                    if (result.Count == 1)
-                                    {
-                                        string topologyAreaID = result[0]["NO_AR"].ToString();
-                                        add.Add(new Tuple<string, Tuple<string, string, string, string>>(pair2.Key, new Tuple<string, string, string, string>(topologyAreaID, nodeAreaID, li.TopologyMEInterfaceID, interfaceID)));
-                                        Update update = j.Update("DerivedAreaConnection");
-                                        update.Where("DAC_ID", pair2.Key);
-                                        update.Set("DAC_AR_1", topologyAreaID);
-                                        update.Set("DAC_MI_1", li.TopologyMEInterfaceID);
-                                        batch.Add(update);
-                                    }
-                                }
-                                break;
-                            }
-                        }
+                                Tuple<string, string, string, string> dacEntry = pair2.Value;
 
-                        // gak eksis
-                        if (!existInVir)
-                        {
-                            // add
-                            string dacID = Database2.ID();
-                            result = j.Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0}", li.TopologyMEInterfaceID);
-                            if (!result) return DatabaseFailure(probe);
-                            if (result.Count == 1)
+                                if (dacEntry.Item3 == interfaceID)
+                                {
+                                    existInVir = true;
+                                    if (dacEntry.Item4 != li.TopologyMEInterfaceID)
+                                    {
+                                        // gak bener ini, update!
+                                        remove.Add(pair2.Key);
+                                        result = j.Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0} and NO_AR is not null", li.TopologyMEInterfaceID);
+                                        if (!result) return DatabaseFailure(probe);
+                                        if (result.Count == 1)
+                                        {
+                                            string topologyAreaID = result[0]["NO_AR"].ToString();
+                                            add.Add(new Tuple<string, Tuple<string, string, string, string>>(pair2.Key, new Tuple<string, string, string, string>(nodeAreaID, topologyAreaID, interfaceID, li.TopologyMEInterfaceID)));
+                                            Update update = j.Update("DerivedAreaConnection");
+                                            update.Where("DAC_ID", pair2.Key);
+                                            update.Set("DAC_AR_2", topologyAreaID);
+                                            update.Set("DAC_MI_2", li.TopologyMEInterfaceID);
+                                            batch.Add(update);
+                                        }
+                                    }
+                                    break;
+                                }
+                                else if (dacEntry.Item4 == interfaceID)
+                                {
+                                    existInVir = true;
+                                    if (dacEntry.Item3 != li.TopologyMEInterfaceID)
+                                    {
+                                        // gak bener ini, update!
+                                        remove.Add(pair2.Key);
+                                        result = j.Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0} and NO_AR is not null", li.TopologyMEInterfaceID);
+                                        if (!result) return DatabaseFailure(probe);
+                                        if (result.Count == 1)
+                                        {
+                                            string topologyAreaID = result[0]["NO_AR"].ToString();
+                                            add.Add(new Tuple<string, Tuple<string, string, string, string>>(pair2.Key, new Tuple<string, string, string, string>(topologyAreaID, nodeAreaID, li.TopologyMEInterfaceID, interfaceID)));
+                                            Update update = j.Update("DerivedAreaConnection");
+                                            update.Where("DAC_ID", pair2.Key);
+                                            update.Set("DAC_AR_1", topologyAreaID);
+                                            update.Set("DAC_MI_1", li.TopologyMEInterfaceID);
+                                            batch.Add(update);
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+
+                            // gak eksis
+                            if (!existInVir)
                             {
-                                string topologyAreaID = result[0]["NO_AR"].ToString();
-                                add.Add(new Tuple<string, Tuple<string, string, string, string>>(dacID, new Tuple<string, string, string, string>(nodeAreaID, topologyAreaID, interfaceID, li.TopologyMEInterfaceID)));
-                                Insert insert = j.Insert("DerivedAreaConnection");
-                                insert.Value("DAC_ID", dacID);
-                                insert.Value("DAC_AR_1", nodeAreaID);
-                                insert.Value("DAC_AR_2", topologyAreaID);
-                                insert.Value("DAC_MI_1", interfaceID);
-                                insert.Value("DAC_MI_2", li.TopologyMEInterfaceID);
-                                batch.Add(insert);
+                                // add
+                                string dacID = Database2.ID();
+                                result = j.Query("select NO_AR from Node, MEInterface where MI_NO = NO_ID and MI_ID = {0} and NO_AR is not null", li.TopologyMEInterfaceID);
+                                if (!result) return DatabaseFailure(probe);
+                                if (result.Count == 1)
+                                {
+                                    string topologyAreaID = result[0]["NO_AR"].ToString();
+                                    add.Add(new Tuple<string, Tuple<string, string, string, string>>(dacID, new Tuple<string, string, string, string>(nodeAreaID, topologyAreaID, interfaceID, li.TopologyMEInterfaceID)));
+                                    Insert insert = j.Insert("DerivedAreaConnection");
+                                    insert.Value("DAC_ID", dacID);
+                                    insert.Value("DAC_AR_1", nodeAreaID);
+                                    insert.Value("DAC_AR_2", topologyAreaID);
+                                    insert.Value("DAC_MI_1", interfaceID);
+                                    insert.Value("DAC_MI_2", li.TopologyMEInterfaceID);
+                                    batch.Add(insert);
+                                }
                             }
                         }
                     }
-                }
 
-                result = batch.Commit();
-                if (!result) return DatabaseFailure(probe);
+                    result = batch.Commit();
+                    if (!result) return DatabaseFailure(probe);
 
-                // modify virtualizations
-                // remove
-                foreach (string dacID in remove)
-                {
-                    NecrowVirtualization.DerivedAreaConnections.Remove(dacID);
-                }
+                    // modify virtualizations
+                    // remove
+                    foreach (string dacID in remove)
+                    {
+                        NecrowVirtualization.DerivedAreaConnections.Remove(dacID);
+                    }
 
-                // add
-                foreach (Tuple<string, Tuple<string, string, string, string>> entry in add)
-                {
-                    NecrowVirtualization.DerivedAreaConnections.Add(entry.Item1, entry.Item2);
-                }
+                    // add
+                    foreach (Tuple<string, Tuple<string, string, string, string>> entry in add)
+                    {
+                        NecrowVirtualization.DerivedAreaConnections.Add(entry.Item1, entry.Item2);
+                    }
 
-                // remove dac
-                batch.Begin();
-                foreach (string dacID in dacRemove)
-                {
-                    NecrowVirtualization.DerivedAreaConnections.Remove(dacID);
-                    batch.Add("delete from DerivedAreaConnection where DAC_ID = {0}", dacID);
+                    // remove dac
+                    batch.Begin();
+                    foreach (string dacID in dacRemove)
+                    {
+                        NecrowVirtualization.DerivedAreaConnections.Remove(dacID);
+                        batch.Add("delete from DerivedAreaConnection where DAC_ID = {0}", dacID);
+                    }
+                    result = batch.Commit();
+                    if (!result) return DatabaseFailure(probe);
                 }
-                result = batch.Commit();
-                if (!result) return DatabaseFailure(probe);
             }
 
             // redone vMEPhysicalInterfaces
@@ -4380,6 +4604,23 @@ Lag-id Port-id   Adm   Act/Stdby Opr   Description
             result = batch.Commit();
             if (!result) return DatabaseFailure(probe);
             Event(result, EventActions.Delete, EventElements.QOS, false);
+
+            // QOS POLICY DELETE
+            batch.Begin();
+            foreach (KeyValuePair<string, Row2> pair in policydb)
+            {
+                Row2 row = pair.Value;
+                if (!policylive.ContainsKey(pair.Key))
+                {
+                    Event("QOS POLICY DELETE: " + pair.Key);
+                    string mqid = row["MQP_ID"].ToString();
+                    batch.Add("delete from MEQOSPolicy where MQP_ID = {0}", mqid);
+                }
+            }
+            result = batch.Commit();
+            if (!result) return DatabaseFailure(probe);
+            Event(result, EventActions.Delete, EventElements.QOS, false);
+
 
             #endregion
 

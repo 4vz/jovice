@@ -37,13 +37,14 @@ namespace Necrow
         {
             Batch b = jovice.Batch();
 
-            DateTime ossSeLastCheck = DateTime.MinValue;
+            DateTime nossfSeLastCheck = DateTime.MinValue;
             DateTime seLastCheck = DateTime.MinValue;
 
             while (true)
             {
-                bool ossReady = oss && oss.Query("select AGREENUM from DWH_SALES.eas_ncrm_agree_order_line where ROWNUM = 1");
-
+                bool nossfReady = nossf && nossf.Query("select AGREENUM from DWH_SALES.eas_ncrm_agree_order_line where ROWNUM = 1");
+                //bool desdbnReady = desdbn && desdbn.Query("select PERIODE from NF_AKTIF_VPNIP_FINAL where ROWNUM = 1");
+                bool dbwinsReady = dbwins && dbwins.Query("select PRODUCT_NAME from DOK_DWS.UIM_SERVICES where ROWNUM = 1");
                 //
                 // ADD SERVICEIMMEDIATE FOR SERVICE THAT HAVE NONE
                 //
@@ -169,7 +170,7 @@ order by SI_SE, refid_count desc
                 //
                 // CHECK FOR NEW SERVICE FROM SERVICEIMMEDIATE
                 //
-                if (ossReady)
+                if (nossfReady && dbwinsReady)
                 {
                     bool seCheck = false;
                     if ((DateTime.UtcNow - seLastCheck) > TimeSpan.FromMinutes(5))
@@ -190,62 +191,58 @@ order by newid()
                             string siid = row4["SI_ID"].ToString();
                             string vid = row4["SI_VID"].ToString();
 
-                            string sesid = null;
                             string seid = null;
 
                             if (jovice.Query(out Row2 serow, "select SE_ID from Service where SE_SID = {0}", vid))
                             {
                                 // search from Service
                                 seid = serow["SE_ID"];
-                                sesid = vid;
                             }
                             else if (jovice.Query(out Row2 sorow, "select SE_ID, SE_SID from Service, ServiceOrder where SE_ID = SO_SE and SO_OID = {0}", vid))
                             {
                                 // search from Order
                                 seid = sorow["SE_ID"];
-                                sesid = sorow["SE_SID"];
                             }
                             else
                             {
-                                // search using nossf
-                                Result2 norres = oss.Query("select LI_SID from DWH_SALES.eas_ncrm_agree_order_line where ORDER_ID = {0} and LI_SID is not null and LI_STATUS = 'Complete'", vid);
+                                // USING NOSSF
+                                string nossfsid = null;
 
-                                if (!norres) break;
+                                if (nossf.Query(out Row2 norow, "select LI_SID from DWH_SALES.eas_ncrm_agree_order_line where ORDER_ID = {0} and LI_SID is not null and LI_STATUS = 'Complete'", vid))
+                                    nossfsid = norow["LI_SID"];
+                                else if (nossf.Query(out Row2 norow2, "select LI_SID from DWH_SALES.eas_ncrm_agree_order_line where li_sid = {0} and ROWNUM = 1", vid))
+                                    nossfsid = vid;
 
-                                string csesid = null;
-
-                                if (norres > 0)
+                                if (nossfsid != null)
                                 {
-                                    // found by order
-                                    csesid = norres[0]["LI_SID"];
-                                }
-                                else
-                                {
-                                    Result2 nseres = oss.Query("select LI_SID from DWH_SALES.eas_ncrm_agree_order_line where li_sid = {0} and ROWNUM = 1", vid);
-
-                                    if (!nseres) break;
-
-                                    if (nseres > 0)
-                                    {
-                                        csesid = vid;
-                                    }
-                                }
-
-                                if (csesid != null)
-                                {
-                                    if (jovice.Query(out Row2 serow2, "select * from Service where SE_SID = {0}", csesid))
-                                    {
-                                        seid = serow2["SE_ID"];
-                                    }
+                                    if (jovice.Query(out Row2 serow2, "select * from Service where SE_SID = {0}", nossfsid))
+                                        seid = serow2["SE_ID"]; // using existing seid from service
                                     else
                                     {
                                         seid = Database2.ID();
-                                        bool ok = OSS.RefreshOrder(csesid, seid, true);
-                                        if (!ok) break;
+
+                                        if (!OSS.RefreshOrder(nossfsid, seid, "nossf", true)) // using new service, refresh from nossf db (dwhnas)
+                                            seid = null;
                                     }
-                                    sesid = csesid;
+                                }
+
+                                if (seid == null)
+                                {
+                                    // seid is still null, USING DBWINS
+                                    if (dbwins.Query(out Row2 wirow, "select * from DOK_DWS.SERVICE_INFO_DATIN where CFS_ID = {0}", vid))
+                                    {
+                                        seid = Database2.ID();
+
+                                        if (!OSS.RefreshOrder(vid, seid, "dbwins", true))
+                                            seid = null;
+                                    }
+
+
+
+
                                 }
                             }
+
 
                             if (seid != null)
                             {
@@ -262,13 +259,13 @@ order by newid()
                 //                
                 // REFRESH NEW SERVICES FROM OSS
                 //
-                if (ossReady)
+                if (nossfReady)
                 {
-                    if ((DateTime.UtcNow - ossSeLastCheck) > TimeSpan.FromHours(6))
+                    if ((DateTime.UtcNow - nossfSeLastCheck) > TimeSpan.FromHours(6))
                     {
-                        ossSeLastCheck = DateTime.UtcNow;
+                        nossfSeLastCheck = DateTime.UtcNow;
 
-                        if (oss.Query(out Result2 r1, @"select distinct LI_SID from DWH_SALES.eas_ncrm_agree_order_line where LI_SID is not null order by DBMS_RANDOM.VALUE"))
+                        if (nossf.Query(out Result2 r1, @"select distinct LI_SID from DWH_SALES.eas_ncrm_agree_order_line where LI_SID is not null order by DBMS_RANDOM.VALUE"))
                         {
                             foreach (Row2 row1 in r1)
                             {
@@ -290,11 +287,39 @@ order by newid()
                                     newService = false;
                                 }
 
-                                bool ok = OSS.RefreshOrder(sesid, sid, newService);
+                                bool ok = OSS.RefreshOrder(sesid, sid, "nossf", newService);
 
                                 if (!ok) break;
                             }
                         }
+                        if (dbwins.Query(out Result2 dr1, @"select distinct LI_SID from NCX_WIB.DETAIL_WFM_ATTR_NCX_MYCARRIER where LI_SID is not null order by DBMS_RANDOM.VALUE"))
+                        {
+                            foreach (Row2 row1 in dr1)
+                            {
+                                string sesid = row1["LI_SID"];
+
+                                Result2 r11 = jovice.Query("select SE_ID from Service where SE_SID = {0}", sesid);
+
+                                string sid = null;
+                                bool newService = false;
+
+                                if (r11 == 0)
+                                {
+                                    sid = Database2.ID();
+                                    newService = true;
+                                }
+                                else
+                                {
+                                    sid = r11[0]["SE_ID"];
+                                    newService = false;
+                                }
+
+                                bool ok = OSS.RefreshOrder(sesid, sid, "dbwins", newService);
+
+                                if (!ok) break;
+                            }
+                        }
+                        
                     }
                 }
 
@@ -306,7 +331,6 @@ order by newid()
         {
             serviceDiscoveryThread.Abort();
         }
-
 
         private Regex nossfAlternateNameRegex = new Regex(@"\(([a-zA-Z\s\d]+)\)");
 

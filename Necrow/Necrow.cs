@@ -119,10 +119,12 @@ namespace Necrow
     {
         #region Fields
 
-        internal readonly static int Version = 54;
+        internal readonly static int Version = 66;
 
         private Database2 jovice;
-        private Database2 oss;
+        private Database2 nossf;
+        private Database2 dbwins;
+        private Database2 desdbn;
 
         private Queue<Tuple<string, ProbeRequestData>> prioritize = new Queue<Tuple<string, ProbeRequestData>>();        
 
@@ -182,6 +184,8 @@ namespace Necrow
 
         public string TestNode { get; private set; } = null;
         public ProbeTypes TestProbeType { get; private set; } = ProbeTypes.Runner;
+
+        public object PrioritizeLock = new object();
 
         #endregion
 
@@ -776,7 +780,9 @@ select NO_ID from Node where NO_Active = 1 and NO_Type in ('P', 'M', 'T', 'F') a
             jovice.QueryAttempts = 5;
             jovice.Timeout = 600;
 
-            oss = OSS.Database;
+            nossf = OSS.NOSSF;
+            desdbn = OSS.DESDBN;
+            dbwins = OSS.DBWINS;
 
             Batch batch;
             Result2 result;

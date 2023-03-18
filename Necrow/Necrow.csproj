@@ -43,7 +43,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>none</DebugType>
+    <DebugType>full</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>
@@ -55,6 +55,7 @@
     <CodeAnalysisRuleSet />
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject />
@@ -84,10 +85,6 @@
     <Compile Include="ServiceDiscovery.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Aphysoft.Apps\Aphysoft.Apps.csproj">
-      <Project>{bd09ee9f-09ce-45da-8cf3-9ee66afe605c}</Project>
-      <Name>Aphysoft.Apps</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Aphysoft.Share.Oracle\Aphysoft.Share.Oracle.csproj">
       <Project>{fd7c3c83-1251-4d47-b201-539ad65d279c}</Project>
       <Name>Aphysoft.Share.Oracle</Name>
@@ -112,6 +109,13 @@
       <ProductName>.NET Framework 3.5 SP1</ProductName>
       <Install>false</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="app.config" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="App.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

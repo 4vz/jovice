@@ -1064,36 +1064,36 @@ namespace Aphysoft.Share
                             }));
                             terminalListener.Start();
                         }
-                        if (!Environment.UserInteractive)
-                        {
-                            serviceKeeper = new Thread(new ThreadStart(delegate ()
-                            {
-                                ServiceController aps = null;
+                        //if (!Environment.UserInteractive)
+                        //{
+                        //    serviceKeeper = new Thread(new ThreadStart(delegate ()
+                        //    {
+                        //        ServiceController aps = null;
 
-                                while (IsRunning)
-                                {
-                                    if (aps == null) aps = Apps.GetAppsService();
-                                    else aps.Refresh();
+                        //        while (IsRunning)
+                        //        {
+                        //            if (aps == null) aps = Apps.GetAppsService();
+                        //            else aps.Refresh();
 
-                                    if (aps != null)
-                                    {
-                                        if (aps.Status == ServiceControllerStatus.Stopped)
-                                        {
-                                            aps.Start();
-                                            aps.WaitForStatus(ServiceControllerStatus.Running);
-                                        }
-                                    }
+                        //            if (aps != null)
+                        //            {
+                        //                if (aps.Status == ServiceControllerStatus.Stopped)
+                        //                {
+                        //                    aps.Start();
+                        //                    aps.WaitForStatus(ServiceControllerStatus.Running);
+                        //                }
+                        //            }
 
-                                    Thread.Sleep(5000);
-                                }
-                            }));
-                            serviceKeeper.Start();
-                        }
+                        //            Thread.Sleep(5000);
+                        //        }
+                        //    }));
+                        //    serviceKeeper.Start();
+                        //}
                     }
 
-                    BeginCoordinator();
+                    //BeginCoordinator();
 
-                    BeginServiceEvent();
+                    //BeginServiceEvent();
                 }         
 
                 Event(Name + " started");

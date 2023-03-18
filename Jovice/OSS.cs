@@ -10,27 +10,43 @@ namespace Jovice
 {
     public class OSS
     {
-        public static Database2 Database => Database2.Get("NOSSF");
+        public static Database2 NOSSF => Database2.Get("NOSSF");
+        public static Database2 DESDBN => Database2.Get("DESDBN");
+        public static Database2 DBWINS => Database2.Get("DBWINS");
 
-        public static bool RefreshOrder(string sid, string seid, bool newService = false)
+        public static bool RefreshOrder(string sid, string seid, string db, bool newService = false)
         {
-            if (sid == null || seid == null) return false;
+            if (sid == null || seid == null || (db != "nossf" && db != "dbwins")) return false;
 
             Database2 jovice = Center.Jovice.Database;
-            Database2 oss = Database;
+            Database2 nossf = NOSSF;
+            Database2 dbwins = DBWINS;
 
             bool ok = false;
 
-            Result2 nsores = oss.Query(@"
+            Result2 nsores;
+
+            if (db == "nossf")
+                nsores = nossf.Query(@"
 select ORDER_ID, AM, CUSTACCNTNAME, CUSTACCNTNUM, SERVACCNTNAME, ACTION_CD, ORDER_STATUS, ORDER_CREATED_DATE, LI_PRODUCT_NAME, CUST_SEGMEN
 from DWH_SALES.eas_ncrm_agree_order_line where li_sid = {0}
 order by ORDER_CREATED_DATE asc
 ", sid);
+            else
+                nsores = dbwins.Query(@"
+select ORDER_ID, NULL as AM, CUSTOMER_NAME as CUSTACCNTNAME, CUSTOMER_ID as CUSTACCNTNUM, STO_DESCRIPTION || ' ' || WITEL as SERVACCNTNAME, 
+NULL as ACTION_CD, NULL as ORDER_STATUS, CFS_CREATEDDATE as ORDER_CREATED_DATE,
+LI_PRODUCT_NAME, 'WIBS WIBS' as CUST_SEGMEN
+from DOK_DWS.SERVICE_INFO_DATIN, NCX_WIB.DETAIL_WFM_ATTR_NCX_MYCARRIER where CFS_ID = LI_SID and LI_SID = {0}", sid);
 
             if (nsores)
             {
+                
+
                 if (nsores.Count > 0)
                 {
+                    ok = true;
+
                     string scid = null;
 
                     Row2 lastRow = nsores.Last();
@@ -266,8 +282,6 @@ order by ORDER_CREATED_DATE asc
                     }
 
                 }
-
-                ok = true;
             }
 
             return ok;

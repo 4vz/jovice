@@ -32,7 +32,7 @@
             var boxsa2 = $$.box(boxsa)({ size: [150, 60], color: 88, attach: [boxsa1, "right", 0, 0] });
             var boxsa3 = $$.box(boxsa)({ size: [150, 60], color: 85,  attach: [boxsa2, "right", 0, 0] });
             var boxsa4 = $$.box(boxsa)({ size: [150, 60], color: 88, attach: [boxsa3, "right", 0, 0] });
-            var boxsa5 = $$.box(boxsa)({ size: [150, 60], color: 88, attach: [boxsa4, "right", 0, 0] });
+            var boxsa5 = $$.box(boxsa)({ size: [150, 60], color: 85, attach: [boxsa4, "right", 0, 0] });
             var boxsa6 = $$.box(boxsa)({ size: [150, 60], color: 88, attach: [boxsa5, "right", 0, 0] });
 
             $$.text(boxsa1)({ text: "GAIA", color: "green", weight: "500", position: [10, 10] });
@@ -60,47 +60,11 @@
             var oaconnytd = $$.text(boxoa3)({ text: "...", font: 51, left: 10, top: 30 });
 
             var boxtr = $$.box(boxpage)({ size: ["100%", 600], color: 85, attach: [boxoa, "bottom", 0, 0] });
-            $$.text(boxtr)({ text: "2020 Trends", font: 20, position: [10, 10] });
+            $$.text(boxtr)({ text: "2021 Trends", font: 20, position: [10, 10] });
 
             var textm1 = $$.text(boxtr)({ text: "JANUARY", font: 12, color: 30, position: [10, 55] });
-            var boxm1 = $$.box(boxtr)({ size: [10 + (9194 / 50000) * 240, 20], color: 50, position: [80, 50] });
-            var valm1 = $$.text(boxtr)({ text: "9194", font: 12, color: 30, attach: [boxm1, "right", 10, 5] });
-
-            var textm2 = $$.text(boxtr)({ text: "FEBRUARY", font: 12, color: 30, position: [10, 95] });
-            var boxm2 = $$.box(boxtr)({ size: [10 + (10828 / 50000) * 240, 20], color: 50, position: [80, 90] });
-            var valm2 = $$.text(boxtr)({ text: "10828", font: 12, color: 30, attach: [boxm2, "right", 10, 5] });
-
-            var textm3 = $$.text(boxtr)({ text: "MARCH", font: 12, color: 30, position: [10, 135] });
-            var boxm3 = $$.box(boxtr)({ size: [10 + (12543 / 50000) * 240, 20], color: 50, position: [80, 130] });
-            var valm3 = $$.text(boxtr)({ text: "12543", font: 12, color: 30, attach: [boxm3, "right", 10, 5] });
-
-            var textm4 = $$.text(boxtr)({ text: "APRIL", font: 12, color: 30, position: [10, 175] });
-            var boxm4 = $$.box(boxtr)({ size: [10 + (12264 / 50000) * 240, 20], color: 50, position: [80, 170] });
-            var valm4 = $$.text(boxtr)({ text: "12264", font: 12, color: 30, attach: [boxm4, "right", 10, 5] });
-
-            var textm5 = $$.text(boxtr)({ text: "MAY", font: 12, color: 30, position: [10, 215] });
-            var boxm5 = $$.box(boxtr)({ size: [10 + (22919 / 50000) * 240, 20], color: 50, position: [80, 210] });
-            var valm5 = $$.text(boxtr)({ text: "22919", font: 12, color: 30, attach: [boxm5, "right", 10, 5] });
-
-            var textm6 = $$.text(boxtr)({ text: "JUNE", font: 12, color: 30, position: [10, 255] });
-            var boxm6 = $$.box(boxtr)({ size: [10 + (40582 / 50000) * 240, 20], color: 50, position: [80, 250] });
-            var valm6 = $$.text(boxtr)({ text: "40582", font: 12, color: 30, attach: [boxm6, "right", 10, 5] });
-
-            var textm7 = $$.text(boxtr)({ text: "JULY", font: 12, color: 30, position: [10, 295] });
-            var boxm7 = $$.box(boxtr)({ size: [10 + (49008 / 50000) * 240, 20], color: 50, position: [80, 290] });
-            var valm7 = $$.text(boxtr)({ text: "49008", font: 12, color: 30, attach: [boxm7, "right", 10, 5] });
-
-            var textm8 = $$.text(boxtr)({ text: "AUGUST", font: 12, color: 30, position: [10, 335] });
-            var boxm8 = $$.box(boxtr)({ size: [10 + (60251 / 50000) * 240, 20], color: 50, position: [80, 330] });
-            var valm8 = $$.text(boxtr)({ text: "60251", font: 12, color: 30, attach: [boxm8, "right", 10, 5] });
-
-            var textm9 = $$.text(boxtr)({ text: "SEPTEMBER", font: 12, color: 30, position: [10, 375] });
-            var boxm9 = $$.box(boxtr)({ size: [10 + (109104 / 50000) * 240, 20], color: 50, position: [80, 370] });
-            var valm9 = $$.text(boxtr)({ text: "109104", font: 12, color: 30, attach: [boxm9, "right", 10, 5] });
-
-            var textm10 = $$.text(boxtr)({ text: "OCTOBER", font: 12, color: 30, position: [10, 415] });
-            var boxm10 = $$.box(boxtr)({ size: [10, 20], color: 70, position: [80, 410] });
-            var valm10 = $$.text(boxtr)({ text: "...", font: 12, color: 30, attach: [boxm10, "right", 10, 5] });
+            var boxm1 = $$.box(boxtr)({ size: [10, 20], color: 70, position: [80, 50] });
+            var valm1 = $$.text(boxtr)({ text: "...", font: 12, color: 30, attach: [boxm1, "right", 10, 5] });
 
 
             $$(function () {
@@ -110,8 +74,8 @@
                     //oaapimtd.text(d.quemtd);
                     //oaapiytd.text(d.queytd);
                     //oaahcmtd.text(d.apihc);
-                    boxm10.width(10 + (d.connmtd / 50000) * 240);
-                    valm10.text(d.connmtd);
+                    boxm1.width(10 + (d.connmtd / 50000) * 240);
+                    valm1.text(d.connmtd);
                 });
             }, 5000, -2);
 

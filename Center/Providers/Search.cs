@@ -959,7 +959,7 @@ values(GETUTCDATE(), {0}, {1}, {2}, {3})
 
         protected Database2 jovice = Jovice.Database;
         protected Database2 center = Web.Database;
-        protected Database2 oss = OSS.Database;
+        protected Database2 oss = OSS.NOSSF;
 
         #endregion
 

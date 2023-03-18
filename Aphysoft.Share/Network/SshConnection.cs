@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 using System.Threading;
-using Tamir.SharpSsh;
 using System.Text.RegularExpressions;
 using System.Net.Sockets;
 using System.Text;
 using System.IO;
 using System.Diagnostics;
+using Renci.SshNet;
 
 namespace Aphysoft.Share
 {
@@ -24,13 +24,7 @@ namespace Aphysoft.Share
 
         private Thread listenerThread;
 
-        private SshShell shell = null;
-
-        public string ServerVersion { get => shell == null ? null : shell.ServerVersion; }
-
-        public string ClientVersion { get => shell == null ? null : shell.ClientVersion; }
-
-        public bool IsOpened { get => shell == null ? false : shell.ShellOpened; }
+        private SshClient shell = null;
 
         private Queue<string> outputs = new Queue<string>();
 
@@ -42,10 +36,6 @@ namespace Aphysoft.Share
 
         public bool IsConnected { get; private set; } = false;
 
-        private string expect = string.Empty;
-
-        private Regex expectRegex = null;
-
         public bool IsStarted { get; private set; } = false;
 
         private Thread mainLoop = null;
@@ -54,9 +44,9 @@ namespace Aphysoft.Share
 
         public string LastSendLine { get; private set; } = null;
 
-        public string LastSend { get; private set; } = null;
-
         protected string terminalPrefix = null;
+
+        private ShellStream stream = null;
 
         #endregion
 
@@ -143,8 +133,7 @@ namespace Aphysoft.Share
 
                     if (!IsConnected)
                     {
-                        shell = new SshShell(host, user, pass);
-                        shell.RemoveTerminalEmulationCharacters = true;                        
+                        shell = new SshClient(host, user, pass);
 
                         try
                         {
@@ -165,41 +154,28 @@ namespace Aphysoft.Share
 
                             listenerThread = new Thread(new ThreadStart(delegate ()
                             {
-                                while (true)
+
+                                stream = shell.CreateShellStream("", 80, 40, 80, 40, 1024);
+                                
+
+                                while (shell.IsConnected)
                                 {
-                                    if (shell.Connected)
+                                    Thread.Sleep(50);
+
+                                    if (stream.DataAvailable)
                                     {
-                                        string output = null;
-                                        bool sendOutput = false;
+                                        using (var bufferStream = new MemoryStream())
+                                        {
+                                            byte[] buffer = new byte[2048]; // read in chunks of 2KB
+                                            int bytesRead;
+                                            while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+                                            {
+                                                bufferStream.Write(buffer, 0, bytesRead);
+                                            }
+                                            byte[] result = bufferStream.ToArray();
 
-                                        try
-                                        {
-                                            if (string.IsNullOrEmpty(expect) && expectRegex == null)
-                                            {
-                                                output = shell.Expect();
-                                                sendOutput = true;
-                                            }
-                                            else if (expectRegex != null)
-                                            {
-                                                output = shell.Expect(expectRegex);
-                                                sendOutput = true;
-                                            }
-                                            else
-                                            {
-                                                output = shell.Expect(expect);
-                                                sendOutput = true;
-                                            }
-                                        }
-                                        catch (IOException ex)
-                                        {
-                                            if (ex.Message == "Pipe closed") ;
-                                            else if (ex.Message == "Pipe broken") ;
-                                            sendOutput = false;
-                                            break;
-                                        }
+                                            var output = Encoding.UTF8.GetString(result);
 
-                                        if (sendOutput && output != null)
-                                        {
                                             lastOutputs.Enqueue(output);
                                             if (lastOutputs.Count > 100) lastOutputs.Dequeue();
                                             StringBuilder lastOutputSB = new StringBuilder();
@@ -219,7 +195,6 @@ namespace Aphysoft.Share
                                             Received?.Invoke(this, output);
                                         }
                                     }
-                                    else break;
                                 }
 
                                 Disconnected();
@@ -254,7 +229,7 @@ namespace Aphysoft.Share
                         }
                         catch (Exception ex)
                         {
-                            shell.Close();
+                            shell.Disconnect();
                             shell = null;
 
                             ConnectionFailed?.Invoke(this, ex);
@@ -313,7 +288,7 @@ namespace Aphysoft.Share
 
         private void Disconnected()
         {
-            if (shell != null) shell.Close();
+            if (shell != null) shell.Disconnect();
             shell = null;
 
             terminalPrefix = null;
@@ -376,18 +351,6 @@ namespace Aphysoft.Share
             outputs.Clear();
         }
         
-        protected void Expect(string expect)
-        {
-            this.expect = expect;
-            this.expectRegex = null;
-        }
-
-        protected void Expect(Regex expect)
-        {
-            this.expectRegex = expect;
-            this.expect = string.Empty;
-        }
-
         protected void Send(string data)
         {
             Send(data, false);
@@ -407,17 +370,16 @@ namespace Aphysoft.Share
                 bool sent = false;
                 try
                 {
-                    if (shell != null && shell.Connected)
+                    if (shell != null && shell.IsConnected)
                     {
                         if (newLine)
                         {
                             LastSendLine = data;
-                            shell.WriteLine(data);
+                            stream.WriteLine(data);
                         }
                         else
                         {
-                            LastSend = data;
-                            shell.Write(data);
+                            stream.Write(data);
                         }
                         sent = true;
                     }
@@ -449,11 +411,6 @@ namespace Aphysoft.Share
         protected void SendControlC()
         {
             SendCharacter((char)3);
-        }
-
-        protected void SendControlZ()
-        {
-            SendCharacter((char)26);
         }
 
         protected void WaitUntilTerminalReady()
@@ -524,11 +481,6 @@ namespace Aphysoft.Share
         protected bool Request(string command, RequestOutputEventHandler lineCallback, VoidEventHandler timeOut)
         {
             return Request(command, out string[] lines, new string[] { terminalPrefix }, lineCallback, timeOut);
-        }
-
-        protected bool Request(string command, RequestOutputEventHandler lineCallback)
-        {
-            return Request(command, lineCallback, delegate () { });
         }
 
         protected bool Request(string command, out string[] lines)
@@ -685,47 +637,12 @@ namespace Aphysoft.Share
     {
         public static bool Put(string host, string user, string pass, string[] localFiles, string remoteDirectory)
         {
-            bool r = false;
-            try
-            {
-
-                Sftp sftp = new Sftp(host, user, pass);
-                sftp.Connect();
-
-                sftp.Put(localFiles, remoteDirectory);
-
-                sftp.Close();
-
-                r = true;
-            }
-            catch (Exception ex)
-            {
-
-            }
-
-            return r;
+            return false;
         }
 
         public static bool Get(string host, string user, string pass, string remoteFile, string localFile)
         {
-            bool r = false;
-            try
-            {
-                Sftp sftp = new Sftp(host, user, pass);
-                sftp.Connect();
-
-                sftp.Get(remoteFile, localFile);
-
-                sftp.Close();
-
-                r = true;
-            }
-            catch (Exception ex)
-            {
-
-            }
-
-            return r;
+            return false;
         }
 
     }

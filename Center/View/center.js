@@ -13,6 +13,7 @@
             }
         });
 
+
     });
 
     center.icon = function (name) {
@@ -102,10 +103,10 @@
     center.loadGoogleMaps = function (callback) {
 
         if (googleMapsLoaded == false) {
-            $.getScript("https://maps.googleapis.com/maps/api/js?key=" + "AIzaSyCTfWC0APQfYHHL-2l-HlLXDWw2g_4zE80", function () {
-                googleMapsLoaded = true;
-                callback();
-            });
+            //$.getScript("https://maps.googleapis.com/maps/api/js?key=" + "AIzaSyCTfWC0APQfYHHL-2l-HlLXDWw2g_4zE80", function () {
+            //    googleMapsLoaded = true;
+            //    callback();
+            //});
         }
         else callback();
     };

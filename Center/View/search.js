@@ -801,6 +801,7 @@
 
             uipage = center.init(p);
 
+
             var titlearea = $$.box(p)({ size: ["100%", 40], top: 0 });
 
             var titleBoxFocus = 0;

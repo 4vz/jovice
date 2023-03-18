@@ -8,11 +8,26 @@ using System.Text;
 using System.Threading;
 using System.Text.RegularExpressions;
 using Aphysoft.Share;
+using Jovice;
 
 namespace Necrow
 {
     #region To Database
-    
+
+    internal class TargetToDatabase
+    {
+        public string ID { get; set; }
+        
+        public string TargetIP { get; set; }
+
+        public string TargetID { get; set; }
+
+        public string MEInterfaceName { get; set; }
+
+        public string MEInterfaceID { get; set; }
+
+    }
+
     internal abstract class StatusToDatabase : Data2
     {
         public bool Status { get; set; }
@@ -23,7 +38,7 @@ namespace Necrow
 
         public bool UpdateStatus { get; set; } = false;
 
-        public bool UpdateProtocol { get; set; } = false;
+        public bool UpdateProtocol { get; set; } = false; 
 
         public bool UpdateEnable { get; set; } = false;
     }
@@ -111,6 +126,10 @@ namespace Necrow
 
         public bool UpdateTopologyNBInterfaceID { get; set; } = false;
 
+        public string TopologyNOID { get; set; } = null;
+
+        public bool UpdateTopologyNOID { get; set; } = false;
+
         public bool PhysicalNeighborChecked { get; set; } = false;
 
         public string AggrNeighborParentID { get; set; } = null;
@@ -184,6 +203,9 @@ namespace Necrow
 
         [FieldAttribute2("{0}_Slot3", true)]
         public int? Slot3 { get; set; }
+
+        [FieldAttribute2("{0}_Slot4", true)]
+        public int? Slot4 { get; set; }
 
         [FieldAttribute2("{0}_Type", true)]
         public string Type { get; set; }
@@ -347,6 +369,7 @@ namespace Necrow
         private readonly string hwe = "HUAWEI";
         private readonly string cso = "CISCO";
         private readonly string jun = "JUNIPER";
+        private readonly string zte = "ZTE";
         private readonly string xr = "XR";
 
         private readonly string fho = "FIBERHOME";
@@ -583,12 +606,49 @@ namespace Necrow
                 else
                 {
                     restartCount = 0;
-                    if (ProbeType == ProbeTypes.Runner)
-                        necrow.NextRunnerNode(out nodeID, out progressID);
-                    else
+
+                    var prioritied = false;
+
+#if !DEBUG
+                    lock (necrow.PrioritizeLock)
                     {
-                        necrow.NextDeepNode(out nodeID, out progressID);
-                        fromDeepNodeQueue = true;
+                        //
+                        // PRIORITY!
+                        //
+                        // if there's Queue = 1 Deep = 1 in probe progress then use this
+                        Result2 pri = j.Query("select * from ProbeProgress where XP_Queue = 1 and XP_Deep = 1 and XP_StartTime is null and XP_Pending is null");
+
+                        if (pri.Count > 0)
+                        {
+                            foreach (var firow in pri)
+                            {
+                                var prinodeid = firow["XP_NO"].ToString();
+                                var prinodeprogress = firow["XP_ID"].ToString();
+
+                                nodeID = prinodeid;
+                                progressID = prinodeprogress;
+                                fromDeepNodeQueue = true;
+                                prioritied = true;
+
+                                j.Execute("update ProbeProgress set XP_StartTime = {0} where XP_ID = {1}", DateTime.UtcNow, progressID);
+
+                                break;
+                            }
+                        }
+                    }
+#endif
+
+                    if (!prioritied)
+                    {
+                        if (ProbeType == ProbeTypes.Runner)
+                        {
+                            necrow.NextRunnerNode(out nodeID, out progressID);
+                        }
+                        else
+                        {
+                            necrow.NextDeepNode(out nodeID, out progressID);
+                            fromDeepNodeQueue = true;
+                        }
                     }
                 }
 
@@ -617,12 +677,15 @@ namespace Necrow
                         else
                         {
                             ProbeProcessResult probe = null;
-#if !DEBUG
                             string info = null;
+#if !DEBUG
+                            
                             try
                             {
 #endif
                                 probe = Enter(node, progressID, fromDeepNodeQueue, out continueProcess);
+
+                            
 
                                 if (probe != null)
                                 {
@@ -653,13 +716,13 @@ namespace Necrow
                                         if (probe.FailureType == FailureTypes.Connection) errorMessage = "Connection error";
                                         else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error: " + j.LastException.Message.Trim(new char[] { '\r', '\n', ' ' }) + ", SQL: " + j.LastException.Sql;
                                         else if (probe.FailureType == FailureTypes.Request) errorMessage = "Request error";
-#if !DEBUG
+#if DEBUG
                                         throw new Exception(errorMessage);
 #else
-                                    Event("Probe error: " + errorMessage);
-                                    Update(UpdateTypes.Remark, "PROBEFAILED");
-                                    caughtError = true;
-                                    continueProcess = false;
+                                        Event("Probe error: " + errorMessage);
+                                        Update(UpdateTypes.Remark, "PROBEFAILED");
+                                        caughtError = true;
+                                        continueProcess = false;
 #endif
                                     }
                                 }
@@ -692,8 +755,7 @@ namespace Necrow
 
                             if (continueProcess)
                             {
-                                #region Continue Process                            
-
+#region Continue Process                            
                                 if (ProbeType == ProbeTypes.Runner)
                                 {
                                     lock (necrow.ProbeLock)
@@ -778,12 +840,20 @@ namespace Necrow
                                     else popInterfaces = null;
 
                                     batch.Commit();
+
+
 #if !DEBUG
                                     try
                                     {
 #endif
+                                        // running config
+
+
+
+
                                         if (nodeType == "P" || nodeType == "T") probe = PEProcess();
                                         else if (nodeType == "M") probe = MEProcess();
+
 
                                         if (probe != null)
                                         {
@@ -815,12 +885,12 @@ namespace Necrow
                                                 else if (probe.FailureType == FailureTypes.Database) errorMessage = "Database error: " + j.LastException.Message.Trim(new char[] { '\r', '\n', ' ' }) + ", SQL: " + j.LastException.Sql;
                                                 else if (probe.FailureType == FailureTypes.Request) errorMessage = "Request error";
 
-#if !DEBUG
+#if DEBUG
                                                 throw new Exception(errorMessage);
 #else
-                                            Event("Probe error: " + errorMessage);
-                                            Update(UpdateTypes.Remark, "PROBEFAILED");
-                                            caughtError = true;
+                                                Event("Probe error: " + errorMessage);
+                                                Update(UpdateTypes.Remark, "PROBEFAILED");
+                                                caughtError = true;
 #endif
                                             }
                                         }
@@ -851,8 +921,9 @@ namespace Necrow
                                     j.Execute("update ProbeProgress set XP_Deep = 1, XP_StartTime = NULL where XP_ID = {0}", progressID);
                                 }
 
+#endregion
 
-                                #endregion
+                                Action(probe);
                             }
 
                             if (probe != null && probe.FailureType == FailureTypes.Connection)
@@ -939,7 +1010,7 @@ namespace Necrow
             queueStop = false;
         }
 
-        #endregion
+#endregion
 
         private ProbeProcessResult DatabaseFailure(ProbeProcessResult probe)
         {
@@ -1149,7 +1220,7 @@ namespace Necrow
 
         private void Exit(string manufacture)
         {
-            if (idleThread != null)
+           if (idleThread != null)
             {
                 idleThread.Abort();
                 idleThread = null;
@@ -1218,6 +1289,7 @@ namespace Necrow
                             byte b = (byte)output[i];
 
                             if (skip > 0) skip--;
+                            //else if (b == 8) lineBuilder.Remove(lineBuilder.Length - 1, 1);
                             else if (b >= 32) lineBuilder.Append((char)b);
 
                             string line = lineBuilder.ToString();
@@ -1419,23 +1491,23 @@ namespace Necrow
         {
             bool connectSuccess = false;
 
-            string user, pass, thost;
+            string user, pass;
 
-            if (nodeType == "F")
-            {
-                user = "740289";
-                pass = "1992Readone";
-                thost = nodeIP;
-            }
-            else
-            {
+            //if (nodeType == "F")
+            //{
+            //    user = "740289";
+            //    pass = "1992Readone";
+            //    thost = nodeIP;
+            //}
+            //else
+            //{
                 user = tacacUser;
                 pass = tacacPassword;
-                thost = host;
-            }
+            //}
 
             Event("Connecting with Telnet... (" + user + "@" + host + ")");
-            SendLine("telnet " + thost);
+
+            SendLine("telnet " + host);
 
             ExpectResult expect = Expect("ogin:", "sername:");
 
@@ -1731,17 +1803,19 @@ namespace Necrow
                 else
                 {
                     SendLine("show clock");
-
                     WaitUntilEndsWith(new string[] { "#", ">" });
 
                     if (LastOutput.IndexOf("syntax error, expecting") > -1) nodeManufacture = jun;
                     else if (LastOutput.IndexOf("Unrecognized command") > -1) nodeManufacture = hwe;
                     else if (LastOutput.IndexOf("Invalid parameter") > -1) nodeManufacture = alu;
-
-                    if (nodeManufacture == null)
+                    else
                     {
-                        nodeManufacture = cso;
-                    }
+                        SendLine("show console");
+                        WaitUntilEndsWith(new string[] { "#", ">" });
+
+                        if (LastOutput.IndexOf("Incomplete command") > -1) nodeManufacture = zte;
+                        else nodeManufacture = cso;
+                    }                   
                 }
             }
 
@@ -1775,6 +1849,299 @@ namespace Necrow
             uptime = new TimeSpan(day, hour, minute, 0);
 
             return true;
+        }
+
+        private void Action(ProbeProcessResult probe)
+        {
+            Event("BEGIN ACTION");
+
+            if (nodeType == "P" || nodeType == "T")
+            {
+#region PING
+
+                string[] lines = null;
+                Batch batch = j.Batch();
+
+                do
+                {
+
+                    Dictionary<string, Row2> pingrl = j.QueryDictionary(@"
+select XY_ID, XY_StartTime, XY_Recurring, XY_PingTarget, PP_IP, PN_Name from ProbeAction, PEInterface
+left join PEInterfaceIP on PP_PI = PI_ID and PP_IPv6 = 0 and PP_Order = 1
+left join PERouteName on PN_ID = PI_PN
+where 
+XY_PI = PI_ID and PI_NO = {0} and XY_StartTime < GETUTCDATE() and XY_Active = 1
+", "XY_ID", nodeID);
+
+                    
+                    if (pingrl.Count > 0)
+                    {
+                        Dictionary<string, (int, int, int, int)?> pingres = new();
+                        Dictionary<string, string> pingtodict = new();
+
+                        foreach (var kvp in pingrl)
+                        {
+                            if (kvp.Value["PN_Name"].IsNull)
+                            {
+                                var cpt = kvp.Value["XY_PingTarget"];
+
+                                if (!cpt.IsNull)
+                                {
+                                    pingtodict.Add(kvp.Key, kvp.Value["XY_PingTarget"].ToString());
+                                    pingres.Add(kvp.Key, null);
+                                }
+                            }
+                            else
+                            {
+                                string pingto = null;
+                                var cpt = kvp.Value["XY_PingTarget"];
+
+                                if (!cpt.IsNull)
+                                    pingto = cpt.ToString();
+                                else
+                                {
+                                    string kc = kvp.Value["PP_IP"].ToString();
+
+                                    IPNetwork ipn = IPNetwork.Parse(kc);
+
+                                    var addresses = IPNetwork.ListIPAddress(ipn);
+
+                                    bool inside = false;
+                                    foreach (var address in addresses)
+                                    {
+                                        string addressx = address.ToString() + "/" + ipn.Cidr;
+                                        if (addressx == ipn.FirstUsable.ToString() + "/" + ipn.Cidr) inside = true;
+
+                                        if (inside)
+                                        {
+                                            if (addressx != kc)
+                                            {
+                                                pingto = address.ToString();
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                pingtodict.Add(kvp.Key, pingto);
+                                pingres.Add(kvp.Key, null);
+                            }
+                        }
+
+#region Live
+
+                        foreach (var kvp in pingtodict)
+                        {
+                            var pnname = pingrl[kvp.Key]["PN_Name"];
+
+                            var vpni = !pnname.IsNull ? pnname.ToString() : null;
+
+                            int loss = 0;
+                            int min = 0;
+                            int avg = 0;
+                            int max = 0;
+
+                            // ping max 3x, klo max udah dibawah 10ms, break aja
+                            for (var attempt = 0; attempt < 3; attempt++)
+                            {
+                                loss = 100;
+                                min = 0;
+                                avg = 0;
+                                max = 0;
+
+                                if (nodeManufacture == cso)
+                                {
+                                    if (nodeVersion == xr)
+                                    {
+                                        //>ping vrf VRF 118.98.94.170
+                                        Request(@$"ping {(vpni != null ? $"vrf {vpni} " : "")}{kvp.Value}", out lines, probe);
+
+                                        //Success rate is 100 percent (5/5), round-trip min/avg/max = 1/1/1 ms
+                                        foreach (var line in lines)
+                                        {
+                                            if (line.Trim().StartsWith("Success rate"))
+                                            {
+                                                //Success rate is 100 percent (5/5), round-trip min/avg/max = 1/1/1 ms
+                                                //01234567890123456789
+                                                //min/avg/max = 1/1/1 ms
+                                                //012345678901234
+                                                var dd = line.Trim().Substring(16);
+
+                                                var od = dd.Substring(0, dd.IndexOf(" "));
+
+                                                if (int.TryParse(od, out int succ))
+                                                {
+                                                    loss = 100 - succ;
+
+                                                    var mamindex = dd.IndexOf("min/avg/max = ");
+
+                                                    if (mamindex > -1)
+                                                    {
+                                                        var mam = dd.Substring(mamindex + 14);
+                                                        var omam = mam.Substring(0, mam.IndexOf(" ")).Split('/');
+
+                                                        min = int.Parse(omam[0]);
+                                                        avg = int.Parse(omam[1]);
+                                                        max = int.Parse(omam[2]);
+                                                    }
+                                                }
+
+                                            }
+                                        }
+                                    }
+                                }
+                                else if (nodeManufacture == hwe)
+                                {
+#region hwe
+
+                                    //>ping -vpn-instance Transit_Mix 118.98.94.170
+                                    Request(@$"ping {(vpni != null ? $"-vpn-instance {vpni} " : "")}{kvp.Value}", out lines, probe);
+
+                                    //    0.00% packet loss
+                                    // round-trip min/avg/max = 2/2/3 ms
+                                    foreach (var line in lines)
+                                    {
+                                        int idx;
+
+                                        if ((idx = line.IndexOf("packet loss")) > -1)
+                                        {
+                                            var dsad = line.Substring(0, idx).Trim('%', ' ');
+                                            loss = (int)double.Parse(dsad);
+                                        }
+                                        else if (line.IndexOf("round-trip") > -1)
+                                        {
+                                            var eqs = line.IndexOf('=');
+                                            var ms = line.IndexOf("ms");
+
+                                            var od = line.Substring(eqs + 1, ms - eqs - 1).Trim().Split('/');
+
+                                            min = int.Parse(od[0]);
+                                            avg = int.Parse(od[1]);
+                                            max = int.Parse(od[2]);
+                                        }
+                                    }
+
+#endregion
+                                }
+                                else if (nodeManufacture == jun)
+                                {
+
+                                }
+
+                               
+
+                                if (max < 10)
+                                {
+                                    break;
+                                }
+                            }
+
+                            pingres[kvp.Key] = (loss, min, avg, max);
+                        }
+
+                       
+
+#endregion
+
+#region Execute
+
+                        // insert ping
+
+                        batch.Begin();
+                        foreach (var kvp in pingres)
+                        {
+                            if (kvp.Value != null)
+                            {
+                                var tup = kvp.Value.Value;
+                                var dict = pingtodict[kvp.Key];
+                                var orow = pingrl[kvp.Key];
+
+                                Insert insert = j.Insert("ProbeActionResult");
+                                insert.Value("XZ_ID", Database2.ID());
+                                insert.Value("XZ_XY", kvp.Key);
+                                insert.Value("XZ_TimeStamp", orow["XY_StartTime"].ToDateTime());
+                                insert.Value("XZ_Ping", dict);
+                                insert.Value("XZ_PingMin", tup.Item2);
+                                insert.Value("XZ_PingMax", tup.Item4);
+                                insert.Value("XZ_PingAvg", tup.Item3);
+                                insert.Value("XZ_PingLoss", tup.Item1);
+                                batch.Add(insert);
+
+                                if (!orow["XY_Recurring"].IsNull && orow["XY_Recurring"] > 0)
+                                {
+                                    int rec = orow["XY_Recurring"];
+
+                                    Update update = j.Update("ProbeAction");
+                                    update.Set("XY_StartTime", orow["XY_StartTime"].ToDateTime() + TimeSpan.FromSeconds(rec));
+                                    update.Where("XY_ID", kvp.Key);
+                                    batch.Add(update);
+                                }
+                            }
+                        }
+                        batch.Commit();
+
+
+#endregion
+                    }
+                    else
+                        break;
+                }
+                while (true); // i cheat
+
+#endregion
+
+#region SHOW ROUTE
+
+                var routes = new List<(string, string, string)>();
+
+                if (nodeManufacture == cso)
+                {
+                    Request(@$"show route", out lines, probe);
+
+                    foreach (var line in lines)
+                    {
+                        //O E2 10.1.5.84/30 [110/0] via 118.98.61.17, 5d22h, Bundle-Ether100
+                        //O    61.5
+                        //012345
+                        if (line.IndexOf('[') > -1 && line.IndexOf(']') > -1 && line.IndexOf("via") > -1 && line.Length > 5)
+                        {
+                            var splix = line.Substring(5);
+                            var parts = splix.Split(' ');
+                            
+                            if (parts.Length >= 6)
+                            {
+                                var net = parts[0];
+                                var entah = parts[1];
+                                var via = parts[2];
+                                var vian = parts[3].TrimEnd(',');
+                                var timer = parts[4].TrimEnd(',');
+                                var ifta = parts[5];
+
+                                routes.Add((net, vian, ifta));
+                            }
+                        }
+                    }
+                }
+
+                j.Execute("delete from PERouteResult where PZ_NO = {0}", nodeID);
+
+                batch.Begin();
+                foreach (var route in routes)
+                {
+                    Insert insert = j.Insert("PERouteResult");
+                    insert.Key("PZ_ID");
+                    insert.Value("PZ_NO", nodeID);
+                    insert.Value("PZ_Network", route.Item1);
+                    insert.Value("PZ_Via", route.Item2);
+                    insert.Value("PZ_Interface", route.Item3);
+                    batch.Add(insert);
+                }
+                batch.Commit();
+
+#endregion
+            }
+
+            Event("END ACTION");
         }
 
         private ProbeProcessResult Enter(Row2 row, string probeProgressID, bool fromDeepNodeQueue, out bool continueProcess)
@@ -1837,169 +2204,29 @@ namespace Necrow
                 Update(UpdateTypes.NecrowVersion, Necrow.Version);
             }
 
-            #region CHECK ACCESS RULE
+#region CHECK ACCESS RULE
 
             nodeRules = j.QueryList("select * from NodeAccessRule where NAR_NO = {0}", "NAR_Rule", nodeID);
 
-            #endregion
+#endregion
 
-            #region CHECK IP
+#region CHECK IP
 
             if (nodeIP != null) Event("Host IP: " + nodeIP);
 
             Event("Checking host IP");
 
-            if (nodeType == "P" || nodeType == "M" || nodeType == "T")
+            if (!NodeName.StartsWith("*"))
             {
-                string resolvedIP = ResolveHostName(NodeName, false);
-
-                if (nodeIP == null)
+                if (nodeType == "P" || nodeType == "M" || nodeType == "T")
                 {
-                    if (resolvedIP == null)
+                    string resolvedIP = ResolveHostName(NodeName, false);
+
+                    if (nodeIP == null)
                     {
-                        Event("Hostname is unresolved");
-
-                        if (previousRemark == "UNRESOLVED1" && deltaTimeStamp > TimeSpan.FromHours(2))
+                        if (resolvedIP == null)
                         {
-                            Update(UpdateTypes.Remark, "UNRESOLVED2");
-                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(22));
-                        }
-                        else if (previousRemark == "UNRESOLVED2" && deltaTimeStamp > TimeSpan.FromHours(24))
-                        {
-                            Update(UpdateTypes.Remark, "UNRESOLVED3");
-                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
-                        }
-                        else if (previousRemark == "UNRESOLVED3" && deltaTimeStamp > TimeSpan.FromHours(48))
-                        {
-                            Update(UpdateTypes.Remark, "UNRESOLVED4");
-                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
-                        }
-                        else if (previousRemark == "UNRESOLVED4" && deltaTimeStamp > TimeSpan.FromHours(72))
-                        {
-                            Update(UpdateTypes.Remark, "UNRESOLVED5");
-                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
-                        }
-                        else if (previousRemark == "UNRESOLVED5" && deltaTimeStamp > TimeSpan.FromHours(96))
-                        {
-                            Update(UpdateTypes.Remark, "UNRESOLVED6");
-                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(72));
-                        }
-                        else if (previousRemark == "UNRESOLVED6" && deltaTimeStamp > TimeSpan.FromHours(168))
-                        {
-                            Update(UpdateTypes.Remark, "UNRESOLVED");
-                            necrow.DisableNode(nodeID);
-                        }
-                        else if (previousRemark == null || !previousRemark.StartsWith("UNRESOLVED"))
-                        {
-                            Update(UpdateTypes.Remark, "UNRESOLVED1");
-                            necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(2));
-                        }
-                        else Update(UpdateTypes.Remark, previousRemark);
-
-                        Save();
-                        return probe;
-                    }
-                    else
-                    {
-                        Event("Resolved Host IP: " + resolvedIP);
-                        nodeIP = resolvedIP;
-                        Update(UpdateTypes.IP, nodeIP);
-                    }
-                }
-                else
-                {
-                    if (resolvedIP == null)
-                    {
-                        Event("Hostname is unresolved");
-
-                        // reverse ip?
-                        Event("Resolving by reverse host name");
-                        string hostName = ResolveHostName(nodeIP, true);
-
-                        if (hostName != null)
-                        {
-                            result = j.Query("select * from Node where NO_Name = {0}", hostName);
-
-                            if (result.Count == 0)
-                            {
-                                Event("Node " + NodeName + " has changed to " + hostName);
-                                if (!NecrowVirtualization.AliasExists(NodeName))
-                                {
-                                    j.Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})", Database2.ID(), nodeID, NodeName);
-                                    NecrowVirtualization.AliasLoad();
-                                }
-
-                                Update(UpdateTypes.Name, hostName);
-
-                                // Update interface virtualizations
-                                if (nodeType == "P" || nodeType == "T")
-                                {
-                                    Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> changeThis = null;
-                                    List<Tuple<string, string, string, string, string, string, string>> interfaces = null;
-                                    lock (NecrowVirtualization.PESync)
-                                    {
-                                        foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> entry in NecrowVirtualization.PEPhysicalInterfaces)
-                                        {
-                                            if (entry.Item1 == NodeName)
-                                            {
-                                                changeThis = entry;
-                                                break;
-                                            }
-                                        }
-                                        if (changeThis != null)
-                                        {
-                                            NecrowVirtualization.PEPhysicalInterfaces.Remove(changeThis);
-                                            interfaces = changeThis.Item2;
-                                        }
-                                        else interfaces = new List<Tuple<string, string, string, string, string, string, string>>();
-
-                                        NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(hostName, interfaces));
-                                        NecrowVirtualization.PEPhysicalInterfacesSort();
-                                    }
-                                }
-                                else if (nodeType == "M")
-                                {
-                                    Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> changeThis = null;
-                                    List<Tuple<string, string, string, string, string, string, string>> interfaces = null;
-                                    lock (NecrowVirtualization.MESync)
-                                    {
-                                        foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> entry in NecrowVirtualization.MEPhysicalInterfaces)
-                                        {
-                                            if (entry.Item1 == NodeName)
-                                            {
-                                                changeThis = entry;
-                                                break;
-                                            }
-                                        }
-                                        if (changeThis != null)
-                                        {
-                                            NecrowVirtualization.MEPhysicalInterfaces.Remove(changeThis);
-                                            interfaces = changeThis.Item2;
-                                        }
-                                        else interfaces = new List<Tuple<string, string, string, string, string, string, string>>();
-
-                                        NecrowVirtualization.MEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(hostName, interfaces));
-                                        NecrowVirtualization.MEPhysicalInterfacesSort();
-                                    }
-                                }
-
-                                NodeName = hostName;
-                            }
-                            else
-                            {
-                                Event("Node " + NodeName + " has new name " + hostName + ". " + hostName + " is already exists.");
-                                Event("Mark this node as inactive");
-
-                                Update(UpdateTypes.Remark, "NAMECONFLICTED");
-                                necrow.DisableNode(nodeID);
-
-                                Save();
-                                return probe;
-                            }
-                        }
-                        else
-                        {
-                            Event("Hostname has become unresolved");
+                            Event("Hostname is unresolved");
 
                             if (previousRemark == "UNRESOLVED1" && deltaTimeStamp > TimeSpan.FromHours(2))
                             {
@@ -2041,23 +2268,167 @@ namespace Necrow
                             Save();
                             return probe;
                         }
+                        else
+                        {
+                            Event("Resolved Host IP: " + resolvedIP);
+                            nodeIP = resolvedIP;
+                            Update(UpdateTypes.IP, nodeIP);
+                        }
                     }
-                    else if (nodeIP != resolvedIP)
+                    else
                     {
-                        Event("Host IP has changed to: " + resolvedIP);
-                        Update(UpdateTypes.IP, resolvedIP);
-                        nodeIP = resolvedIP;
+                        if (resolvedIP == null)
+                        {
+                            Event("Hostname is unresolved");
+
+                            // reverse ip?
+                            Event("Resolving by reverse host name");
+                            string hostName = ResolveHostName(nodeIP, true);
+
+                            if (hostName != null)
+                            {
+                                result = j.Query("select * from Node where NO_Name = {0}", hostName);
+
+                                if (result.Count == 0)
+                                {
+                                    Event("Node " + NodeName + " has changed to " + hostName);
+                                    if (!NecrowVirtualization.AliasExists(NodeName))
+                                    {
+                                        j.Execute("insert into NodeAlias(NA_ID, NA_NO, NA_Name) values({0}, {1}, {2})", Database2.ID(), nodeID, NodeName);
+                                        NecrowVirtualization.AliasLoad();
+                                    }
+
+                                    Update(UpdateTypes.Name, hostName);
+
+                                    // Update interface virtualizations
+                                    if (nodeType == "P" || nodeType == "T")
+                                    {
+                                        Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> changeThis = null;
+                                        List<Tuple<string, string, string, string, string, string, string>> interfaces = null;
+                                        lock (NecrowVirtualization.PESync)
+                                        {
+                                            foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> entry in NecrowVirtualization.PEPhysicalInterfaces)
+                                            {
+                                                if (entry.Item1 == NodeName)
+                                                {
+                                                    changeThis = entry;
+                                                    break;
+                                                }
+                                            }
+                                            if (changeThis != null)
+                                            {
+                                                NecrowVirtualization.PEPhysicalInterfaces.Remove(changeThis);
+                                                interfaces = changeThis.Item2;
+                                            }
+                                            else interfaces = new List<Tuple<string, string, string, string, string, string, string>>();
+
+                                            NecrowVirtualization.PEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(hostName, interfaces));
+                                            NecrowVirtualization.PEPhysicalInterfacesSort();
+                                        }
+                                    }
+                                    else if (nodeType == "M")
+                                    {
+                                        Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> changeThis = null;
+                                        List<Tuple<string, string, string, string, string, string, string>> interfaces = null;
+                                        lock (NecrowVirtualization.MESync)
+                                        {
+                                            foreach (Tuple<string, List<Tuple<string, string, string, string, string, string, string>>> entry in NecrowVirtualization.MEPhysicalInterfaces)
+                                            {
+                                                if (entry.Item1 == NodeName)
+                                                {
+                                                    changeThis = entry;
+                                                    break;
+                                                }
+                                            }
+                                            if (changeThis != null)
+                                            {
+                                                NecrowVirtualization.MEPhysicalInterfaces.Remove(changeThis);
+                                                interfaces = changeThis.Item2;
+                                            }
+                                            else interfaces = new List<Tuple<string, string, string, string, string, string, string>>();
+
+                                            NecrowVirtualization.MEPhysicalInterfaces.Add(new Tuple<string, List<Tuple<string, string, string, string, string, string, string>>>(hostName, interfaces));
+                                            NecrowVirtualization.MEPhysicalInterfacesSort();
+                                        }
+                                    }
+
+                                    NodeName = hostName;
+                                }
+                                else
+                                {
+                                    Event("Node " + NodeName + " has new name " + hostName + ". " + hostName + " is already exists.");
+                                    Event("Mark this node as inactive");
+
+                                    Update(UpdateTypes.Remark, "NAMECONFLICTED");
+                                    necrow.DisableNode(nodeID);
+
+                                    Save();
+                                    return probe;
+                                }
+                            }
+                            else
+                            {
+                                Event("Hostname has become unresolved");
+
+                                if (previousRemark == "UNRESOLVED1" && deltaTimeStamp > TimeSpan.FromHours(2))
+                                {
+                                    Update(UpdateTypes.Remark, "UNRESOLVED2");
+                                    necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(22));
+                                }
+                                else if (previousRemark == "UNRESOLVED2" && deltaTimeStamp > TimeSpan.FromHours(24))
+                                {
+                                    Update(UpdateTypes.Remark, "UNRESOLVED3");
+                                    necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
+                                }
+                                else if (previousRemark == "UNRESOLVED3" && deltaTimeStamp > TimeSpan.FromHours(48))
+                                {
+                                    Update(UpdateTypes.Remark, "UNRESOLVED4");
+                                    necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
+                                }
+                                else if (previousRemark == "UNRESOLVED4" && deltaTimeStamp > TimeSpan.FromHours(72))
+                                {
+                                    Update(UpdateTypes.Remark, "UNRESOLVED5");
+                                    necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(24));
+                                }
+                                else if (previousRemark == "UNRESOLVED5" && deltaTimeStamp > TimeSpan.FromHours(96))
+                                {
+                                    Update(UpdateTypes.Remark, "UNRESOLVED6");
+                                    necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(72));
+                                }
+                                else if (previousRemark == "UNRESOLVED6" && deltaTimeStamp > TimeSpan.FromHours(168))
+                                {
+                                    Update(UpdateTypes.Remark, "UNRESOLVED");
+                                    necrow.DisableNode(nodeID);
+                                }
+                                else if (previousRemark == null || !previousRemark.StartsWith("UNRESOLVED"))
+                                {
+                                    Update(UpdateTypes.Remark, "UNRESOLVED1");
+                                    necrow.PendingNode(this, probeProgressID, TimeSpan.FromHours(2));
+                                }
+                                else Update(UpdateTypes.Remark, previousRemark);
+
+                                Save();
+                                return probe;
+                            }
+                        }
+                        else if (nodeIP != resolvedIP)
+                        {
+                            Event("Host IP has changed to: " + resolvedIP);
+                            Update(UpdateTypes.IP, resolvedIP);
+                            nodeIP = resolvedIP;
+                        }
                     }
+
                 }
-            }
-            else if (nodeType == "F")
-            {
-                if (nodeIP == null)
+                else if (nodeType == "F")
                 {
-                    Update(UpdateTypes.Remark, "UNRESOLVED");
-                    necrow.DisableNode(nodeID);
-                    Save();
-                    return probe;
+                    if (nodeIP == null)
+                    {
+                        Update(UpdateTypes.Remark, "UNRESOLVED");
+                        necrow.DisableNode(nodeID);
+                        Save();
+                        return probe;
+                    }
                 }
             }
 
@@ -2065,14 +2436,14 @@ namespace Necrow
 
             outputIdentifier = NodeName;
 
-            #endregion
+#endregion
 
-            #region MANUFACTURE
+#region MANUFACTURE
 
             // check node manufacture
             bool checkNodeManufacture = false;
 
-            if (nodeManufacture == alu || nodeManufacture == cso || nodeManufacture == hwe || nodeManufacture == jun)
+            if (nodeManufacture == alu || nodeManufacture == cso || nodeManufacture == hwe || nodeManufacture == jun || nodeManufacture == zte)
             {
                 Event("Manufacture: " + nodeManufacture + "");
                 if (nodeModel != null) Event("Model: " + nodeModel);
@@ -2085,9 +2456,9 @@ namespace Necrow
                 Event("Manufacture: Unknown");
             }
 
-            #endregion
+#endregion
 
-            #region CONNECT
+#region CONNECT
 
             string connectType = null;
             string connectBy = null;
@@ -2152,18 +2523,16 @@ namespace Necrow
                     {
                         WaitUntilTerminalReady();
 
-                        string testOtherNode;
-
-                        if (NodeName == "PE2-D2-CKA-VPN") testOtherNode = "PE-D2-CKA-VPN";
-                        else testOtherNode = "PE2-D2-CKA-VPN";
+                        string testOtherNode = NodeName == "ME-D2-SPU" ? "ME-D2-GPI" : "ME-D2-SPU";
+                        string testOtherNodeManufacture = alu;
 
                         Event("Trying to connect to other node...(" + testOtherNode + ")");
 
-                        bool testConnected = ConnectByTelnet(testOtherNode, cso);
+                        bool testConnected = ConnectByTelnet(testOtherNode, testOtherNodeManufacture);
 
                         if (testConnected)
                         {
-                            Exit(cso);
+                            Exit(testOtherNodeManufacture);
                             outputIdentifier = null;
 
                             if (tacacWasNotOkay)
@@ -2180,8 +2549,11 @@ namespace Necrow
                             outputIdentifier = null;
                             Event("Connection failed, TACAC server is possible overloaded/error/not responding.");
 
+                            if (LastOutput.Length > 50)
+                                Event(LastOutput.Substring(LastOutput.Length - 50));
+
                             int time = 1;
-                            #region time
+#region time
                             if (loop == 0)
                             {
                                 Event("Try again in 1 minute");
@@ -2206,7 +2578,7 @@ namespace Necrow
                                 Event("Try again in 1 hour");
                                 time = 60;
                             }
-                            #endregion
+#endregion
 
                             Thread.Sleep(60000 * time);
                             loop++;
@@ -2353,6 +2725,12 @@ namespace Necrow
                 string[] linex = lastLine.Split(new char[] { '@' }, StringSplitOptions.RemoveEmptyEntries);
                 terminal = linex[1];
             }
+            else if (nodeManufacture == zte)
+            {
+                lines = LastOutput.Split('\n');
+                string lastLine = lines[lines.Length - 1];
+                terminal = lastLine;
+            }
             else if (nodeManufacture == fho)
             {
                 lines = LastOutput.Split('\n');
@@ -2367,9 +2745,9 @@ namespace Necrow
             if (terminal != nodeTerminal) Update(UpdateTypes.Terminal, terminal);
             nodeTerminal = terminal;
 
-            #endregion
+#endregion
 
-            #region TIME
+#region TIME
 
             Event("Checking Time");
 
@@ -2388,7 +2766,7 @@ namespace Necrow
 
             if (nodeManufacture == alu)
             {
-                #region alu
+#region alu
 
                 if (Request("show system time", out lines, probe)) return probe;
 
@@ -2454,11 +2832,11 @@ namespace Necrow
                     }
                 }
 
-                #endregion
+#endregion
             }
             else if (nodeManufacture == cso)
             {
-                #region cso
+#region cso
                 if (Request("show clock", out lines, probe)) return probe;
 
                 foreach (string line in lines)
@@ -2475,20 +2853,19 @@ namespace Necrow
                     }
                 }
 
+                string tempNodeVersion = "IOS";
+
                 if (nodeVersion == null)
                 {
                     if (Request("show version | in IOS", out lines, probe)) return probe;
-
                     string sl = string.Join("", lines.ToArray());
-
-                    if (sl.IndexOf("Cisco IOS XR Software") > -1) nodeVersion = "XR";
-                    else nodeVersion = "IOS";
+                    if (sl.IndexOf("Cisco IOS XR Software") > -1) tempNodeVersion = "XR";
                 }
 
-                if (nodeVersion == xr)
+                if (tempNodeVersion == xr)
                 {
-                    #region xr
-                    if (Request("sh ver brief | in uptime", out lines, probe)) return probe;
+#region xr
+                    if (Request("sh ver | in uptime", out lines, probe)) return probe;
 
                     //sh ver brief | in uptime
                     foreach (string line in lines)
@@ -2525,11 +2902,11 @@ namespace Necrow
                             ignoreSecond = true;
                         }
                     }
-                    #endregion
+#endregion
                 }
                 else
                 {
-                    #region ios
+#region ios
                     if (Request("show version | in uptime", out lines, probe)) return probe;
 
                     //sh ver brief | in uptime
@@ -2568,14 +2945,14 @@ namespace Necrow
                         }
                     }
 
-                    #endregion
+#endregion
                 }
 
-                #endregion
+#endregion
             }
             else if (nodeManufacture == hwe)
             {
-                #region hwe
+#region hwe
                 if (Request("display clock", out lines, probe)) return probe;
 
                 foreach (string line in lines)
@@ -2584,8 +2961,7 @@ namespace Necrow
                     {
                         //2016-05-06 16:52:51+08:00
                         //0123456789012345678901234
-                        string[] ps = line.Split('+');
-                        string date = ps[0].Trim();
+                        string date = line.Substring(0, 19).Trim();
                         if (DateTime.TryParseExact(date, "yyyy-MM-dd HH:mm:ss", null, DateTimeStyles.None, out nodeTime))
                         {
                             nodeTimeRetrieved = true;
@@ -2634,11 +3010,11 @@ namespace Necrow
                     }
                 }
 
-                #endregion
+#endregion
             }
             else if (nodeManufacture == jun)
             {
-                #region jun
+#region jun
                 if (Request("show system uptime", out junShowSystemUptimeLines, probe)) return probe;
 
                 foreach (string line in junShowSystemUptimeLines)
@@ -2664,13 +3040,38 @@ namespace Necrow
                     }
                 }
 
+#endregion
+            }
+            else if (nodeManufacture == zte)
+            {
+                #region zte
+
+                //15:59:47 WIB Tue Feb 21 2023
+                //0        1   2   3   4  5
+                if (Request("show clock", out lines, probe)) return probe;
+
+                foreach (string line in lines)
+                {
+                    string lineTrim = line.Trim(new char[] { '*', ' ', '.' });
+                    if (lineTrim.Length > 0 && char.IsDigit(lineTrim[0]))
+                    {
+                        string[] pt = line.Split(' ');
+                        string form = string.Format("{0} {1} {2} {3}", pt[0], pt[3], pt[4], pt[5]);
+                        if (DateTime.TryParseExact(form, "HH:mm:ss MMM d yyyy", null, DateTimeStyles.None, out nodeTime)) { nodeTimeRetrieved = true; }
+                        break;
+                    }
+                }
+
+
+
+
                 #endregion
             }
             else if (nodeManufacture == fho)
             {
-                #region fho
+#region fho
 
-                #endregion
+#endregion
             }
 
             if (!nodeTimeRetrieved)
@@ -2718,9 +3119,9 @@ namespace Necrow
                 Event("Node is still up since last time, last start up: " + currentNodeStartUp.ToString("yyyy/MM/dd HH:mm:ss") + " UTC");
             }
 
-            #endregion
+#endregion
 
-            #region TERMINAL SETUP
+#region TERMINAL SETUP
 
             Event("Setup terminal");
 
@@ -2757,6 +3158,7 @@ namespace Necrow
             }
             else if (nodeManufacture == jun)
             {
+                if (Request("set cli screen-width 0", out lines, probe)) return probe;
                 if (Request("set cli screen-length 0", out lines, probe)) return probe;
 
                 foreach (string line in lines)
@@ -2765,12 +3167,16 @@ namespace Necrow
                 }
             }
 
-            #endregion
+#endregion
 
-            #region CHASSIS
+#region CHASSIS
 
             if (nodeVersion == null || nodeModel == null || updatingNecrow || prioritizeProcess)
                 checkChassis = true;
+
+#if DEBUG
+            checkChassis = true;
+#endif
 
             if (checkChassis)
             {
@@ -2780,12 +3186,11 @@ namespace Necrow
                 string subVersion = null;
                 string model = null;
 
-
                 Dictionary<string, NodeSlotData> slotlive = new Dictionary<string, NodeSlotData>();
                 Dictionary<string, Row2> slotdb = j.QueryDictionary("select * from NodeSlot where NC_NO = {0}", delegate (Row2 slotr)
                 {
 
-                    return slotr["NC_Slot1"].ToString() + "-" + slotr["NC_Slot2"].ToString("") + "-" + slotr["NC_Slot3"].ToString("");
+                    return slotr["NC_Slot1"].ToString() + "-" + slotr["NC_Slot2"].ToString("") + "-" + slotr["NC_Slot3"].ToString("") + "-" + slotr["NC_Slot4"].ToString("");
                 }, nodeID);
                 if (slotdb == null) return DatabaseFailure(probe);
                 List<NodeSlotData> slotinsert = new List<NodeSlotData>();
@@ -2796,7 +3201,7 @@ namespace Necrow
 
                 if (nodeManufacture == alu)
                 {
-                    #region alu
+#region alu
                     if (Request("show version | match TiMOS", out lines, probe)) return probe;
 
                     foreach (string line in lines)
@@ -2933,7 +3338,7 @@ namespace Necrow
 
                                     current = li;
 
-                                    string key = nc1 + "-" + (nc2 > -1 ? nc2 + "-" : "-");
+                                    string key = nc1 + "-" + (nc2 > -1 ? nc2: "") + "--";
 
                                     slotlive.Add(key, li);
                                 }
@@ -2961,11 +3366,11 @@ B      sfm-80g                           up    up                      Standby
                         }
                     }
 
-                    #endregion
+#endregion
                 }
                 else if (nodeManufacture == hwe)
                 {
-                    #region hwe
+#region hwe
                     if (Request("display version | in VRP|HUAWEI", out lines, probe)) return probe;
 
                     foreach (string line in lines)
@@ -3039,7 +3444,7 @@ B      sfm-80g                           up    up                      Standby
                                         li.Info = tokens[1].Trim();
                                         li.LastStartUp = startuptime;
 
-                                        slotlive.Add(nc1 + "--", li);
+                                        slotlive.Add(nc1 + "---", li);
 
                                         nc1 = -1;
                                     }
@@ -3174,7 +3579,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
 
                                     if (nc1 > -1)
                                     {
-                                        string key = nc1 + "-" + (nc2 > -1 ? nc2 + "-" : "-");
+                                        string key = nc1 + "-" + (nc2 > -1 ? nc2 : "") + "--";
 
                                         if (slotlive.ContainsKey(key))
                                         {
@@ -3233,24 +3638,54 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                         }
                     }
 
-                    #endregion
+#endregion
                 }
                 else if (nodeManufacture == cso)
                 {
-                    #region cso
-                    if (Request("show version | in IOS", out lines, probe)) return probe;
+#region cso
+                    if (Request("show vers | in \"IOS|Chassis\"", out lines, probe)) return probe;
 
-                    string sl = string.Join("", lines.ToArray());
+                    string ciscoIOS = null;
+                    string chassis = null;
 
-                    if (sl.IndexOf("Cisco IOS XR Software") > -1)
+                    foreach (var line in lines)
                     {
-                        // ASR
-                        model = "ASR";
+                        if (line.IndexOf("Cisco IOS XR Software") > -1)
+                            ciscoIOS = line;
+                        else if (line.IndexOf(" Chassis") > 0)
+                            chassis = line;
+                    }
+                                        
+
+                    if (ciscoIOS != null)
+                    {
                         version = "XR";
-                        int iv = sl.IndexOf("Version");
+
+                        if (chassis != null)
+                        {
+                            var lend = chassis.Substring(0, chassis.IndexOf(" Chassis")).Trim();
+
+                            var ciscoSeries = "Cisco CRS Series ";
+
+                            if (lend.StartsWith(ciscoSeries))
+                                lend = $"CRS {lend.Substring(ciscoSeries.Length)}";
+
+                            var mos = lend.Split(' ', '-');
+
+                            if (mos.Length == 1)
+                                model = $"{mos[0]}";
+                            else
+                                model = $"{mos[0]} {mos[1]}";
+
+                        }
+                        else
+                            model = "ASR/CRS";
+
+                        
+                        int iv = ciscoIOS.IndexOf("Version");
                         if (iv > -1)
                         {
-                            string ivonw = sl.Substring(iv + 7).Trim();
+                            string ivonw = ciscoIOS.Substring(iv + 7).Trim();
                             if (ivonw.Length > 0)
                             {
                                 iv = ivonw.IndexOf('[');
@@ -3262,9 +3697,108 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                                 }
                             }
                         }
+
+                        if (Request("show inventory all", out lines, probe)) return probe;
+                        //NAME: "module 0/RSP0/CPU0", DESCR: "ASR9K Route Switch Processor with 440G/slot Fabric and 12GB"
+                        //PID: A9K-RSP440-SE, VID: V06, SN: FOC1945NSL3
+                        string cname, cdesc, cpid, cvid, csn;
+
+                        NodeSlotData current = null;
+
+                        foreach (string line in lines)
+                        {
+                            if (line.StartsWith("NAME:"))
+                            {
+                                current = null;
+
+                                var q1 = line.IndexOf('"');
+                                var q2 = line.IndexOf('"', q1 + 1);
+                                cname = line.Substring(q1 + 1, q2 - (q1 + 1));
+                                var q3 = line.IndexOf('"', q2 + 1);
+                                var q4 = line.IndexOf('"', q3 + 1);
+                                cdesc = line.Substring(q3 + 1, q4 - (q3 + 1));
+                                
+                                if (cname.Length > 0)
+                                {
+                                    var kens = cname.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
+
+                                    foreach (var ken in kens)
+                                    {
+                                        if (ken.IndexOf('/') > -1)
+                                        {
+                                            var nif = NetworkInterface.Parse(ken);
+
+                                            string neken;
+
+                                            if (nif != null)
+                                                neken = nif.PortName;
+                                            else
+                                                neken = ken;
+
+                                            var codx = neken.Split('/');
+                                            var lulus = true;
+                                            var stash = new List<int>();
+
+                                            foreach (var cod in codx)
+                                            {
+                                                if (int.TryParse(cod, out int codp))
+                                                {
+                                                    stash.Add(codp);
+                                                }
+                                                else
+                                                {
+                                                    lulus = false;
+                                                    break;
+                                                }
+                                            }
+
+                                            if (lulus)
+                                            {
+                                                current = new NodeSlotData
+                                                {
+                                                    Slot1 = stash[0],
+                                                    Slot2 = stash.Count > 1 ? stash[1] : null,
+                                                    Slot3 = stash.Count > 2 ? stash[2] : null,
+                                                    Slot4 = stash.Count > 3 ? stash[3] : null,
+                                                    Info = cdesc.Length > 0 ? cdesc : null
+                                                };
+
+                                                string key = $"{current.Slot1}-{current.Slot2}-{current.Slot3}-{current.Slot4}";
+
+                                                slotlive.Add(key, current);
+
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            else if (current != null && line.StartsWith("PID:"))
+                            {
+                                var kens = line.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+                                foreach (var ken in kens)
+                                {
+                                    var kenx = ken.Split(':');
+                                    if (kenx.Length == 2)
+                                    {
+                                        var keyx = kenx[0].Trim();
+                                        var valuex = kenx[1].Trim();
+
+                                        if (keyx == "PID")
+                                            current.Type = valuex != "N/A" ? valuex : null;
+                                        else if (keyx == "VID")
+                                            current.Board = valuex != "N/A" ? valuex : null;
+                                        else if (keyx == "SN")
+                                            current.Serial = valuex != "N/A" ? valuex : null;
+                                    }
+                                }
+                            }
+                        }
                     }
                     else
                     {
+                        var sl = string.Join("", lines);
+
                         // IOS
                         version = "IOS";
 
@@ -3296,11 +3830,11 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                             model = imod.Substring(iod);
                         }
                     }
-                    #endregion
+#endregion
                 }
                 else if (nodeManufacture == jun)
                 {
-                    #region jun
+#region jun
                     //Model: mx960
                     //Junos: 16.1R4-S1.3
                     if (Request("show version | match \"Junos:|JUNOS Base OS boot|Model\"", out lines, probe)) return probe;
@@ -3321,7 +3855,90 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                             model = line.Substring(line.IndexOf("Model: ") + 7).Trim();
                         }
                     }
-                    #endregion
+
+                    if (Request("show chassis hardware", out lines, probe)) return probe;
+                    /*
+Item             Version  Part number  Serial number     Description
+01234567890123456789012345678901234567890123456789012345678901234567890123456789
+          1         2         3         4         5         6
+CB 2             REV 07   750-062572   CAHN0755          Enhanced MX SCB 2
+FPC 0            REV 43   750-056519   CAJP2583          MPC7E 3D MRATE-12xQSFPP-XGE-XLGE-CGE
+  CPU            REV 20   750-057177   CAJK1946          SMPC PMB
+  PIC 0                   BUILTIN      BUILTIN           MRATE-6xQSFPP-XGE-XLGE-CGE
+    Xcvr 2       REV 01   740-058732   1GTQA4460H9       QSFP-100GBASE-LR4
+    Xcvr 5       REV 01   740-058732   1DJQA223077       QSFP-100GBASE-LR4
+  PIC 1                   BUILTIN      BUILTIN           MRATE-6xQSFPP-XGE-XLGE-CGE
+    Xcvr 2       REV 01   740-058732   1DJQA22407S       QSFP-100GBASE-LR4
+    Xcvr 5       REV 01   740-058732   1DJQA223070       QSFP-100GBASE-LR4
+FPC 2            REV 57   750-053323   CAPZ6870          MPC7E 3D 40XGE
+  CPU            REV 22   750-057177   CAPZ2480          SMPC PMB
+  PIC 0                   BUILTIN      BUILTIN           20x10GE SFPP
+ 
+                     */
+
+
+                    //d.Info = null; //version
+                    //d.Serial = null; //serial
+                    //d.Type = null; // description
+                    //d.Board = null; // part number
+
+                    int fpc = -1;
+                    int pic = -1;
+                    int xcvr = -1;
+                    foreach (string line in lines)
+                    {
+                        var t = line.Tokenize(5, StringOperations.Trim, 0, 17, 26, 39, 57);
+                        if (t.Length == 5)
+                        {
+                            var item = t[0];
+                            var vers = t[1];
+                            var part = t[2];
+                            var sn = t[3];
+                            var desc = t[4];
+
+                            bool save = false;
+
+                            if (item.StartsWith("FPC"))
+                            {
+                                pic = -1;
+                                xcvr = -1;
+                                var prrx = item.Split(' ');
+                                if (prrx.Length == 2 && int.TryParse(prrx[1], out fpc)) save = true;
+                            }
+                            else if (item.StartsWith("PIC"))
+                            {
+                                xcvr = -1;
+                                var prrx = item.Split(' ');
+                                if (prrx.Length == 2 && int.TryParse(prrx[1], out pic)) save = true;
+                            }
+                            else if (item.ToLower().StartsWith("xcvr"))
+                            {
+                                var prrx = item.Split(' ');
+                                if (prrx.Length == 2 && int.TryParse(prrx[1], out xcvr)) save = true;
+                            }
+
+                            if (save)
+                            {
+                                var key = $"{(fpc > -1 ? fpc.ToString() : "")}-{(pic > -1 ? pic.ToString() : "")}-{(xcvr > -1 ? xcvr.ToString() : "")}-";
+
+
+                                NodeSlotData da = new NodeSlotData();
+                                da.Slot1 = fpc > -1 ? fpc : null;
+                                da.Slot2 = pic > -1 ? pic : null;
+                                da.Slot3 = xcvr > -1 ? xcvr : null;
+                                da.Type = desc;
+                                da.Info = vers.Length > 0 ? vers : null;
+                                da.Board = part;
+                                da.Serial = sn;
+
+                                slotlive.Add(key, da);
+                            }
+                        }
+                    }
+
+                    
+
+#endregion
                 }
 
                 if (nodeModel == null && model != null)
@@ -3354,7 +3971,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                     Event("SubVersion updated: " + subVersion);
                 }
 
-                #region Check
+#region Check
 
                 foreach (KeyValuePair<string, NodeSlotData> pair in slotlive)
                 {
@@ -3379,9 +3996,9 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                     }
                 }
 
-                #endregion
+#endregion
 
-                #region Execute
+#region Execute
 
                 // ADD
                 batch.Begin();
@@ -3393,6 +4010,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                     insert.Value("NC_Slot1", s.Slot1);
                     insert.Value("NC_Slot2", s.Slot2);
                     insert.Value("NC_Slot3", s.Slot3);
+                    insert.Value("NC_Slot4", s.Slot4);
                     insert.Value("NC_Type", s.Type);
                     insert.Value("NC_Board", s.Board);
                     insert.Value("NC_Info", s.Info);
@@ -3446,7 +4064,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                 if (!result) return DatabaseFailure(probe);
                 Event(result, EventActions.Delete, EventElements.Slot, false);
 
-                #endregion
+#endregion
 
                 Summary("CHASSIS_PROCESS_SLOT_MAX", maxSlot);
                 Summary("CHASSIS_PROCESS_SLOT_COUNT", curSlot);
@@ -3454,9 +4072,9 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
 
             Event("Version: " + nodeVersion + ((nodeSubVersion != null) ? ":" + nodeSubVersion : ""));
 
-            #endregion
+#endregion
 
-            #region LAST CONFIGURATION
+#region LAST CONFIGURATION
 
             Event("Checking Last Configuration");
 
@@ -3466,7 +4084,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
 
             if (nodeManufacture == alu)
             {
-                #region alu
+#region alu
                 if (Request("show system information | match \"Time Last Modified\"", out lines, probe)) return probe;
 
                 bool lastModified = false;
@@ -3530,11 +4148,11 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                         }
                     }
                 }
-                #endregion
+#endregion
             }
             else if (nodeManufacture == hwe)
             {
-                #region hwe
+#region hwe
 
                 if (nodeVersion.StartsWith("8"))
                 {
@@ -3544,18 +4162,32 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                     {
                         if (line.Length > 0 && char.IsDigit(line[0]))
                         {
+                            //1    1000005453   -                                                                roc5-kharisma   2021-01-28 10:33:45
                             //1    1000000583    -                    850106          2016-05-04 16:32:38+07:00
+                            //1    1000000809   -                                                                                2022-05-18 12:41:03+07:00       
                             //0123456789012345678901234567890123456789012345678901234567890123456789
                             //          1         2         3         4         5         6
                             string[] tokens = line.Split(StringSplitTypes.Space, StringSplitOptions.RemoveEmptyEntries);
 
-                            if (tokens.Length == 6)
-                            {
-                                string ps2 = tokens[4] + " " + tokens[5];
-                                string[] tokens2 = ps2.Split(new char[] { '+' }, StringSplitOptions.RemoveEmptyEntries);
-                                string ps = tokens2[0];
+                            string tanggal = null;
+                            string waktu = null;
 
-                                if (DateTime.TryParseExact(ps, "yyyy-MM-dd HH:mm:ss", null, DateTimeStyles.None, out lastConfLive)) lastConfLiveRetrieved = true;
+                            foreach (string token in tokens)
+                            {
+                                if (tanggal == null && token.Length == 10 && char.IsDigit(token[0]) && token.IndexOf("-") > -1)
+                                {
+                                    tanggal = token;
+                                }
+                                else if (tanggal != null && waktu == null && token.Length >= 8)
+                                {
+                                    waktu = token.Substring(0, 8);                                    
+                                }
+                            }
+
+
+                            if (tanggal != null && waktu != null)
+                            {
+                                if (DateTime.TryParseExact($"{tanggal} {waktu}", "yyyy-MM-dd HH:mm:ss", null, DateTimeStyles.None, out lastConfLive)) lastConfLiveRetrieved = true;
                                 break;
                             }
                         }
@@ -3609,14 +4241,14 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                         if (DateTime.TryParseExact(datesection.ToString(), "MMM dd yyyy HH:mm:ss", null, DateTimeStyles.None, out lastConfLive)) lastConfLiveRetrieved = true;
                     }
                 }
-                #endregion
+#endregion
             }
             else if (nodeManufacture == cso)
             {
-                #region cso
+#region cso
                 if (nodeVersion == xr)
                 {
-                    #region xr
+#region xr
                     if (Request("show configuration history commit last 1 | in commit", out lines, probe)) return probe;
 
                     foreach (string line in lines)
@@ -3644,11 +4276,11 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                             }
                         }
                     }
-                    #endregion
+#endregion
                 }
                 else
                 {
-                    #region ios
+#region ios
 
                     // because so many differences between IOS version, we might try every possible command
                     bool passed = false;
@@ -3766,6 +4398,9 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                         // and... if everything fail, we will use this slowlest command ever
                         if (Request("show run | in Last config", out lines, probe)) return probe;
 
+                        if (lines.Length == 1)
+                            if (Request("show configuration | in Last config", out lines, probe)) return probe;
+
                         foreach (string line in lines)
                         {
                             //! Last configuration change at 1
@@ -3795,13 +4430,13 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                         }
                     }
 
-                    #endregion
+#endregion
                 }
-                #endregion
+#endregion
             }
             else if (nodeManufacture == jun)
             {
-                #region jun
+#region jun
                 foreach (string line in junShowSystemUptimeLines)
                 {
                     if (line.StartsWith("Last configured: "))
@@ -3813,7 +4448,13 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                         break;
                     }
                 }
-                #endregion
+
+                if (!lastConfLiveRetrieved)
+                {
+                    lastConfLive = currentNodeStartUp;
+                    lastConfLiveRetrieved = true;
+                }
+#endregion
             }
 
             DateTime lastConfDB = row["NO_LastConfiguration"].ToDateTime();
@@ -3841,9 +4482,9 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                 Event("Configuration is up to date");
             }
 
-            #endregion
+#endregion
 
-            #region CPU / MEMORY
+#region CPU / MEMORY
 
             Event("Checking CPU / Memory"); //mengecek memory dan CPU 
 
@@ -3851,11 +4492,11 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
             int mtotal = -1;
             int mused = -1;
 
-            #region Live
+#region Live
 
             if (nodeManufacture == cso)
             {
-                #region cso
+#region cso
                 if (Request("show processes cpu | in CPU", out lines, probe)) return probe;
 
                 foreach (string line in lines)
@@ -3954,11 +4595,11 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                     }
                 }
 
-                #endregion
+#endregion
             }
             else if (nodeManufacture == alu)
             {
-                #region alu
+#region alu
                 if (Request("show system cpu | match \"Busiest Core\"", out lines, probe)) return probe;
 
                 foreach (string line in lines)
@@ -4014,11 +4655,11 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                     }
                 }
 
-                #endregion
+#endregion
             }
             else if (nodeManufacture == hwe)
             {
-                #region hwe
+#region hwe
                 if (Request("display cpu-usage", out lines, probe)) return probe;
 
                 foreach (string line in lines)
@@ -4088,11 +4729,11 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                         }
                     }
                 }
-                #endregion
+#endregion
             }
             else if (nodeManufacture == jun)
             {
-                #region jun
+#region jun
 
                 //show chassis routing-engine | match Idle
                 if (Request("show chassis routing-engine | match Idle", out lines, probe)) return probe;
@@ -4157,12 +4798,12 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                     }
                 }
 
-                #endregion
+#endregion
             }
 
-            #endregion
+#endregion
 
-            #region Check and Update
+#region Check and Update
 
             if (cpu > -1 && cpu < 100)
             {
@@ -4184,9 +4825,9 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                 Summary("MEMORY_USED", mused, false);
             }
 
-            #endregion
+#endregion
 
-            #endregion
+#endregion
 
             if (configurationHasChanged || fromDeepNodeQueue)
             {
@@ -4203,7 +4844,72 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
             }
             else
             {
+                // continueProcess should be false, now do the pending action
+                Action(probe);
                 SaveExit();
+            }
+
+            if (continueProcess)
+            {
+                /*
+                lines = new string[] { };
+
+                if (nodeManufacture == cso)
+                {
+                    if (Request("show run", out lines, probe)) return probe;
+                }
+                else if (nodeManufacture == hwe)
+                {
+                    if (Request("display current-configuration", out lines, probe)) return probe;
+                }
+                else if (nodeManufacture == alu)
+                {
+
+                    if (Request("admin display-config", out lines, probe)) return probe;
+                }
+                else if (nodeManufacture == jun)
+                {
+                    if (Request("show configuration", out lines, probe)) return probe;
+                }
+
+                var chars = 0;
+                var idx = 0;
+                var buffer = new StringBuilder();
+                foreach (var line in lines)
+                {
+                    var currentBufferLength = buffer.Length;
+                    var lineLength = line.Length + ((idx > 0) ? 1 : 0);
+
+                    if (currentBufferLength + lineLength > 1000)
+                    {
+                        if (chars == 0)
+                            j.Execute("update Node set NO_Run = {0} where NO_ID = {1}", buffer.ToString(), nodeID);
+                        else
+                            j.Execute("update Node set NO_Run = CONCAT(NO_Run, {0}) where NO_ID = {1}", buffer.ToString(), nodeID);
+
+                        chars += currentBufferLength;
+                        buffer.Clear();
+                    }
+
+                    if (idx > 0) buffer.Append("\n");
+                    buffer.Append(line);
+
+
+                    idx++;
+                }
+
+                if (buffer.Length > 0)
+                {
+                    if (chars == 0)
+                        j.Execute("update Node set NO_Run = {0} where NO_ID = {1}", buffer.ToString(), nodeID);
+                    else
+                        j.Execute("update Node set NO_Run = CONCAT(NO_Run, {0}) where NO_ID = {1}", buffer.ToString(), nodeID);
+
+                    chars += buffer.Length;
+                }
+
+                Event("Running Configuration updated (" + chars + " bytes)");
+                */
             }
 
             return probe;
@@ -4297,7 +5003,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
 
                             string s_id = null;
 
-                            #region se
+#region se
 
                             li.ServiceVID = vid;
 
@@ -4339,7 +5045,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                             li.ServiceImmediateID = s_id;
                         }
 
-                        #endregion
+#endregion
                     }
                 }
             }
@@ -4503,7 +5209,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
             Batch batch = j.Batch();
             Insert insert;
 
-            #region TO_PI
+#region TO_PI
 
             string neighborPEName = null;
             string neighborPEPart = null;
@@ -4534,7 +5240,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
             {
                 Tuple<string, string, string, string, string, string, string> matchedInterface = null;
 
-                #region Find Interface
+#region Find Interface
 
                 int leftMostFinding = neighborPEPart.Length;
 
@@ -4556,11 +5262,11 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                     }
                 }
 
-                #endregion
+#endregion
 
                 if (matchedInterface != null)
                 {
-                    #region Crosscheck with matched interface description
+#region Crosscheck with matched interface description
 
                     string matchedDescription = CleanDescription(matchedInterface.Item2, neighborPEName);
 
@@ -4605,7 +5311,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                         }
                     }
 
-                    #endregion
+#endregion
                 }
 
                 done = true;
@@ -4613,9 +5319,9 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
 
             if (done) return;
 
-            #endregion
+#endregion
 
-            #region TO_MI
+#region TO_MI
 
             string neighborMEName = null;
             string neighborMEPart = null;
@@ -4646,7 +5352,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
             {
                 Tuple<string, string, string, string, string, string, string> matchedInterface = null;
 
-                #region Find Interface
+#region Find Interface
 
                 int leftMostFinding = neighborMEPart.Length;
 
@@ -4668,11 +5374,11 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                     }
                 }
 
-                #endregion
+#endregion
 
                 if (matchedInterface != null)
                 {
-                    #region Crosscheck with matched interface description
+#region Crosscheck with matched interface description
 
                     string matchedDescription = CleanDescription(matchedInterface.Item2, neighborMEName);
 
@@ -4717,7 +5423,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                         }
                     }
 
-                    #endregion
+#endregion
                 }
 
                 done = true;
@@ -4725,9 +5431,9 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
 
             if (done) return;
 
-            #endregion
+#endregion
 
-            #region TO_NI
+#region TO_NI
 
             string findNeighborNode = null;
             string findNeighborPart = null;
@@ -4748,7 +5454,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
 
                         Tuple<string, string> matchedInterface = null;
 
-                        #region Find Interface
+#region Find Interface
 
                         int leftMostFinding = neighborPart.Length;
 
@@ -4768,7 +5474,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                             }
                         }
 
-                        #endregion
+#endregion
 
                         if (matchedInterface != null)
                         {
@@ -4883,7 +5589,7 @@ MPU 9           CR58MPUP10                               210305753110JB000077   
                 }
             }
 
-            #endregion
+#endregion
         }
 
         private readonly char[] cleanDescriptionAllowedCharacterForTrimStart = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z' };

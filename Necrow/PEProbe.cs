@@ -663,8 +663,8 @@ namespace Necrow
         {
             ProbeProcessResult probe = new ProbeProcessResult();
 
-            string[] lines = null;            
-            Batch batch = j.Batch();            
+            string[] lines = null;
+            Batch batch = j.Batch();
             Result2 result;
 
             Dictionary<string, DerivedRouteNetworkToDatabase> routeiplive = new Dictionary<string, DerivedRouteNetworkToDatabase>();
@@ -1074,7 +1074,7 @@ namespace Necrow
                     {
                         update = true;
                         u.UpdateRDIPv6 = true;
-                        u.RDIPv6 = li.RDIPv6;                        
+                        u.RDIPv6 = li.RDIPv6;
                         UpdateInfo(updateinfo, "RDv6", db["PN_RDv6"].ToString(), li.RDIPv6);
                     }
                     if (routeTargets != null)
@@ -1549,7 +1549,7 @@ Last input 00:00:00, output 00:00:00
 
                     // interface
                     if (Request("show interface | in \"line protocol|Description|802.1Q|Last input|input rate|output rate\"", out lines, probe)) return probe;
-                    
+
                     PEInterfaceToDatabase current = null;
                     NetworkInterface currentNif = null;
                     StringBuilder descriptionBuffer = null;
@@ -1591,9 +1591,17 @@ Last input 00:00:00, output 00:00:00
                                     }
                                     else
                                     {
+                                        if (current != null && descriptionBuffer != null) current.Description = descriptionBuffer.ToString().Trim();
+                                        descriptionBuffer = null;
+
                                         current = null;
                                         currentNif = null;
                                     }
+                                }
+                                else
+                                {
+                                    current = null;
+                                    currentNif = null;
                                 }
                             }
                             else if (current != null)
@@ -1602,7 +1610,7 @@ Last input 00:00:00, output 00:00:00
                                 if (linets.StartsWith("Description: "))
                                     descriptionBuffer = new StringBuilder(line.Substring(line.IndexOf("Description: ") + 13).TrimStart());
                                 else if (linets.StartsWith("Encapsulation "))
-                                {                                    
+                                {
                                     //  Encapsulation 802.1Q Virtual LAN, VLAN Id 55,  loopback not set,
                                     //                                    0123456789
                                     int vlanIdIndex = line.IndexOf("VLAN Id ");
@@ -2007,10 +2015,10 @@ Last input 00:00:00, output 00:00:00
                 else
                 {
                     #region ios
-                    
+
                     // interface
                     if (Request("show interface | in line protocol|Description|802.1Q|Last input|input rate|output rate", out lines, probe)) return probe;
-                    
+
                     PEInterfaceToDatabase current = null;
                     NetworkInterface currentNif = null;
                     StringBuilder descriptionBuffer = null;
@@ -2024,7 +2032,7 @@ Last input 00:00:00, output 00:00:00
                             {
                                 string name = firstLineTokens[0].Trim();
                                 NetworkInterface inf = NetworkInterface.Parse(name);
-                                
+
                                 if (inf != null)
                                 {
                                     string mid = firstLineTokens[1].Trim();
@@ -2321,7 +2329,7 @@ Last input 00:00:00, output 00:00:00
                                 }
                             }
                             else if (currentpolicy != null)
-                            {                                
+                            {
                                 NetworkInterface networkInterface = NetworkInterface.Parse(lineTrim);
 
                                 if (networkInterface != null)
@@ -2559,7 +2567,7 @@ Last input 00:00:00, output 00:00:00
 
                     // ip
                     if (Request("show ip interface | in Internet address|Secondary address|line protocol", out lines, probe)) return probe;
-                    
+
                     PEInterfaceToDatabase currentInterface = null;
                     int linen = 0;
                     int secondaryAddressCtr = 2;
@@ -2675,6 +2683,7 @@ Last input 00:00:00, output 00:00:00
                         if (splits.Length == 3)
                         {
                             string ifname = splits[0];
+
                             NetworkInterface nif = NetworkInterface.Parse(ifname, nodeManufacture);
                             if (nif != null)
                             {
@@ -2775,6 +2784,7 @@ Last input 00:00:00, output 00:00:00
                                             else if (value == "1g" || value == "1gbps" || value == "1000m" || value == "1000mbps") current.InterfaceType = "Gi";
                                             else if (value == "100m" || value == "100mbps") current.InterfaceType = "Fa";
                                             else if (value == "10m" || value == "10mbps") current.InterfaceType = "Et";
+                                            else if (value == "100gbps" || value == "100g") current.InterfaceType = "Hu";
                                             break;
                                         }
                                     }
@@ -3101,7 +3111,7 @@ Last input 00:00:00, output 00:00:00
                                         pid.Name = port;
                                         pid.Description = description.Length > 0 ? description.ToString() : null;
                                         pid.Status = (status == "up" || status == "up(s)");
-                                        pid.Protocol = (status == "up" || status == "up(s)");
+                                        pid.Protocol = (protocol == "up" || protocol == "up(s)");
                                         pid.Enable = (status != "*down");
                                         interfacelive.Add(port, pid);
                                     }
@@ -3130,7 +3140,7 @@ Last input 00:00:00, output 00:00:00
                                 {
                                     if (nif.Type == "Hu" || nif.Type == "Te") port = "Gi" + nif.PortName;
                                     else port = nif.Name;
-                                    
+
                                 }
                                 if (port != null) description.Append(line.Substring(47).TrimStart());
                             }
@@ -3257,7 +3267,7 @@ Last input 00:00:00, output 00:00:00
                         currentInterfaceToDatabase = null;
                     }
                 }
-                
+
                 if (Request("display interface brief", out lines, probe)) return probe;
 
                 begin = false;
@@ -3794,11 +3804,11 @@ Last input 00:00:00, output 00:00:00
 
                                                             pli.RouteNameID = li.RouteNameID;
                                                             pli.InterfaceID = nif.Name;
-                                                            pli.IPAddress = thiip;                                                            
+                                                            pli.IPAddress = thiip;
                                                             pli.Age = -1;
 
                                                             if (toks1 == "1")
-                                                            {    
+                                                            {
                                                                 if (!maclive.ContainsKey(pkey))
                                                                 {
                                                                     pli.MacAddress = pmac;
@@ -3822,7 +3832,7 @@ Last input 00:00:00, output 00:00:00
                                                 }
                                             }
                                         }
-                                    }                                    
+                                    }
                                 }
                             }
                         }
@@ -3831,7 +3841,7 @@ Last input 00:00:00, output 00:00:00
 
                 #endregion
             }
-            
+
             #endregion
 
             #region Check
@@ -4076,11 +4086,6 @@ Last input 00:00:00, output 00:00:00
                 }
 
                 li.EquipmentName = NetworkInterface.EquipmentName(nodeManufacture + (nodeManufacture == cso && nodeVersion == xr ? "XR" : ""), li.Name);
-
-                if (li.EquipmentName == null)
-                {
-                    Event("Debug");
-                }
 
                 if (!interfacedb.ContainsKey(pair.Key))
                 {
@@ -4367,10 +4372,10 @@ Last input 00:00:00, output 00:00:00
                     }
 
                     if (update)
-                    {                        
+                    {
                         Event("Interface UPDATE: " + pair.Key + " " + updateinfo.ToString());
                         interfaceupdate.Add(u);
-                        
+
                         if (u.IP != null)
                         {
                             foreach (string ip in u.IP.ToArray())
@@ -4386,12 +4391,15 @@ Last input 00:00:00, output 00:00:00
                                 string[] ipx = ip.Split(StringSplitTypes.Underscore);
                                 Event("- " + (ipx[0] == "0" ? "IPv4" : "IPv6") + " " + (ipx[1] == "1" ? "" : "secondary ") + ipx[2]);
                             }
+
+
                         }
                     }
                 }
             }
-            
+
             // NECROW 3.0
+            /*
             foreach (KeyValuePair<string, PEInterfaceToDatabase> pair in interfacelive)
             {
                 PEInterfaceToDatabase li = pair.Value;
@@ -4565,8 +4573,8 @@ Last input 00:00:00, output 00:00:00
                         }
                     }
                 }
-            }
-            
+            }*/
+
             Summary("INTERFACE_COUNT", sinf);
             Summary("INTERFACE_COUNT_UP", sinfup);
             Summary("INTERFACE_COUNT_HU", sinfhu);
@@ -4668,7 +4676,7 @@ Last input 00:00:00, output 00:00:00
             #endregion
 
             #region Execute
-            
+
             // ADD
             batch.Begin();
             List<Tuple<string, string>> interfaceTopologyPIUpdate = new List<Tuple<string, string>>();

@@ -61,10 +61,6 @@
       <Project>{be59c0c5-8b77-445f-88ed-d88a4eb7709e}</Project>
       <Name>Aphysoft.Share</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Athena\Athena.csproj">
-      <Project>{61484495-d20b-4202-9971-32b80984b507}</Project>
-      <Name>Athena</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Content Include="icon.ico" />

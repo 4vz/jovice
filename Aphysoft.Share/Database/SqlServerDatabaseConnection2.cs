@@ -77,7 +77,10 @@ namespace Aphysoft.Share
 
         public override string Escape(string str)
         {
-            return str.Replace("'", "''");
+            
+
+
+            return str.Replace("'", "''").Replace("\n", "' + CHAR(10) + '");
         }
 
         public override string Format(DateTime dateTime)

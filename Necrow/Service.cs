@@ -434,12 +434,12 @@ namespace Necrow
                                 if (fsip.Length == 3)
                                 {
                                     string first = fsip[0];
-                                    if (char.IsDigit(first[0]))
+                                    if (first.Length > 0 && char.IsDigit(first[0]))
                                     {
                                         if (first.Length == 1 || first.Length == 2 && char.IsDigit(first[1])) { }
                                         else probablySID = false;
                                     }
-                                    if (probablySID && !char.IsDigit(first[0]))
+                                    if (probablySID && first.Length > 0 && !char.IsDigit(first[0]))
                                     {
                                         if (first.Length >= 3 && (
                                             ListHelper.StartsWith(monthsEnglish, first) > -1 ||
@@ -449,12 +449,12 @@ namespace Necrow
                                         else probablySID = false;
                                     }
                                     string second = fsip[1];
-                                    if (probablySID && char.IsDigit(second[0]))
+                                    if (probablySID && second.Length > 0 && char.IsDigit(second[0]))
                                     {
                                         if (second.Length == 1 || second.Length == 2 && char.IsDigit(second[1])) { }
                                         else probablySID = false;
                                     }
-                                    if (probablySID && !char.IsDigit(second[0]))
+                                    if (probablySID && second.Length > 0 && !char.IsDigit(second[0]))
                                     {
                                         if (second.Length >= 3 && (
                                             ListHelper.StartsWith(monthsEnglish, second) > -1 ||
@@ -464,7 +464,7 @@ namespace Necrow
                                         else probablySID = false;
                                     }
                                     string third = fsip[2];
-                                    if (probablySID && char.IsDigit(second[0]))
+                                    if (probablySID && third.Length > 0 && char.IsDigit(third[0]))
                                     {
                                         if (third.Length == 2 && char.IsDigit(third[1])) { }
                                         else if (third.Length == 4 && char.IsDigit(third[1]) && char.IsDigit(third[2]) && char.IsDigit(third[3])) { }

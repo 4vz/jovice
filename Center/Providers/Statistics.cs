@@ -32,10 +32,10 @@ namespace Center.Providers
 
                 res = c.Query("SELECT count(*) FROM Session WHERE SS_Created > {0}", monthStart);
                 r.Connmtd = (int)(((double)res[0][0].ToInt() * 3.8)) + oxc + (int)Math.Round(10000 * (double)DateTime.UtcNow.Day/30);
-                r.Connytd = r.Connmtd + 9194 + 10828 + 12543 + 12264 + 12264 + 22919 + 40582 + 49008 + 60251 + 109104;
+                r.Connytd = r.Connmtd ;
                 res = c.Query("SELECT count(*) FROM SearchResult WHERE SR_Created > {0}", monthStart);
                 r.Quemtd = res[0][0];
-                res = c.Query("SELECT count(*) FROM SearchResult WHERE SR_Created > '2020-01-01 00:00:00'");
+                res = c.Query("SELECT count(*) FROM SearchResult WHERE SR_Created > '2021-01-01 00:00:00'");
                 r.Queytd = res[0][0];
                 res = p.Query("select count(*) from api_hitcounter where date > {0}", monthStart);
 

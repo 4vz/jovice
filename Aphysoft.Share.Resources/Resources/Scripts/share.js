@@ -9008,6 +9008,11 @@
             title = share.text(topBar)({ text: t.title != null ? t.title : "aphysoft.share", position: [60, 12], font: 21, color: 45, weight: "400" });
             titleLeftWidth = title.leftWidth() + 10;
 
+            var eightBox = share.box(topBar)({ color: "accent", cursor: "pointer", click: function () { document.location = "https://www.google.com/search?q=happy+birthday"; } });
+            var eight = share.text(eightBox)({ text: "8 YEARS!", cursor: "pointer", color: 90, font: 12, noBreak: true, position: [3, 3] });
+            eightBox.size(eight.width() + 6, eight.height() + 4);
+            eightBox.position(titleLeftWidth, 10);
+
             domainBox = share.box(topBar)({ left: titleLeftWidth, height: 48, hide: true });
             domain = share.text(domainBox)({ position: [13, 16], font: 16, color: 45, weight: "400", noBreak: true });
             var domainSeparator = share.box(domainBox)({ top: 12, height: 24, width: 1, color: 65 });
@@ -9298,10 +9303,14 @@
                     showTitle = _showTitle;
                                         
                     if (showTitle) {
-                        if (init) title.show();
+                        if (init) {
+                            title.show();
+                            eightBox.show();
+                        }
                         else {
                             if (!searchExpanded) {
                                 title.fadeIn(50);
+                                eightBox.fadeIn(50);
                             }
                         }
 
@@ -9310,8 +9319,14 @@
                         domainSeparator.show();
                     }
                     else {
-                        if (init) title.hide();
-                        else title.fadeOut(50);
+                        if (init) {
+                            title.hide();
+                            eightBox.hide();
+                        }
+                        else {
+                            title.fadeOut(50);
+                            eightBox.fadeOut(50);
+                        }
 
                         domainBox.left(title.left(), { duration: 150 });
                         if (init) domain.left(0);

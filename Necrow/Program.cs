@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+
+
+
 using System.IO;
 
 using Aphysoft.Share;
@@ -16,10 +19,12 @@ namespace Necrow
         {
 #if DEBUG
             //Apps.Service(new Necrow());
-            Apps.Service(new Necrow("PE-D2-JT2-HSI", ProbeTypes.Deep));
+            // Deep crawl
+            Apps.Service(new Necrow("ME9-D1-MDC-3", ProbeTypes.Deep));
 #else
             Apps.Service(new Necrow());
 #endif
+
         }
     }
     

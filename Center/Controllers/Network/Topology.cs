@@ -7,6 +7,7 @@ using System.Net;
 using System.Web;
 
 using Jovice;
+using System.Diagnostics;
 
 namespace Center
 {
@@ -103,7 +104,7 @@ order by n.NO_Active desc, a.PI_Status desc, a.PI_Protocol desc");
                 serviceType == "IT" ||
                 serviceType == "VI")
             {
-                #region EVERY SERVICES THAT STAR FROM A PE
+                #region EVERY SERVICES THAT START FROM A PE
 
                 if (r.Count == 0)
                 {
@@ -185,6 +186,7 @@ order by d.NO_Active desc, XPI_Name desc, cmc.MC_Status desc, cmc.MC_Protocol de
                 {
                     if (serviceType == "AB")
                     {
+                        //serviceType = "VP";
                         serviceType = "AS";
 
                         //Update update = Jovice.Database.Update("Service");
@@ -193,7 +195,7 @@ order by d.NO_Active desc, XPI_Name desc, cmc.MC_Status desc, cmc.MC_Protocol de
                         //update.Execute();
                     }
                 }
-
+                
                 int piIndex = 0;
                 foreach (Row2 row in r)
                 {
@@ -814,7 +816,7 @@ where m.MI_MI = {0} and m.MI_Aggregator is not null", row2["MI2_ID"].ToString())
 
                         #endregion
 
-                        if (serviceType == "VP" || serviceType == "TA" || serviceType == "AS" || serviceType == "AB")
+                        if (serviceType == "VP" || serviceType == "TA" || serviceType == "AS")
                         {
                             string nomiEnd1 = null;
                             if (remoteMCNOName != null && mi1Name != null)
@@ -827,7 +829,8 @@ where m.MI_MI = {0} and m.MI_Aggregator is not null", row2["MI2_ID"].ToString())
                             else
                             {
                                 if (piIndex0MI1 != nomiEnd1 || piIndex0MI1 == null || nomiEnd1 == null) break;
-                                else topologyPurposeCurrent = "BACKUP";
+                                else 
+                                    topologyPurposeCurrent = "BACKUP";
                             }
                         }
 
@@ -935,14 +938,14 @@ where PA_PI = {0}
 
                         if (topologyLocalAccess != null)
                         {
-                            r = Jovice.Database.Query(@"
+                            r3 = Jovice.Database.Query(@"
 select AR_Name, AW_Name, AG_Name
 from Area
 left join AreaWitel on AR_AW = AW_ID
 left join AreaGroup on AW_AG = AG_ID
 where AR_ID = {0}
 ", topologyLocalAccess);
-                            Row2 rowla = r[0];
+                            Row2 rowla = r3[0];
 
                             topologyLocalAccess = "STO " + rowla["AR_Name"].ToString().Trim() + ", WITEL " + rowla["AW_Name"].ToString().Trim() + ", " + rowla["AG_Name"].ToString().Trim();
                         }
@@ -1739,7 +1742,7 @@ where AR_ID = {0}
                 if (objects[12] != null) seLastCheck = (DateTime)objects[12];
 
                 if (DateTime.UtcNow - seLastCheck > TimeSpan.FromHours(1))
-                    OSS.RefreshOrder(sid, seID);
+                    OSS.RefreshOrder(sid, seID, "nossf");
 
                 foreach (Row2 ro in Jovice.Database.Query("select * from ServiceOrder where SO_SE = {0} order by SO_Created desc", seID))
                 {
